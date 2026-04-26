@@ -1,0 +1,17 @@
+{
+  "settings_nav": "Paramètres",
+  "settings_title": "Paramètres de l'application",
+  "settings_subtitle": "Gérez les préférences d'affichage et les indicateurs de fonctionnalités",
+  "settings_display": "Affichage",
+  "settings_density": "Densité d'affichage",
+  "settings_density_compact": "Compact",
+  "settings_density_comfortable": "Confortable",
+  "settings_density_spacious": "Spacieux",
+  "settings_page_size": "Taille de page par défaut",
+  "settings_features": "Indicateurs de fonctionnalités",
+  "settings_feature_enabled": "Activé",
+  "settings_feature_disabled": "Désactivé",
+  "settings_reset": "Réinitialiser les paramètres",
+  "settings_reset_confirm": "Cela réinitialisera tous les paramètres d'affichage à leurs valeurs par défaut.",
+  "settings_saved": "Paramètres enregistrés"
+}

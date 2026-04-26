@@ -1,0 +1,341 @@
+/*
+ * Blueprint theme — Vintage Technical Schematic on Aged Squared Paper
+ * Evokes yellowed quadrille notebook pages, sepia drafting ink,
+ * hand-drawn engineering schematics with precise grid lines.
+ * WCAG AA: primary-600 on surface-50 ≥ 5.2:1, surface-900 on surface-50 ≥ 12:1
+ * Dark mode: surface-900 (#e8dfc8) on surface-950 (#11100a) ≥ 11:1
+ * Apply by adding class="theme-blueprint" to <html>
+ */
+:root.theme-blueprint {
+  /* Primary — Dark Sepia Ink (high contrast on cream) */
+  --color-primary-50: #faf5eb;
+  --color-primary-100: #f2e6d0;
+  --color-primary-200: #e4cb9e;
+  --color-primary-300: #d2a96a;
+  --color-primary-400: #b8863e;
+  --color-primary-500: #8c6420;
+  --color-primary-600: #6e4e18;
+  --color-primary-700: #553c13;
+  --color-primary-800: #3d2b0e;
+  --color-primary-900: #2c1e09;
+  --color-primary-950: #1a1105;
+
+  /* Secondary — Blueprint Blue (annotation ink) */
+  --color-secondary-50: #eef3fa;
+  --color-secondary-100: #d5e2f2;
+  --color-secondary-200: #adc6e6;
+  --color-secondary-300: #7da4d4;
+  --color-secondary-400: #5484bf;
+  --color-secondary-500: #3a66a0;
+  --color-secondary-600: #2d5083;
+  --color-secondary-700: #233d66;
+  --color-secondary-800: #1c314f;
+  --color-secondary-900: #152540;
+  --color-secondary-950: #0d1728;
+
+  /* Accent — Aged Red Ink (corrections & highlights) */
+  --color-accent-50: #fdf3f0;
+  --color-accent-100: #f9e0d8;
+  --color-accent-200: #f2c1b0;
+  --color-accent-300: #e69878;
+  --color-accent-400: #d4714a;
+  --color-accent-500: #b65530;
+  --color-accent-600: #943f22;
+  --color-accent-700: #73311a;
+  --color-accent-800: #582616;
+  --color-accent-900: #431d12;
+  --color-accent-950: #2a100a;
+
+  /* Surface — Aged Yellowed Parchment */
+  --color-surface-50: #f8f3e6;
+  --color-surface-100: #f2ebd6;
+  --color-surface-200: #e8ddbf;
+  --color-surface-300: #d9ca9f;
+  --color-surface-400: #c0ac78;
+  --color-surface-500: #9a8856;
+  --color-surface-600: #766840;
+  --color-surface-700: #574c2f;
+  --color-surface-800: #3c3520;
+  --color-surface-900: #272215;
+  --color-surface-950: #15120b;
+
+  /* Typography — vintage print stack */
+  --font-sans: 'Bookman Old Style', 'Palatino Linotype', 'Book Antiqua', Garamond, Georgia, serif;
+
+  /* Zero rounding — drafting precision, sharp corners only */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+
+  /* Flat shadows — paper stacking, no glossy effects */
+  --shadow-soft: 2px 2px 0 rgb(60 53 32 / 0.1);
+  --shadow-elevated: 3px 3px 0 rgb(60 53 32 / 0.15), 1px 1px 0 rgb(60 53 32 / 0.08);
+  --shadow-card: 2px 2px 0 rgb(60 53 32 / 0.12);
+  --shadow-card-hover: 4px 4px 0 rgb(60 53 32 / 0.18);
+  --shadow-glow-primary: none;
+  --shadow-glow-secondary: none;
+  --shadow-glow-accent: none;
+
+  /* Grid tones */
+  --blueprint-grid-major: rgb(160 140 90 / 0.3);
+  --blueprint-grid-minor: rgb(160 140 90 / 0.12);
+}
+
+/* ─── Dark Mode — high-contrast aged parchment ─────────── */
+:root.theme-blueprint.dark {
+  --shadow-soft: 2px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-elevated: 3px 3px 0 rgb(0 0 0 / 0.4);
+  --shadow-card: 2px 2px 0 rgb(0 0 0 / 0.35);
+  --shadow-card-hover: 4px 4px 0 rgb(0 0 0 / 0.45);
+
+  /* Dark-mode grid tones */
+  --blueprint-grid-major: rgb(178 161 110 / 0.18);
+  --blueprint-grid-minor: rgb(178 161 110 / 0.07);
+}
+
+/* ─── Graph Paper Grid Background ───────────────────────── */
+/* Pin grid to html (:root) so body transitions cannot wipe it on mount/reload */
+:root.theme-blueprint {
+  background-color: var(--color-surface-50) !important;
+  background-image:
+    linear-gradient(var(--blueprint-grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blueprint-grid-major) 1px, transparent 1px),
+    linear-gradient(var(--blueprint-grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blueprint-grid-minor) 1px, transparent 1px) !important;
+  background-size:
+    100px 100px,
+    100px 100px,
+    20px 20px,
+    20px 20px !important;
+  background-attachment: fixed !important;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0 !important;
+}
+
+:root.theme-blueprint.dark {
+  background-color: var(--color-surface-950) !important;
+}
+
+:root.theme-blueprint body,
+:root.theme-blueprint #app,
+:root.theme-blueprint .min-h-screen,
+:root.theme-blueprint .h-screen,
+:root.theme-blueprint main {
+  background-color: transparent !important;
+}
+
+/* Ensure layout sections that have default Tailwind surface classes allow grid to peek through
+   unless they are specifically styled as elements like cards */
+:root.theme-blueprint
+  section:not(.card):not(.bg-white):not(.bg-surface-100):not(.dark\:bg-surface-900) {
+  background-color: transparent !important;
+}
+
+:root.theme-blueprint.dark body {
+  color: var(--color-surface-50) !important;
+}
+
+/* ─── Torn Paper Top Edge on Cards & Sections ───────────── */
+:root.theme-blueprint .card,
+:root.theme-blueprint [data-ui='card'],
+:root.theme-blueprint section.card,
+:root.theme-blueprint .card.rounded-2xl {
+  position: relative;
+  border: 2px solid var(--color-surface-300);
+  border-radius: 0 !important;
+  background: var(--color-surface-50);
+}
+
+/* Sections keep their own layout, only get a torn top accent if they have borders/cards */
+:root.theme-blueprint section.card {
+  position: relative;
+}
+
+/* Torn paper ribbon across the top */
+:root.theme-blueprint .card::before,
+:root.theme-blueprint [data-ui='card']::before,
+:root.theme-blueprint section.card::before,
+:root.theme-blueprint .card.rounded-2xl::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  height: 9px;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--color-surface-50);
+  opacity: 1;
+  clip-path: polygon(
+    0% 0%,
+    2% 60%,
+    4% 30%,
+    6% 70%,
+    8% 20%,
+    10% 55%,
+    12% 10%,
+    14% 65%,
+    16% 25%,
+    18% 80%,
+    20% 35%,
+    22% 60%,
+    24% 15%,
+    26% 70%,
+    28% 40%,
+    30% 75%,
+    32% 20%,
+    34% 55%,
+    36% 30%,
+    38% 80%,
+    40% 10%,
+    42% 65%,
+    44% 35%,
+    46% 70%,
+    48% 25%,
+    50% 60%,
+    52% 15%,
+    54% 75%,
+    56% 40%,
+    58% 65%,
+    60% 20%,
+    62% 55%,
+    64% 30%,
+    66% 80%,
+    68% 10%,
+    70% 70%,
+    72% 35%,
+    74% 60%,
+    76% 25%,
+    78% 75%,
+    80% 15%,
+    82% 55%,
+    84% 40%,
+    86% 70%,
+    88% 20%,
+    90% 65%,
+    92% 30%,
+    94% 80%,
+    96% 45%,
+    98% 60%,
+    100% 0%,
+    100% 100%,
+    0% 100%
+  );
+}
+
+/* Subtle torn shadow under the top edge for depth */
+:root.theme-blueprint .card::after,
+:root.theme-blueprint [data-ui='card']::after,
+:root.theme-blueprint section.card::after,
+:root.theme-blueprint .card.rounded-2xl::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.1), transparent);
+}
+
+:root.theme-blueprint.dark .card,
+:root.theme-blueprint.dark [data-ui='card'],
+:root.theme-blueprint.dark section.card {
+  background: var(--color-surface-900);
+  border-color: var(--color-surface-700);
+}
+
+:root.theme-blueprint.dark .card::before,
+:root.theme-blueprint.dark [data-ui='card']::before,
+:root.theme-blueprint.dark section.card::before,
+:root.theme-blueprint.dark .card.rounded-2xl::before {
+  background: var(--color-surface-950);
+  opacity: 1;
+}
+
+:root.theme-blueprint.dark .card::after,
+:root.theme-blueprint.dark [data-ui='card']::after,
+:root.theme-blueprint.dark section.card::after,
+:root.theme-blueprint.dark .card.rounded-2xl::after {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.5), transparent);
+}
+
+/* Improve dark-mode form readability and accessibility */
+:root.theme-blueprint.dark label,
+:root.theme-blueprint.dark p,
+:root.theme-blueprint.dark small,
+:root.theme-blueprint.dark .text-muted,
+:root.theme-blueprint.dark [class*='text-surface-'] {
+  color: var(--color-surface-100);
+}
+
+:root.theme-blueprint.dark input:not([type='checkbox']):not([type='radio']),
+:root.theme-blueprint.dark select,
+:root.theme-blueprint.dark textarea {
+  color: var(--color-surface-100);
+  caret-color: var(--color-primary-400);
+}
+
+/* ─── Sidebar & Header — aged paper ──────────────────────── */
+:root.theme-blueprint header {
+  background: var(--color-surface-100) !important;
+  border-bottom: 2px solid var(--color-surface-300) !important;
+}
+
+:root.theme-blueprint aside {
+  background: var(--color-surface-100) !important;
+  border-right: 2px solid var(--color-surface-300) !important;
+}
+
+:root.theme-blueprint.dark header {
+  background: var(--color-surface-900) !important;
+  border-bottom-color: var(--color-surface-700) !important;
+}
+
+:root.theme-blueprint.dark aside {
+  background: var(--color-surface-900) !important;
+  border-right-color: var(--color-surface-700) !important;
+}
+
+/* ─── Buttons — sharp, stamped look ─────────────────────── */
+:root.theme-blueprint button,
+:root.theme-blueprint .btn,
+:root.theme-blueprint [data-ui='button'] {
+  border-radius: 0 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+/* ─── Inputs — dashed technical field borders ────────────── */
+:root.theme-blueprint input:not([type='checkbox']):not([type='radio']),
+:root.theme-blueprint select,
+:root.theme-blueprint textarea {
+  border-radius: 0 !important;
+  border-style: dashed;
+  border-color: var(--color-surface-400);
+  background: var(--color-surface-50);
+}
+
+:root.theme-blueprint.dark input:not([type='checkbox']):not([type='radio']),
+:root.theme-blueprint.dark select,
+:root.theme-blueprint.dark textarea {
+  border-color: var(--color-surface-700);
+  background: var(--color-surface-900);
+}
+
+/* ─── Scrollbar — parchment tones ────────────────────────── */
+:root.theme-blueprint ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-400);
+  border-radius: 0;
+}
+
+:root.theme-blueprint.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-700);
+}

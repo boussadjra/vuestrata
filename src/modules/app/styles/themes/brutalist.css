@@ -1,0 +1,71 @@
+/*
+ * Brutalist theme — high contrast, sharp edges, monospace typography
+ * Apply by adding class="theme-brutalist" to <html>
+ */
+:root.theme-brutalist {
+  /* Primary — Pure black/white contrast */
+  --color-primary-50: #fafafa;
+  --color-primary-100: #f5f5f5;
+  --color-primary-200: #e5e5e5;
+  --color-primary-300: #d4d4d4;
+  --color-primary-400: #a3a3a3;
+  --color-primary-500: #171717;
+  --color-primary-600: #0a0a0a;
+  --color-primary-700: #000000;
+  --color-primary-800: #000000;
+  --color-primary-900: #000000;
+  --color-primary-950: #000000;
+
+  /* Secondary — Electric yellow */
+  --color-secondary-50: #fefce8;
+  --color-secondary-100: #fef9c3;
+  --color-secondary-200: #fef08a;
+  --color-secondary-300: #fde047;
+  --color-secondary-400: #facc15;
+  --color-secondary-500: #eab308;
+  --color-secondary-600: #ca8a04;
+  --color-secondary-700: #a16207;
+  --color-secondary-800: #854d0e;
+  --color-secondary-900: #713f12;
+  --color-secondary-950: #422006;
+
+  /* Accent — Hot red */
+  --color-accent-50: #fef2f2;
+  --color-accent-100: #fee2e2;
+  --color-accent-200: #fecaca;
+  --color-accent-300: #fca5a5;
+  --color-accent-400: #f87171;
+  --color-accent-500: #ef4444;
+  --color-accent-600: #dc2626;
+  --color-accent-700: #b91c1c;
+  --color-accent-800: #991b1b;
+  --color-accent-900: #7f1d1d;
+  --color-accent-950: #450a0a;
+
+  /* Typography — Monospace */
+  --font-sans: 'JetBrains Mono', 'Courier New', ui-monospace, monospace;
+
+  /* Sharp corners */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+
+  /* Hard shadows */
+  --shadow-soft: 2px 2px 0 rgb(0 0 0 / 0.15);
+  --shadow-elevated: 4px 4px 0 rgb(0 0 0 / 0.25);
+  --shadow-card: 3px 3px 0 rgb(0 0 0 / 0.2);
+  --shadow-card-hover: 6px 6px 0 rgb(0 0 0 / 0.3);
+}
+
+:root.theme-brutalist.dark {
+  --color-primary-500: #00ff00;
+  --color-primary-600: #00cc00;
+  --color-primary-700: #009900;
+
+  --shadow-soft: 2px 2px 0 rgb(0 255 0 / 0.1);
+  --shadow-elevated: 4px 4px 0 rgb(0 255 0 / 0.15);
+  --shadow-card: 3px 3px 0 rgb(0 255 0 / 0.12);
+  --shadow-card-hover: 6px 6px 0 rgb(0 255 0 / 0.2);
+}

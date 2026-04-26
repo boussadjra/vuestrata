@@ -1,0 +1,611 @@
+<script setup lang="ts">
+import {
+  useTextField,
+  useCheckbox,
+  useSwitch,
+  useSelect,
+  useNumberField,
+  useRadioGroup,
+  useRadio,
+} from '@formwerk/core'
+import { useI18n } from 'vue-i18n'
+import { z } from 'zod'
+
+import { useNotificationStore } from '@/stores/notification'
+import { resolveIcon } from '~/config/icon-provider'
+
+const notifications = useNotificationStore()
+const { t } = useI18n()
+
+// ─── Contact Form (Zod validated) ────────────────────────
+
+const contactSchema = z.object({
+  name: z.string().min(2, t('validation_name_min')),
+  email: z.string().email(t('validation_email_invalid')),
+  subject: z.string().min(3, t('validation_subject_required')),
+  message: z.string().min(10, t('validation_message_min')),
+  priority: z.enum(['low', 'medium', 'high']),
+  agreeTerms: z.literal(true, { message: t('validation_agree_terms') }),
+})
+
+type ContactForm = z.infer<typeof contactSchema>
+
+const contactData = reactive({
+  name: '',
+  email: '',
+  subject: '',
+  message: '',
+  priority: 'medium',
+  agreeTerms: false,
+})
+const contactErrors = ref<Record<string, string>>({})
+const contactSubmitting = ref(false)
+
+async function handleContactSubmit() {
+  contactErrors.value = {}
+  const result = contactSchema.safeParse(contactData)
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const key = issue.path[0] as string
+      if (key && !contactErrors.value[key]) {
+        contactErrors.value[key] = issue.message
+      }
+    }
+    return
+  }
+  contactSubmitting.value = true
+  await new Promise((r) => setTimeout(r, 1000))
+  contactSubmitting.value = false
+  notifications.add({
+    type: 'success',
+    title: t('forms_submitted_title'),
+    message: t('forms_submitted_msg'),
+  })
+}
+
+// ─── Formwerk Primitives Demo ────────────────────────────
+
+const nameField = useTextField({ label: 'Full Name', required: true })
+const emailField = useTextField({ label: 'Email', type: 'email', required: true })
+const bioField = useTextField({ label: 'Bio' })
+const ageField = useNumberField({ label: 'Age', min: 18, max: 120 })
+const newsletter = useCheckbox({ label: 'Subscribe to newsletter' })
+const darkMode = useSwitch({ label: 'Dark mode' })
+const priority = useSelect({ label: 'Priority' })
+const roleGroup = useRadioGroup({ label: 'Preferred Role' })
+const roleOption1 = useRadio({ value: 'developer', label: 'Developer' })
+const roleOption2 = useRadio({ value: 'designer', label: 'Designer' })
+const roleOption3 = useRadio({ value: 'manager', label: 'Manager' })
+
+// ─── Profile Form ────────────────────────────────────────
+
+const profileSchema = z.object({
+  firstName: z.string().min(1, t('validation_first_name_required')),
+  lastName: z.string().min(1, t('validation_last_name_required')),
+  email: z.string().email(t('validation_email_invalid')),
+  phone: z
+    .string()
+    .regex(/^\+?[\d\s-]{7,}$/, t('validation_phone_invalid'))
+    .optional()
+    .or(z.literal('')),
+  company: z.string().optional(),
+  role: z.enum(['developer', 'designer', 'manager', 'other']),
+  bio: z.string().max(500, t('validation_bio_max')).optional(),
+  notifications: z.boolean(),
+  publicProfile: z.boolean(),
+})
+
+type ProfileForm = z.infer<typeof profileSchema>
+
+const profileData = reactive<ProfileForm>({
+  firstName: 'Demo',
+  lastName: 'User',
+  email: 'demo@vuestrata.dev',
+  phone: '+1 555-0123',
+  company: 'Vuestrata Labs',
+  role: 'developer',
+  bio: 'Building great things with Vue 3.',
+  notifications: true,
+  publicProfile: false,
+})
+const profileErrors = ref<Record<string, string>>({})
+const profileSaving = ref(false)
+
+async function handleProfileSubmit() {
+  profileErrors.value = {}
+  const result = profileSchema.safeParse(profileData)
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const key = issue.path[0] as string
+      if (key && !profileErrors.value[key]) {
+        profileErrors.value[key] = issue.message
+      }
+    }
+    return
+  }
+  profileSaving.value = true
+  await new Promise((r) => setTimeout(r, 1000))
+  profileSaving.value = false
+  notifications.add({
+    type: 'success',
+    title: t('forms_profile_saved_title'),
+    message: t('forms_profile_saved_msg'),
+  })
+}
+</script>
+
+<template>
+  <div class="mx-auto max-w-7xl space-y-8">
+    <div>
+      <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
+        {{ t('forms_title') }}
+      </h1>
+      <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('forms_subtitle') }}</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <!-- Contact Form -->
+      <div
+        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-2xl border bg-white/90 p-6 shadow-sm"
+      >
+        <h2 class="text-surface-900 mb-1 text-xl font-bold dark:text-white">
+          {{ t('forms_contact') }}
+        </h2>
+        <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+          {{ t('forms_contact_desc') }}
+        </p>
+
+        <form class="space-y-5" @submit.prevent="handleContactSubmit">
+          <div>
+            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_name') }} *</label
+            >
+            <input
+              v-model="contactData.name"
+              type="text"
+              :class="[
+                'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
+                contactErrors.name
+                  ? 'border-red-500 focus:ring-red-500/20'
+                  : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+              ]"
+              :placeholder="t('forms_name_placeholder')"
+            />
+            <p v-if="contactErrors.name" class="mt-1 text-xs text-red-500">
+              {{ contactErrors.name }}
+            </p>
+          </div>
+
+          <div>
+            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_email') }} *</label
+            >
+            <input
+              v-model="contactData.email"
+              type="email"
+              :class="[
+                'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
+                contactErrors.email
+                  ? 'border-red-500 focus:ring-red-500/20'
+                  : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+              ]"
+              :placeholder="t('forms_email_placeholder')"
+            />
+            <p v-if="contactErrors.email" class="mt-1 text-xs text-red-500">
+              {{ contactErrors.email }}
+            </p>
+          </div>
+
+          <div>
+            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_subject') }} *</label
+            >
+            <input
+              v-model="contactData.subject"
+              type="text"
+              :class="[
+                'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
+                contactErrors.subject
+                  ? 'border-red-500 focus:ring-red-500/20'
+                  : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+              ]"
+              :placeholder="t('forms_subject_placeholder')"
+            />
+            <p v-if="contactErrors.subject" class="mt-1 text-xs text-red-500">
+              {{ contactErrors.subject }}
+            </p>
+          </div>
+
+          <div>
+            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_message') }} *</label
+            >
+            <textarea
+              v-model="contactData.message"
+              :rows="4"
+              :class="[
+                'bg-surface-50 dark:bg-surface-900 w-full resize-none rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
+                contactErrors.message
+                  ? 'border-red-500 focus:ring-red-500/20'
+                  : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+              ]"
+              :placeholder="t('forms_message_placeholder')"
+            />
+            <p v-if="contactErrors.message" class="mt-1 text-xs text-red-500">
+              {{ contactErrors.message }}
+            </p>
+          </div>
+
+          <div>
+            <label
+              class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_priority') }}</label
+            >
+            <div class="flex gap-3">
+              <label
+                v-for="p in ['low', 'medium', 'high']"
+                :key="p"
+                class="flex cursor-pointer items-center gap-2"
+              >
+                <input
+                  v-model="contactData.priority"
+                  type="radio"
+                  name="priority"
+                  :value="p"
+                  class="accent-primary-500"
+                />
+                <span class="text-surface-600 dark:text-surface-300 text-sm capitalize">{{
+                  p
+                }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="flex cursor-pointer items-center gap-2">
+              <input
+                v-model="contactData.agreeTerms"
+                type="checkbox"
+                class="border-surface-300 dark:border-surface-600 accent-primary-500 rounded"
+              />
+              <span class="text-surface-600 dark:text-surface-300 text-sm"
+                >{{ t('forms_agree_terms') }} *</span
+              >
+            </label>
+            <p v-if="contactErrors.agreeTerms" class="mt-1 text-xs text-red-500">
+              {{ contactErrors.agreeTerms }}
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            :disabled="contactSubmitting"
+            class="bg-primary-600 hover:bg-primary-500 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white shadow-md transition-all disabled:opacity-60"
+          >
+            <span
+              v-if="contactSubmitting"
+              :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']"
+            />
+            {{ contactSubmitting ? t('forms_sending') : t('forms_send') }}
+          </button>
+        </form>
+      </div>
+
+      <!-- Profile Settings Form -->
+      <div
+        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-2xl border bg-white/90 p-6 shadow-sm"
+      >
+        <h2 class="text-surface-900 mb-1 text-xl font-bold dark:text-white">
+          {{ t('forms_profile') }}
+        </h2>
+        <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+          {{ t('forms_profile_desc') }}
+        </p>
+
+        <form class="space-y-5" @submit.prevent="handleProfileSubmit">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+                >{{ t('forms_first_name') }} *</label
+              >
+              <input
+                v-model="profileData.firstName"
+                type="text"
+                :class="[
+                  'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
+                  profileErrors.firstName
+                    ? 'border-red-500 focus:ring-red-500/20'
+                    : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+                ]"
+              />
+              <p v-if="profileErrors.firstName" class="mt-1 text-xs text-red-500">
+                {{ profileErrors.firstName }}
+              </p>
+            </div>
+            <div>
+              <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+                >{{ t('forms_last_name') }} *</label
+              >
+              <input
+                v-model="profileData.lastName"
+                type="text"
+                :class="[
+                  'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
+                  profileErrors.lastName
+                    ? 'border-red-500 focus:ring-red-500/20'
+                    : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+                ]"
+              />
+              <p v-if="profileErrors.lastName" class="mt-1 text-xs text-red-500">
+                {{ profileErrors.lastName }}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_email') }} *</label
+            >
+            <input
+              v-model="profileData.email"
+              type="email"
+              :class="[
+                'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
+                profileErrors.email
+                  ? 'border-red-500 focus:ring-red-500/20'
+                  : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
+              ]"
+            />
+            <p v-if="profileErrors.email" class="mt-1 text-xs text-red-500">
+              {{ profileErrors.email }}
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+                >{{ t('forms_phone') }}</label
+              >
+              <input
+                v-model="profileData.phone"
+                type="tel"
+                class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
+              />
+              <p v-if="profileErrors.phone" class="mt-1 text-xs text-red-500">
+                {{ profileErrors.phone }}
+              </p>
+            </div>
+            <div>
+              <label
+                class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+                >{{ t('forms_company') }}</label
+              >
+              <input
+                v-model="profileData.company"
+                type="text"
+                class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_role') }} *</label
+            >
+            <select
+              v-model="profileData.role"
+              class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
+            >
+              <option value="developer">{{ t('forms_developer') }}</option>
+              <option value="designer">{{ t('forms_designer') }}</option>
+              <option value="manager">{{ t('forms_manager') }}</option>
+              <option value="other">{{ t('forms_other') }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              >{{ t('forms_bio') }}</label
+            >
+            <textarea
+              v-model="profileData.bio"
+              :rows="3"
+              class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full resize-none rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
+            />
+            <p class="text-surface-400 mt-1 text-xs">
+              {{ t('forms_char_count', { count: (profileData.bio ?? '').length }) }}
+            </p>
+          </div>
+
+          <div class="space-y-3 pt-2">
+            <label
+              class="border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors"
+            >
+              <div>
+                <p class="text-surface-900 text-sm font-medium dark:text-white">
+                  {{ t('forms_email_notifications') }}
+                </p>
+                <p class="text-surface-400 text-xs">{{ t('forms_email_notifications_desc') }}</p>
+              </div>
+              <input
+                v-model="profileData.notifications"
+                type="checkbox"
+                class="accent-primary-500 h-4 w-4"
+              />
+            </label>
+            <label
+              class="border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors"
+            >
+              <div>
+                <p class="text-surface-900 text-sm font-medium dark:text-white">
+                  {{ t('forms_public_profile') }}
+                </p>
+                <p class="text-surface-400 text-xs">{{ t('forms_public_profile_desc') }}</p>
+              </div>
+              <input
+                v-model="profileData.publicProfile"
+                type="checkbox"
+                class="accent-primary-500 h-4 w-4"
+              />
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            :disabled="profileSaving"
+            class="bg-primary-600 hover:bg-primary-500 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white shadow-md transition-all disabled:opacity-60"
+          >
+            <span v-if="profileSaving" :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']" />
+            {{ profileSaving ? t('forms_saving') : t('forms_save_profile') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Formwerk Primitives Showcase -->
+    <div
+      class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-2xl border bg-white/90 p-6 shadow-sm"
+    >
+      <h2 class="text-surface-900 mb-1 text-xl font-bold dark:text-white">
+        {{ t('forms_primitives') }}
+      </h2>
+      <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+        {{ t('forms_primitives_desc') }}
+      </p>
+
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <!-- TextField -->
+        <div class="space-y-1.5">
+          <label
+            v-bind="nameField.labelProps.value"
+            class="text-surface-700 dark:text-surface-300 block text-sm font-medium"
+            >{{ t('forms_full_name') }}</label
+          >
+          <input
+            v-bind="nameField.inputProps.value"
+            class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2"
+            :placeholder="t('forms_enter_name')"
+          />
+        </div>
+
+        <!-- Email -->
+        <div class="space-y-1.5">
+          <label
+            v-bind="emailField.labelProps.value"
+            class="text-surface-700 dark:text-surface-300 block text-sm font-medium"
+            >{{ t('forms_email') }}</label
+          >
+          <input
+            v-bind="emailField.inputProps.value"
+            class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2"
+            :placeholder="t('forms_you_email_placeholder')"
+          />
+        </div>
+
+        <!-- NumberField -->
+        <div class="space-y-1.5">
+          <label class="text-surface-700 dark:text-surface-300 block text-sm font-medium">{{
+            t('forms_age')
+          }}</label>
+          <div class="flex items-center gap-2">
+            <button
+              v-bind="ageField.decrementButtonProps.value"
+              class="border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg border px-3 py-2 text-sm transition-colors"
+            >
+              −
+            </button>
+            <input
+              v-bind="ageField.inputProps.value"
+              class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-center text-sm outline-none focus:ring-2"
+            />
+            <button
+              v-bind="ageField.incrementButtonProps.value"
+              class="border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg border px-3 py-2 text-sm transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        <!-- TextArea -->
+        <div class="space-y-1.5 md:col-span-2">
+          <label
+            v-bind="bioField.labelProps.value"
+            class="text-surface-700 dark:text-surface-300 block text-sm font-medium"
+            >{{ t('forms_bio') }}</label
+          >
+          <textarea
+            v-bind="bioField.inputProps.value as Record<string, unknown>"
+            :rows="3"
+            class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full resize-none rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2"
+            :placeholder="t('forms_bio_placeholder')"
+          />
+        </div>
+
+        <!-- Checkbox -->
+        <div class="flex items-center gap-3">
+          <input
+            v-bind="newsletter.inputProps.value"
+            type="checkbox"
+            class="border-surface-300 dark:border-surface-600 accent-primary-500 h-4 w-4 rounded"
+          />
+          <label
+            v-bind="newsletter.labelProps.value"
+            class="text-surface-700 dark:text-surface-300 text-sm"
+            >{{ t('forms_subscribe_newsletter') }}</label
+          >
+        </div>
+
+        <!-- RadioGroup -->
+        <div class="space-y-2">
+          <span class="text-surface-700 dark:text-surface-300 block text-sm font-medium">{{
+            t('forms_preferred_role')
+          }}</span>
+          <div class="space-y-2">
+            <label
+              v-bind="roleOption1.labelProps.value"
+              class="flex cursor-pointer items-center gap-2"
+            >
+              <input
+                v-bind="roleOption1.inputProps.value"
+                type="radio"
+                class="accent-primary-500"
+              />
+              <span class="text-surface-600 dark:text-surface-300 text-sm">{{
+                t('forms_developer')
+              }}</span>
+            </label>
+            <label
+              v-bind="roleOption2.labelProps.value"
+              class="flex cursor-pointer items-center gap-2"
+            >
+              <input
+                v-bind="roleOption2.inputProps.value"
+                type="radio"
+                class="accent-primary-500"
+              />
+              <span class="text-surface-600 dark:text-surface-300 text-sm">{{
+                t('forms_designer')
+              }}</span>
+            </label>
+            <label
+              v-bind="roleOption3.labelProps.value"
+              class="flex cursor-pointer items-center gap-2"
+            >
+              <input
+                v-bind="roleOption3.inputProps.value"
+                type="radio"
+                class="accent-primary-500"
+              />
+              <span class="text-surface-600 dark:text-surface-300 text-sm">{{
+                t('forms_manager')
+              }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

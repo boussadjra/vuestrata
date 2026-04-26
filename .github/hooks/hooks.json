@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "powershell": "$hookData = [Console]::In.ReadToEnd() | ConvertFrom-Json; $editTools = @('edit_file', 'create_file', 'replace_string_in_file', 'multi_replace_string_in_file'); if ($hookData.toolName -in $editTools) { Write-Host '[hook] File changed — running vp check...'; vp check }",
+        "timeoutSec": 90,
+        "comment": "Run vp check after each file edit to surface type/lint errors early so they can be fixed in the same session"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "powershell": "$hookData = [Console]::In.ReadToEnd() | ConvertFrom-Json; if ($hookData.reason -eq 'complete') { Write-Host '[hook] Session complete — running quality gates...'; vp check; if ($LASTEXITCODE -eq 0) { vp test --run } }",
+        "timeoutSec": 300,
+        "comment": "Run full quality gate (vp check + vp test --run) at session end to confirm CI is green"
+      }
+    ]
+  }
+}

@@ -1,0 +1,99 @@
+/*
+ * Forest theme — rich emerald greens with golden accents, natural & grounded
+ * WCAG AA compliant: primary-600+ on white ≥ 4.5:1 contrast
+ * Apply by adding class="theme-forest" to <html>
+ */
+:root.theme-forest {
+  /* Primary — Emerald */
+  --color-primary-50: #ecfdf5;
+  --color-primary-100: #d1fae5;
+  --color-primary-200: #a7f3d0;
+  --color-primary-300: #6ee7b7;
+  --color-primary-400: #34d399;
+  --color-primary-500: #10b981;
+  --color-primary-600: #059669;
+  --color-primary-700: #047857;
+  --color-primary-800: #065f46;
+  --color-primary-900: #064e3b;
+  --color-primary-950: #022c22;
+
+  /* Secondary — Warm Gold */
+  --color-secondary-50: #fdfce4;
+  --color-secondary-100: #faf8c2;
+  --color-secondary-200: #f3ef8a;
+  --color-secondary-300: #e7de48;
+  --color-secondary-400: #d9c91d;
+  --color-secondary-500: #c9b210;
+  --color-secondary-600: #9e8b0b;
+  --color-secondary-700: #7e6c0d;
+  --color-secondary-800: #695712;
+  --color-secondary-900: #5a4815;
+  --color-secondary-950: #342708;
+
+  /* Accent — Teal */
+  --color-accent-50: #f0fdfa;
+  --color-accent-100: #ccfbf1;
+  --color-accent-200: #99f6e4;
+  --color-accent-300: #5eead4;
+  --color-accent-400: #2dd4bf;
+  --color-accent-500: #14b8a6;
+  --color-accent-600: #0d9488;
+  --color-accent-700: #0f766e;
+  --color-accent-800: #115e59;
+  --color-accent-900: #134e4a;
+  --color-accent-950: #042f2e;
+
+  /* Surface — Warm olive */
+  --color-surface-50: #fafaf5;
+  --color-surface-100: #f3f3ec;
+  --color-surface-200: #e5e5d8;
+  --color-surface-300: #d1d1be;
+  --color-surface-400: #a3a38c;
+  --color-surface-500: #7a7a64;
+  --color-surface-600: #5c5c4a;
+  --color-surface-700: #454539;
+  --color-surface-800: #2e2e26;
+  --color-surface-900: #1c1c16;
+  --color-surface-950: #0c0c08;
+
+  /* Typography — Natural feel */
+  --font-sans: 'Inter', 'Rubik', ui-sans-serif, system-ui, sans-serif;
+
+  /* Organic rounded corners */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.375rem;
+
+  /* Natural shadows */
+  --shadow-soft: 0 2px 10px -2px rgb(5 150 105 / 0.08), 0 2px 4px -2px rgb(5 150 105 / 0.04);
+  --shadow-elevated: 0 10px 30px -5px rgb(5 150 105 / 0.12), 0 4px 8px -2px rgb(5 150 105 / 0.06);
+  --shadow-card: 0 1px 4px rgb(5 150 105 / 0.05), 0 1px 2px rgb(5 150 105 / 0.03);
+  --shadow-card-hover: 0 12px 36px -8px rgb(5 150 105 / 0.14), 0 4px 8px -2px rgb(5 150 105 / 0.05);
+  --shadow-glow-primary: 0 0 24px rgb(16 185 129 / 0.3);
+  --shadow-glow-secondary: 0 0 24px rgb(201 178 16 / 0.3);
+  --shadow-glow-accent: 0 0 24px rgb(20 184 166 / 0.3);
+}
+
+:root.theme-forest.dark {
+  --color-primary-400: #34d399;
+  --color-primary-500: #10b981;
+
+  --color-surface-50: #1c1c16;
+  --color-surface-100: #24241c;
+  --color-surface-200: #2e2e26;
+  --color-surface-300: #454539;
+  --color-surface-400: #5c5c4a;
+  --color-surface-500: #7a7a64;
+  --color-surface-600: #a3a38c;
+  --color-surface-700: #d1d1be;
+  --color-surface-800: #e5e5d8;
+  --color-surface-900: #f3f3ec;
+  --color-surface-950: #fafaf5;
+
+  --shadow-soft: 0 2px 10px -2px rgb(16 185 129 / 0.12);
+  --shadow-elevated: 0 10px 30px -5px rgb(16 185 129 / 0.18);
+  --shadow-card: 0 1px 4px rgb(16 185 129 / 0.08);
+  --shadow-card-hover: 0 12px 36px -8px rgb(16 185 129 / 0.22);
+}

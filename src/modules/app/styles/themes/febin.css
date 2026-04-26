@@ -1,0 +1,192 @@
+/*
+ * Febin theme — Inspired by the vibrant windmill sunset art
+ * Soft twilight slate blues mixed with muted coral/sunset oranges
+ * Apply by adding class="theme-febin" to <html>
+ */
+:root.theme-febin {
+  /* Primary — Soft Sunset Coral/Orange */
+  --color-primary-50: #fdf8f4;
+  --color-primary-100: #fbece1;
+  --color-primary-200: #f5d6c2;
+  --color-primary-300: #efbba0;
+  --color-primary-400: #e79b7a;
+  --color-primary-500: #dd7c55; /* Soft coral/sunset orange */
+  --color-primary-600: #c2613d;
+  --color-primary-700: #a34c2d;
+  --color-primary-800: #823c23;
+  --color-primary-900: #66311e;
+  --color-primary-950: #38180d;
+
+  /* Secondary — Soft Twilight/Slate Blue */
+  --color-secondary-50: #f0f4f8;
+  --color-secondary-100: #dce3ed;
+  --color-secondary-200: #bdcbe0;
+  --color-secondary-300: #98b0d0;
+  --color-secondary-400: #7695c0;
+  --color-secondary-500: #597ba8; /* Soft slate/ocean blue */
+  --color-secondary-600: #46628b;
+  --color-secondary-700: #384f70;
+  --color-secondary-800: #2c3e59;
+  --color-secondary-900: #25334a;
+  --color-secondary-950: #182233;
+
+  /* Accent — Deep Crimson & Coral (from the windmill boat sail/sky edge) */
+  --color-accent-50: #fff4f4;
+  --color-accent-100: #ffe5e6;
+  --color-accent-200: #fecdd0;
+  --color-accent-300: #fda4aa;
+  --color-accent-400: #fa707b;
+  --color-accent-500: #f23d4e;
+  --color-accent-600: #df1c32;
+  --color-accent-700: #bc1022;
+  --color-accent-800: #9b1122;
+  --color-accent-900: #811322;
+  --color-accent-950: #47050e;
+
+  /* Surface — Warm glowing sunrise (Light mode) */
+  --color-surface-50: #fffcf8;
+  --color-surface-100: #fff4e5;
+  --color-surface-200: #ffebc9;
+  --color-surface-300: #ffd89c;
+  --color-surface-400: #ffc272;
+  --color-surface-500: #f7a040;
+  --color-surface-600: #e38221;
+  --color-surface-700: #be6114;
+  --color-surface-800: #9a4d15;
+  --color-surface-900: #7d4015;
+  --color-surface-950: #461f08;
+
+  --font-sans: 'Rubik', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  --shadow-soft: 0 4px 14px -2px rgb(221 124 85 / 0.08), 0 2px 4px -2px rgb(221 124 85 / 0.04);
+  --shadow-elevated:
+    0 12px 32px -5px rgb(221 124 85 / 0.12), 0 4px 10px -2px rgb(89 123 168 / 0.08);
+  --shadow-card: 0 6px 16px -2px rgb(89 123 168 / 0.06);
+  --shadow-card-hover:
+    0 20px 48px -8px rgb(242 61 78 / 0.15), 0 8px 16px -4px rgb(221 124 85 / 0.08);
+  --shadow-glow-primary: 0 0 32px rgb(221 124 85 / 0.35);
+}
+
+/* ─── Dark Mode — Soft Deep Slate & Twilight ─── */
+:root.theme-febin.dark {
+  /* Surfaces — Soft, muted dark slate/navy */
+  --color-surface-50: #eef2f6; /* Light muted slate */
+  --color-surface-100: #dadde6;
+  --color-surface-200: #b9c3d4;
+  --color-surface-300: #93a5be;
+  --color-surface-400: #6f87a6;
+  --color-surface-500: #516b8c;
+  --color-surface-600: #3f5470;
+  --color-surface-700: #314259;
+  --color-surface-800: #243245;
+  --color-surface-900: #182231;
+  --color-surface-950: #0d131f; /* Darkest muted navy/slate */
+
+  --shadow-soft: 0 4px 14px -2px rgb(0 0 0 / 0.5);
+  --shadow-elevated: 0 12px 32px -5px rgb(0 0 0 / 0.6), 0 4px 10px -2px rgb(0 0 0 / 0.5);
+  --shadow-card: 0 6px 16px -2px rgb(0 0 0 / 0.4);
+  --shadow-card-hover:
+    0 20px 48px -8px rgb(221 124 85 / 0.3), 0 8px 16px -4px rgb(89 123 168 / 0.2);
+}
+
+/* ─── Global Gradients & Painted Effects ───────────────── */
+:root.theme-febin {
+  /* Light mode: Soft misty dawn breaking over the ocean */
+  background: linear-gradient(135deg, #dce3ed 0%, #fbece1 40%, #f5d6c2 100%) !important;
+  background-attachment: fixed !important;
+}
+
+:root.theme-febin.dark {
+  /* Dark mode: Soft twilight slate sky bleeding into a warm soft golden/sunset horizon */
+  background: radial-gradient(
+    circle at bottom right,
+    #dd7c55 0%,
+    #a34c2d 20%,
+    #182231 55%,
+    var(--color-surface-950) 100%
+  ) !important;
+  background-attachment: fixed !important;
+}
+
+/* Force backgrounds of root containers to let the gradient through */
+:root.theme-febin body,
+:root.theme-febin #app,
+:root.theme-febin .min-h-screen,
+:root.theme-febin .h-screen,
+:root.theme-febin main {
+  background-color: transparent !important;
+}
+
+/* Softened base text contrast */
+:root.theme-febin {
+  color: #182233; /* Soft rich dark slate text */
+}
+:root.theme-febin.dark {
+  color: #eef2f6; /* Soft mist text for dark mode */
+}
+
+/* Enhanced Glassmorphism letting the soft colors shine through */
+:root.theme-febin .card,
+:root.theme-febin [data-ui='card'],
+:root.theme-febin section.bg-surface-50,
+:root.theme-febin section.bg-white {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+:root.theme-febin.dark .card,
+:root.theme-febin.dark [data-ui='card'],
+:root.theme-febin.dark section.dark\:bg-surface-950,
+:root.theme-febin.dark section.dark\:bg-surface-900 {
+  background: rgba(24, 34, 49, 0.45) !important; /* Soft dark slate alpha */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(147, 165, 190, 0.15) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Soft-vibrant glow buttons */
+:root.theme-febin button.bg-primary-500,
+:root.theme-febin button.bg-primary-600 {
+  background: linear-gradient(135deg, #dd7c55, #c2613d) !important;
+  border-color: transparent !important;
+  color: white !important;
+  box-shadow: 0 4px 16px rgba(221, 124, 85, 0.45);
+}
+
+:root.theme-febin button:hover.bg-primary-500,
+:root.theme-febin button:hover.bg-primary-600 {
+  background: linear-gradient(135deg, #e79b7a, #dd7c55) !important;
+  box-shadow: 0 6px 24px rgba(221, 124, 85, 0.6);
+  transform: translateY(-1px);
+}
+
+:root.theme-febin header,
+:root.theme-febin aside {
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+:root.theme-febin.dark header,
+:root.theme-febin.dark aside {
+  background: rgba(13, 19, 31, 0.5) !important; /* Deep slate alpha */
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-color: rgba(118, 149, 192, 0.15) !important;
+}
+
+/* Fix selection color */
+:root.theme-febin ::selection {
+  background: rgba(221, 124, 85, 0.4);
+  color: #fff;
+}

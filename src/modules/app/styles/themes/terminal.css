@@ -1,0 +1,94 @@
+/*
+ * Terminal theme — inspired by macOS Terminal.app
+ * Dark background, phosphor-green text, monospace typography, minimal chrome
+ * WCAG AA compliant: primary-400+ on dark surfaces ≥ 4.5:1 contrast
+ * Apply by adding class="theme-terminal" to <html>
+ */
+:root.theme-terminal {
+  /* Primary — Terminal Green */
+  --color-primary-50: #ecfdf5;
+  --color-primary-100: #d1fae5;
+  --color-primary-200: #a7f3d0;
+  --color-primary-300: #6ee7b7;
+  --color-primary-400: #34d399;
+  --color-primary-500: #10b981;
+  --color-primary-600: #059669;
+  --color-primary-700: #047857;
+  --color-primary-800: #065f46;
+  --color-primary-900: #064e3b;
+  --color-primary-950: #022c22;
+
+  /* Secondary — Amber (cursor/highlight) */
+  --color-secondary-50: #fffbeb;
+  --color-secondary-100: #fef3c7;
+  --color-secondary-200: #fde68a;
+  --color-secondary-300: #fcd34d;
+  --color-secondary-400: #fbbf24;
+  --color-secondary-500: #f59e0b;
+  --color-secondary-600: #d97706;
+  --color-secondary-700: #b45309;
+  --color-secondary-800: #92400e;
+  --color-secondary-900: #78350f;
+  --color-secondary-950: #451a03;
+
+  /* Accent — Cyan (links/info) */
+  --color-accent-50: #ecfeff;
+  --color-accent-100: #cffafe;
+  --color-accent-200: #a5f3fc;
+  --color-accent-300: #67e8f9;
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+  --color-accent-700: #0e7490;
+  --color-accent-800: #155e75;
+  --color-accent-900: #164e63;
+  --color-accent-950: #083344;
+
+  /* Surface — Dark charcoal (like Terminal.app window) */
+  --color-surface-50: #d4d4d8;
+  --color-surface-100: #a1a1aa;
+  --color-surface-200: #71717a;
+  --color-surface-300: #52525b;
+  --color-surface-400: #3f3f46;
+  --color-surface-500: #27272a;
+  --color-surface-600: #1c1c1e;
+  --color-surface-700: #161618;
+  --color-surface-800: #101012;
+  --color-surface-900: #0a0a0c;
+  --color-surface-950: #050506;
+
+  /* Typography — Monospace */
+  --font-sans: 'SF Mono', 'Menlo', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Tight radius — terminal windows have subtle rounding */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+
+  /* Minimal shadows — terminals are flat */
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.2);
+  --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.4);
+  --shadow-card: 0 1px 4px rgb(0 0 0 / 0.3);
+  --shadow-card-hover: 0 8px 20px -4px rgb(0 0 0 / 0.5);
+}
+
+:root.theme-terminal.dark {
+  /* In dark mode, make the green more vibrant */
+  --color-primary-400: #4ade80;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #16a34a;
+
+  /* Surface goes even darker */
+  --color-surface-700: #111113;
+  --color-surface-800: #0c0c0e;
+  --color-surface-900: #060608;
+  --color-surface-950: #020203;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.6);
+  --shadow-card: 0 1px 4px rgb(0 0 0 / 0.5);
+  --shadow-card-hover: 0 8px 20px -4px rgb(0 0 0 / 0.7);
+  --shadow-glow-primary: 0 0 20px rgb(34 197 94 / 0.2);
+}

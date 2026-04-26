@@ -1,0 +1,17 @@
+{
+  "settings_nav": "Settings",
+  "settings_title": "Application Settings",
+  "settings_subtitle": "Manage display preferences and feature flags",
+  "settings_display": "Display",
+  "settings_density": "Display Density",
+  "settings_density_compact": "Compact",
+  "settings_density_comfortable": "Comfortable",
+  "settings_density_spacious": "Spacious",
+  "settings_page_size": "Default Page Size",
+  "settings_features": "Feature Flags",
+  "settings_feature_enabled": "Enabled",
+  "settings_feature_disabled": "Disabled",
+  "settings_reset": "Reset to Defaults",
+  "settings_reset_confirm": "This will reset all display settings to their default values.",
+  "settings_saved": "Settings saved"
+}

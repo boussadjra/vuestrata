@@ -1,0 +1,17 @@
+{
+  "settings_nav": "الإعدادات",
+  "settings_title": "إعدادات التطبيق",
+  "settings_subtitle": "إدارة تفضيلات العرض وميزات التجربة",
+  "settings_display": "العرض",
+  "settings_density": "كثافة العرض",
+  "settings_density_compact": "مضغوط",
+  "settings_density_comfortable": "مريح",
+  "settings_density_spacious": "واسع",
+  "settings_page_size": "حجم الصفحة الافتراضي",
+  "settings_features": "أعلام الميزات",
+  "settings_feature_enabled": "مفعّل",
+  "settings_feature_disabled": "معطّل",
+  "settings_reset": "إعادة التعيين إلى الإعدادات الافتراضية",
+  "settings_reset_confirm": "سيؤدي ذلك إلى إعادة تعيين جميع إعدادات العرض إلى قيمها الافتراضية.",
+  "settings_saved": "تم حفظ الإعدادات"
+}

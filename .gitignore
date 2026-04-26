@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test & coverage
+coverage/
+playwright-report/
+test-results/
+
+# Generated types (auto-regenerated)
+src/auto-imports.d.ts
+src/components.d.ts
+typed-router.d.ts
+
+# Build cache
+.turbo/
+.vite/
+
+# Docker
+docker-compose.override.yml

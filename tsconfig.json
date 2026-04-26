@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "strict": true,
+    "esModuleInterop": true,
+    "jsx": "preserve",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client", "vite-plugin-vue-layouts/client"],
+    "paths": {
+      "@/lib/*": ["./src/modules/core/lib/*"],
+      "~/lib/*": ["./src/modules/core/lib/*"],
+      "@/modules": ["./src/modules/index.ts"],
+      "~/modules": ["./src/modules/index.ts"],
+      "@/modules/*": ["./src/modules/*"],
+      "~/modules/*": ["./src/modules/*"],
+      "@/*": ["./src/modules/app/*"],
+      "~/*": ["./src/modules/app/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue",
+    "test/**/*.ts",
+    "auto-imports.d.ts",
+    "components.d.ts",
+    "typed-router.d.ts"
+  ],
+  "exclude": ["dist", "node_modules", "e2e"],
+  "vueCompilerOptions": {
+    "plugins": ["vue-router/volar/sfc-route-blocks", "vue-router/volar/sfc-typed-router"]
+  }
+}

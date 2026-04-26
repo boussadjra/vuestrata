@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Vuestrata — Modern Vue 3 Starter Template" />
+    <meta name="theme-color" content="#0832EF" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!--
+      CSP defense-in-depth (the static host MUST send the canonical header — see public/_headers).
+      `style-src 'unsafe-inline'` is required by Tailwind/Vue runtime style injection; everything else is locked down.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' /api; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';"
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300..900&family=Inter:wght@300..900&family=Tajawal:wght@300;400;500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <title>Vuestrata</title>
+  </head>
+  <body class="font-sans antialiased">
+    <div id="app"></div>
+    <noscript>
+      <div
+        style="
+          padding: 2rem;
+          max-width: 32rem;
+          margin: 4rem auto;
+          font-family: system-ui, sans-serif;
+          text-align: center;
+        "
+      >
+        <h1 style="font-size: 1.25rem; margin-bottom: 0.5rem">JavaScript is required</h1>
+        <p>
+          Vuestrata is a single-page app and needs JavaScript to load. Please enable it and reload
+          the page.
+        </p>
+      </div>
+    </noscript>
+    <div
+      id="app-loader"
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        width: 100vw;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: var(--loader-bg, #fff);
+        transition: opacity 0.3s;
+      "
+    >
+      <svg
+        width="36"
+        height="36"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        style="animation: spin 1s linear infinite; color: var(--loader-fg, #6366f1)"
+      >
+        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+      </svg>
+    </div>
+    <style>
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .dark #app-loader {
+        --loader-bg: #0f172a;
+        --loader-fg: #818cf8;
+      }
+    </style>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
