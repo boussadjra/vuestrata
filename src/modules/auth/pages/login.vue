@@ -7,7 +7,8 @@ import { resolveIcon } from '~/config/icon-provider'
 import { useAuth } from '~/modules/auth'
 
 const { t } = useI18n()
-const { login, socialLogin, sendMagicLink, isLoading, error } = useAuth()
+const { login, socialLogin, sendMagicLink, verifyMfaCode, mfaRequired, isLoading, error } =
+  useAuth()
 const notifications = useNotificationStore()
 const isDev = import.meta.env.DEV
 
@@ -24,6 +25,7 @@ const form = ref({
   email: '',
   password: '',
 })
+const mfaCode = ref('')
 
 async function onSubmit() {
   await login({ email: form.value.email, password: form.value.password })
@@ -37,6 +39,10 @@ async function onMagicLink() {
   magicLinkSent.value = false
   await sendMagicLink(form.value.email)
   if (!error.value) magicLinkSent.value = true
+}
+
+async function onMfaSubmit() {
+  await verifyMfaCode(mfaCode.value)
 }
 
 function onForgotPassword() {
@@ -153,8 +159,49 @@ const socialProviders = [
       </p>
     </div>
 
+    <!-- MFA challenge form -->
+    <form
+      v-if="mode === 'credentials' && mfaRequired"
+      class="space-y-4"
+      @submit.prevent="onMfaSubmit"
+    >
+      <div
+        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400"
+      >
+        Multi-factor authentication is required for this account.
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label for="mfa-code" class="text-sm font-medium">MFA code</label>
+        <input
+          id="mfa-code"
+          v-model="mfaCode"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="one-time-code"
+          maxlength="6"
+          required
+          placeholder="000000"
+          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+        />
+      </div>
+
+      <button
+        type="submit"
+        :disabled="isLoading"
+        class="bg-primary-500 hover:bg-primary-600 w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span
+          v-if="isLoading"
+          :class="[resolveIcon('spinner'), 'mr-2 inline-block h-4 w-4 animate-spin']"
+        />
+        Verify code
+      </button>
+    </form>
+
     <!-- Credentials form -->
-    <form v-if="mode === 'credentials'" class="space-y-4" @submit.prevent="onSubmit">
+    <form v-else-if="mode === 'credentials'" class="space-y-4" @submit.prevent="onSubmit">
       <div class="flex flex-col gap-1">
         <label for="email" class="text-sm font-medium">{{ t('auth_email') }}</label>
         <input

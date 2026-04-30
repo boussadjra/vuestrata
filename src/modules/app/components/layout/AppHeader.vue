@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useTheme } from '@/composables/useTheme'
 import { resolveIcon } from '@/config/icon-provider'
+import { useAuth } from '@/modules/auth'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 
@@ -20,6 +21,7 @@ withDefaults(
 const { t, locale } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const { logout } = useAuth()
 const { isDark, toggleDark } = useTheme()
 
 const locales = [
@@ -105,6 +107,16 @@ function switchLocale(code: string) {
         >
           <span :class="[resolveIcon('chart'), 'text-primary-500 h-5 w-5']" />
         </RouterLink>
+        <button
+          type="button"
+          class="hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl p-2 transition-colors"
+          :aria-label="t('auth_logout')"
+          @click="logout"
+        >
+          <span
+            :class="[resolveIcon('logout'), 'text-surface-500 dark:text-surface-400 h-5 w-5']"
+          />
+        </button>
       </template>
       <template v-else>
         <RouterLink

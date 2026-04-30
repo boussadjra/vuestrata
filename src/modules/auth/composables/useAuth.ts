@@ -4,6 +4,7 @@ import { authAdapter as configuredAuthAdapter, AUTH_ADAPTER_ENV_KEY } from '~/co
 import { apiFetch } from '~/lib/api/client'
 import { normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
+import { clearDemoSession } from '~/state/demo-store'
 import { useAuthStore } from '~/stores/auth'
 import type {
   AuthCredentials,
@@ -129,7 +130,22 @@ function createBaseAdapter(): AuthAdapter {
 
 /** Mock auth adapter — backed by MSW handlers in development. */
 function createMockAdapter(): AuthAdapter {
-  return createBaseAdapter()
+  const base = createBaseAdapter()
+  return {
+    ...base,
+    async logout() {
+      await base.logout()
+      await clearDemoSession()
+    },
+    async socialLogin(provider: AuthProvider) {
+      assertOAuthProvider(provider)
+      persistMockPkceState()
+      const callbackUrl = new URL('/auth/callback', window.location.origin)
+      callbackUrl.searchParams.set('code', `demo-oauth-code-${provider}`)
+      callbackUrl.searchParams.set('state', 'mock')
+      window.location.href = callbackUrl.toString()
+    },
+  }
 }
 
 /**
@@ -167,6 +183,10 @@ function persistPkceState(state: string, codeVerifier: string): void {
   // Timestamp lets the callback reject stale state entries (e.g. a verifier
   // left behind from a previous abandoned login attempt).
   sessionStorage.setItem(OAUTH_STATE_TS_KEY, String(Date.now()))
+}
+
+function persistMockPkceState(): void {
+  persistPkceState('mock', 'mock-code-verifier')
 }
 
 /** OAuth adapter — full PKCE flow with redirect + callback. Reuses the

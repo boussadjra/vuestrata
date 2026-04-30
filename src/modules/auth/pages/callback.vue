@@ -32,7 +32,9 @@ onMounted(async () => {
     const result = await exchangeOAuthCode(code, state)
     store.setAuth(result.user, result.token, result.refreshToken, result.expiresIn)
     logger.info('OAuth login successful')
-    await router.replace('/dashboard')
+    router.replace('/dashboard').catch((redirectError) => {
+      logger.error('OAuth redirect to dashboard failed', { error: redirectError })
+    })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'OAuth authentication failed.'
     error.value = message
