@@ -54,7 +54,7 @@ export const lucideIconMap: IconMap = {
   emoji: 'i-lucide-smile',
   'shield-warning': 'i-lucide-shield-alert',
   'zoom-in': 'i-lucide-zoom-in',
-  'zoom-out' : 'i-lucide-zoom-out',
+  'zoom-out': 'i-lucide-zoom-out',
   'document-add': 'i-lucide-file-plus',
   'palette-round': 'i-lucide-paintbrush',
   layers: 'i-lucide-layers',
