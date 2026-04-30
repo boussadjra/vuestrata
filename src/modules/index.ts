@@ -301,7 +301,7 @@ export const useModuleStore = defineStore('modules', () => {
  * Initialize modules and register their routes in one step.
  * Route registration with layout wrapping is a bootstrap concern — it lives
  * here rather than in the store so the store stays free of Component references.
- * Call this once after pinia and router are installed.
+ * Call this once after pinia is installed and before the router is installed.
  */
 export async function setupModules(
   router: Router,

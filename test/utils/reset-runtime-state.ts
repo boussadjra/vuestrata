@@ -18,8 +18,8 @@ import { installRuntimeBackends, resetRuntimeBackends } from '~/state/runtime-ba
  * on this from `test/setup.ts` rather than reaching into per-file
  * `clearXxx()` helpers.
  */
-export function resetRuntimeState(): void {
+export async function resetRuntimeState(): Promise<void> {
   setActivePinia(createPinia())
-  installRuntimeBackends()
+  await installRuntimeBackends()
   resetRuntimeBackends()
 }

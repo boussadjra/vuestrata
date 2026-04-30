@@ -3,11 +3,9 @@
  *
  * Bootstrap order (enforced by `main.ts`):
  *   1. `app.use(pinia)`            — required before any `useStore()` call
- *   2. `app.use(router)`           — required before `setupModules` adds routes
- *   3. `installI18n(app)`          — required before `loadModuleTranslations`
- *   4. `setupModules(router, appModules, layoutMap)` — registers + enables
- *      modules; calling earlier triggers Pinia "no active instance" errors
- *      from `useModuleStore`/`useAuthStore`.
+ *   2. `installI18n(app)`          — required before `loadModuleTranslations`
+ *   3. `setupModules(router, appModules, layoutMap)` — registers + enables modules
+ *   4. `app.use(router)`           — starts the first navigation after module routes exist
  *
  * Architecture contract:
  *   - Server state (API data)      → TanStack Query composable in each module's composables/

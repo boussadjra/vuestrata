@@ -10,7 +10,9 @@ import {
 } from '~/lib/runtime'
 import type { ValidationAdapter } from '~/types'
 
-const BUILTIN_PERMISSIONS: BuiltinPermission[] = [
+import { getDemoUsers, setDemoUsers } from './demo-store'
+
+export const BUILTIN_PERMISSIONS: BuiltinPermission[] = [
   'users:read',
   'users:create',
   'users:update',
@@ -78,16 +80,39 @@ const validationCacheBackendState = createGlobalState(
   },
 )
 
+async function seedDemoSuperAdmin(): Promise<void> {
+  const users = await getDemoUsers()
+  if (users.length > 0) return
+
+  const allPermissions = [...rbacBackendState().permissions] as import('~/types').Permission[]
+  const now = new Date().toISOString()
+  await setDemoUsers([
+    {
+      id: '1',
+      email: 'demo@vuestrata.dev',
+      name: 'Demo Admin',
+      role: 'super_admin',
+      permissions: allPermissions,
+      emailVerified: true,
+      mfaEnabled: false,
+      provider: 'credentials',
+      createdAt: now,
+      lastLoginAt: now,
+    },
+  ])
+}
+
 /**
  * Wire all `core/lib` runtime injection slots from app-layer state
  * containers. Must be called after `app.use(pinia)` so Pinia stores are
  * resolvable.
  */
-export function installRuntimeBackends(): void {
+export async function installRuntimeBackends(): Promise<void> {
   const apiRuntime = useApiRuntimeStore()
   installApiAuthBackend(apiRuntime.backend)
   installRbacBackend(rbacBackendState())
   installValidationCacheBackend(validationCacheBackendState())
+  await seedDemoSuperAdmin()
 }
 
 /** @internal Test-only — re-seed RBAC and clear validation cache. */

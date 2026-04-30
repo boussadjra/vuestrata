@@ -180,6 +180,9 @@ export interface AppConfig {
   uiProvider: UiProvider
   iconProvider: IconProvider
   validationAdapter: ValidationAdapterName
+  demoAuth: {
+    retentionHours: number
+  }
 }
 
 // ─── RBAC ────────────────────────────────────────────────

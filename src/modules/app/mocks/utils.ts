@@ -52,6 +52,7 @@ export function createMockJwt(payload: {
   sub: string
   email?: string
   role?: string
+  permissions?: string[]
   expiresInSeconds?: number
 }): string {
   const now = Math.floor(Date.now() / 1000)
@@ -61,6 +62,7 @@ export function createMockJwt(payload: {
     sub: payload.sub,
     email: payload.email,
     role: payload.role,
+    permissions: payload.permissions ?? [],
     iat: now,
     exp: now + (payload.expiresInSeconds ?? 3600),
   }

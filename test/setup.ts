@@ -19,6 +19,6 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Reset Pinia + core/lib runtime backends + createGlobalState containers
 // before every test so cross-suite leakage of mutable state cannot occur.
-beforeEach(() => {
-  resetRuntimeState()
+beforeEach(async () => {
+  await resetRuntimeState()
 })

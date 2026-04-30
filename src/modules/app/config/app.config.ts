@@ -79,4 +79,10 @@ export const appConfig: AppConfig = {
     VALID_VALIDATION_ADAPTERS,
     'zod',
   ),
+  demoAuth: {
+    retentionHours: (() => {
+      const raw = Number(import.meta.env.VITE_VUESTRATA_DEMO_AUTH_RETENTION_HOURS)
+      return !isNaN(raw) && raw >= 1 ? Math.floor(raw) : 24
+    })(),
+  },
 }

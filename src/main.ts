@@ -13,6 +13,8 @@ import { installI18n } from '@/plugins/i18n'
 import { pinia } from '@/plugins/pinia'
 import { router, layoutMap } from '@/plugins/router'
 import { VueQueryPlugin, vueQueryOptions } from '@/plugins/vue-query'
+import { onInvalidation } from '@/state/demo-storage'
+import { getDemoSession } from '@/state/demo-store'
 import { installRuntimeBackends } from '@/state/runtime-backends'
 // Stores
 import { useAuthStore } from '@/stores/auth'
@@ -90,8 +92,15 @@ function setupAuthInterceptor(authStore: ReturnType<typeof useAuthStore>): void 
 }
 
 async function restoreSession(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
-  // Mock adapter sessions are ephemeral (page refresh = logged out).
-  if (configuredAuthAdapter === 'mock' || !authStore.token) return
+  // Mock adapter: restore session from IndexedDB demo-store if available
+  if (configuredAuthAdapter === 'mock') {
+    const session = await getDemoSession()
+    if (session) {
+      authStore.setAuth(session.user, session.token, session.refreshToken, session.expiresIn)
+    }
+    return
+  }
+  if (!authStore.token) return
   try {
     const adapter = createAuthAdapter(configuredAuthAdapter)
     const user = await adapter.getUser()
@@ -130,6 +139,21 @@ function removeAppLoader(): void {
   setTimeout(() => loader.remove(), 500)
 }
 
+async function clearDemoAuthTab(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+  const currentRoute = router.currentRoute.value
+  const shouldRedirect =
+    currentRoute.meta.requiresAuth === true || currentRoute.path.startsWith('/dashboard')
+
+  authStore.clearAuth()
+  resetAuthInterceptor()
+  if (shouldRedirect) {
+    await router.replace({
+      path: '/auth/login',
+      query: { redirect: currentRoute.fullPath },
+    })
+  }
+}
+
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
 async function bootstrap() {
@@ -143,19 +167,21 @@ async function bootstrap() {
   // Wire core/lib runtime backends (api-auth, rbac, validation cache).
   // Must happen after pinia (api-auth backend is a Pinia store) and before
   // any code path that reads from those backends (e.g. setupAuthInterceptor).
-  installRuntimeBackends()
+  await installRuntimeBackends()
   const authStore = useAuthStore()
   setupAuthInterceptor(authStore)
 
-  // Register plugins
+  // Register plugins that module setup depends on.
   app.use(VueQueryPlugin, vueQueryOptions)
-  app.use(router)
   installI18n(app)
 
   await restoreSession(authStore)
 
-  // Initialize feature modules and register their routes
+  // Initialize feature modules and register their routes before installing
+  // the router, so the first navigation sees the final route table.
   await setupModules(router, appModules, layoutMap)
+
+  app.use(router)
 
   // Enable MSW for development if configured. Started AFTER setupModules so
   // module-contributed handlers (e.g. the auth module's mocks) are included
@@ -171,6 +197,32 @@ async function bootstrap() {
 
   app.mount('#app')
   removeAppLoader()
+
+  // Listen for demo auth updates broadcast from other tabs so permissions and
+  // session state refresh without a full page reload.
+  onInvalidation(async (event) => {
+    if (event === 'update') {
+      await restoreSession(authStore)
+      return
+    }
+
+    if (event === 'clear') {
+      await clearDemoAuthTab(authStore)
+    }
+  })
+
+  if (configuredAuthAdapter === 'mock') {
+    const demoSessionPoll = window.setInterval(async () => {
+      if (!authStore.isAuthenticated) return
+
+      const session = await getDemoSession()
+      if (!session) await clearDemoAuthTab(authStore)
+    }, 1000)
+
+    window.addEventListener('beforeunload', () => window.clearInterval(demoSessionPoll), {
+      once: true,
+    })
+  }
 }
 
 bootstrap().catch((err) => {
