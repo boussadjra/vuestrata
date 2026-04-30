@@ -1,8 +1,8 @@
-import { http, HttpResponse, delay } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 
-import type { Role, PaginatedResponse, User } from '~/types'
+import type { Permission, PaginatedResponse, Role, User } from '~/types'
 
-import { mockUsers } from '../fixtures'
+import { useDemoAuthBackend } from '../../state/demo-auth-backend'
 import { isValidToken } from '../utils'
 
 export const usersHandlers = [
@@ -11,13 +11,14 @@ export const usersHandlers = [
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
+    const { getDemoUsers } = useDemoAuthBackend()
     const url = new URL(request.url)
     const page = Number(url.searchParams.get('page') ?? '1')
     const pageSize = Number(url.searchParams.get('pageSize') ?? '10')
     const search = url.searchParams.get('search') ?? ''
     const role = url.searchParams.get('role') ?? ''
 
-    let filtered = [...mockUsers]
+    let filtered = await getDemoUsers()
     if (search) {
       const q = search.toLowerCase()
       filtered = filtered.filter(
@@ -43,12 +44,70 @@ export const usersHandlers = [
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
+    const { getDemoUsers, setDemoUsers } = useDemoAuthBackend()
     const body = (await request.json()) as { role: Role }
-    const user = mockUsers.find((u) => u.id === params['id'])
-    if (!user) {
+    const users = await getDemoUsers()
+    const idx = users.findIndex((u) => u.id === params['id'])
+    if (idx === -1) {
       return HttpResponse.json({ message: 'User not found' }, { status: 404 })
     }
-    user.role = body.role
-    return HttpResponse.json(user)
+    const updated = { ...users[idx]!, role: body.role }
+    const next = [...users]
+    next[idx] = updated
+    await setDemoUsers(next)
+    return HttpResponse.json(updated)
+  }),
+
+  http.post('*/users', async ({ request }) => {
+    await delay(200)
+    if (!isValidToken(request)) {
+      return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
+    const { getDemoUsers, setDemoUsers } = useDemoAuthBackend()
+    const body = (await request.json()) as { email?: string; name?: string; role?: Role }
+    if (!body.email || !body.name) {
+      return HttpResponse.json({ message: 'email and name are required' }, { status: 422 })
+    }
+    const users = await getDemoUsers()
+    if (users.some((u) => u.email === body.email)) {
+      return HttpResponse.json({ message: 'Email already exists' }, { status: 409 })
+    }
+    const newUser: User = {
+      id: crypto.randomUUID(),
+      email: body.email,
+      name: body.name,
+      role: body.role ?? 'member',
+      emailVerified: false,
+      provider: 'credentials',
+      createdAt: new Date().toISOString(),
+    }
+    await setDemoUsers([...users, newUser])
+    return HttpResponse.json(newUser, { status: 201 })
+  }),
+
+  http.patch('*/users/:id/permissions', async ({ request, params }) => {
+    await delay(200)
+    if (!isValidToken(request)) {
+      return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
+    const { getDemoUsers, setDemoUsers, getDemoSession, setDemoSession } = useDemoAuthBackend()
+    const body = (await request.json()) as { permissions: Permission[] }
+    const users = await getDemoUsers()
+    const idx = users.findIndex((u) => u.id === params['id'])
+    if (idx === -1) {
+      return HttpResponse.json({ message: 'User not found' }, { status: 404 })
+    }
+    const updated: User = { ...users[idx]!, permissions: body.permissions }
+    const next = [...users]
+    next[idx] = updated
+    await setDemoUsers(next)
+
+    // Refresh persisted session if this is a self-edit
+    const session = await getDemoSession()
+    if (session && session.user.id === updated.id) {
+      await setDemoSession({ ...session, user: updated })
+    }
+
+    return HttpResponse.json(updated)
   }),
 ]

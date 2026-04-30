@@ -66,5 +66,7 @@ export default usersModule
 export { useUsers } from './composables/useUsers'
 export { useUsersQuery } from './composables/useUsersQuery'
 export { useUpdateRoleMutation } from './composables/useUpdateRoleMutation'
+export { useInviteUserMutation } from './composables/useInviteUserMutation'
+export { useUpdatePermissionsMutation } from './composables/useUpdatePermissionsMutation'
 export { usersModuleKeys } from './query-keys'
 export type { UserFilters, UserInvitePayload, UserRoleUpdatePayload } from './types'

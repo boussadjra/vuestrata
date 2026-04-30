@@ -12,12 +12,17 @@ import type { IconName } from '@/types'
 import type { User, Role, BuiltinPermission } from '@/types'
 import { useUpdateRoleMutation, useUsersQuery } from '~/modules/users'
 
+import InviteUserDialog from '../components/InviteUserDialog.vue'
+import UserPermissionsPanel from '../components/UserPermissionsPanel.vue'
+
 const { can, isAtLeast } = useRbac()
 const notifications = useNotificationStore()
 const { t } = useI18n()
 
 const editingUserId = ref<string | null>(null)
 const editingRole = ref<Role>('member')
+const showInviteDialog = ref(false)
+const selectedUser = ref<User | null>(null)
 
 const { users, isLoading: loading } = useUsersQuery(ref({ pageSize: 50 }))
 
@@ -170,6 +175,7 @@ function onPageSizeChange(event: Event) {
         <button
           v-if="can('users:create')"
           class="bg-primary-600 hover:bg-primary-500 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all active:scale-95"
+          @click="showInviteDialog = true"
         >
           <span :class="[resolveIcon('user-plus'), 'h-4 w-4']" />
           {{ t('users_invite') }}
@@ -352,6 +358,13 @@ function onPageSizeChange(event: Event) {
                     >
                       {{ t('users_change_role') }}
                     </button>
+                    <button
+                      v-if="can('users:update')"
+                      class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 text-xs font-medium"
+                      @click="selectedUser = row.original"
+                    >
+                      {{ t('users_permissions') }}
+                    </button>
                   </template>
                 </div>
               </td>
@@ -454,4 +467,10 @@ function onPageSizeChange(event: Event) {
       </div>
     </div>
   </div>
+
+  <!-- Invite User Dialog -->
+  <InviteUserDialog v-if="showInviteDialog" @close="showInviteDialog = false" />
+
+  <!-- User Permissions Panel -->
+  <UserPermissionsPanel v-if="selectedUser" :user="selectedUser" @close="selectedUser = null" />
 </template>
