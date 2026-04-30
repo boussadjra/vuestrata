@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test'
 
+import { logInAsDemoAdmin } from './helpers/auth'
+
 test.describe('Settings page', () => {
+  test.beforeEach(async ({ page }) => {
+    await logInAsDemoAdmin(page)
+  })
+
   test('should display theming controls', async ({ page }) => {
     await page.goto('/settings')
     // Should have some settings headings or controls
@@ -22,6 +28,10 @@ test.describe('Forbidden page', () => {
 })
 
 test.describe('Dashboard navigation', () => {
+  test.beforeEach(async ({ page }) => {
+    await logInAsDemoAdmin(page)
+  })
+
   test('should navigate to dashboard index', async ({ page }) => {
     await page.goto('/dashboard')
     await expect(page).toHaveURL(/\/dashboard/)

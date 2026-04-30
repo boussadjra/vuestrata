@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright'
 import { test, expect } from '@playwright/test'
 
+import { logInAsDemoAdmin } from './helpers/auth'
+
 test.describe('Accessibility audit', () => {
   test('home page should have no critical a11y violations', async ({ page }) => {
     await page.goto('/')
@@ -19,6 +21,7 @@ test.describe('Accessibility audit', () => {
   })
 
   test('dashboard should have no critical a11y violations', async ({ page }) => {
+    await logInAsDemoAdmin(page)
     await page.goto('/dashboard')
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
 
@@ -26,6 +29,7 @@ test.describe('Accessibility audit', () => {
   })
 
   test('forms page should have no critical a11y violations', async ({ page }) => {
+    await logInAsDemoAdmin(page)
     await page.goto('/dashboard/forms')
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
 
@@ -33,6 +37,7 @@ test.describe('Accessibility audit', () => {
   })
 
   test('tables page should have no critical a11y violations', async ({ page }) => {
+    await logInAsDemoAdmin(page)
     await page.goto('/dashboard/tables')
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
 

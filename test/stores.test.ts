@@ -84,6 +84,29 @@ describe('Auth Store', () => {
     await nextTick()
     expect(store.user).toBeNull()
   })
+
+  it('should expose explicit user permissions via userPermissions', () => {
+    const store = useAuthStore()
+    const permissions = ['users:read', 'dashboard:read'] as const
+    store.setAuth(
+      {
+        id: '1',
+        name: 'Perm User',
+        email: 'perm@example.com',
+        role: 'member',
+        permissions: [...permissions],
+      },
+      'tok',
+      'rtok',
+    )
+    expect(store.userPermissions).toEqual(permissions)
+  })
+
+  it('userPermissions is empty array when user has no permissions field', () => {
+    const store = useAuthStore()
+    store.setAuth({ id: '1', name: 'NoPerms', email: 'np@example.com', role: 'member' }, 'tok')
+    expect(store.userPermissions).toEqual([])
+  })
 })
 
 describe('App Store', () => {

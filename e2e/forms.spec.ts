@@ -1,28 +1,14 @@
 import { test, expect, type Page } from '@playwright/test'
 
+import { logInAsDemoAdmin } from './helpers/auth'
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Drive the real login flow once and reuse the resulting in-memory auth
- * across the test suite. Token persistence is intentionally absent in this
- * project (see `src/modules/app/stores/auth.ts`) — `localStorage.setItem`
- * for `vuestrata-auth-token` is a no-op against the runtime store, so any
- * earlier "inject token" shortcut would silently bounce the test off the
- * router guard. Going through `/auth/login` keeps the e2e flow honest.
- */
-async function logIn(page: Page) {
-  await page.goto('/auth/login')
-  await page.getByLabel(/email/i).fill('admin@vuestrata.dev')
-  await page.getByLabel(/password/i).fill('password123')
-  await page.getByRole('button', { name: /sign in|log in/i }).click()
-  await page.waitForURL(/\/(dashboard|$)/, { timeout: 10_000 })
-}
-
 /** Navigate to the dashboard/forms route with auth already established. */
 async function goToFormsPage(page: Page) {
-  await logIn(page)
+  await logInAsDemoAdmin(page)
   await page.goto('/dashboard/forms')
   await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 })
 }
