@@ -101,7 +101,7 @@
   --color-logo-secondary: var(--color-secondary-400);
 
   /* Font families */
-  --font-sans: 'Rubik', 'Cairo', 'Rubik', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Tajawal', 'Cairo', 'Rubik', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   /* Border radius tokens */

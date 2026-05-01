@@ -20,10 +20,7 @@ const slots = useSlots()
 </script>
 
 <template>
-  <Dialog.Root
-    :model-value="props.open"
-    @update:model-value="(v: boolean) => emit('update:open', v)"
-  >
+  <Dialog.Root :model-value="props.open" @update:model-value="(v: boolean) => emit('update:open', v)">
     <Dialog.Activator v-if="slots.trigger" as-child>
       <slot name="trigger" />
     </Dialog.Activator>

@@ -187,7 +187,7 @@ const zoomLabel = computed(() => `${Math.round(scale.value * 100)}%`)
     >
       <div class="mt-4 flex h-[min(72vh,680px)] min-h-105 flex-col gap-3">
         <div class="flex flex-wrap items-end justify-between gap-3">
-          <div class="max-w-72 min-w-55 flex-1">
+          <div class="min-w-55 max-w-72 flex-1">
             <UiSelect
               v-model="selectedTheme"
               label="Theme"
@@ -247,7 +247,7 @@ const zoomLabel = computed(() => `${Math.round(scale.value * 100)}%`)
           />
           <div class="absolute inset-0 flex items-center justify-center p-8">
             <div
-              class="docs-mermaid-preview origin-center transition-transform duration-100 ease-out select-none motion-reduce:transition-none [&_svg]:h-auto [&_svg]:max-h-[62vh] [&_svg]:max-w-full"
+              class="docs-mermaid-preview origin-center select-none transition-transform duration-100 ease-out motion-reduce:transition-none [&_svg]:h-auto [&_svg]:max-h-[62vh] [&_svg]:max-w-full"
               :style="previewStyle"
               v-html="rendered.svg"
             />
