@@ -36,7 +36,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 <template>
   <UiTextField
     v-if="textTypes.has(field.type)"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :type="field.type as 'text' | 'email' | 'password' | 'tel' | 'url'"
     :label="field.label"
     :placeholder="field.placeholder"
@@ -51,7 +51,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiSearchField
     v-else-if="field.type === 'search'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :label="field.label"
     :placeholder="field.placeholder"
     :hint="field.hint"
@@ -65,7 +65,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiNumberField
     v-else-if="field.type === 'number'"
-    :model-value="(modelValue as number) ?? undefined"
+    :model-value="modelValue as number | undefined"
     :label="field.label"
     :placeholder="field.placeholder"
     :hint="field.hint"
@@ -79,7 +79,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiTextarea
     v-else-if="field.type === 'textarea'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :label="field.label"
     :placeholder="field.placeholder"
     :hint="field.hint"
@@ -92,7 +92,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiSelect
     v-else-if="field.type === 'select'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :options="field.options ?? []"
     :label="field.label"
     :hint="field.hint"
@@ -103,7 +103,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiCheckbox
     v-else-if="field.type === 'checkbox'"
-    :model-value="(modelValue as boolean) ?? false"
+    :model-value="modelValue as boolean | undefined"
     :label="field.label"
     :disabled="field.disabled"
     :name="field.name"
@@ -112,7 +112,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiSwitch
     v-else-if="field.type === 'switch'"
-    :model-value="(modelValue as boolean) ?? false"
+    :model-value="modelValue as boolean | undefined"
     :label="field.label"
     :disabled="field.disabled"
     @update:model-value="emit('update:modelValue', $event)"
@@ -120,7 +120,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiToggle
     v-else-if="field.type === 'toggle'"
-    :model-value="(modelValue as boolean) ?? false"
+    :model-value="modelValue as boolean | undefined"
     :label="field.label"
     :disabled="field.disabled"
     :name="field.name"
@@ -129,7 +129,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiRadioGroup
     v-else-if="field.type === 'radio'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :options="field.options ?? []"
     :label="field.label"
     :hint="field.hint"
@@ -140,7 +140,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiComboBox
     v-else-if="field.type === 'combobox' || field.type === 'autocomplete'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :options="field.options ?? []"
     :label="field.label"
     :placeholder="field.placeholder"
@@ -162,7 +162,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiOTPField
     v-else-if="field.type === 'otp'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"
@@ -173,7 +173,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiTagsField
     v-else-if="field.type === 'tags'"
-    :model-value="(modelValue as string[]) ?? []"
+    :model-value="modelValue as string[] | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"
@@ -184,7 +184,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiDateField
     v-else-if="field.type === 'date'"
-    :model-value="(modelValue as Date) ?? undefined"
+    :model-value="modelValue as Date | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"
@@ -195,7 +195,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiTimeField
     v-else-if="field.type === 'time'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"
@@ -206,7 +206,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiDatePicker
     v-else-if="field.type === 'datetime'"
-    :model-value="(modelValue as Date) ?? undefined"
+    :model-value="modelValue as Date | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"
@@ -217,7 +217,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiSlider
     v-else-if="field.type === 'slider'"
-    :model-value="(modelValue as number) ?? 0"
+    :model-value="modelValue as number | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"
@@ -228,7 +228,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiColorPicker
     v-else-if="field.type === 'color'"
-    :model-value="(modelValue as string) ?? '#000000'"
+    :model-value="modelValue as string | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"
@@ -239,7 +239,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiEditable
     v-else-if="field.type === 'editable'"
-    :model-value="(modelValue as string) ?? ''"
+    :model-value="modelValue as string | undefined"
     :label="field.label"
     :placeholder="field.placeholder"
     :hint="field.hint"
@@ -251,7 +251,7 @@ const textTypes = new Set(['text', 'email', 'password', 'tel', 'url'])
 
   <UiRatingField
     v-else-if="field.type === 'rating'"
-    :model-value="(modelValue as number) ?? 0"
+    :model-value="modelValue as number | undefined"
     :label="field.label"
     :hint="field.hint"
     :error="field.error"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFormBuilder } from '~/composables/useFormBuilder'
 
-const { fields, values, submitting, handleSubmit, setFieldValue, reset } = useFormBuilder({
+const { fields, values, isSubmitting, handleSubmit, reset } = useFormBuilder({
   fields: [
     {
       name: 'firstName',
@@ -70,12 +70,10 @@ const { fields, values, submitting, handleSubmit, setFieldValue, reset } = useFo
 
       <UiFormBuilder
         :fields="fields"
-        :values="values"
-        :submitting="submitting"
+        :submitting="isSubmitting"
         submit-label="Create user"
         :cols="2"
         @submit="handleSubmit"
-        @update:field="(name, val) => setFieldValue(name, val)"
       >
         <template #actions="{ submitting: isBusy }">
           <div class="flex justify-end gap-3 pt-2">

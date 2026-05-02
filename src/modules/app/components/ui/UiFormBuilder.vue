@@ -6,7 +6,6 @@ import UiFormField from './UiFormField.vue'
 
 export interface FormBuilderProps {
   fields: FormBuilderField[]
-  values: Record<string, unknown>
   submitting?: boolean
   submitLabel?: string
   cols?: 1 | 2 | 3
@@ -19,8 +18,7 @@ withDefaults(defineProps<FormBuilderProps>(), {
 })
 
 const emit = defineEmits<{
-  submit: []
-  'update:field': [name: string, value: unknown]
+  submit: [event: Event]
 }>()
 
 const colsClass: Record<number, string> = {
@@ -38,14 +36,10 @@ function spanClass(span?: number) {
 </script>
 
 <template>
-  <form class="space-y-6" @submit.prevent="emit('submit')">
+  <form class="space-y-6" @submit="emit('submit', $event)">
     <div :class="['grid gap-4', colsClass[cols]]">
       <div v-for="field in fields" :key="field.name" :class="spanClass(field.colSpan)">
-        <UiFormField
-          :field="field"
-          :model-value="values[field.name]"
-          @update:model-value="emit('update:field', field.name, $event)"
-        />
+        <UiFormField :field="field" />
       </div>
     </div>
 
