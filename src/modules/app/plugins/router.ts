@@ -4,6 +4,7 @@ import { defineAsyncComponent, type Component } from 'vue'
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
+import { resolveLegacyComponentsDocsPath } from '@/config/component-docs'
 import DefaultLayout from '@/layouts/default.vue'
 import { useAuthStore } from '@/stores/auth'
 import { createScopedLogger } from '~/lib/logger'
@@ -44,6 +45,18 @@ if (import.meta.hot) {
     }
   })
 }
+
+router.beforeEach((to) => {
+  const docsPath = resolveLegacyComponentsDocsPath(to.path)
+  if (!docsPath) return true
+
+  return {
+    path: docsPath,
+    query: to.query,
+    hash: to.hash,
+    replace: true,
+  }
+})
 
 router.beforeEach(() => {
   NProgress.start()

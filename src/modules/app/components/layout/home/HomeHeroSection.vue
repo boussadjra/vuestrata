@@ -80,7 +80,7 @@ onUnmounted(() => window.removeEventListener('mousemove', handleMouseMove))
 
           <div class="animate-slide-up mb-12 flex flex-wrap gap-3" style="animation-delay: 0.16s">
             <RouterLink
-              to="/components"
+              to="/docs/components/overview"
               class="group from-primary-600 to-primary-500 shadow-primary-500/40 hover:shadow-primary-500/50 relative inline-flex items-center gap-2.5 rounded-xl bg-linear-to-r px-7 py-3 font-semibold text-white shadow-[0_2px_24px_-4px] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_32px_-4px] active:translate-y-0"
             >
               <span

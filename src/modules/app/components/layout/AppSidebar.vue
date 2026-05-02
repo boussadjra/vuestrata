@@ -15,7 +15,7 @@ const { can } = useRbac()
 const moduleStore = useModuleStore()
 
 const navItems: (SidebarItem & { iconName: IconName })[] = [
-  { label: 'sidebar_components', icon: '', iconName: 'widget', to: '/components' },
+  { label: 'sidebar_components', icon: '', iconName: 'widget', to: '/docs/components/overview' },
 ]
 
 function isVisible(item: SidebarItem): boolean {
@@ -23,7 +23,7 @@ function isVisible(item: SidebarItem): boolean {
   return can(item.permission)
 }
 
-function isModuleItemVisible(item: { permission?: string }): boolean {
+function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): boolean {
   if (!item.permission) return true
   return can(item.permission)
 }

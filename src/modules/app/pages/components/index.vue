@@ -53,6 +53,11 @@ const categories: Category[] = [
         description: 'Dropdown selection from a list of options.',
         to: '/components/selects',
       },
+      {
+        label: 'Form Builder Guide',
+        description: 'Detailed form management docs with useFormBuilder and UiFormBuilder.',
+        to: '/components/forms/form-builder',
+      },
     ],
   },
   {

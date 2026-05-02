@@ -21,6 +21,7 @@ const categories: NavCategory[] = [
       { label: 'Switch', to: '/components/switches', iconName: 'settings' },
       { label: 'RadioGroup', to: '/components/radio-group', iconName: 'document' },
       { label: 'Select', to: '/components/selects', iconName: 'document' },
+      { label: 'Form Builder Guide', to: '/components/forms/form-builder', iconName: 'document' },
     ],
   },
   {
@@ -73,7 +74,7 @@ const isActive = (to: string) => route.path === to
     <div class="flex flex-1">
       <!-- Mobile sidebar toggle -->
       <button
-        class="bg-primary-500 fixed end-4 bottom-4 z-50 rounded-full p-3 text-white shadow-lg lg:hidden"
+        class="bg-primary-500 fixed inset-e-4 bottom-4 z-50 rounded-full p-3 text-white shadow-lg lg:hidden"
         @click="sidebarOpen = !sidebarOpen"
       >
         <span :class="[resolveIcon('sidebar'), 'h-5 w-5']" />
@@ -89,7 +90,7 @@ const isActive = (to: string) => route.path === to
       <!-- Sidebar -->
       <aside
         :class="[
-          'fixed inset-y-0 inset-s-0 z-40 w-64 flex-shrink-0 overflow-y-auto pt-16',
+          'fixed inset-y-0 inset-s-0 z-40 w-64 shrink-0 overflow-y-auto pt-16',
           'border-surface-200/80 dark:border-surface-700/60 border-e',
           'dark:bg-surface-900/96 bg-white/96',
           'transition-transform duration-300 lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:translate-x-0',
