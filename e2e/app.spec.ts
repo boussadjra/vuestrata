@@ -7,10 +7,10 @@ test.describe('Home page', () => {
     await expect(page.locator('h1')).toContainText('production')
   })
 
-  test('should navigate to components page', async ({ page }) => {
+  test('should navigate to component docs', async ({ page }) => {
     await page.goto('/')
-    await page.click('a[href="/components"]')
-    await expect(page).toHaveURL(/\/components/)
+    await page.click('a[href="/docs/components/overview"]')
+    await expect(page).toHaveURL(/\/docs\/components\/overview/)
   })
 
   test('should toggle dark mode', async ({ page }) => {

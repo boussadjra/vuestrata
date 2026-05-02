@@ -81,7 +81,7 @@ Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and rea
 ```html
 <template>
   <UiForm :schema="schema" :initial-values="{ name: '', email: '' }" @submit="onSubmit">
-    <template #default="{ values, isDirty, isSubmitting, isValid, wasSubmitted, errors, reset }">
+    <template #default="{ values, isDirty, isSubmitting, isValid, wasSubmitted, isTouched }">
       <UiTextField name="name" label="Full name" placeholder="John Doe" required />
       <UiTextField
         name="email"
@@ -95,8 +95,11 @@ Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and rea
         Please fix the errors above before submitting.
       </UiAlert>
 
+      <UiAlert v-if="isTouched && !isValid" variant="warning">
+        Some fields still need attention.
+      </UiAlert>
+
       <div class="flex gap-3">
-        <button type="button" @click="reset()">Reset</button>
         <button type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? 'Saving…' : isDirty ? 'Save changes' : 'Submit' }}
         </button>
@@ -125,8 +128,10 @@ Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and rea
 | `isDirty`      | `boolean`                  | Any field value differs from `initialValues` |
 | `isTouched`    | `boolean`                  | Any field has been interacted with           |
 | `isValid`      | `boolean`                  | All fields pass validation                   |
-| `errors`       | `Record<string, string[]>` | Field name → error messages map              |
-| `reset`        | `(values?) => void`        | Resets the form to initial state             |
+
+For full step-by-step form management usage, open [Form Builder guide](/docs/components/forms/form-builder).
+
+Find it in the sidebar: Components > Forms > Form Builder.
 
 ---
 

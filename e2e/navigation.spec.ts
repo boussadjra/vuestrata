@@ -54,9 +54,64 @@ test.describe('Dashboard navigation', () => {
 })
 
 test.describe('Components page', () => {
-  test('should display component examples', async ({ page }) => {
+  test('should redirect to component docs', async ({ page }) => {
     await page.goto('/components')
-    await expect(page.locator('h1').first()).toBeVisible()
+    await expect(page).toHaveURL(/\/docs\/components\/overview/)
+    await expect(page.getByRole('heading', { name: 'Components', exact: true })).toBeVisible()
+  })
+
+  test('should redirect form builder guide to nested docs', async ({ page }) => {
+    await page.goto('/components/forms/form-builder')
+    await expect(page).toHaveURL(/\/docs\/components\/forms\/form-builder/)
+    await expect(page.getByRole('heading', { name: 'Form Builder', exact: true })).toBeVisible()
+  })
+
+  test('should show collapsed component demo tree in docs sidebar', async ({ page }) => {
+    await page.goto('/docs/components/overview')
+    await expect(page.getByRole('heading', { name: 'Components', exact: true })).toBeVisible()
+
+    const docsNav = page.getByRole('navigation', { name: 'Documentation' })
+    const componentTopLevelLabels = await docsNav
+      .locator(
+        '[aria-labelledby="docs-section-components"] > li > a, [aria-labelledby="docs-section-components"] > li > button',
+      )
+      .evaluateAll((elements) =>
+        elements.map((element) => element.textContent?.trim()).filter(Boolean),
+      )
+
+    expect(componentTopLevelLabels.slice(0, 6)).toEqual([
+      'Overview',
+      'Forms',
+      'Data Display',
+      'Navigation',
+      'Feedback',
+      'Layout & Overlays',
+    ])
+
+    await expect(docsNav.getByRole('button', { name: 'Forms' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    await expect(docsNav.getByRole('button', { name: 'Data Display' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+
+    await docsNav.getByRole('button', { name: 'Forms' }).click()
+    await expect(docsNav.getByRole('link', { name: 'Button', exact: true })).toBeVisible()
+
+    await docsNav.getByRole('button', { name: 'Data Display' }).click()
+    await expect(docsNav.getByRole('link', { name: 'DataTable', exact: true })).toBeVisible()
+
+    await docsNav.getByRole('link', { name: 'Button', exact: true }).click()
+    await expect(page).toHaveURL(/\/docs\/components\/demos\/buttons/)
+    await expect(page.getByRole('heading', { name: 'Button', exact: true })).toBeVisible()
+  })
+
+  test('should redirect legacy component demos into docs shell', async ({ page }) => {
+    await page.goto('/components/buttons')
+    await expect(page).toHaveURL(/\/docs\/components\/demos\/buttons/)
+    await expect(page.getByRole('heading', { name: 'Button', exact: true })).toBeVisible()
   })
 })
 
