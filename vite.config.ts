@@ -108,6 +108,12 @@ export default defineConfig({
 
       dirs: ['src/modules/app/composables/**'],
 
+      dirsScanOptions: {
+        // Only scan composable files (use*.ts); skip barrel index.ts files that
+        // re-export the same names and would cause "Duplicated imports" warnings.
+        filePatterns: ['use*.ts'],
+      },
+
       vueTemplate: true,
     }),
 
