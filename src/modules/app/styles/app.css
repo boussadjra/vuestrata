@@ -117,9 +117,9 @@
   --shadow-elevated: 0 8px 24px -4px rgb(0 0 0 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.06);
   --shadow-card: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
   --shadow-card-hover: 0 10px 30px -6px rgb(0 0 0 / 0.12), 0 4px 6px -2px rgb(0 0 0 / 0.05);
-  --shadow-glow-primary: 0 0 20px rgb(20 184 166 / 0.25);
-  --shadow-glow-secondary: 0 0 20px rgb(245 158 11 / 0.25);
-  --shadow-glow-accent: 0 0 20px rgb(16 185 129 / 0.25);
+  --shadow-glow-primary: 0 0 20px color-mix(in oklch, var(--color-primary-500) 25%, transparent);
+  --shadow-glow-secondary: 0 0 20px color-mix(in oklch, var(--color-secondary-500) 25%, transparent);
+  --shadow-glow-accent: 0 0 20px color-mix(in oklch, var(--color-accent-500) 25%, transparent);
 
   /* Animations */
   --animate-fade-in: fade-in 0.5s ease-out both;
@@ -330,6 +330,20 @@ textarea {
   animation: scale-in 0.55s ease both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-float {
+    animation: none;
+  }
+
+  .animate-slide-down,
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-scale-in {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 .shadow-elevated {
   box-shadow:
     0 12px 40px -8px rgb(0 0 0 / 0.08),
@@ -491,8 +505,8 @@ textarea {
 
 .dark .docs-content pre {
   border-color: var(--color-surface-700);
-  background: linear-gradient(180deg, #112033 0%, #0b1624 100%);
-  color: #e2e8f0;
+  background: color-mix(in oklch, var(--color-surface-900) 94%, var(--color-primary-950));
+  color: var(--color-surface-100);
 }
 
 .docs-content pre code {
@@ -521,7 +535,7 @@ textarea {
 }
 
 .dark .docs-code-group .docs-code-group-body {
-  background: linear-gradient(180deg, #112033 0%, #0b1624 100%);
+  background: color-mix(in oklch, var(--color-surface-900) 94%, var(--color-primary-950));
 }
 
 .docs-content table {
@@ -563,13 +577,14 @@ textarea {
 }
 
 .docs-content blockquote {
-  border-left: 4px solid var(--color-primary-400);
+  border: 1px solid color-mix(in oklch, var(--color-primary-400) 40%, transparent);
   background: color-mix(in srgb, var(--color-primary-50) 85%, white);
   padding: 0.9rem 1rem;
-  border-radius: 0 1rem 1rem 0;
+  border-radius: 1rem;
 }
 
 .dark .docs-content blockquote {
+  border-color: color-mix(in oklch, var(--color-primary-700) 50%, transparent);
   background: color-mix(in srgb, var(--color-primary-950) 90%, black);
 }
 
@@ -768,7 +783,7 @@ input:not([type='checkbox']):not([type='radio']):focus,
 select:focus,
 textarea:focus {
   border-color: var(--color-primary-400);
-  box-shadow: 0 0 0 3px rgb(20 184 166 / 0.12);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary-400) 12%, transparent);
 }
 html.dark input:not([type='checkbox']):not([type='radio']),
 html.dark select,
@@ -780,7 +795,7 @@ html.dark input:not([type='checkbox']):not([type='radio']):focus,
 html.dark select:focus,
 html.dark textarea:focus {
   border-color: var(--color-primary-500);
-  box-shadow: 0 0 0 3px rgb(20 184 166 / 0.2);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary-500) 20%, transparent);
 }
 
 [data-ui='separator'] {
@@ -790,18 +805,18 @@ html.dark textarea:focus {
 [data-ui='skeleton'] {
   background-image: linear-gradient(
     90deg,
-    rgb(148 163 184 / 0.12) 0%,
-    rgb(148 163 184 / 0.22) 50%,
-    rgb(148 163 184 / 0.12) 100%
+    color-mix(in oklch, var(--color-surface-400) 12%, transparent) 0%,
+    color-mix(in oklch, var(--color-surface-400) 22%, transparent) 50%,
+    color-mix(in oklch, var(--color-surface-400) 12%, transparent) 100%
   );
   background-size: 200% 100%;
 }
 html.dark [data-ui='skeleton'] {
   background-image: linear-gradient(
     90deg,
-    rgb(51 65 85 / 0.35) 0%,
-    rgb(71 85 105 / 0.5) 50%,
-    rgb(51 65 85 / 0.35) 100%
+    color-mix(in oklch, var(--color-surface-700) 35%, transparent) 0%,
+    color-mix(in oklch, var(--color-surface-600) 50%, transparent) 50%,
+    color-mix(in oklch, var(--color-surface-700) 35%, transparent) 100%
   );
 }
 

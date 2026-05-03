@@ -104,17 +104,20 @@ defineProps<{
 
     <!-- Floating badges -->
     <div
+      aria-hidden="true"
       class="bg-accent-500 shadow-accent-500/30 animate-float absolute -top-4 -right-4 flex h-11 w-11 rotate-6 items-center justify-center rounded-2xl text-white shadow-lg"
     >
       <span :class="[resolveIcon('shield-check'), 'h-5 w-5']" />
     </div>
     <div
+      aria-hidden="true"
       class="bg-secondary-500 shadow-secondary-500/30 animate-float absolute -bottom-4 -left-4 flex h-11 w-11 -rotate-6 items-center justify-center rounded-2xl text-white shadow-lg"
       style="animation-delay: -3s"
     >
       <span :class="[resolveIcon('palette'), 'h-5 w-5']" />
     </div>
     <div
+      aria-hidden="true"
       class="bg-primary-500 shadow-primary-500/30 animate-float absolute top-1/2 -right-5 flex h-9 w-9 rotate-12 items-center justify-center rounded-xl text-white shadow-lg"
       style="animation-delay: -5s"
     >
@@ -186,11 +189,11 @@ defineProps<{
 }
 
 .tok-str {
-  color: #b45309;
+  color: var(--color-secondary-700);
 }
 
 :global(html.dark) .tok-str {
-  color: #fbbf24;
+  color: var(--color-secondary-300);
 }
 
 .tok-key {

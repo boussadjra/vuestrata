@@ -37,35 +37,55 @@ defineProps<{
         </p>
       </div>
 
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <!--
+        Bento grid (4 features): row 1 = wide(col-span-2) + narrow, row 2 = narrow + wide(col-span-2).
+        Wide cards use a horizontal layout; narrow cards use a compact vertical layout.
+      -->
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div
           v-for="(f, i) in features"
           :key="f.title"
-          class="group border-surface-200/80 dark:border-surface-700/50 dark:bg-surface-900 hover:shadow-elevated animate-slide-up relative overflow-hidden rounded-2xl border bg-white p-8 ring-0 ring-transparent transition-all duration-300 hover:-translate-y-0.5 lg:p-9"
-          :class="f.ring"
+          class="group border-surface-200/80 dark:border-surface-700/50 dark:bg-surface-900 hover:shadow-elevated animate-slide-up relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 hover:-translate-y-0.5"
+          :class="i === 0 || i === 3 ? 'p-9 sm:col-span-2 lg:p-11' : 'p-7 sm:col-span-1 lg:p-8'"
           :style="{ animationDelay: `${0.1 + i * 0.08}s` }"
         >
-          <div
-            class="absolute inset-x-0 top-0 h-0.5 bg-linear-to-r opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            :class="f.color"
-          />
+          <!-- Wide card: horizontal layout -->
+          <template v-if="i === 0 || i === 3">
+            <div class="flex items-center gap-6">
+              <div
+                class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
+                :class="f.bg"
+              >
+                <span :class="[resolveIcon(f.iconName), 'h-7 w-7', f.text]" />
+              </div>
+              <div>
+                <h3 class="text-surface-900 dark:text-surface-100 mb-2 text-xl font-semibold">
+                  {{ f.title }}
+                </h3>
+                <p
+                  class="text-surface-500 dark:text-surface-400 max-w-sm text-base leading-relaxed"
+                >
+                  {{ f.desc }}
+                </p>
+              </div>
+            </div>
+          </template>
 
-          <div class="flex items-start gap-5">
+          <!-- Narrow card: vertical layout -->
+          <template v-else>
             <div
-              class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
+              class="mb-5 flex h-11 w-11 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
               :class="f.bg"
             >
-              <span :class="[resolveIcon(f.iconName), 'h-6 w-6', f.text]" />
+              <span :class="[resolveIcon(f.iconName), 'h-5 w-5', f.text]" />
             </div>
-            <div>
-              <h3 class="text-surface-900 dark:text-surface-100 mb-1.5 text-lg font-semibold">
-                {{ f.title }}
-              </h3>
-              <p class="text-surface-500 dark:text-surface-400 text-[15px] leading-relaxed">
-                {{ f.desc }}
-              </p>
-            </div>
-          </div>
+            <h3 class="text-surface-900 dark:text-surface-100 mb-1.5 text-lg font-semibold">
+              {{ f.title }}
+            </h3>
+            <p class="text-surface-500 dark:text-surface-400 text-base leading-relaxed">
+              {{ f.desc }}
+            </p>
+          </template>
         </div>
       </div>
     </div>

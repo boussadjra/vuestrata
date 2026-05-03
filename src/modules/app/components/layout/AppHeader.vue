@@ -43,7 +43,7 @@ function switchLocale(code: string) {
     <!-- Left: Menu toggle + Brand -->
     <div class="flex items-center gap-3">
       <button
-        class="hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl p-2 transition-colors lg:hidden"
+        class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95 lg:hidden"
         aria-label="Toggle sidebar"
         @click="appStore.toggleSidebar()"
       >
@@ -51,7 +51,7 @@ function switchLocale(code: string) {
       </button>
       <RouterLink v-if="showBrand" to="/" class="group flex items-center gap-3 text-lg font-bold">
         <span class="h-14">
-          <Logo className=" w-auto shrink-0 mt-2" />
+          <Logo className="w-auto shrink-0 mt-2" />
         </span>
         <span class="text-primary-700 dark:text-primary-400 hidden sm:inline"> Vuestrata </span>
       </RouterLink>
@@ -72,8 +72,8 @@ function switchLocale(code: string) {
       <!-- Docs link -->
       <RouterLink
         to="/docs"
-        class="hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl p-2 transition-colors"
-        title="Documentation"
+        class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        aria-label="Documentation"
       >
         <span
           :class="[resolveIcon('document'), 'text-surface-500 dark:text-surface-400 h-5 w-5']"
@@ -82,7 +82,7 @@ function switchLocale(code: string) {
 
       <!-- Dark mode toggle -->
       <button
-        class="hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl p-2 transition-all duration-200"
+        class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95"
         :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
         @click="toggleDark()"
       >
@@ -94,8 +94,8 @@ function switchLocale(code: string) {
       <template v-if="authStore.isAuthenticated">
         <RouterLink
           to="/settings"
-          class="hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl p-2 transition-colors"
-          :title="t('nav_settings')"
+          class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          :aria-label="t('nav_settings')"
         >
           <span
             :class="[resolveIcon('settings'), 'text-surface-500 dark:text-surface-400 h-5 w-5']"
@@ -103,13 +103,14 @@ function switchLocale(code: string) {
         </RouterLink>
         <RouterLink
           to="/dashboard"
-          class="hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl p-2 transition-colors"
+          class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          :aria-label="t('sidebar_dashboard')"
         >
           <span :class="[resolveIcon('chart'), 'text-primary-500 h-5 w-5']" />
         </RouterLink>
         <button
           type="button"
-          class="hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl p-2 transition-colors"
+          class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           :aria-label="t('auth_logout')"
           @click="logout"
         >
@@ -121,7 +122,7 @@ function switchLocale(code: string) {
       <template v-else>
         <RouterLink
           to="/auth/login"
-          class="bg-primary-500 hover:bg-primary-600 inline-flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+          class="bg-primary-500 hover:bg-primary-600 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 inline-flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]"
         >
           <span :class="[resolveIcon('login'), 'h-4 w-4']" />
           {{ t('auth_login') }}

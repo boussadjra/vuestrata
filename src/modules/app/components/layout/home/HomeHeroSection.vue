@@ -19,14 +19,23 @@ const { t } = useI18n()
 const mouseX = ref(0)
 const mouseY = ref(0)
 
+let rafId: number | null = null
+
 function handleMouseMove(e: MouseEvent) {
-  const { innerWidth, innerHeight } = window
-  mouseX.value = (e.clientX / innerWidth - 0.5) * 14
-  mouseY.value = (e.clientY / innerHeight - 0.5) * 14
+  if (rafId !== null) return
+  rafId = requestAnimationFrame(() => {
+    const { innerWidth, innerHeight } = window
+    mouseX.value = (e.clientX / innerWidth - 0.5) * 14
+    mouseY.value = (e.clientY / innerHeight - 0.5) * 14
+    rafId = null
+  })
 }
 
-onMounted(() => window.addEventListener('mousemove', handleMouseMove))
-onUnmounted(() => window.removeEventListener('mousemove', handleMouseMove))
+onMounted(() => window.addEventListener('mousemove', handleMouseMove, { passive: true }))
+onUnmounted(() => {
+  window.removeEventListener('mousemove', handleMouseMove)
+  if (rafId !== null) cancelAnimationFrame(rafId)
+})
 </script>
 
 <template>
@@ -34,15 +43,11 @@ onUnmounted(() => window.removeEventListener('mousemove', handleMouseMove))
     <div class="pointer-events-none absolute inset-0 select-none" aria-hidden="true">
       <div class="hero-dots absolute inset-0" />
       <div
-        class="bg-primary-400/20 dark:bg-primary-500/10 animate-float absolute -top-32 -right-32 h-170 w-170 rounded-full blur-[140px]"
+        class="hero-blob bg-primary-400/20 dark:bg-primary-500/10 animate-float absolute -top-32 -right-32 h-170 w-170 rounded-full blur-[80px]"
       />
       <div
-        class="bg-accent-400/15 dark:bg-accent-500/8 animate-float absolute -bottom-40 -left-20 h-130 w-130 rounded-full blur-[120px]"
+        class="hero-blob bg-accent-400/15 dark:bg-accent-500/8 animate-float absolute -bottom-40 -left-20 h-130 w-130 rounded-full blur-[70px]"
         style="animation-delay: -4s"
-      />
-      <div
-        class="bg-secondary-300/10 dark:bg-secondary-500/5 animate-float absolute top-1/3 left-1/2 h-95 w-95 rounded-full blur-[100px]"
-        style="animation-delay: -2s"
       />
       <div
         class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,var(--color-surface-50)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_40%,var(--color-surface-950)_100%)]"
@@ -67,7 +72,8 @@ onUnmounted(() => window.removeEventListener('mousemove', handleMouseMove))
           <h1
             class="animate-fade-in mb-6 text-[2.75rem] leading-[1.1] font-extrabold tracking-tight sm:text-5xl lg:text-[3.5rem] xl:text-6xl"
           >
-            Ship <span class="hero-gradient-text">production&#8209;grade</span> apps,
+            Ship
+            <span class="text-primary-600 dark:text-primary-400">production&#8209;grade</span> apps,
             <br class="hidden sm:block" />not boilerplate
           </h1>
 
@@ -81,7 +87,7 @@ onUnmounted(() => window.removeEventListener('mousemove', handleMouseMove))
           <div class="animate-slide-up mb-12 flex flex-wrap gap-3" style="animation-delay: 0.16s">
             <RouterLink
               to="/docs/components/overview"
-              class="group from-primary-600 to-primary-500 shadow-primary-500/40 hover:shadow-primary-500/50 relative inline-flex items-center gap-2.5 rounded-xl bg-linear-to-r px-7 py-3 font-semibold text-white shadow-[0_2px_24px_-4px] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_32px_-4px] active:translate-y-0"
+              class="group bg-primary-500 hover:bg-primary-600 shadow-primary-500/30 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 relative inline-flex items-center gap-2.5 rounded-xl px-7 py-3 font-semibold text-white shadow-[0_2px_20px_-4px] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_28px_-4px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0"
             >
               <span
                 :class="[
@@ -93,7 +99,7 @@ onUnmounted(() => window.removeEventListener('mousemove', handleMouseMove))
             </RouterLink>
             <RouterLink
               to="/dashboard"
-              class="group border-surface-200 dark:border-surface-700 dark:bg-surface-800/60 text-surface-700 dark:text-surface-200 hover:border-primary-300 dark:hover:border-primary-700 dark:hover:bg-surface-800 inline-flex items-center gap-2.5 rounded-xl border bg-white/60 px-7 py-3 font-semibold backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white active:translate-y-0"
+              class="group border-surface-200 dark:border-surface-700 dark:bg-surface-800/60 text-surface-700 dark:text-surface-200 hover:border-primary-300 dark:hover:border-primary-700 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 inline-flex items-center gap-2.5 rounded-xl border bg-white/60 px-7 py-3 font-semibold backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0"
             >
               <span
                 :class="[
@@ -129,39 +135,27 @@ onUnmounted(() => window.removeEventListener('mousemove', handleMouseMove))
 </template>
 
 <style scoped>
+.hero-blob {
+  will-change: transform;
+  contain: layout style;
+}
+
 .hero-dots {
-  background-image: radial-gradient(circle, rgb(20 184 166 / 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--color-primary-500) 12%, transparent) 1px,
+    transparent 1px
+  );
   background-size: 28px 28px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 80%);
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 80%);
 }
 
 :global(html.dark) .hero-dots {
-  background-image: radial-gradient(circle, rgb(148 163 184 / 0.08) 1px, transparent 1px);
-}
-
-.hero-gradient-text {
-  background: linear-gradient(
-    135deg,
-    var(--color-primary-500),
-    var(--color-accent-500),
-    var(--color-secondary-500)
+  background-image: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--color-surface-400) 8%, transparent) 1px,
+    transparent 1px
   );
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: gradient-shift 6s ease-in-out infinite;
-}
-
-@keyframes gradient-shift {
-  0%,
-  100% {
-    background-position: 0% center;
-  }
-
-  50% {
-    background-position: 100% center;
-  }
 }
 </style>

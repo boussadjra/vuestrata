@@ -370,9 +370,9 @@ function isActive(slug: string) {
                     <RouterLink
                       :to="`/docs/${sub.slug}`"
                       :class="[
-                        'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg border-l-2 border-transparent px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                        'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
                         isActive(sub.slug)
-                          ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/30 dark:text-primary-300 font-semibold'
+                          ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/30 dark:text-primary-300 font-semibold'
                           : 'text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
                       ]"
                       :aria-current="isActive(sub.slug) ? 'page' : undefined"

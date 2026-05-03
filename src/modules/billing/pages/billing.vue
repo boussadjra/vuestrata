@@ -13,10 +13,10 @@ const notifications = useNotificationStore()
 const billingInterval = ref<BillingInterval>('monthly')
 
 const tierColors: Record<PlanTier, string> = {
-  free: 'from-surface-400 to-surface-500',
-  starter: 'from-blue-500 to-blue-600',
-  pro: 'from-primary-500 to-primary-600',
-  enterprise: 'from-cyan-500 to-teal-600',
+  free: 'bg-surface-400',
+  starter: 'bg-accent-500',
+  pro: 'bg-primary-500',
+  enterprise: 'bg-secondary-500',
 }
 
 const formatCurrency = (amountCents: number) => `$${(amountCents / 100).toFixed(2)}`
@@ -197,7 +197,7 @@ const usagePercent = (current: number, limit: number) =>
           </div>
           <div
             :class="[
-              'mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br text-white',
+              'mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-white',
               tierColors[plan.tier],
             ]"
           >

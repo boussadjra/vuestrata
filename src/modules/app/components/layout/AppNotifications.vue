@@ -13,10 +13,17 @@ const variantIconName: Record<string, IconName> = {
 }
 
 const variantColor: Record<string, string> = {
-  info: 'border-blue-400 bg-blue-50 dark:bg-blue-950/40',
-  success: 'border-green-400 bg-green-50 dark:bg-green-950/40',
-  warning: 'border-amber-400 bg-amber-50 dark:bg-amber-950/40',
-  error: 'border-red-400 bg-red-50 dark:bg-red-950/40',
+  info: 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/50',
+  success: 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/50',
+  warning: 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50',
+  error: 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/50',
+}
+
+const variantLive: Record<string, 'polite' | 'assertive'> = {
+  info: 'polite',
+  success: 'polite',
+  warning: 'assertive',
+  error: 'assertive',
 }
 </script>
 
@@ -26,7 +33,6 @@ const variantColor: Record<string, string> = {
       class="fixed right-4 bottom-4 z-50 flex w-80 flex-col gap-2"
       role="region"
       aria-label="Notifications"
-      aria-live="polite"
     >
       <TransitionGroup
         enter-active-class="transition-all duration-300 ease-out"
@@ -38,11 +44,11 @@ const variantColor: Record<string, string> = {
           v-for="n in notificationStore.notifications"
           :key="n.id"
           :class="[
-            'shadow-elevated flex items-start gap-3 rounded-lg border-l-4 p-4',
-            'dark:bg-surface-800 bg-white',
+            'shadow-elevated flex items-start gap-3 rounded-lg border p-4',
             variantColor[n.type],
           ]"
           role="alert"
+          :aria-live="variantLive[n.type] ?? 'polite'"
         >
           <span
             :class="[
@@ -51,11 +57,13 @@ const variantColor: Record<string, string> = {
             ]"
           />
           <div class="min-w-0 flex-1">
-            <p v-if="n.title" class="text-sm font-semibold">{{ n.title }}</p>
+            <p v-if="n.title" class="text-surface-900 dark:text-surface-50 text-sm font-semibold">
+              {{ n.title }}
+            </p>
             <p class="text-surface-600 dark:text-surface-400 text-sm">{{ n.message }}</p>
           </div>
           <button
-            class="shrink-0 rounded p-1 hover:bg-black/5 dark:hover:bg-white/10"
+            class="hover:bg-surface-100 dark:hover:bg-surface-800 -me-1 -mt-0.5 shrink-0 rounded-lg p-1.5 transition-colors"
             aria-label="Dismiss"
             @click="notificationStore.remove(n.id)"
           >

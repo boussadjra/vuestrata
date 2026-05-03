@@ -11,11 +11,10 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { useI18n } from 'vue-i18n'
 
 import BaseChart from '@/components/ui/BaseChart.vue'
-import { useTheme } from '@/composables/useTheme'
 import { resolveIcon } from '@/config/icon-provider'
 import { useAuthStore } from '@/stores/auth'
-import type { IconName } from '@/types'
 
+import { useChartColors } from '../composables/useChartColors'
 import { useDashboardStatsQuery } from '../composables/useDashboardStatsQuery'
 
 use([
@@ -31,66 +30,81 @@ use([
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { currentTheme, isDark } = useTheme()
+const chart = useChartColors()
 
 const { stats, isLoading: loading } = useDashboardStatsQuery()
 
-const statCards = computed(() => {
+const themeLabel = computed(() => t('theme_default'))
+
+function makeSparkline(data: number[], color: string) {
+  return {
+    backgroundColor: 'transparent',
+    animation: false,
+    grid: { top: 2, bottom: 2, left: 2, right: 2 },
+    xAxis: { type: 'category' as const, show: false, data: data.map((_, i) => i) },
+    yAxis: { type: 'value' as const, show: false, scale: true },
+    series: [
+      {
+        type: 'line',
+        data,
+        smooth: 0.4,
+        symbol: 'none',
+        lineStyle: { width: 1.5, color },
+      },
+    ],
+  }
+}
+
+const metricStrip = computed(() => {
   const s = stats.value
   return [
     {
-      label: 'dash_users',
-      value: (s.totalUsers ?? 0).toLocaleString(),
-      iconName: 'users' as IconName,
-      tone: 'text-primary-500 bg-primary-100 dark:bg-primary-900/40',
-    },
-    {
-      label: 'dash_projects',
-      value: String(s.activeProjects ?? 0),
-      iconName: 'folder' as IconName,
-      tone: 'text-accent-500 bg-accent-100 dark:bg-accent-900/40',
-    },
-    {
-      label: 'dash_revenue',
+      key: 'revenue',
+      label: t('dash_revenue'),
       value: s.revenue ?? '—',
-      iconName: 'dollar' as IconName,
-      tone: 'text-secondary-500 bg-secondary-100 dark:bg-secondary-900/40',
+      spark: makeSparkline(s.revenueTrend ?? [], chart.sparkPalette.value.revenue),
     },
     {
-      label: 'dash_satisfaction',
+      key: 'users',
+      label: t('dash_users'),
+      value: (s.totalUsers ?? 0).toLocaleString(),
+      spark: makeSparkline(s.usersTrend ?? [], chart.sparkPalette.value.users),
+    },
+    {
+      key: 'projects',
+      label: t('dash_projects'),
+      value: String(s.activeProjects ?? 0),
+      spark: makeSparkline(s.projectsTrend ?? [], chart.sparkPalette.value.projects),
+    },
+    {
+      key: 'satisfaction',
+      label: t('dash_satisfaction'),
       value: s.satisfaction ?? '—',
-      iconName: 'emoji' as IconName,
-      tone: 'text-primary-600 bg-primary-100 dark:bg-primary-900/40',
+      spark: makeSparkline(s.satisfactionTrend ?? [], chart.sparkPalette.value.satisfaction),
     },
   ]
 })
-
-const themeLabel = computed(() => t('theme_default'))
 
 const chartOptionsMain = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'axis',
-    backgroundColor: isDark.value ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-    borderColor: isDark.value ? '#334155' : '#e2e8f0',
-    textStyle: { color: isDark.value ? '#f8fafc' : '#0f172a' },
-    borderRadius: 8,
-    padding: [12, 16],
-    axisPointer: { type: 'cross', label: { backgroundColor: '#64748b' } },
+    ...chart.tooltip.value,
+    axisPointer: { type: 'cross', label: chart.axisPointerLabel.value },
   },
   grid: { left: '2%', right: '3%', bottom: '4%', top: '14%', containLabel: true },
   xAxis: {
     type: 'category',
     boundaryGap: false,
     data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    axisLabel: { color: isDark.value ? '#94a3b8' : '#64748b', margin: 16 },
+    axisLabel: { ...chart.axisLabel.value, margin: 16 },
     axisTick: { show: false },
-    axisLine: { lineStyle: { color: isDark.value ? '#334155' : '#e2e8f0' } },
+    axisLine: chart.axisLine.value,
   },
   yAxis: {
     type: 'value',
-    axisLabel: { color: isDark.value ? '#94a3b8' : '#64748b', margin: 16 },
-    splitLine: { lineStyle: { color: isDark.value ? '#1e293b' : '#f1f5f9', type: 'dashed' } },
+    axisLabel: { ...chart.axisLabel.value, margin: 16 },
+    splitLine: chart.splitLine.value,
     axisLine: { show: false },
     axisTick: { show: false },
   },
@@ -101,27 +115,9 @@ const chartOptionsMain = computed(() => ({
       smooth: 0.4,
       symbolSize: 8,
       data: [120, 132, 101, 134, 90, 230, 210],
-      itemStyle: { color: '#14b8a6' }, // primary-500
+      itemStyle: { color: chart.palette.value[0] },
       lineStyle: { width: 3 },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            {
-              offset: 0,
-              color: 'rgba(20, 184, 166, 0.3)',
-            },
-            {
-              offset: 1,
-              color: 'rgba(20, 184, 166, 0.01)',
-            },
-          ],
-        },
-      },
+      areaStyle: { color: chart.palette.value[0], opacity: 0.08 },
     },
     {
       name: 'Users',
@@ -129,52 +125,28 @@ const chartOptionsMain = computed(() => ({
       smooth: 0.4,
       symbolSize: 8,
       data: [220, 182, 191, 234, 290, 330, 310],
-      itemStyle: { color: '#10b981' }, // accent-500
+      itemStyle: { color: chart.palette.value[1] },
       lineStyle: { width: 3 },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            {
-              offset: 0,
-              color: 'rgba(16, 185, 129, 0.3)',
-            },
-            {
-              offset: 1,
-              color: 'rgba(16, 185, 129, 0.01)',
-            },
-          ],
-        },
-      },
+      areaStyle: { color: chart.palette.value[1], opacity: 0.08 },
     },
   ],
 }))
 
 const chartOptionsBars = computed(() => ({
   backgroundColor: 'transparent',
-  tooltip: {
-    trigger: 'axis',
-    axisPointer: { type: 'shadow' },
-    backgroundColor: isDark.value ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-    borderColor: isDark.value ? '#334155' : '#e2e8f0',
-    textStyle: { color: isDark.value ? '#f8fafc' : '#0f172a' },
-  },
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...chart.tooltip.value },
   grid: { left: '2%', right: '3%', bottom: '1%', top: '15%', containLabel: true },
   xAxis: {
     type: 'category',
     data: ['Design', 'Dev', 'QA', 'Docs', 'Ops'],
-    axisLabel: { color: isDark.value ? '#94a3b8' : '#64748b' },
+    axisLabel: chart.axisLabel.value,
     axisTick: { show: false },
     axisLine: { show: false },
   },
   yAxis: {
     type: 'value',
-    axisLabel: { color: isDark.value ? '#94a3b8' : '#64748b' },
-    splitLine: { lineStyle: { color: isDark.value ? '#1e293b' : '#f1f5f9', type: 'dashed' } },
+    axisLabel: chart.axisLabel.value,
+    splitLine: chart.splitLine.value,
   },
   series: [
     {
@@ -183,10 +155,10 @@ const chartOptionsBars = computed(() => ({
       data: [88, 72, 61, 54, 47],
       itemStyle: {
         borderRadius: [8, 8, 0, 0],
-        color: '#14b8a6',
+        color: chart.palette.value[0],
       },
       emphasis: {
-        itemStyle: { color: '#0d9488' },
+        itemStyle: { color: chart.palette.value[0] },
       },
     },
   ],
@@ -194,22 +166,8 @@ const chartOptionsBars = computed(() => ({
 
 const chartOptionsPie = computed(() => ({
   backgroundColor: 'transparent',
-  tooltip: {
-    trigger: 'item',
-    backgroundColor: isDark.value ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-    borderColor: isDark.value ? '#334155' : '#e2e8f0',
-    textStyle: { color: isDark.value ? '#f8fafc' : '#0f172a' },
-    borderRadius: 8,
-    padding: [12, 16],
-  },
-  legend: {
-    top: '5%',
-    left: 'center',
-    textStyle: { color: isDark.value ? '#94a3b8' : '#64748b' },
-    itemWidth: 10,
-    itemHeight: 10,
-    icon: 'circle',
-  },
+  tooltip: { trigger: 'item', ...chart.tooltip.value },
+  legend: { top: '5%', left: 'center', ...chart.legend.value },
   series: [
     {
       name: 'Sources',
@@ -217,29 +175,23 @@ const chartOptionsPie = computed(() => ({
       radius: ['55%', '80%'],
       center: ['50%', '60%'],
       avoidLabelOverlap: false,
-      itemStyle: {
-        borderRadius: 12,
-        borderColor: isDark.value ? '#1e293b' : '#fff',
-        borderWidth: 3,
-      },
+      itemStyle: chart.pieItemBorder.value,
       label: { show: false, position: 'center' },
       emphasis: {
         label: {
           show: true,
           fontSize: 24,
           fontWeight: 'bold',
-          color: isDark.value ? '#f8fafc' : '#0f172a',
+          color: chart.tooltip.value.textStyle.color,
           formatter: '{b}\n{d}%',
         },
       },
       labelLine: { show: false },
-      data: [
-        { value: 1048, name: 'Search', itemStyle: { color: '#14b8a6' } }, // primary
-        { value: 735, name: 'Direct', itemStyle: { color: '#f59e0b' } }, // secondary
-        { value: 580, name: 'Email', itemStyle: { color: '#10b981' } }, // accent
-        { value: 484, name: 'Ads', itemStyle: { color: '#f59e0b' } },
-        { value: 300, name: 'Video', itemStyle: { color: '#06b6d4' } },
-      ],
+      data: chart.palette.value.map((color, i) => ({
+        value: [1048, 735, 580, 484, 300][i],
+        name: ['Search', 'Direct', 'Email', 'Ads', 'Video'][i],
+        itemStyle: { color },
+      })),
     },
   ],
 }))
@@ -277,7 +229,7 @@ const chartOptionsPie = computed(() => ({
         </div>
         <div class="flex gap-3">
           <button
-            class="btn from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 shadow-primary-500/25 flex items-center gap-2 rounded-xl bg-linear-to-r px-5 py-2.5 font-medium text-white shadow-lg transition-all active:scale-95"
+            class="btn bg-primary-500 hover:bg-primary-600 shadow-primary-500/20 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 flex items-center gap-2 rounded-xl px-5 py-2.5 font-medium text-white shadow-md transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95"
           >
             <span :class="[resolveIcon('document-add'), 'h-5 w-5']" />
             {{ t('dash_new_report') }}
@@ -293,44 +245,60 @@ const chartOptionsPie = computed(() => ({
         />
       </div>
 
-      <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <!--
+        Metric strip: one surface, varied slot weighting.
+        Revenue is the primary anchor (flex-[2]); the other three are supporting (flex-[1]).
+        Sparklines provide directional context without decorative hero-metric framing.
+      -->
+      <div
+        class="border-surface-200 dark:border-surface-700 dark:bg-surface-900/60 animate-slide-up overflow-hidden rounded-2xl border bg-white/80 shadow-sm"
+      >
+        <!-- Loading skeleton -->
         <div
-          v-for="(stat, index) in statCards"
-          :key="stat.label"
-          class="card group dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 hover:shadow-elevated relative transform overflow-hidden rounded-2xl border bg-white/90 p-6 shadow-sm transition-all duration-300 hover:-translate-y-1"
-          :style="{ animationDelay: `${index * 85}ms`, animationFillMode: 'both' }"
-          :class="'animate-slide-up'"
+          v-if="loading"
+          class="divide-surface-200 dark:divide-surface-700 flex animate-pulse divide-x"
         >
-          <div class="relative z-10 mb-4 flex items-center justify-between">
-            <span
-              class="text-surface-500 dark:text-surface-400 text-sm font-semibold tracking-wide uppercase"
-              >{{ t(stat.label) }}</span
-            >
-            <div
-              :class="[
-                stat.tone,
-                'flex items-center justify-center rounded-xl p-2.5 transition-transform duration-300 group-hover:scale-110',
-              ]"
-            >
-              <span :class="[resolveIcon(stat.iconName), 'h-6 w-6']" />
-            </div>
-          </div>
-          <p class="text-surface-900 relative z-10 text-3xl font-black md:text-4xl dark:text-white">
-            {{ stat.value }}
-          </p>
-          <div class="relative z-10 mt-4 flex items-center gap-2">
-            <div
-              class="text-accent-600 dark:text-accent-400 bg-accent-50 dark:bg-accent-900/30 flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold"
-            >
-              <span :class="[resolveIcon('trend-up'), 'h-3 w-3']" />
-              12.5%
-            </div>
-            <span class="text-surface-400 text-xs font-medium">{{ t('dash_vs_last_month') }}</span>
-          </div>
-
+          <div class="bg-surface-100 dark:bg-surface-800 h-24 flex-2" />
+          <div v-for="i in 3" :key="i" class="bg-surface-100 dark:bg-surface-800 h-24 flex-1" />
+        </div>
+        <!-- Loaded strip -->
+        <div
+          v-else
+          class="divide-surface-200 dark:divide-surface-700 flex flex-col sm:flex-row sm:divide-x"
+        >
+          <!-- Primary slot: Revenue (flex-[2]) -->
           <div
-            class="from-primary-400 to-secondary-500 pointer-events-none absolute -right-8 -bottom-8 h-32 w-32 rounded-full bg-linear-to-tr opacity-[0.05] transition-transform duration-500 group-hover:scale-150 dark:opacity-[0.12]"
-          />
+            class="border-surface-200 dark:border-surface-700 flex-2 border-b px-6 py-5 sm:border-b-0"
+          >
+            <p class="text-surface-500 dark:text-surface-400 mb-1 text-xs font-medium">
+              {{ metricStrip[0].label }}
+            </p>
+            <p
+              class="text-surface-900 dark:text-surface-50 text-2xl font-semibold tracking-tight tabular-nums"
+            >
+              {{ metricStrip[0].value }}
+            </p>
+            <BaseChart :option="metricStrip[0].spark" height="h-7" class="mt-2" />
+          </div>
+          <!-- Supporting slots (flex-1 each) -->
+          <div
+            v-for="(m, i) in metricStrip.slice(1)"
+            :key="m.key"
+            class="flex-1 px-5 py-5"
+            :class="
+              i < 2 ? 'border-surface-200 dark:border-surface-700 border-b sm:border-b-0' : ''
+            "
+          >
+            <p class="text-surface-500 dark:text-surface-400 mb-1 text-xs font-medium">
+              {{ m.label }}
+            </p>
+            <p
+              class="text-surface-900 dark:text-surface-50 text-lg font-semibold tracking-tight tabular-nums"
+            >
+              {{ m.value }}
+            </p>
+            <BaseChart :option="m.spark" height="h-5" class="mt-2" />
+          </div>
         </div>
       </div>
 
@@ -353,7 +321,8 @@ const chartOptionsPie = computed(() => ({
               </p>
             </div>
             <button
-              class="text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg p-2 transition-colors"
+              class="text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-lg p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              :aria-label="t('dash_chart_options', 'Chart options')"
             >
               <span :class="[resolveIcon('dots-menu'), 'block h-5 w-5']" />
             </button>
@@ -376,7 +345,8 @@ const chartOptionsPie = computed(() => ({
               </p>
             </div>
             <button
-              class="text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-lg p-2 transition-colors"
+              class="text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-lg p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              :aria-label="t('dash_chart_options', 'Chart options')"
             >
               <span :class="[resolveIcon('dots-menu'), 'block h-5 w-5']" />
             </button>
@@ -412,9 +382,21 @@ const chartOptionsPie = computed(() => ({
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 10% 10%, rgb(20 184 166 / 0.14), transparent 35%),
-    radial-gradient(circle at 85% 20%, rgb(245 158 11 / 0.12), transparent 40%),
-    radial-gradient(circle at 30% 80%, rgb(16 185 129 / 0.1), transparent 38%);
+    radial-gradient(
+      circle at 10% 10%,
+      color-mix(in oklch, var(--color-primary-500) 10%, transparent),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 85% 20%,
+      color-mix(in oklch, var(--color-secondary-500) 8%, transparent),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 30% 80%,
+      color-mix(in oklch, var(--color-accent-500) 6%, transparent),
+      transparent 38%
+    );
 }
 
 .dashboard-glow {
@@ -422,7 +404,15 @@ const chartOptionsPie = computed(() => ({
   position: absolute;
   border-radius: 9999px;
   opacity: 0.6;
+  will-change: transform;
+  contain: layout style;
   animation: float-orb 10s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-glow {
+    animation: none;
+  }
 }
 
 .dashboard-glow-1 {
@@ -430,7 +420,7 @@ const chartOptionsPie = computed(() => ({
   height: 22rem;
   left: -7rem;
   top: -7rem;
-  background: rgb(20 184 166 / 0.34);
+  background: color-mix(in oklch, var(--color-primary-500) 34%, transparent);
 }
 
 .dashboard-glow-2 {
@@ -438,7 +428,7 @@ const chartOptionsPie = computed(() => ({
   height: 24rem;
   right: -7rem;
   top: 28%;
-  background: rgb(245 158 11 / 0.24);
+  background: color-mix(in oklch, var(--color-secondary-500) 24%, transparent);
   animation-delay: 1.5s;
 }
 
