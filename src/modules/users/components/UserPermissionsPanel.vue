@@ -17,7 +17,10 @@ const allPermissions = computed(() => [...getRegisteredPermissions()] as Builtin
 
 const namespaces = computed(() => {
   const ns = new Set<string>()
-  for (const p of allPermissions.value) ns.add(p.split(':')[0])
+  for (const p of allPermissions.value) {
+    const [namespace] = p.split(':')
+    if (namespace) ns.add(namespace)
+  }
   return [...ns].sort()
 })
 

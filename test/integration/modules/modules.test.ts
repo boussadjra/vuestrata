@@ -45,6 +45,19 @@ describe('module persistence', () => {
     expect(store.enabledModules.has('orders')).toBe(true)
   })
 
+  it('should always enable required modules alongside persisted modules', async () => {
+    localStorage.setItem('vuestrata-enabled-modules', JSON.stringify(['orders']))
+
+    const store = useModuleStore()
+    await store.initModules([
+      createModule('auth', { required: true, enabledByDefault: true }),
+      createModule('orders'),
+    ])
+
+    expect(store.enabledModules.has('auth')).toBe(true)
+    expect(store.enabledModules.has('orders')).toBe(true)
+  })
+
   it('should fall back safely on malformed enabled-modules storage', async () => {
     localStorage.setItem('vuestrata-enabled-modules', '{bad-json')
 

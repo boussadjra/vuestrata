@@ -22,6 +22,12 @@ withDefaults(defineProps<PopoverProps>(), {
   side: 'bottom',
   align: 'center',
 })
+
+function onCloseClick(event: MouseEvent) {
+  const target = event.currentTarget
+  if (!(target instanceof Element)) return
+  target.closest('[data-popover-open]')?.dispatchEvent(new Event('close'))
+}
 </script>
 
 <template>
@@ -40,7 +46,7 @@ withDefaults(defineProps<PopoverProps>(), {
       <button
         class="hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-2 right-2 rounded-md p-1 transition-colors"
         aria-label="Close"
-        @click="$el.closest('[data-popover-open]')?.dispatchEvent(new Event('close'))"
+        @click="onCloseClick"
       >
         <span :class="[resolveIcon('close'), 'h-3.5 w-3.5']" />
       </button>

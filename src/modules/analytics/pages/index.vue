@@ -271,14 +271,14 @@ const chartOptionsPie = computed(() => ({
             class="border-surface-200 dark:border-surface-700 flex-2 border-b px-6 py-5 sm:border-b-0"
           >
             <p class="text-surface-500 dark:text-surface-400 mb-1 text-xs font-medium">
-              {{ metricStrip[0].label }}
+              {{ metricStrip[0]!.label }}
             </p>
             <p
               class="text-surface-900 dark:text-surface-50 text-2xl font-semibold tracking-tight tabular-nums"
             >
-              {{ metricStrip[0].value }}
+              {{ metricStrip[0]!.value }}
             </p>
-            <BaseChart :option="metricStrip[0].spark" height="h-7" class="mt-2" />
+            <BaseChart :option="metricStrip[0]!.spark" height="h-7" class="mt-2" />
           </div>
           <!-- Supporting slots (flex-1 each) -->
           <div

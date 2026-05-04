@@ -112,6 +112,7 @@ export default defineConfig({
         // Only scan composable files (use*.ts); skip barrel index.ts files that
         // re-export the same names and would cause "Duplicated imports" warnings.
         filePatterns: ['use*.ts'],
+        fileFilter: (file) => /[\\/]use[^\\/]*\.ts$/.test(file),
       },
 
       vueTemplate: true,

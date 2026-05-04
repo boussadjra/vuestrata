@@ -41,7 +41,7 @@ function onMentionMouseDown(id: string) {
   const mention = filteredMentions.value.find((m) => m.id === id)
   if (!mention) return
   insertMention(mention)
-  emit('update:modelValue', fieldValue ?? '')
+  emit('update:modelValue', fieldValue.value ?? '')
 }
 </script>
 
@@ -53,7 +53,7 @@ function onMentionMouseDown(id: string) {
         :value="fieldValue"
         :placeholder="placeholder"
         :disabled="disabled"
-        class="min-h-[80px] w-full rounded border px-3 py-2 text-sm"
+        class="min-h-20 w-full rounded border px-3 py-2 text-sm"
         @input="onInput"
       />
       <div

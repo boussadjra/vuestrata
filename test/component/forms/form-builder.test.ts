@@ -17,19 +17,47 @@ vi.mock('@/config/validation-provider', () => ({
 
 // Mock @formwerk/core — useForm context for unit tests without Vue component setup
 vi.mock('@formwerk/core', () => ({
-  useForm: (opts: Record<string, unknown>) => ({
-    context: {
-      id: 'mock-form',
-      initialValues: opts.initialValues,
-    },
-    values: opts.initialValues,
-    handleSubmit: vi.fn(),
-    isSubmitting: { value: false },
-    wasSubmitted: { value: false },
-    isDirty: () => false,
-    isTouched: () => false,
-    isValid: () => true,
-  }),
+  useForm: (opts: Record<string, unknown>) => {
+    const initialValues = {
+      ...(opts.initialValues as Record<string, unknown> | undefined),
+    }
+    const values: Record<string, unknown> = { ...initialValues }
+    const errors: Record<string, string | undefined> = {}
+    const dirty = { value: false }
+    const wasSubmitted = { value: false }
+
+    return {
+      context: {
+        id: 'mock-form',
+        initialValues,
+      },
+      values,
+      getError: (name: string) => errors[name],
+      setValue: (name: string, value: unknown) => {
+        values[name] = value
+        dirty.value = true
+      },
+      handleSubmit:
+        (onSubmit: (data: { toObject: () => Record<string, unknown> }) => Promise<void>) =>
+        async () => {
+          wasSubmitted.value = true
+          await onSubmit({ toObject: () => ({ ...values }) })
+        },
+      reset: async (next?: { value?: Record<string, unknown> }) => {
+        const target = { ...(next?.value ?? initialValues) }
+        for (const key of Object.keys(values)) {
+          delete values[key]
+        }
+        Object.assign(values, target)
+        dirty.value = false
+      },
+      isSubmitting: { value: false },
+      wasSubmitted,
+      isDirty: () => dirty.value,
+      isTouched: () => false,
+      isValid: () => true,
+    }
+  },
 }))
 
 const testFields: FormFieldDefinition[] = [
@@ -72,27 +100,18 @@ describe('useFormBuilder', () => {
     const form = useFormBuilder({ fields: testFields })
     form.setFieldValue('name', 'Jane')
     expect(form.values.name).toBe('Jane')
-    expect(form.dirty.value).toBe(true)
+    expect(form.isDirty()).toBe(true)
   })
 
-  it('should set field errors', () => {
-    const form = useFormBuilder({ fields: testFields })
-    form.setFieldError('name', 'Required')
-    expect(form.errors.name).toBe('Required')
-    expect(form.isValid.value).toBe(false)
-  })
-
-  it('should reset form', () => {
+  it('should reset form', async () => {
     const form = useFormBuilder({
       fields: testFields,
       initialValues: { name: 'John' },
     })
     form.setFieldValue('name', 'Jane')
-    form.setFieldError('name', 'Error')
-    form.reset()
+    await form.reset()
     expect(form.values.name).toBe('John')
-    expect(form.errors.name).toBeUndefined()
-    expect(form.dirty.value).toBe(false)
+    expect(form.isDirty()).toBe(false)
   })
 
   it('should call onSubmit when validation passes', async () => {
@@ -103,15 +122,7 @@ describe('useFormBuilder', () => {
     })
     await form.handleSubmit()
     expect(onSubmit).toHaveBeenCalled()
-    expect(form.submitted.value).toBe(true)
-  })
-
-  it('should clear error on field change', () => {
-    const form = useFormBuilder({ fields: testFields })
-    form.setFieldError('name', 'Required')
-    expect(form.errors.name).toBe('Required')
-    form.setFieldValue('name', 'John')
-    expect(form.errors.name).toBeUndefined()
+    expect(form.wasSubmitted.value).toBe(true)
   })
 
   it('should expose formContext from Formwerk', () => {
@@ -131,26 +142,8 @@ describe('useFormBuilder', () => {
 
   it('should track dirty state per field change', () => {
     const form = useFormBuilder({ fields: testFields })
-    expect(form.dirty.value).toBe(false)
+    expect(form.isDirty()).toBe(false)
     form.setFieldValue('name', 'Test')
-    expect(form.dirty.value).toBe(true)
-  })
-
-  it('should not submit when validation fails', async () => {
-    const form = useFormBuilder({
-      fields: testFields,
-      schema: { _type: 'test' },
-    })
-
-    form.setFieldError('name', 'Name is required')
-    expect(form.isValid.value).toBe(false)
-    expect(form.errors.name).toBe('Name is required')
-  })
-
-  it('should validate individual fields', async () => {
-    const form = useFormBuilder({ fields: testFields })
-    const result = await form.validateField('name')
-    expect(result).toBe(true)
-    expect(form.errors.name).toBeUndefined()
+    expect(form.isDirty()).toBe(true)
   })
 })

@@ -234,10 +234,9 @@ export const useModuleStore = defineStore('modules', () => {
     }
 
     const persisted = new Set(enabledStorage.value)
-    const toEnable =
-      persisted.size > 0
-        ? persisted
-        : new Set(definitions.filter((d) => d.config.enabledByDefault).map((d) => d.config.id))
+    const required = definitions.filter((d) => d.config.required).map((d) => d.config.id)
+    const defaults = definitions.filter((d) => d.config.enabledByDefault).map((d) => d.config.id)
+    const toEnable = new Set([...required, ...(persisted.size > 0 ? persisted : defaults)])
 
     // Continue enabling siblings even if an optional one fails so a single
     // broken module can't take the whole app offline. Required modules

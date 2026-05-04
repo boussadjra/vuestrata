@@ -1,30 +1,66 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { z } from 'zod'
 
 import Logo from '@/components/Logo.vue'
-import { resolveIcon } from '~/config/icon-provider'
 import { useAuth } from '~/modules/auth'
 
 const { t } = useI18n()
 const { register, isLoading, error } = useAuth()
 
-const form = ref({
+const registerInitialValues = {
   name: '',
   email: '',
   password: '',
   confirmPassword: '',
+}
+
+type RegisterFormValues = typeof registerInitialValues
+
+const registerSchema = computed(() => {
+  const required = (field: string) => t('validation.required', { field })
+
+  return z
+    .object({
+      name: z
+        .string()
+        .trim()
+        .min(1, required(t('auth_name'))),
+      email: z
+        .string()
+        .trim()
+        .min(1, required(t('auth_email')))
+        .email(t('validation.email')),
+      password: z.string().min(8, t('validation.min_length', { min: 8 })),
+      confirmPassword: z.string().min(1, required(t('auth_confirm_password'))),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      path: ['confirmPassword'],
+      message: t('auth_passwords_mismatch'),
+    })
 })
 
-const passwordMismatch = computed(
-  () => form.value.confirmPassword.length > 0 && form.value.password !== form.value.confirmPassword,
-)
+function formString(values: Record<string, unknown>, key: keyof RegisterFormValues): string {
+  const value = values[key]
+  return typeof value === 'string' ? value : ''
+}
 
-async function onSubmit() {
-  if (passwordMismatch.value) return
+function isPasswordMismatch(values: Record<string, unknown>): boolean {
+  const password = formString(values, 'password')
+  const confirmPassword = formString(values, 'confirmPassword')
+  return confirmPassword.length > 0 && password !== confirmPassword
+}
+
+function isSubmitDisabled(values: Record<string, unknown>, isSubmitting: boolean): boolean {
+  return isLoading.value || isSubmitting || isPasswordMismatch(values)
+}
+
+async function onSubmit(values: Record<string, unknown>) {
+  if (isPasswordMismatch(values)) return
   await register({
-    email: form.value.email,
-    password: form.value.password,
-    name: form.value.name,
+    email: formString(values, 'email').trim(),
+    password: formString(values, 'password'),
+    name: formString(values, 'name').trim(),
   })
 }
 </script>
@@ -42,90 +78,69 @@ async function onSubmit() {
       <p class="text-surface-500 mt-1 text-sm">{{ t('auth_register_subtitle') }}</p>
     </div>
 
-    <form class="space-y-4" @submit.prevent="onSubmit">
-      <div
-        v-if="error"
-        class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400"
-      >
-        {{ error }}
-      </div>
+    <UiForm
+      class="space-y-4"
+      :schema="registerSchema"
+      :initial-values="registerInitialValues"
+      @submit="onSubmit"
+    >
+      <template #default="{ values, isSubmitting }">
+        <UiAlert v-if="error" variant="error" :title="t('auth_register_fail')">
+          {{ error }}
+        </UiAlert>
 
-      <div class="flex flex-col gap-1">
-        <label for="name" class="text-sm font-medium">{{ t('auth_name') }}</label>
-        <input
+        <UiTextField
           id="name"
-          v-model="form.name"
-          type="text"
-          required
-          autocomplete="name"
+          name="name"
+          :label="t('auth_name')"
           :placeholder="t('auth_name_placeholder')"
-          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+          autocomplete="name"
+          required
         />
-      </div>
 
-      <div class="flex flex-col gap-1">
-        <label for="email" class="text-sm font-medium">{{ t('auth_email') }}</label>
-        <input
+        <UiTextField
           id="email"
-          v-model="form.email"
+          name="email"
           type="email"
-          required
-          autocomplete="email"
+          :label="t('auth_email')"
           :placeholder="t('auth_email_placeholder')"
-          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+          autocomplete="email"
+          required
         />
-      </div>
 
-      <div class="flex flex-col gap-1">
-        <label for="password" class="text-sm font-medium">{{ t('auth_password') }}</label>
-        <input
+        <UiTextField
           id="password"
-          v-model="form.password"
+          name="password"
           type="password"
-          required
-          autocomplete="new-password"
-          minlength="8"
+          :label="t('auth_password')"
           :placeholder="t('auth_password_placeholder')"
-          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label for="confirmPassword" class="text-sm font-medium">{{
-          t('auth_confirm_password')
-        }}</label>
-        <input
-          id="confirmPassword"
-          v-model="form.confirmPassword"
-          type="password"
-          required
           autocomplete="new-password"
-          minlength="8"
-          :placeholder="t('auth_confirm_password_placeholder')"
-          :class="[
-            'dark:bg-surface-800 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none',
-            passwordMismatch
-              ? 'border-red-400 focus:ring-red-300'
-              : 'border-surface-300 dark:border-surface-600 focus:ring-primary-300',
-          ]"
+          :min-length="8"
+          required
         />
-        <p v-if="passwordMismatch" class="mt-1 text-xs text-red-500">
-          {{ t('auth_passwords_mismatch') }}
-        </p>
-      </div>
 
-      <button
-        type="submit"
-        :disabled="isLoading || passwordMismatch"
-        class="bg-primary-500 hover:bg-primary-600 w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <span
-          v-if="isLoading"
-          :class="[resolveIcon('spinner'), 'mr-2 inline-block h-4 w-4 animate-spin']"
+        <UiTextField
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          :label="t('auth_confirm_password')"
+          :placeholder="t('auth_confirm_password_placeholder')"
+          :error="isPasswordMismatch(values) ? t('auth_passwords_mismatch') : undefined"
+          autocomplete="new-password"
+          :min-length="8"
+          required
         />
-        {{ t('auth_register') }}
-      </button>
-    </form>
+
+        <UiButton
+          type="submit"
+          block
+          :loading="isLoading || isSubmitting"
+          :disabled="isSubmitDisabled(values, isSubmitting)"
+        >
+          {{ t('auth_register') }}
+        </UiButton>
+      </template>
+    </UiForm>
 
     <p class="text-surface-500 mt-6 text-center text-sm">
       {{ t('auth_has_account') }}

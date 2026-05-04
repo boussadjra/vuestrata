@@ -40,6 +40,7 @@ export type FormFieldType =
 
 // ─── Base Field Contract ─────────────────────────────────
 export interface BaseFieldProps {
+  id?: string
   name?: string
   label?: string
   description?: string

@@ -6,10 +6,15 @@ const props = withDefaults(defineProps<TextFieldProps>(), {
   size: 'md',
 })
 
-defineEmits<{ 'update:modelValue': [value: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const { inputProps, labelProps, errorMessageProps, descriptionProps, displayError } =
+const { inputProps, labelProps, errorMessageProps, descriptionProps, displayError, fieldValue } =
   useBaseTextField(props)
+
+watch(fieldValue, (value) => {
+  const nextValue = value ?? ''
+  if (nextValue !== props.modelValue) emit('update:modelValue', nextValue)
+})
 
 const sizeClasses: Record<string, string> = {
   xs: 'px-2 py-1 text-xs',

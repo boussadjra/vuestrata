@@ -9,14 +9,18 @@ export interface UiTextFieldProps extends BaseFieldProps {
   hint?: string
 }
 
-defineProps<UiTextFieldProps>()
-defineEmits<{ 'update:modelValue': [value: string] }>()
+const props = defineProps<UiTextFieldProps>()
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const UiTextField = resolveUiComponent('TextField')
 </script>
 
 <template>
-  <component :is="UiTextField" v-bind="$attrs">
+  <component
+    :is="UiTextField"
+    v-bind="{ ...props, ...$attrs }"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <slot />
   </component>
 </template>

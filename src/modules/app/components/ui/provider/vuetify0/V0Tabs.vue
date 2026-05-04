@@ -11,6 +11,12 @@ export interface TabsProps {
 
 defineProps<TabsProps>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+
+function onUpdateModelValue(value: string | string[] | undefined) {
+  if (typeof value === 'string') {
+    emit('update:modelValue', value)
+  }
+}
 </script>
 
 <template>
@@ -18,7 +24,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
     :model-value="modelValue"
     :default-value="defaultValue || tabs[0]?.value"
     mandatory="force"
-    @update:model-value="(v: string) => emit('update:modelValue', v)"
+    @update:model-value="onUpdateModelValue"
   >
     <Tabs.List
       class="border-surface-200 dark:border-surface-700 flex gap-1 border-b"

@@ -240,6 +240,15 @@ describe('Formwerk Basic Fields', () => {
       expect(wrapper.find('[data-ui="textfield"]').exists()).toBe(true)
     })
 
+    it('uses explicit ids for stable label and input bindings', () => {
+      const wrapper = mount(RekaTextField, {
+        props: { id: 'email', name: 'email', label: 'Email' },
+      })
+
+      expect(wrapper.find('input').attributes('id')).toBe('email')
+      expect(wrapper.find('label').attributes('for')).toBe('email')
+    })
+
     it('shows required indicator', () => {
       const wrapper = mount(RekaTextField, {
         props: { name: 'email', label: 'Email', required: true },

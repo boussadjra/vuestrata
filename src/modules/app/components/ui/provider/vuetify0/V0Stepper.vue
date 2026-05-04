@@ -14,13 +14,16 @@ const props = withDefaults(defineProps<StepperProps>(), {
 
 const emit = defineEmits<{ 'update:modelValue': [value: number] }>()
 const current = computed(() => Math.max(0, Math.min(props.modelValue, props.steps.length - 1)))
+
+function onUpdateModelValue(value: number | number[] | undefined) {
+  if (typeof value === 'number') {
+    emit('update:modelValue', value)
+  }
+}
 </script>
 
 <template>
-  <Step.Root
-    :model-value="current"
-    @update:model-value="(v: number) => emit('update:modelValue', v)"
-  >
+  <Step.Root :model-value="current" @update:model-value="onUpdateModelValue">
     <ol class="grid gap-3" data-provider="vuetify0" data-ui="stepper">
       <Step.Item
         v-for="(step, index) in steps"
