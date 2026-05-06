@@ -113,10 +113,18 @@
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-soft: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
-  --shadow-elevated: 0 8px 24px -4px rgb(0 0 0 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.06);
-  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
-  --shadow-card-hover: 0 10px 30px -6px rgb(0 0 0 / 0.12), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+  --shadow-soft:
+    0 2px 8px -2px color-mix(in oklch, var(--color-primary-500) 10%, transparent),
+    0 2px 4px -2px color-mix(in oklch, var(--color-surface-900) 6%, transparent);
+  --shadow-elevated:
+    0 8px 24px -4px color-mix(in oklch, var(--color-primary-500) 16%, transparent),
+    0 4px 8px -2px color-mix(in oklch, var(--color-surface-900) 8%, transparent);
+  --shadow-card:
+    0 1px 3px color-mix(in oklch, var(--color-primary-500) 8%, transparent),
+    0 1px 2px color-mix(in oklch, var(--color-surface-900) 5%, transparent);
+  --shadow-card-hover:
+    0 10px 30px -6px color-mix(in oklch, var(--color-primary-500) 16%, transparent),
+    0 4px 6px -2px color-mix(in oklch, var(--color-surface-900) 7%, transparent);
   --shadow-glow-primary: 0 0 20px color-mix(in oklch, var(--color-primary-500) 25%, transparent);
   --shadow-glow-secondary: 0 0 20px color-mix(in oklch, var(--color-secondary-500) 25%, transparent);
   --shadow-glow-accent: 0 0 20px color-mix(in oklch, var(--color-accent-500) 25%, transparent);
@@ -315,19 +323,19 @@ textarea {
 }
 
 .animate-slide-down {
-  animation: slide-down 0.5s ease both;
+  animation: slide-down 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fade-in {
-  animation: fade-in 0.6s ease both;
+  animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-slide-up {
-  animation: slide-up 0.5s ease both;
+  animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-scale-in {
-  animation: scale-in 0.55s ease both;
+  animation: scale-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -345,15 +353,11 @@ textarea {
 }
 
 .shadow-elevated {
-  box-shadow:
-    0 12px 40px -8px rgb(0 0 0 / 0.08),
-    0 4px 12px -4px rgb(0 0 0 / 0.04);
+  box-shadow: var(--shadow-elevated);
 }
 
 .dark .shadow-elevated {
-  box-shadow:
-    0 12px 40px -8px rgb(0 0 0 / 0.25),
-    0 4px 12px -4px rgb(0 0 0 / 0.15);
+  box-shadow: var(--shadow-elevated);
 }
 
 .docs-content {
@@ -381,7 +385,7 @@ textarea {
 .dark .docs-content h2,
 .dark .docs-content h3,
 .dark .docs-content h4 {
-  color: white;
+  color: var(--color-surface-50);
 }
 
 .docs-content h1 {
@@ -425,7 +429,7 @@ textarea {
 
 .docs-content ul,
 .docs-content ol {
-  padding-left: 1.4rem;
+  padding-inline-start: 1.4rem;
 }
 
 .docs-content ul {
@@ -475,15 +479,15 @@ textarea {
 }
 
 .dark .docs-content strong {
-  color: white;
+  color: var(--color-surface-50);
 }
 
 .docs-content code:not(pre code) {
   border: 1px solid color-mix(in srgb, var(--color-primary-200) 65%, transparent);
-  background: color-mix(in srgb, var(--color-primary-50) 88%, white);
+  background: color-mix(in oklch, var(--color-primary-50) 88%, var(--color-surface-50));
   color: var(--color-primary-800);
   padding: 0.18rem 0.42rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   font-size: 0.9em;
   font-family: var(--font-mono);
 }
@@ -496,10 +500,10 @@ textarea {
 
 .docs-content pre {
   overflow-x: auto;
-  border-radius: 1rem;
+  border-radius: var(--radius-xl);
   padding: 1rem 1.1rem;
   border: 1px solid var(--color-surface-200);
-  background: color-mix(in srgb, var(--color-surface-50) 88%, white);
+  background: color-mix(in oklch, var(--color-surface-50) 88%, var(--color-primary-50));
   color: var(--color-surface-800);
 }
 
@@ -531,7 +535,7 @@ textarea {
 }
 
 .docs-code-group .docs-code-group-body {
-  background: color-mix(in srgb, var(--color-surface-50) 92%, white);
+  background: color-mix(in oklch, var(--color-surface-50) 92%, var(--color-primary-50));
 }
 
 .dark .docs-code-group .docs-code-group-body {
@@ -544,7 +548,7 @@ textarea {
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--color-surface-200);
-  border-radius: 1rem;
+  border-radius: var(--radius-xl);
 }
 
 .dark .docs-content table {
@@ -552,16 +556,16 @@ textarea {
 }
 
 .docs-content thead {
-  background: color-mix(in srgb, var(--color-surface-100) 88%, white);
+  background: color-mix(in oklch, var(--color-surface-100) 88%, var(--color-surface-50));
 }
 
 .dark .docs-content thead {
-  background: color-mix(in srgb, var(--color-surface-800) 92%, black);
+  background: color-mix(in oklch, var(--color-surface-800) 92%, var(--color-surface-950));
 }
 
 .docs-content th,
 .docs-content td {
-  text-align: left;
+  text-align: start;
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--color-surface-200);
   vertical-align: top;
@@ -578,14 +582,14 @@ textarea {
 
 .docs-content blockquote {
   border: 1px solid color-mix(in oklch, var(--color-primary-400) 40%, transparent);
-  background: color-mix(in srgb, var(--color-primary-50) 85%, white);
+  background: color-mix(in oklch, var(--color-primary-50) 85%, var(--color-surface-50));
   padding: 0.9rem 1rem;
-  border-radius: 1rem;
+  border-radius: var(--radius-xl);
 }
 
 .dark .docs-content blockquote {
   border-color: color-mix(in oklch, var(--color-primary-700) 50%, transparent);
-  background: color-mix(in srgb, var(--color-primary-950) 90%, black);
+  background: color-mix(in oklch, var(--color-primary-950) 90%, var(--color-surface-950));
 }
 
 .docs-content hr {
