@@ -155,7 +155,11 @@ const currentSlug = computed(() => {
   return Array.isArray(slugParam) ? slugParam.join('/') : slugParam
 })
 
-const currentDoc = computed(() => docs.find((doc) => doc.slug === currentSlug.value) || rootDoc)
+const currentDoc = computed(() => {
+  const matchedDoc = docs.find((doc) => doc.slug === currentSlug.value)
+  if (matchedDoc) return matchedDoc
+  return currentSlug.value ? undefined : rootDoc
+})
 
 const expandedGroups = ref(new Set<string>())
 
@@ -273,10 +277,10 @@ function isActive(slug: string) {
 </script>
 
 <template>
-  <div class="flex h-full">
+  <div class="flex h-full min-h-0">
     <button
       type="button"
-      class="bg-primary-500 focus-visible:ring-primary-300 fixed right-4 bottom-4 z-40 rounded-full p-3 text-white shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none lg:hidden"
+      class="bg-primary-500 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 text-surface-50 fixed inset-e-4 bottom-4 z-40 flex min-h-11 min-w-11 items-center justify-center rounded-full shadow-(--shadow-elevated) transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none lg:hidden"
       aria-controls="docs-sidebar"
       aria-label="Toggle documentation navigation"
       :aria-expanded="sidebarOpen"
@@ -289,10 +293,10 @@ function isActive(slug: string) {
       id="docs-sidebar"
       aria-label="Documentation sidebar"
       :class="[
-        'border-surface-200/80 dark:border-surface-700 dark:bg-surface-900/98 w-72 shrink-0 border-r bg-white/98 shadow-xl shadow-black/5 lg:shadow-none',
+        'border-surface-200/80 bg-surface-50/98 dark:border-surface-700 dark:bg-surface-900/98 min-h-0 w-72 shrink-0 border-e shadow-(--shadow-elevated) lg:shadow-none',
         'overflow-y-auto p-4 lg:sticky lg:top-0 lg:h-full',
-        'fixed inset-y-16 left-0 z-30 lg:relative lg:inset-auto',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        'fixed inset-y-16 inset-s-0 z-30 lg:relative lg:inset-auto',
+        sidebarOpen ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
         'transition-transform duration-200',
       ]"
       @keydown.esc="closeSidebar"
@@ -300,7 +304,7 @@ function isActive(slug: string) {
       <RouterLink
         to="/docs"
         :class="[
-          'focus-visible:ring-primary-300 mb-4 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none',
+          'focus-visible:ring-primary-300 mb-3 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
           currentSlug === ''
             ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300'
             : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800',
@@ -311,7 +315,7 @@ function isActive(slug: string) {
         Documentation
       </RouterLink>
 
-      <nav aria-label="Documentation" class="space-y-5">
+      <nav aria-label="Documentation" class="space-y-4 lg:space-y-3">
         <section v-for="section in sortedSections" :key="section.key">
           <h2
             :id="`docs-section-${section.key}`"
@@ -328,7 +332,7 @@ function isActive(slug: string) {
                 <RouterLink
                   :to="entry.doc.slug ? `/docs/${entry.doc.slug}` : '/docs'"
                   :class="[
-                    'focus-visible:ring-primary-300 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                    'focus-visible:ring-primary-300 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
                     isActive(entry.doc.slug)
                       ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 font-semibold'
                       : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
@@ -345,7 +349,7 @@ function isActive(slug: string) {
                   :aria-expanded="isGroupExpanded(entry.group.key)"
                   :aria-controls="getGroupPanelId(entry.group.key)"
                   :class="[
-                    'focus-visible:ring-primary-300 flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                    'focus-visible:ring-primary-300 flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
                     isGroupActive(entry.group)
                       ? 'bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100'
                       : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
@@ -364,13 +368,13 @@ function isActive(slug: string) {
                 <ul
                   v-show="isGroupExpanded(entry.group.key)"
                   :id="getGroupPanelId(entry.group.key)"
-                  class="border-surface-200 dark:border-surface-700 mt-1 ml-3 space-y-1 border-l pl-2"
+                  class="border-surface-200 dark:border-surface-700 ms-3 mt-1 space-y-1 border-s ps-2"
                 >
                   <li v-for="sub in entry.group.items" :key="sub.slug">
                     <RouterLink
                       :to="`/docs/${sub.slug}`"
                       :class="[
-                        'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                        'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
                         isActive(sub.slug)
                           ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/30 dark:text-primary-300 font-semibold'
                           : 'text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
@@ -397,7 +401,7 @@ function isActive(slug: string) {
     />
 
     <main
-      class="bg-surface-50/60 dark:bg-surface-950 min-w-0 flex-1 overflow-y-auto px-6 py-8 lg:px-4"
+      class="bg-surface-50/60 dark:bg-surface-950 min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-4"
     >
       <article
         v-if="currentDoc"
@@ -420,9 +424,17 @@ function isActive(slug: string) {
         </Suspense>
       </article>
 
-      <div v-else class="text-surface-500 py-20 text-center">
-        <p class="text-lg">Page not found</p>
-        <button class="text-primary-500 mt-4 hover:underline" @click="navigateTo('')">
+      <div v-else class="mx-auto max-w-xl py-20 text-center">
+        <p class="text-surface-900 dark:text-surface-100 text-lg font-semibold">
+          This docs route is not indexed.
+        </p>
+        <p class="text-surface-500 dark:text-surface-400 mt-2 text-sm leading-6">
+          The markdown registry has no entry for this URL.
+        </p>
+        <button
+          class="text-primary-600 hover:text-primary-700 focus-visible:ring-primary-300/30 dark:text-primary-300 dark:hover:text-primary-200 mt-5 rounded-md px-3 py-2 text-sm font-semibold focus-visible:ring-2 focus-visible:outline-none"
+          @click="navigateTo('')"
+        >
           Back to docs
         </button>
       </div>

@@ -8,7 +8,7 @@ import AppNotifications from '@/components/layout/AppNotifications.vue'
     class="bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex h-screen flex-col"
   >
     <AppHeader />
-    <div class="flex-1 overflow-hidden">
+    <div class="min-h-0 flex-1 overflow-hidden">
       <RouterView />
     </div>
     <AppNotifications />
