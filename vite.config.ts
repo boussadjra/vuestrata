@@ -24,6 +24,7 @@ export default defineConfig({
     ignorePatterns: [
       'dist/**',
       'node_modules/**',
+      '.agents/**',
       '*.d.ts',
       'auto-imports.d.ts',
       'components.d.ts',
@@ -44,7 +45,13 @@ export default defineConfig({
     bracketSpacing: true,
     sortImports: true,
     sortTailwindcss: true,
-    ignorePatterns: [],
+    ignorePatterns: [
+      '.agents/**',
+      '*.d.ts',
+      'auto-imports.d.ts',
+      'components.d.ts',
+      'typed-router.d.ts',
+    ],
   },
   staged: {
     '*.{ts,vue}': ['vp lint --fix', 'vp fmt', 'node scripts/lint/run-custom-rules.mjs'],

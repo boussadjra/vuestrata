@@ -1,6 +1,6 @@
+import type { ComarkPlugin } from 'comark'
 import type { ComarkElement, ComarkNode, ComarkTree } from 'comark/ast'
 import { textContent, visit } from 'comark/ast'
-import type { ComarkPlugin } from 'comark'
 
 type JsonRenderProps = Record<string, unknown>
 
@@ -62,7 +62,12 @@ function resolveElement(
   if (!type) return undefined
 
   const props = sanitizeProps(element.props)
-  if (type === 'Text') return String(props.content ?? '')
+  if (type === 'Text') {
+    const content = props.content
+    if (typeof content === 'string') return content
+    if (typeof content === 'number' || typeof content === 'boolean') return String(content)
+    return ''
+  }
 
   const children = Array.isArray(element.children) ? element.children : []
   const childNodes = children.flatMap((child) => {
@@ -85,17 +90,13 @@ function jsonRenderToNode(spec: unknown): ComarkNode | undefined {
 }
 
 function replaceJsonRenderNodes(tree: ComarkTree): void {
-  visit(
-    tree,
-    isJsonRenderNode,
-    (node) => {
-      try {
-        return jsonRenderToNode(JSON.parse(textContent(node)))
-      } catch {
-        return undefined
-      }
-    },
-  )
+  visit(tree, isJsonRenderNode, (node) => {
+    try {
+      return jsonRenderToNode(JSON.parse(textContent(node)))
+    } catch {
+      return undefined
+    }
+  })
 }
 
 export default function jsonRender(): ComarkPlugin {

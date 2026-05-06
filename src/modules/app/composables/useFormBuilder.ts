@@ -71,9 +71,9 @@ export function useFormBuilder<T extends Record<string, unknown> = Record<string
     fields,
     isSubmitting: form.isSubmitting,
     wasSubmitted: form.wasSubmitted,
-    isDirty: form.isDirty,
-    isTouched: form.isTouched,
-    isValid: form.isValid,
+    isDirty: (...args: Parameters<typeof form.isDirty>) => form.isDirty(...args),
+    isTouched: (...args: Parameters<typeof form.isTouched>) => form.isTouched(...args),
+    isValid: (...args: Parameters<typeof form.isValid>) => form.isValid(...args),
     /** Pass directly to <form @submit="handleSubmit"> — validates before calling onSubmit. */
     handleSubmit,
     setFieldValue,
