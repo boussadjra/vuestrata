@@ -11,6 +11,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 
+import { UiButton } from '@/components/ui'
 import { useNotificationStore } from '@/stores/notification'
 import { resolveIcon } from '~/config/icon-provider'
 
@@ -277,17 +278,13 @@ async function handleProfileSubmit() {
             </p>
           </div>
 
-          <button
-            type="submit"
-            :disabled="contactSubmitting"
-            class="bg-primary-600 hover:bg-primary-500 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white shadow-md transition-all disabled:opacity-60"
-          >
+          <UiButton type="submit" variant="primary" block :disabled="contactSubmitting">
             <span
               v-if="contactSubmitting"
               :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']"
             />
             {{ contactSubmitting ? t('forms_sending') : t('forms_send') }}
-          </button>
+          </UiButton>
         </form>
       </div>
 
@@ -452,14 +449,10 @@ async function handleProfileSubmit() {
             </label>
           </div>
 
-          <button
-            type="submit"
-            :disabled="profileSaving"
-            class="bg-primary-600 hover:bg-primary-500 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white shadow-md transition-all disabled:opacity-60"
-          >
+          <UiButton type="submit" variant="primary" block :disabled="profileSaving">
             <span v-if="profileSaving" :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']" />
             {{ profileSaving ? t('forms_saving') : t('forms_save_profile') }}
-          </button>
+          </UiButton>
         </form>
       </div>
     </div>
@@ -510,22 +503,16 @@ async function handleProfileSubmit() {
             t('forms_age')
           }}</label>
           <div class="flex items-center gap-2">
-            <button
-              v-bind="ageField.decrementButtonProps.value"
-              class="border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg border px-3 py-2 text-sm transition-colors"
-            >
+            <UiButton v-bind="ageField.decrementButtonProps.value" variant="secondary" size="sm">
               −
-            </button>
+            </UiButton>
             <input
               v-bind="ageField.inputProps.value"
               class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-center text-sm outline-none focus:ring-2"
             />
-            <button
-              v-bind="ageField.incrementButtonProps.value"
-              class="border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg border px-3 py-2 text-sm transition-colors"
-            >
+            <UiButton v-bind="ageField.incrementButtonProps.value" variant="secondary" size="sm">
               +
-            </button>
+            </UiButton>
           </div>
         </div>
 

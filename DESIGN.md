@@ -3,120 +3,120 @@ name: Vuestrata
 description: A multi-theme Vue 3 enterprise starter — structured defaults, opinionated conventions, ten design personalities in one codebase.
 colors:
   # ── Default theme: Workshop Teal (primary) ──────────────────────────────
-  workshop-teal-mist:   "#eefbf5"   # primary-50  — hover tints, input bg tints
-  workshop-teal-light:  "#b2e8d1"   # primary-200 — borders, selected ring
-  workshop-teal:        "#29a07d"   # primary-500 — CTA, interactive accent
-  workshop-teal-dark:   "#1a8164"   # primary-600 — button hover, logo mark
-  workshop-teal-deeper: "#14634f"   # primary-700 — active state, logo primary
-  workshop-teal-ink:    "#082620"   # primary-950 — darkest ink tint
+  workshop-teal-mist: '#eefbf5' # primary-50  — hover tints, input bg tints
+  workshop-teal-light: '#b2e8d1' # primary-200 — borders, selected ring
+  workshop-teal: '#29a07d' # primary-500 — CTA, interactive accent
+  workshop-teal-dark: '#1a8164' # primary-600 — button hover, logo mark
+  workshop-teal-deeper: '#14634f' # primary-700 — active state, logo primary
+  workshop-teal-ink: '#082620' # primary-950 — darkest ink tint
   # ── Default theme: Raw Linen (secondary) ────────────────────────────────
-  raw-linen-pale:       "#f8f7f4"   # secondary-50  — subtle tinted surfaces
-  raw-linen:            "#9b8c74"   # secondary-500 — secondary buttons, tags
-  raw-linen-dark:       "#776757"   # secondary-700 — secondary hover
+  raw-linen-pale: '#f8f7f4' # secondary-50  — subtle tinted surfaces
+  raw-linen: '#9b8c74' # secondary-500 — secondary buttons, tags
+  raw-linen-dark: '#776757' # secondary-700 — secondary hover
   # ── Default theme: Ink Blossom (accent) ─────────────────────────────────
-  ink-blossom-pale:     "#fbf4fa"   # accent-50  — badge tints
-  ink-blossom:          "#cc62b3"   # accent-500 — accent buttons, highlights
-  ink-blossom-deep:     "#b94999"   # accent-600 — accent hover
+  ink-blossom-pale: '#fbf4fa' # accent-50  — badge tints
+  ink-blossom: '#cc62b3' # accent-500 — accent buttons, highlights
+  ink-blossom-deep: '#b94999' # accent-600 — accent hover
   # ── Default theme: Graphite (neutral / surface) ──────────────────────────
-  graphite-canvas:      "#f8fafc"   # surface-50  — page background, card bg
-  graphite-rule:        "#e2e8f0"   # surface-200 — borders, dividers
-  graphite-mid:         "#64748b"   # surface-500 — secondary text, placeholder
-  graphite:             "#334155"   # surface-700 — primary text (light mode)
-  graphite-deep:        "#1e293b"   # surface-800 — headings (light mode)
-  graphite-void:        "#020617"   # surface-950 — page bg (dark mode)
+  graphite-canvas: '#f8fafc' # surface-50  — page background, card bg
+  graphite-rule: '#e2e8f0' # surface-200 — borders, dividers
+  graphite-mid: '#64748b' # surface-500 — secondary text, placeholder
+  graphite: '#334155' # surface-700 — primary text (light mode)
+  graphite-deep: '#1e293b' # surface-800 — headings (light mode)
+  graphite-void: '#020617' # surface-950 — page bg (dark mode)
   # ── Semantic ─────────────────────────────────────────────────────────────
-  danger-signal:        "#ef4444"   # danger-500 — destructive actions, errors
-  danger-signal-dark:   "#dc2626"   # danger-600 — destructive hover
+  danger-signal: '#ef4444' # danger-500 — destructive actions, errors
+  danger-signal-dark: '#dc2626' # danger-600 — destructive hover
 typography:
   display:
     fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(2.25rem, 5vw, 3.75rem)"
-    fontWeight: "800"
-    lineHeight: "1.1"
-    letterSpacing: "-0.02em"
+    fontSize: 'clamp(2.25rem, 5vw, 3.75rem)'
+    fontWeight: '800'
+    lineHeight: '1.1'
+    letterSpacing: '-0.02em'
   headline:
     fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(1.5rem, 3vw, 2.25rem)"
-    fontWeight: "700"
-    lineHeight: "1.2"
-    letterSpacing: "-0.015em"
+    fontSize: 'clamp(1.5rem, 3vw, 2.25rem)'
+    fontWeight: '700'
+    lineHeight: '1.2'
+    letterSpacing: '-0.015em'
   title:
     fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.125rem"
-    fontWeight: "600"
-    lineHeight: "1.4"
+    fontSize: '1.125rem'
+    fontWeight: '600'
+    lineHeight: '1.4'
   body:
     fontFamily: "'Inter', 'Tajawal', 'Cairo', 'Rubik', ui-sans-serif"
-    fontSize: "0.875rem"
-    fontWeight: "400"
-    lineHeight: "1.6"
+    fontSize: '0.875rem'
+    fontWeight: '400'
+    lineHeight: '1.6'
   label:
     fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.75rem"
-    fontWeight: "500"
-    lineHeight: "1.4"
-    letterSpacing: "0.01em"
+    fontSize: '0.75rem'
+    fontWeight: '500'
+    lineHeight: '1.4'
+    letterSpacing: '0.01em'
 rounded:
-  sm:   "0.25rem"
-  md:   "0.375rem"
-  lg:   "0.5rem"
-  xl:   "0.75rem"
-  2xl:  "1rem"
-  full: "9999px"
+  sm: '0.25rem'
+  md: '0.375rem'
+  lg: '0.5rem'
+  xl: '0.75rem'
+  2xl: '1rem'
+  full: '9999px'
 components:
   button-primary:
-    backgroundColor: "{colors.workshop-teal}"
-    textColor: "#ffffff"
-    typography: "{typography.label}"
-    rounded: "{rounded.lg}"
-    padding: "0.5rem 1rem"
+    backgroundColor: '{colors.workshop-teal}'
+    textColor: '#ffffff'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '0.5rem 1rem'
   button-primary-hover:
-    backgroundColor: "{colors.workshop-teal-dark}"
-    textColor: "#ffffff"
-    typography: "{typography.label}"
-    rounded: "{rounded.lg}"
-    padding: "0.5rem 1rem"
+    backgroundColor: '{colors.workshop-teal-dark}'
+    textColor: '#ffffff'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '0.5rem 1rem'
   button-secondary:
-    backgroundColor: "{colors.raw-linen}"
-    textColor: "#ffffff"
-    typography: "{typography.label}"
-    rounded: "{rounded.lg}"
-    padding: "0.5rem 1rem"
+    backgroundColor: '{colors.raw-linen}'
+    textColor: '#ffffff'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '0.5rem 1rem'
   button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.graphite}"
-    typography: "{typography.label}"
-    rounded: "{rounded.lg}"
-    padding: "0.5rem 1rem"
+    backgroundColor: 'transparent'
+    textColor: '{colors.graphite}'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '0.5rem 1rem'
   button-ghost-hover:
-    backgroundColor: "{colors.graphite-rule}"
-    textColor: "{colors.graphite}"
-    typography: "{typography.label}"
-    rounded: "{rounded.lg}"
-    padding: "0.5rem 1rem"
+    backgroundColor: '{colors.graphite-rule}'
+    textColor: '{colors.graphite}'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '0.5rem 1rem'
   button-destructive:
-    backgroundColor: "{colors.danger-signal}"
-    textColor: "#ffffff"
-    typography: "{typography.label}"
-    rounded: "{rounded.lg}"
-    padding: "0.5rem 1rem"
+    backgroundColor: '{colors.danger-signal}'
+    textColor: '#ffffff'
+    typography: '{typography.label}'
+    rounded: '{rounded.lg}'
+    padding: '0.5rem 1rem'
   card:
-    backgroundColor: "{colors.graphite-canvas}"
-    textColor: "{colors.graphite}"
-    rounded: "{rounded.lg}"
-    padding: "1.5rem"
+    backgroundColor: '{colors.graphite-canvas}'
+    textColor: '{colors.graphite}'
+    rounded: '{rounded.lg}'
+    padding: '1.5rem'
   input:
-    backgroundColor: "{colors.graphite-canvas}"
-    textColor: "{colors.graphite-deep}"
-    rounded: "{rounded.md}"
-    padding: "0.5rem 0.75rem"
-    height: "2.5rem"
+    backgroundColor: '{colors.graphite-canvas}'
+    textColor: '{colors.graphite-deep}'
+    rounded: '{rounded.md}'
+    padding: '0.5rem 0.75rem'
+    height: '2.5rem'
   input-focus:
-    backgroundColor: "{colors.graphite-canvas}"
-    textColor: "{colors.graphite-deep}"
-    rounded: "{rounded.md}"
-    padding: "0.5rem 0.75rem"
-    height: "2.5rem"
+    backgroundColor: '{colors.graphite-canvas}'
+    textColor: '{colors.graphite-deep}'
+    rounded: '{rounded.md}'
+    padding: '0.5rem 0.75rem'
+    height: '2.5rem'
 ---
 
 # Design System: Vuestrata
@@ -132,6 +132,7 @@ The system rejects what PRODUCT.md calls the anti-references by name: Bootstrap 
 Ten named themes extend this foundation without changing the architecture. Each theme overrides the same CSS custom-property vocabulary — colors, radii, shadows, typeface — so the layout and component structure remain constant. A screen that works in Default works in Terminal. The themes are not skins; they are first-class design personalities, each with its own aesthetic rationale.
 
 **Key Characteristics:**
+
 - Single interactive accent per theme; rarity is the point
 - Flat surfaces at rest — depth responds to state, not decoration
 - Dense, information-first layouts with clear visual hierarchy
@@ -140,12 +141,11 @@ Ten named themes extend this foundation without changing the architecture. Each 
 - All 10 themes support both light and dark mode via `html.dark` class
 - Motion respects `prefers-reduced-motion` at the component level
 
-
 ---
 
 ## 2. Colors: The Workshop Palette
 
-*The default palette is a craftsman's limited set — one working teal, one warm stone, one florescent accent for emphasis, graphite for structure.*
+_The default palette is a craftsman's limited set — one working teal, one warm stone, one florescent accent for emphasis, graphite for structure._
 
 ### Primary — Workshop Teal
 
@@ -195,185 +195,185 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 
 #### Character Cards
 
-| Theme | Aesthetic | Design Mood |
-|-------|-----------|-------------|
-| **Default** | Teal on slate | Precise, professional, neutral |
-| **Blueprint** | Sepia ink on aged parchment | Drafting board nostalgia, gridded precision |
-| **Brutalist** | Pure B&W with electric yellow | Uncompromising, raw, zero decoration |
-| **Febin** | Coral/orange on warm sunrise surface | Vibrant twilight, painterly warmth |
-| **Forest** | Emerald + warm gold on olive | Grounded, natural, earthy abundance |
-| **Ghibli** | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene |
-| **Ocean** | Deep indigo + cyan on cool slate | Immersive, professional, coastal depth |
-| **Rose** | Rose pink + slate purple | Sophisticated, modern, editorial |
-| **Sunset** | Amber/orange + deep rose on warm stone | Energetic, warm, high-vibration |
-| **Terminal** | Phosphor green on dark charcoal | Developer-native, monospace, austere |
+| Theme         | Aesthetic                               | Design Mood                                 |
+| ------------- | --------------------------------------- | ------------------------------------------- |
+| **Default**   | Teal on slate                           | Precise, professional, neutral              |
+| **Blueprint** | Sepia ink on aged parchment             | Drafting board nostalgia, gridded precision |
+| **Brutalist** | Pure B&W with electric yellow           | Uncompromising, raw, zero decoration        |
+| **Febin**     | Coral/orange on warm sunrise surface    | Vibrant twilight, painterly warmth          |
+| **Forest**    | Emerald + warm gold on olive            | Grounded, natural, earthy abundance         |
+| **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene             |
+| **Ocean**     | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth      |
+| **Rose**      | Rose pink + slate purple                | Sophisticated, modern, editorial            |
+| **Sunset**    | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration             |
+| **Terminal**  | Phosphor green on dark charcoal         | Developer-native, monospace, austere        |
 
 #### Full Token Table
 
-| Theme | Primary-500 | Secondary-500 | Accent-500 | Surface-50 | Radius-md | Body Font |
-|-------|-------------|---------------|------------|------------|-----------|-----------|
-| Default | `#29a07d` | `#9b8c74` | `#cc62b3` | `#f8fafc` | 0.375rem | Inter |
-| Blueprint | `#8c6420` | `#3a66a0` | `#b65530` | `#f8f3e6` | 0 | Bookman Old Style |
-| Brutalist | `#171717` | `#eab308` | `#ef4444` | `#fafafa` | 0 | JetBrains Mono |
-| Febin | `#dd7c55` | `#597ba8` | `#f23d4e` | `#fffcf8` | 0.75rem | Rubik |
-| Forest | `#10b981` | `#c9b210` | `#14b8a6` | `#fafaf5` | 0.625rem | Inter |
-| Ghibli | `#4d7c5b` | `#c97c3a` | `#5b9bbf` | `#fdfbf7` | 0.75rem | Georgia |
-| Ocean | `#6366f1` | `#06b6d4` | `#8b5cf6` | `#f8fafc` | 0.5rem | Inter |
-| Rose | `#f43f5e` | `#a855f7` | `#d946ef` | `#fafafa` | 0.5rem | Inter |
-| Sunset | `#f97316` | `#f43f5e` | `#eab308` | `#fafaf9` | 0.5rem | Rubik |
-| Terminal | `#10b981` | `#f59e0b` | `#06b6d4` | `#d4d4d8` | 0.25rem | SF Mono |
+| Theme     | Primary-500 | Secondary-500 | Accent-500 | Surface-50 | Radius-md | Body Font         |
+| --------- | ----------- | ------------- | ---------- | ---------- | --------- | ----------------- |
+| Default   | `#29a07d`   | `#9b8c74`     | `#cc62b3`  | `#f8fafc`  | 0.375rem  | Inter             |
+| Blueprint | `#8c6420`   | `#3a66a0`     | `#b65530`  | `#f8f3e6`  | 0         | Bookman Old Style |
+| Brutalist | `#171717`   | `#eab308`     | `#ef4444`  | `#fafafa`  | 0         | JetBrains Mono    |
+| Febin     | `#dd7c55`   | `#597ba8`     | `#f23d4e`  | `#fffcf8`  | 0.75rem   | Rubik             |
+| Forest    | `#10b981`   | `#c9b210`     | `#14b8a6`  | `#fafaf5`  | 0.625rem  | Inter             |
+| Ghibli    | `#4d7c5b`   | `#c97c3a`     | `#5b9bbf`  | `#fdfbf7`  | 0.75rem   | Georgia           |
+| Ocean     | `#6366f1`   | `#06b6d4`     | `#8b5cf6`  | `#f8fafc`  | 0.5rem    | Inter             |
+| Rose      | `#f43f5e`   | `#a855f7`     | `#d946ef`  | `#fafafa`  | 0.5rem    | Inter             |
+| Sunset    | `#f97316`   | `#f43f5e`     | `#eab308`  | `#fafaf9`  | 0.5rem    | Rubik             |
+| Terminal  | `#10b981`   | `#f59e0b`     | `#06b6d4`  | `#d4d4d8`  | 0.25rem   | SF Mono           |
 
 #### Per-Theme Deep Dive
 
 ---
 
-**Default** — *The Workbench*
+**Default** — _The Workbench_
 Engineered teal cuts through graphite slate. Radii are tight (md=0.375rem), shadows are ambient, Inter runs the type. The surface is the color of a misted window at first light. This is the reference personality every other theme interprets.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-50…950 | `#eefbf5` → `#082620` | Custom teal, not Tailwind emerald |
-| Secondary-500 | `#9b8c74` | Malta warm stone |
-| Accent-500 | `#cc62b3` | Soft pink-magenta |
-| Danger-500 | `#ef4444` | Semantic only |
-| Radius-md | 0.375rem | Tight, functional |
-| Font | Inter + Tajawal/Cairo (RTL) | Multilingual stack |
+| Token          | Value                       | Notes                             |
+| -------------- | --------------------------- | --------------------------------- |
+| Primary-50…950 | `#eefbf5` → `#082620`       | Custom teal, not Tailwind emerald |
+| Secondary-500  | `#9b8c74`                   | Malta warm stone                  |
+| Accent-500     | `#cc62b3`                   | Soft pink-magenta                 |
+| Danger-500     | `#ef4444`                   | Semantic only                     |
+| Radius-md      | 0.375rem                    | Tight, functional                 |
+| Font           | Inter + Tajawal/Cairo (RTL) | Multilingual stack                |
 
 ---
 
-**Blueprint** — *The Aged Schematic*
+**Blueprint** — _The Aged Schematic_
 A vintage technical drawing on yellowed quadrille paper. Dark sepia ink for primary actions, blueprint blue annotations for secondary context, aged red correction marks for accents. All radii are zero — precision demands sharp corners. Shadows are hard flat offsets (2px 2px 0), not gaussian. A custom `--blueprint-grid-*` overlay renders graph paper lines on the page background.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#8c6420` | Dark sepia ink |
-| Secondary-500 | `#3a66a0` | Annotation blue |
-| Accent-500 | `#b65530` | Aged red correction |
-| Surface-50 | `#f8f3e6` | Yellowed parchment |
-| Radius | 0 everywhere | No rounding — drafting precision |
-| Shadow style | Hard flat offset (2–4px, 0 blur) | Paper stacking |
-| Font | Bookman Old Style → Georgia → serif | Vintage print stack |
+| Token         | Value                               | Notes                            |
+| ------------- | ----------------------------------- | -------------------------------- |
+| Primary-500   | `#8c6420`                           | Dark sepia ink                   |
+| Secondary-500 | `#3a66a0`                           | Annotation blue                  |
+| Accent-500    | `#b65530`                           | Aged red correction              |
+| Surface-50    | `#f8f3e6`                           | Yellowed parchment               |
+| Radius        | 0 everywhere                        | No rounding — drafting precision |
+| Shadow style  | Hard flat offset (2–4px, 0 blur)    | Paper stacking                   |
+| Font          | Bookman Old Style → Georgia → serif | Vintage print stack              |
 
 ---
 
-**Brutalist** — *The Manifesto*
+**Brutalist** — _The Manifesto_
 Pure black on white. No rounding. No softness. Electric yellow (#eab308) is the single decoration. Hard offset shadows (4px 4px 0 black). Monospace type (JetBrains Mono) used for everything — body, labels, headings. No glows. Dark mode replaces primary black with phosphor green (#00ff00) on a near-black surface, converting the theme into a terminal variant.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#171717` | Near-black |
-| Secondary-500 | `#eab308` | Electric yellow — the single accent |
-| Accent-500 | `#ef4444` | Hot red |
-| Radius | 0 everywhere | Structural rejection of softness |
-| Shadow style | Hard offset (4–6px, 0 blur, 25–30% black) | Constructivist |
-| Font | JetBrains Mono, Courier New | Mono body text — intentional |
-| Dark mode delta | Primary becomes `#00ff00` (phosphor green) | Mode-switching personality |
+| Token           | Value                                      | Notes                               |
+| --------------- | ------------------------------------------ | ----------------------------------- |
+| Primary-500     | `#171717`                                  | Near-black                          |
+| Secondary-500   | `#eab308`                                  | Electric yellow — the single accent |
+| Accent-500      | `#ef4444`                                  | Hot red                             |
+| Radius          | 0 everywhere                               | Structural rejection of softness    |
+| Shadow style    | Hard offset (4–6px, 0 blur, 25–30% black)  | Constructivist                      |
+| Font            | JetBrains Mono, Courier New                | Mono body text — intentional        |
+| Dark mode delta | Primary becomes `#00ff00` (phosphor green) | Mode-switching personality          |
 
 ---
 
-**Febin** — *The Windmill at Dusk*
+**Febin** — _The Windmill at Dusk_
 Inspired by vibrant windmill sunset art. Soft coral/orange primary (#dd7c55), twilight slate-blue secondary (#597ba8), deep crimson accent. The surface is a warm glowing sunrise (#fffcf8). Radii are large (sm=0.5rem, 2xl=2rem) — this is the most rounded theme. Shadows mix warm coral and cool blue in dual-tone stacking. Rubik type.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#dd7c55` | Soft sunset coral |
-| Secondary-500 | `#597ba8` | Twilight slate blue |
-| Accent-500 | `#f23d4e` | Deep crimson |
-| Surface-50 | `#fffcf8` | Warm glowing sunrise |
-| Radius-sm / 2xl | 0.5rem / 2rem | Largest rounding in the system |
-| Shadow style | Dual-tone (coral + blue) |  Painterly layering |
-| Font | Rubik | Friendly geometric |
+| Token           | Value                    | Notes                          |
+| --------------- | ------------------------ | ------------------------------ |
+| Primary-500     | `#dd7c55`                | Soft sunset coral              |
+| Secondary-500   | `#597ba8`                | Twilight slate blue            |
+| Accent-500      | `#f23d4e`                | Deep crimson                   |
+| Surface-50      | `#fffcf8`                | Warm glowing sunrise           |
+| Radius-sm / 2xl | 0.5rem / 2rem            | Largest rounding in the system |
+| Shadow style    | Dual-tone (coral + blue) | Painterly layering             |
+| Font            | Rubik                    | Friendly geometric             |
 
 ---
 
-**Forest** — *The Forest Floor*
+**Forest** — _The Forest Floor_
 Emerald primary (#10b981) with warm gold secondary (#c9b210) and teal accent (#14b8a6). Warm olive surface tints. Organic radius (md=0.625rem). Shadows are natural emerald-tinted, low-contrast. The palette evokes forest light breaking through leaves — many greens, one highlight of gold.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#10b981` | Emerald |
-| Secondary-500 | `#c9b210` | Warm gold |
-| Accent-500 | `#14b8a6` | Teal |
-| Surface-50 | `#fafaf5` | Warm olive-white |
-| Radius-md | 0.625rem | Slightly organic |
-| Shadow style | Emerald-tinted ambient | Nature-softened |
-| Font | Inter / Rubik | Clean, readable |
+| Token         | Value                  | Notes            |
+| ------------- | ---------------------- | ---------------- |
+| Primary-500   | `#10b981`              | Emerald          |
+| Secondary-500 | `#c9b210`              | Warm gold        |
+| Accent-500    | `#14b8a6`              | Teal             |
+| Surface-50    | `#fafaf5`              | Warm olive-white |
+| Radius-md     | 0.625rem               | Slightly organic |
+| Shadow style  | Emerald-tinted ambient | Nature-softened  |
+| Font          | Inter / Rubik          | Clean, readable  |
 
 ---
 
-**Ghibli** — *The Animated Clearing*
+**Ghibli** — _The Animated Clearing_
 Earthy forest green (#4d7c5b), warm terracotta secondary (#c97c3a), muted sky blue accent (#5b9bbf). Warm cream surfaces (#fdfbf7). The largest rounding in serif themes (sm=0.5rem, 2xl=1.5rem). Georgia heads the font stack — the only theme that defaults to serif. Shadows are the gentlest in the system (warm brown-tinted, low opacity). This theme is intentionally whimsical without being playful.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#4d7c5b` | Muted forest green |
-| Secondary-500 | `#c97c3a` | Warm terracotta |
-| Accent-500 | `#5b9bbf` | Muted sky blue |
-| Surface-50 | `#fdfbf7` | Warm cream |
-| Radius-md | 0.75rem | Soft, hand-drawn feel |
-| Shadow style | Warm brown-tinted, ultra-soft | Gentle depth |
-| Font | Georgia → Rubik → serif | Only serif-first theme |
+| Token         | Value                         | Notes                  |
+| ------------- | ----------------------------- | ---------------------- |
+| Primary-500   | `#4d7c5b`                     | Muted forest green     |
+| Secondary-500 | `#c97c3a`                     | Warm terracotta        |
+| Accent-500    | `#5b9bbf`                     | Muted sky blue         |
+| Surface-50    | `#fdfbf7`                     | Warm cream             |
+| Radius-md     | 0.75rem                       | Soft, hand-drawn feel  |
+| Shadow style  | Warm brown-tinted, ultra-soft | Gentle depth           |
+| Font          | Georgia → Rubik → serif       | Only serif-first theme |
 
 ---
 
-**Ocean** — *The Deep Channel*
+**Ocean** — _The Deep Channel_
 Deep indigo primary (#6366f1), cyan secondary (#06b6d4), violet accent (#8b5cf6). The standard cool-slate surface (same as Default). Blue-tinted gaussian shadows with glow support enabled. Smooth radius (md=0.5rem). Inter type. This is the most "professional SaaS" personality in the set — the one to reach for in data-heavy dashboards.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#6366f1` | Deep indigo |
-| Secondary-500 | `#06b6d4` | Cyan |
-| Accent-500 | `#8b5cf6` | Violet |
-| Surface-50 | `#f8fafc` | Cool slate (same as Default) |
-| Radius-md | 0.5rem | Standard smooth |
-| Shadow style | Indigo-tinted gaussian + glow | Immersive depth |
-| Font | Inter / Rubik | Clean geometric |
+| Token         | Value                         | Notes                        |
+| ------------- | ----------------------------- | ---------------------------- |
+| Primary-500   | `#6366f1`                     | Deep indigo                  |
+| Secondary-500 | `#06b6d4`                     | Cyan                         |
+| Accent-500    | `#8b5cf6`                     | Violet                       |
+| Surface-50    | `#f8fafc`                     | Cool slate (same as Default) |
+| Radius-md     | 0.5rem                        | Standard smooth              |
+| Shadow style  | Indigo-tinted gaussian + glow | Immersive depth              |
+| Font          | Inter / Rubik                 | Clean geometric              |
 
 ---
 
-**Rose** — *The Editorial Studio*
+**Rose** — _The Editorial Studio_
 Rose pink primary (#f43f5e), slate purple secondary (#a855f7), warm fuchsia accent (#d946ef). Cool gray surface. Rose-tinted shadows. Smooth radius. The three palette colors are all high-saturation warm hues — this theme is deliberately bold and feminine without being decorative. Best for auth flows, landing pages, and editorial contexts.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#f43f5e` | Rose pink |
-| Secondary-500 | `#a855f7` | Slate purple |
-| Accent-500 | `#d946ef` | Warm fuchsia |
-| Surface-50 | `#fafafa` | Cool neutral white |
-| Radius-md | 0.5rem | Standard smooth |
-| Shadow style | Rose-tinted gaussian + glow | Saturated depth |
-| Font | Inter / Rubik | Clean geometric |
+| Token         | Value                       | Notes              |
+| ------------- | --------------------------- | ------------------ |
+| Primary-500   | `#f43f5e`                   | Rose pink          |
+| Secondary-500 | `#a855f7`                   | Slate purple       |
+| Accent-500    | `#d946ef`                   | Warm fuchsia       |
+| Surface-50    | `#fafafa`                   | Cool neutral white |
+| Radius-md     | 0.5rem                      | Standard smooth    |
+| Shadow style  | Rose-tinted gaussian + glow | Saturated depth    |
+| Font          | Inter / Rubik               | Clean geometric    |
 
 ---
 
-**Sunset** — *The Golden Hour*
+**Sunset** — _The Golden Hour_
 Amber/orange primary (#f97316), deep rose secondary (#f43f5e), golden yellow accent (#eab308). Warm stone surface (#fafaf9). Orange-tinted gaussian shadows. Rubik leads the font stack for a friendlier read. The energy here is kinetic — vibrant, high-contrast, unapologetically warm.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#f97316` | Amber orange |
-| Secondary-500 | `#f43f5e` | Deep rose |
-| Accent-500 | `#eab308` | Golden yellow |
-| Surface-50 | `#fafaf9` | Warm stone white |
-| Radius-md | 0.5rem | Standard smooth |
-| Shadow style | Orange-tinted gaussian + glow | Warm, energetic |
-| Font | Rubik / Inter | Friendly round |
+| Token         | Value                         | Notes            |
+| ------------- | ----------------------------- | ---------------- |
+| Primary-500   | `#f97316`                     | Amber orange     |
+| Secondary-500 | `#f43f5e`                     | Deep rose        |
+| Accent-500    | `#eab308`                     | Golden yellow    |
+| Surface-50    | `#fafaf9`                     | Warm stone white |
+| Radius-md     | 0.5rem                        | Standard smooth  |
+| Shadow style  | Orange-tinted gaussian + glow | Warm, energetic  |
+| Font          | Rubik / Inter                 | Friendly round   |
 
 ---
 
-**Terminal** — *The Command Line*
+**Terminal** — _The Command Line_
 Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/highlight secondary (#f59e0b), cyan link accent (#06b6d4). Monospace font stack (SF Mono → Menlo → JetBrains Mono). Nearly zero rounding (sm=0.125rem, md=0.25rem). Minimal, near-flat shadows. Dark mode makes green more vivid (#22c55e) and surfaces go near-black (#060608). This is the theme for developer tooling contexts, settings pages, and code-adjacent screens.
 
-| Token | Value | Notes |
-|-------|-------|-------|
-| Primary-500 | `#10b981` | Phosphor green |
-| Secondary-500 | `#f59e0b` | Amber (cursor color) |
-| Accent-500 | `#06b6d4` | Cyan (link color) |
-| Surface-50 | `#d4d4d8` | Medium gray (inverted feel) |
-| Radius-md | 0.25rem | Near-zero rounding |
-| Shadow style | Minimal black-tinted, flat | Terminal chrome |
-| Font | SF Mono → Menlo → JetBrains Mono | Full mono stack |
-| Dark mode delta | Green `#22c55e`, surface near-black | Deepens authenticity |
+| Token           | Value                               | Notes                       |
+| --------------- | ----------------------------------- | --------------------------- |
+| Primary-500     | `#10b981`                           | Phosphor green              |
+| Secondary-500   | `#f59e0b`                           | Amber (cursor color)        |
+| Accent-500      | `#06b6d4`                           | Cyan (link color)           |
+| Surface-50      | `#d4d4d8`                           | Medium gray (inverted feel) |
+| Radius-md       | 0.25rem                             | Near-zero rounding          |
+| Shadow style    | Minimal black-tinted, flat          | Terminal chrome             |
+| Font            | SF Mono → Menlo → JetBrains Mono    | Full mono stack             |
+| Dark mode delta | Green `#22c55e`, surface near-black | Deepens authenticity        |
 
 ---
 
@@ -384,7 +384,6 @@ Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/hig
 **The Zero-Radius Contract.** Blueprint and Brutalist set all radii to `0`. Components must not hardcode `rounded-*` class names with fixed values; they must derive rounding from `var(--radius-*)` tokens so shape responds correctly to theme.
 
 **The Typeface Handoff Rule.** Three themes switch the default typeface to a non-Inter stack: Blueprint (serif), Brutalist (monospace), Terminal (monospace), Ghibli (Georgia serif). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
-
 
 ---
 
@@ -410,7 +409,6 @@ Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/hig
 
 **The Mono Containment Rule.** JetBrains Mono is for code, terminal output, and the Terminal theme body. It must not appear in prose contexts in non-Terminal themes. Use `font-mono` as a targeted utility, not a default.
 
-
 ---
 
 ## 4. Elevation
@@ -435,14 +433,13 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 
 **The Tinted Shadow Rule.** In themes that use gaussian shadows, the shadow color matches the theme's primary hue at ≤18% opacity. Do not introduce neutral black shadows in tinted-shadow themes — it breaks the ambient warmth.
 
-
 ---
 
 ## 5. Components
 
 ### Buttons
 
-*Tactile and confident* — buttons give micro-scale lift on hover (`scale(1.02)`) and dip on press (`scale(0.97)`) with a cubic-bezier expo deceleration. The animation is disabled under `prefers-reduced-motion`.
+_Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)`) and dip on press (`scale(0.97)`) with a cubic-bezier expo deceleration. The animation is disabled under `prefers-reduced-motion`.
 
 - **Shape:** `rounded-lg` → `--radius-lg` (default 0.5rem; 0 in Blueprint/Brutalist; up to 1rem in Febin/Ghibli)
 - **Primary:** `bg-primary-500 text-white` · hover `bg-primary-600` · active `bg-primary-700` · focus ring `ring-primary-300`
@@ -502,7 +499,6 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 - **Header:** `bg-surface-100 text-surface-500 text-xs font-medium uppercase tracking-wide`
 - **Sticky header:** `sticky top-0 z-10`
 
-
 ---
 
 ## 6. Do's and Don'ts
@@ -532,11 +528,13 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 ---
 
 <!-- SIDECAR BEGIN — tokens not supported by Stitch's 8-prop component spec -->
+
 ## Appendix: Sidecar Tokens
 
 The following properties are real but fall outside the Stitch component 8-prop set. They are documented here for agent reference.
 
 ### Focus Rings
+
 ```
 focus-visible:outline-none
 focus-visible:ring-2
@@ -546,6 +544,7 @@ dark:focus-visible:ring-offset-surface-900
 ```
 
 ### Motion / Transitions
+
 ```css
 /* Base transition — expo deceleration */
 transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -561,6 +560,7 @@ motion-reduce:active:scale-100
 ```
 
 ### Available Named Animations
+
 - `animate-fade-in` — opacity 0→1, 200ms
 - `animate-slide-up` — translateY(8px)→0, 200ms
 - `animate-slide-down` — inverse
@@ -573,8 +573,10 @@ motion-reduce:active:scale-100
 - `animate-gradient-shift` — animated gradient background position
 
 ### Shadow Glows (theme-dependent)
+
 Available in: Ocean, Forest, Sunset, Rose, Terminal (dark only), Febin  
 Disabled in: Blueprint (`none`), Brutalist (no variable set)
+
 ```
 --shadow-glow-primary:   0 0 24px rgb(primary-500 / 0.3)
 --shadow-glow-secondary: 0 0 24px rgb(secondary-500 / 0.3)
@@ -582,9 +584,12 @@ Disabled in: Blueprint (`none`), Brutalist (no variable set)
 ```
 
 ### Blueprint-Exclusive Token
+
 ```css
---blueprint-grid-major: rgb(160 140 90 / 0.3)   /* major grid lines */
---blueprint-grid-minor: rgb(160 140 90 / 0.12)  /* minor grid lines */
+--blueprint-grid-major: rgb(160 140 90 / 0.3) /* major grid lines */
+  --blueprint-grid-minor: rgb(160 140 90 / 0.12) /* minor grid lines */;
 ```
+
 These are applied via SVG `background-image` on `:root.theme-blueprint`. Do not replicate this pattern in other themes.
+
 <!-- SIDECAR END -->

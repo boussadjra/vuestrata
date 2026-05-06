@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { UiButton } from '@/components/ui'
 import { resolveIcon } from '@/config/icon-provider'
 import { useNotificationStore } from '@/stores/notification'
 import type { IconName } from '@/types'
@@ -62,13 +63,16 @@ const variantLive: Record<string, 'polite' | 'assertive'> = {
             </p>
             <p class="text-surface-600 dark:text-surface-400 text-sm">{{ n.message }}</p>
           </div>
-          <button
-            class="hover:bg-surface-100 dark:hover:bg-surface-800 -me-1 -mt-0.5 shrink-0 rounded-lg p-1.5 transition-colors"
+          <UiButton
+            variant="ghost"
+            size="sm"
+            icon
+            class="-me-1 -mt-0.5 shrink-0"
             aria-label="Dismiss"
             @click="notificationStore.remove(n.id)"
           >
             <span :class="[resolveIcon('close'), 'h-3.5 w-3.5']" />
-          </button>
+          </UiButton>
         </div>
       </TransitionGroup>
     </div>

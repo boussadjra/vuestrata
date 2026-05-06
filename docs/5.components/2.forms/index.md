@@ -120,14 +120,14 @@ Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and rea
 
 #### Default slot props
 
-| Prop           | Type                       | Description                                  |
-| -------------- | -------------------------- | -------------------------------------------- |
-| `values`       | `Record<string, unknown>`  | Live reactive copy of all field values       |
-| `isSubmitting` | `boolean`                  | `true` while the submit handler is running   |
-| `wasSubmitted` | `boolean`                  | `true` after the first submit attempt        |
-| `isDirty`      | `boolean`                  | Any field value differs from `initialValues` |
-| `isTouched`    | `boolean`                  | Any field has been interacted with           |
-| `isValid`      | `boolean`                  | All fields pass validation                   |
+| Prop           | Type                      | Description                                  |
+| -------------- | ------------------------- | -------------------------------------------- |
+| `values`       | `Record<string, unknown>` | Live reactive copy of all field values       |
+| `isSubmitting` | `boolean`                 | `true` while the submit handler is running   |
+| `wasSubmitted` | `boolean`                 | `true` after the first submit attempt        |
+| `isDirty`      | `boolean`                 | Any field value differs from `initialValues` |
+| `isTouched`    | `boolean`                 | Any field has been interacted with           |
+| `isValid`      | `boolean`                 | All fields pass validation                   |
 
 For full step-by-step form management usage, open [Form Builder guide](/docs/components/forms/form-builder).
 

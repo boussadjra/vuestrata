@@ -21,6 +21,7 @@ import SpecializedDemo from '@/components/docs/demos/SpecializedDemo.vue'
 import specializedSource from '@/components/docs/demos/SpecializedDemo.vue?raw'
 import TextInputsDemo from '@/components/docs/demos/TextInputsDemo.vue'
 import textInputsSource from '@/components/docs/demos/TextInputsDemo.vue?raw'
+import { UiToggleGroup } from '@/components/ui'
 import { docsComarkPlugins } from '@/config/comark'
 
 const props = defineProps<{
@@ -121,32 +122,15 @@ const activePanel = ref<'preview' | 'code'>('preview')
           <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">{{ demo.description }}</p>
         </div>
 
-        <div
-          class="border-surface-200 bg-surface-100 dark:border-surface-700 dark:bg-surface-800 inline-flex w-full rounded-2xl border p-1 lg:w-auto"
-        >
-          <button
-            :class="[
-              'flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-colors lg:flex-none',
-              activePanel === 'preview'
-                ? 'text-surface-900 shadow-soft dark:bg-surface-900 bg-white dark:text-white'
-                : 'text-surface-500 hover:text-surface-800 dark:text-surface-400 dark:hover:text-surface-200',
-            ]"
-            @click="activePanel = 'preview'"
-          >
-            Preview
-          </button>
-          <button
-            :class="[
-              'flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-colors lg:flex-none',
-              activePanel === 'code'
-                ? 'text-surface-900 shadow-soft dark:bg-surface-900 bg-white dark:text-white'
-                : 'text-surface-500 hover:text-surface-800 dark:text-surface-400 dark:hover:text-surface-200',
-            ]"
-            @click="activePanel = 'code'"
-          >
-            Code
-          </button>
-        </div>
+        <UiToggleGroup
+          :model-value="activePanel"
+          :options="[
+            { label: 'Preview', value: 'preview' },
+            { label: 'Code', value: 'code' },
+          ]"
+          size="md"
+          @update:model-value="(value) => (activePanel = value as 'preview' | 'code')"
+        />
       </div>
     </div>
 

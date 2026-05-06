@@ -1,6 +1,6 @@
 # Vuestrata
 
-> **Note:** Vuestrata supersedes *Vueye*, a simpler Vue 3 starter template. 
+> **Note:** Vuestrata supersedes _Vueye_, a simpler Vue 3 starter template.
 
 A modern, production-ready Vue 3 template with multi-theme support, adapter-based UI architecture, and enterprise-grade tooling.
 

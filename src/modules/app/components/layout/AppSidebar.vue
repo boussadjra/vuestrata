@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import Logo from '@/components/Logo.vue'
+import { UiButton } from '@/components/ui'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon, safeResolveIcon } from '@/config/icon-provider'
 import { useModuleStore } from '@/modules'
@@ -57,13 +58,15 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
         </span>
         <span class="text-primary-500 dark:text-primary-400 truncate">Vuestrata</span>
       </RouterLink>
-      <button
+      <UiButton
+        variant="ghost"
+        size="md"
+        icon
         :aria-label="t('sidebar_toggle')"
-        class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95"
         @click="appStore.toggleSidebar()"
       >
         <span :class="[resolveIcon('sidebar'), 'h-4 w-4']" />
-      </button>
+      </UiButton>
     </div>
 
     <!-- Navigation -->

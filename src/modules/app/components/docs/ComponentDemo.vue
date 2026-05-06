@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Comark } from 'comark/vue'
 
+import { UiToggleGroup } from '@/components/ui'
 import { docsComarkPlugins } from '@/config/comark'
 
 const props = defineProps<{
@@ -21,32 +22,15 @@ const codeMarkdown = computed(() => `\`\`\`vue\n${props.code.trim()}\n\`\`\``)
         title
       }}</span>
       <span v-else />
-      <div
-        class="border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 inline-flex rounded-lg border p-0.5"
-      >
-        <button
-          :class="[
-            'rounded-md px-3 py-1 text-xs font-medium transition-colors',
-            activeTab === 'preview'
-              ? 'dark:bg-surface-900 text-surface-900 bg-white shadow-sm dark:text-white'
-              : 'text-surface-500 hover:text-surface-700 dark:text-surface-400',
-          ]"
-          @click="activeTab = 'preview'"
-        >
-          Preview
-        </button>
-        <button
-          :class="[
-            'rounded-md px-3 py-1 text-xs font-medium transition-colors',
-            activeTab === 'code'
-              ? 'dark:bg-surface-900 text-surface-900 bg-white shadow-sm dark:text-white'
-              : 'text-surface-500 hover:text-surface-700 dark:text-surface-400',
-          ]"
-          @click="activeTab = 'code'"
-        >
-          Code
-        </button>
-      </div>
+      <UiToggleGroup
+        :model-value="activeTab"
+        :options="[
+          { label: 'Preview', value: 'preview' },
+          { label: 'Code', value: 'code' },
+        ]"
+        size="sm"
+        @update:model-value="(value) => (activeTab = value as 'preview' | 'code')"
+      />
     </div>
     <div v-if="activeTab === 'preview'" class="dark:bg-surface-900 bg-white p-6">
       <slot />

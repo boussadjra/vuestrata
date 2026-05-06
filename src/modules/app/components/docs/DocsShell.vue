@@ -2,6 +2,7 @@
 import { Comark } from 'comark/vue'
 import type { Component } from 'vue'
 
+import { UiButton } from '@/components/ui'
 import { docsComarkComponents, docsComarkPlugins } from '@/config/comark'
 import { COMPONENT_DEMO_DOCS, buildComponentDemoDocSlug } from '@/config/component-docs'
 
@@ -278,16 +279,18 @@ function isActive(slug: string) {
 
 <template>
   <div class="flex h-full min-h-0">
-    <button
-      type="button"
-      class="bg-primary-500 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 text-surface-50 fixed inset-e-4 bottom-4 z-40 flex min-h-11 min-w-11 items-center justify-center rounded-full shadow-(--shadow-elevated) transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none lg:hidden"
+    <UiButton
+      variant="primary"
+      size="lg"
+      icon
+      class="fixed inset-e-4 bottom-4 z-40 rounded-full lg:hidden"
       aria-controls="docs-sidebar"
       aria-label="Toggle documentation navigation"
       :aria-expanded="sidebarOpen"
       @click="sidebarOpen = !sidebarOpen"
     >
       <span class="i-solar-hamburger-menu-bold h-5 w-5" aria-hidden="true" />
-    </button>
+    </UiButton>
 
     <aside
       id="docs-sidebar"
@@ -344,16 +347,17 @@ function isActive(slug: string) {
                 </RouterLink>
               </li>
               <li v-else>
-                <button
-                  type="button"
-                  :aria-expanded="isGroupExpanded(entry.group.key)"
-                  :aria-controls="getGroupPanelId(entry.group.key)"
+                <UiButton
+                  variant="ghost"
+                  size="md"
+                  class="w-full justify-between text-left"
                   :class="[
-                    'focus-visible:ring-primary-300 flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
                     isGroupActive(entry.group)
                       ? 'bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100'
-                      : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
+                      : '',
                   ]"
+                  :aria-expanded="isGroupExpanded(entry.group.key)"
+                  :aria-controls="getGroupPanelId(entry.group.key)"
                   @click="toggleGroup(entry.group.key)"
                 >
                   <span class="font-semibold">{{ entry.group.label }}</span>
@@ -364,7 +368,7 @@ function isActive(slug: string) {
                     ]"
                     aria-hidden="true"
                   />
-                </button>
+                </UiButton>
                 <ul
                   v-show="isGroupExpanded(entry.group.key)"
                   :id="getGroupPanelId(entry.group.key)"
@@ -431,12 +435,9 @@ function isActive(slug: string) {
         <p class="text-surface-500 dark:text-surface-400 mt-2 text-sm leading-6">
           The markdown registry has no entry for this URL.
         </p>
-        <button
-          class="text-primary-600 hover:text-primary-700 focus-visible:ring-primary-300/30 dark:text-primary-300 dark:hover:text-primary-200 mt-5 rounded-md px-3 py-2 text-sm font-semibold focus-visible:ring-2 focus-visible:outline-none"
-          @click="navigateTo('')"
-        >
+        <UiButton variant="ghost" size="md" class="mt-5" @click="navigateTo('')">
           Back to docs
-        </button>
+        </UiButton>
       </div>
     </main>
   </div>

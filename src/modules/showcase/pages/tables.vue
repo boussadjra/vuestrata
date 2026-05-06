@@ -3,6 +3,7 @@ import { createColumnHelper } from '@tanstack/vue-table'
 import { FlexRender } from '@tanstack/vue-table'
 import { useI18n } from 'vue-i18n'
 
+import { UiButton, UiSelect, UiTextField } from '@/components/ui'
 import { useDataTable } from '@/composables/useDataTable'
 import { resolveIcon } from '~/config/icon-provider'
 
@@ -376,21 +377,15 @@ function onPageSizeChange(event: Event) {
         <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('tables_subtitle') }}</p>
       </div>
       <div class="flex gap-3">
-        <button
-          class="border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-          @click="exportCSV"
-        >
+        <UiButton variant="secondary" @click="exportCSV">
           <span :class="[resolveIcon('download'), 'h-4 w-4']" />
           {{ t('tables_export_csv') }}
-        </button>
+        </UiButton>
         <div class="relative">
-          <button
-            class="border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-            @click="showColumnPicker = !showColumnPicker"
-          >
+          <UiButton variant="secondary" @click="showColumnPicker = !showColumnPicker">
             <span :class="[resolveIcon('tuning'), 'h-4 w-4']" />
             {{ t('common_columns') }}
-          </button>
+          </UiButton>
           <div
             v-if="showColumnPicker"
             class="dark:bg-surface-800 border-surface-200 dark:border-surface-700 absolute top-full right-0 z-10 mt-2 min-w-48 rounded-xl border bg-white p-3 shadow-lg"
@@ -453,38 +448,34 @@ function onPageSizeChange(event: Event) {
         class="border-surface-200 dark:border-surface-700 flex flex-col items-start justify-between gap-3 border-b p-4 sm:flex-row sm:items-center"
       >
         <div class="flex flex-wrap items-center gap-3">
-          <div class="relative">
-            <span
-              :class="[
-                resolveIcon('search'),
-                'text-surface-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2',
-              ]"
-            />
-            <input
-              v-model="globalFilter"
-              type="text"
-              :placeholder="t('tables_search')"
-              class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-64 rounded-xl border py-2 pr-3 pl-9 text-sm outline-none focus:ring-2"
-            />
-          </div>
-          <select
-            @change="setCategoryFilter(($event.target as HTMLSelectElement).value)"
-            class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-xl border px-3 py-2 text-sm outline-none"
-          >
-            <option value="">{{ t('tables_all_categories') }}</option>
-            <option value="Electronics">{{ t('tables_electronics') }}</option>
-            <option value="Accessories">{{ t('tables_accessories') }}</option>
-            <option value="Furniture">{{ t('tables_furniture') }}</option>
-          </select>
-          <select
-            @change="setStatusFilter(($event.target as HTMLSelectElement).value)"
-            class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-xl border px-3 py-2 text-sm outline-none"
-          >
-            <option value="">{{ t('tables_all_statuses') }}</option>
-            <option value="active">{{ t('tables_active') }}</option>
-            <option value="draft">{{ t('tables_draft') }}</option>
-            <option value="archived">{{ t('tables_archived') }}</option>
-          </select>
+          <UiTextField
+            v-model="globalFilter"
+            type="text"
+            :placeholder="t('tables_search')"
+            icon="search"
+            class="w-64"
+          />
+          <UiSelect
+            :model-value="categoryFilter"
+            :options="[
+              { value: '', label: t('tables_all_categories') },
+              { value: 'Electronics', label: t('tables_electronics') },
+              { value: 'Accessories', label: t('tables_accessories') },
+              { value: 'Furniture', label: t('tables_furniture') },
+            ]"
+            size="sm"
+            @update:model-value="setCategoryFilter"
+          />
+          <UiSelect
+            :options="[
+              { value: '', label: t('tables_all_statuses') },
+              { value: 'active', label: t('tables_active') },
+              { value: 'draft', label: t('tables_draft') },
+              { value: 'archived', label: t('tables_archived') },
+            ]"
+            size="sm"
+            @update:model-value="setStatusFilter"
+          />
         </div>
         <div class="flex items-center gap-3">
           <span v-if="selectedRows.length" class="text-primary-600 text-sm font-medium">

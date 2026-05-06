@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { UiButton } from '@/components/ui'
+
 interface CodeTab {
   label: string
 }
@@ -50,19 +52,16 @@ watch(activeTab, () => {
       <span class="h-2.5 w-2.5 rounded-full bg-amber-400" />
       <span class="h-2.5 w-2.5 rounded-full bg-green-400" />
       <div class="ml-2 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-        <button
+        <UiButton
           v-for="(tab, index) in tabs"
           :key="tab.label"
-          :class="[
-            'rounded-full px-3 py-1 text-[11px] font-semibold tracking-[0.18em] whitespace-nowrap transition-colors',
-            activeTab === index
-              ? 'text-surface-900 shadow-soft dark:bg-surface-800 bg-white dark:text-white'
-              : 'text-surface-500 hover:text-surface-800 dark:text-surface-100 dark:hover:bg-surface-800/70 dark:hover:text-surface-200 hover:bg-white/70',
-          ]"
+          :variant="activeTab === index ? 'primary' : 'secondary'"
+          size="sm"
+          class="rounded-full whitespace-nowrap"
           @click="activeTab = index"
         >
           {{ tab.label }}
-        </button>
+        </UiButton>
       </div>
     </div>
     <div ref="bodyRef" class="docs-code-group-body">

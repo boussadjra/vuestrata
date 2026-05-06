@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { UiButton, UiTextField, UiSelect, UiNumberField } from '@/components/ui'
+
 export interface PropDef {
   name: string
   type: 'boolean' | 'string' | 'number' | 'select'
@@ -59,12 +61,7 @@ function reset() {
         class="text-primary-600 dark:text-primary-400 text-xs font-semibold tracking-wider uppercase"
         >Playground</span
       >
-      <button
-        class="text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 text-xs transition-colors"
-        @click="reset"
-      >
-        Reset
-      </button>
+      <UiButton variant="ghost" size="sm" @click="reset"> Reset </UiButton>
     </div>
 
     <div
@@ -90,28 +87,27 @@ function reset() {
 
           <UiSwitch v-if="def.type === 'boolean'" v-model="values[def.name] as boolean" size="sm" />
 
-          <input
+          <UiTextField
             v-else-if="def.type === 'string'"
             v-model="values[def.name]"
-            class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 w-full max-w-48 rounded-md border bg-white px-2 py-1 text-xs"
+            size="sm"
+            class="w-full max-w-48"
           />
 
-          <input
+          <UiNumberField
             v-else-if="def.type === 'number'"
-            v-model.number="values[def.name]"
-            type="number"
-            class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 w-24 rounded-md border bg-white px-2 py-1 text-xs"
+            v-model="values[def.name]"
+            size="sm"
+            class="w-24"
           />
 
-          <select
+          <UiSelect
             v-else-if="def.type === 'select'"
             v-model="values[def.name]"
-            class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 w-full max-w-48 rounded-md border bg-white px-2 py-1 text-xs"
-          >
-            <option v-for="opt in def.options" :key="String(opt.value)" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
+            :options="def.options"
+            size="sm"
+            class="w-full max-w-48"
+          />
         </div>
 
         <template v-if="slotDefs?.length">
@@ -125,10 +121,7 @@ function reset() {
             <label class="text-surface-600 dark:text-surface-400 font-mono text-xs">{{
               slot.name
             }}</label>
-            <input
-              v-model="slotValues[slot.name]"
-              class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 w-full rounded-md border bg-white px-2 py-1 text-xs"
-            />
+            <UiTextField v-model="slotValues[slot.name]" size="sm" class="w-full" />
           </div>
         </template>
       </div>

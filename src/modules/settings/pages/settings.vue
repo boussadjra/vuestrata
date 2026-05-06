@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { UiButton } from '@/components/ui'
 import { useShape } from '@/composables/useShape'
 import type { ShapeRadius, ShapeBorder, ShapeShadow } from '@/composables/useShape'
 import { useTheme } from '@/composables/useTheme'
@@ -353,20 +354,10 @@ function switchValidationAdapter(a: ValidationAdapterName) {
       </section>
 
       <!-- Logout -->
-      <button
-        class="group w-full rounded-xl border-2 border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition-all duration-200 hover:border-red-300 hover:bg-red-50 active:scale-[0.99] dark:border-red-900/50 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/30"
-        @click="logout"
-      >
-        <span class="flex items-center justify-center gap-2">
-          <span
-            :class="[
-              resolveIcon('logout'),
-              'h-4 w-4 transition-transform group-hover:-translate-x-1',
-            ]"
-          />
-          {{ t('auth_logout') }}
-        </span>
-      </button>
+      <UiButton variant="destructive" block @click="logout">
+        <span :class="[resolveIcon('logout'), 'mr-1 h-4 w-4']" />
+        {{ t('auth_logout') }}
+      </UiButton>
     </div>
   </div>
 </template>
