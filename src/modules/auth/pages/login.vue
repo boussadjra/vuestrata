@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import Logo from '@/components/Logo.vue'
+import { UiButton, UiTextField, UiToggleGroup } from '@/components/ui'
 import { useNotificationStore } from '@/stores/notification'
 import { resolveIcon } from '~/config/icon-provider'
 import { useAuth } from '~/modules/auth'
@@ -90,19 +91,17 @@ const socialProviders = [
 
     <!-- Social login buttons -->
     <div class="mb-6 space-y-2">
-      <button
+      <UiButton
         v-for="provider in socialProviders"
         :key="provider.id"
+        variant="secondary"
+        block
         :disabled="isLoading"
-        :class="[
-          provider.bg,
-          'border-surface-200 dark:border-surface-700 flex w-full items-center justify-center gap-3 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50',
-        ]"
         @click="socialLogin(provider.id)"
       >
         <span :class="[provider.icon, 'h-5 w-5']" />
         Continue with {{ provider.label }}
-      </button>
+      </UiButton>
     </div>
 
     <!-- Divider -->
@@ -116,26 +115,16 @@ const socialProviders = [
     </div>
 
     <!-- Mode toggle -->
-    <div class="bg-surface-100 dark:bg-surface-800 mb-5 flex rounded-lg p-0.5">
-      <button
-        :class="[
-          mode === 'credentials' ? 'dark:bg-surface-700 bg-white shadow-sm' : '',
-          'flex-1 rounded-md py-2 text-center text-sm font-medium transition-all',
-        ]"
-        @click="setMode('credentials')"
-      >
-        Email & Password
-      </button>
-      <button
-        :class="[
-          mode === 'magic-link' ? 'dark:bg-surface-700 bg-white shadow-sm' : '',
-          'flex-1 rounded-md py-2 text-center text-sm font-medium transition-all',
-        ]"
-        @click="setMode('magic-link')"
-      >
-        Magic Link
-      </button>
-    </div>
+    <UiToggleGroup
+      :model-value="mode"
+      :options="[
+        { label: 'Email & Password', value: 'credentials' },
+        { label: 'Magic Link', value: 'magic-link' },
+      ]"
+      size="md"
+      class="mb-5"
+      @update:model-value="setMode"
+    />
 
     <div
       v-if="error"
@@ -171,49 +160,39 @@ const socialProviders = [
         Multi-factor authentication is required for this account.
       </div>
 
-      <div class="flex flex-col gap-1">
-        <label for="mfa-code" class="text-sm font-medium">MFA code</label>
-        <input
-          id="mfa-code"
-          v-model="mfaCode"
-          type="text"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          autocomplete="one-time-code"
-          maxlength="6"
-          required
-          placeholder="000000"
-          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-        />
-      </div>
+      <UiTextField
+        id="mfa-code"
+        v-model="mfaCode"
+        type="text"
+        label="MFA code"
+        placeholder="000000"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        autocomplete="one-time-code"
+        maxlength="6"
+        required
+      />
 
-      <button
-        type="submit"
-        :disabled="isLoading"
-        class="bg-primary-500 hover:bg-primary-600 w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <UiButton type="submit" variant="primary" block :disabled="isLoading">
         <span
           v-if="isLoading"
           :class="[resolveIcon('spinner'), 'mr-2 inline-block h-4 w-4 animate-spin']"
         />
         Verify code
-      </button>
+      </UiButton>
     </form>
 
     <!-- Credentials form -->
     <form v-else-if="mode === 'credentials'" class="space-y-4" @submit.prevent="onSubmit">
-      <div class="flex flex-col gap-1">
-        <label for="email" class="text-sm font-medium">{{ t('auth_email') }}</label>
-        <input
-          id="email"
-          v-model="form.email"
-          type="email"
-          required
-          autocomplete="email"
-          :placeholder="t('auth_email_placeholder')"
-          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-        />
-      </div>
+      <UiTextField
+        id="email"
+        v-model="form.email"
+        type="email"
+        :label="t('auth_email')"
+        :placeholder="t('auth_email_placeholder')"
+        required
+        autocomplete="email"
+      />
 
       <div class="flex flex-col gap-1">
         <div class="flex items-center justify-between">
@@ -225,54 +204,42 @@ const socialProviders = [
             >Forgot password?</a
           >
         </div>
-        <input
+        <UiTextField
           id="password"
           v-model="form.password"
           type="password"
+          :placeholder="t('auth_password_placeholder')"
           required
           autocomplete="current-password"
-          :placeholder="t('auth_password_placeholder')"
-          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
         />
       </div>
 
-      <button
-        type="submit"
-        :disabled="isLoading"
-        class="bg-primary-500 hover:bg-primary-600 w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <UiButton type="submit" variant="primary" block :disabled="isLoading">
         <span
           v-if="isLoading"
           :class="[resolveIcon('spinner'), 'mr-2 inline-block h-4 w-4 animate-spin']"
         />
         {{ t('auth_login') }}
-      </button>
+      </UiButton>
     </form>
 
     <!-- Magic link form -->
     <form v-else class="space-y-4" @submit.prevent="onMagicLink">
-      <div class="flex flex-col gap-1">
-        <label for="magic-email" class="text-sm font-medium">{{ t('auth_email') }}</label>
-        <input
-          id="magic-email"
-          v-model="form.email"
-          type="email"
-          required
-          autocomplete="email"
-          :placeholder="t('auth_email_placeholder')"
-          class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 focus:ring-primary-300 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-        />
-      </div>
+      <UiTextField
+        id="magic-email"
+        v-model="form.email"
+        type="email"
+        :label="t('auth_email')"
+        :placeholder="t('auth_email_placeholder')"
+        required
+        autocomplete="email"
+      />
 
-      <button
-        type="submit"
-        :disabled="isLoading"
-        class="bg-primary-500 hover:bg-primary-600 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <UiButton type="submit" variant="primary" block :disabled="isLoading">
         <span v-if="isLoading" :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']" />
         <span v-else :class="[resolveIcon('letter'), 'h-4 w-4']" />
         Send Magic Link
-      </button>
+      </UiButton>
     </form>
 
     <p class="text-surface-500 mt-6 text-center text-sm">

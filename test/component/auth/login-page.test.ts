@@ -72,7 +72,9 @@ function mountLoginPage() {
 }
 
 function buttonByText(wrapper: ReturnType<typeof mount>, text: string) {
-  const button = wrapper.findAll('button').find((candidate) => candidate.text() === text)
+  const button = wrapper
+    .findAll('button')
+    .find((candidate) => candidate.text().replace(/\s+/g, ' ').trim().includes(text))
   if (!button) throw new Error(`Button not found: ${text}`)
   return button
 }

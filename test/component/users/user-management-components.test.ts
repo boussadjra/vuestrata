@@ -136,7 +136,10 @@ describe('UserPermissionsPanel', () => {
     const wrapper = mountPanel(user)
 
     expect(wrapper.text()).toContain('You are editing your own account')
-    expect(permissionInput(wrapper, 'users:read').element.disabled).toBe(true)
+    const usersReadLabel = wrapper
+      .findAll('label')
+      .find((candidate) => candidate.text().includes('users:read'))
+    expect(usersReadLabel?.classes()).toContain('cursor-not-allowed')
   })
 
   it('reset button restores role defaults', async () => {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { UiButton, UiSelect, UiTextField } from '@/components/ui'
 import { ROLE_DEFINITIONS } from '@/lib/rbac'
 import type { Role } from '@/types'
 
@@ -58,13 +59,9 @@ async function submit() {
         <h2 id="invite-dialog-title" class="text-surface-900 text-lg font-semibold dark:text-white">
           Invite User
         </h2>
-        <button
-          class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
-          aria-label="Close dialog"
-          @click="$emit('close')"
-        >
+        <UiButton variant="ghost" size="sm" icon aria-label="Close dialog" @click="$emit('close')">
           ✕
-        </button>
+        </UiButton>
       </div>
 
       <!-- Body -->
@@ -79,96 +76,36 @@ async function submit() {
         </p>
 
         <!-- Email -->
-        <div>
-          <label
-            for="invite-email"
-            class="text-surface-700 dark:text-surface-300 mb-1 block text-sm font-medium"
-          >
-            Email
-          </label>
-          <input
-            id="invite-email"
-            v-model="email"
-            type="email"
-            autocomplete="email"
-            :aria-invalid="!!fieldErrors.email"
-            :aria-describedby="fieldErrors.email ? 'invite-email-error' : undefined"
-            class="border-surface-200 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 focus:border-primary-500 focus:ring-primary-500/20 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2"
-            :class="{ 'border-red-400': fieldErrors.email }"
-          />
-          <p
-            v-if="fieldErrors.email"
-            id="invite-email-error"
-            role="alert"
-            class="mt-1 text-xs text-red-500"
-          >
-            {{ fieldErrors.email }}
-          </p>
-        </div>
+        <UiTextField
+          id="invite-email"
+          v-model="email"
+          type="email"
+          label="Email"
+          autocomplete="email"
+          :error="fieldErrors.email"
+          @blur="() => {}"
+        />
 
         <!-- Name -->
-        <div>
-          <label
-            for="invite-name"
-            class="text-surface-700 dark:text-surface-300 mb-1 block text-sm font-medium"
-          >
-            Name
-          </label>
-          <input
-            id="invite-name"
-            v-model="name"
-            type="text"
-            autocomplete="name"
-            :aria-invalid="!!fieldErrors.name"
-            :aria-describedby="fieldErrors.name ? 'invite-name-error' : undefined"
-            class="border-surface-200 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 focus:border-primary-500 focus:ring-primary-500/20 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2"
-            :class="{ 'border-red-400': fieldErrors.name }"
-          />
-          <p
-            v-if="fieldErrors.name"
-            id="invite-name-error"
-            role="alert"
-            class="mt-1 text-xs text-red-500"
-          >
-            {{ fieldErrors.name }}
-          </p>
-        </div>
+        <UiTextField
+          id="invite-name"
+          v-model="name"
+          type="text"
+          label="Name"
+          autocomplete="name"
+          :error="fieldErrors.name"
+          @blur="() => {}"
+        />
 
         <!-- Role -->
-        <div>
-          <label
-            for="invite-role"
-            class="text-surface-700 dark:text-surface-300 mb-1 block text-sm font-medium"
-          >
-            Role
-          </label>
-          <select
-            id="invite-role"
-            v-model="role"
-            class="border-surface-200 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 focus:border-primary-500 focus:ring-primary-500/20 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2"
-          >
-            <option v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
+        <UiSelect id="invite-role" v-model="role" label="Role" :options="roleOptions" />
 
         <!-- Footer -->
         <div class="flex justify-end gap-3 pt-2">
-          <button
-            type="button"
-            class="border-surface-200 dark:border-surface-600 text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl border px-4 py-2 text-sm font-medium"
-            @click="$emit('close')"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            :disabled="isPending"
-            class="bg-primary-600 hover:bg-primary-500 disabled:bg-primary-300 w-full rounded-xl px-4 py-2 text-sm font-medium text-white transition-colors"
-          >
+          <UiButton type="button" variant="secondary" @click="$emit('close')"> Cancel </UiButton>
+          <UiButton type="submit" variant="primary" :disabled="isPending">
             {{ isPending ? 'Sending…' : 'Send Invite' }}
-          </button>
+          </UiButton>
         </div>
       </form>
     </div>
