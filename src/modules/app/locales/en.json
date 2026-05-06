@@ -42,7 +42,7 @@
 
   "hero_title": "Vuestrata",
   "hero_cta": "Get started",
-  "hero_desc": "A production-ready Vue 3 starter template with modern tooling, multi-theme system, and adapter component architecture.",
+  "hero_desc": "A Vue 3 starter with provider adapters, theme tokens, typed API boundaries, auth scaffolding, and tests already connected.",
   "hero_github": "GitHub",
   "hero_subtitle": "Vue 3 Professional Template",
   "hero_explore": "Explore Components",
@@ -56,7 +56,7 @@
 
   "home_welcome": "Welcome",
   "home_footer": "Built with Vue 3, Tailwind CSS & Reka UI.",
-  "home_example_alert": "This is a warning — use alerts to communicate important information.",
+  "home_example_alert": "This is a warning: use alerts to communicate important information.",
   "home_example_password": "Password",
   "home_example_remember_me": "Remember me",
 
@@ -89,8 +89,11 @@
 
   "theme_default": "Default",
 
-  "not_found_message": "Page not found",
-  "not_found_home": "Go home",
+  "not_found_kicker": "Route missing",
+  "not_found_message": "This route is not registered.",
+  "not_found_description": "The module map has no page for this URL. Start from the docs or return to the app shell.",
+  "not_found_home": "Back home",
+  "not_found_docs": "Open docs",
 
   "common_search": "Search...",
   "common_previous": "Previous",

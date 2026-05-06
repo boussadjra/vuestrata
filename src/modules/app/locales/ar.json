@@ -42,7 +42,7 @@
 
   "hero_title": "Vuestrata",
   "hero_cta": "ابدأ الآن",
-  "hero_desc": "قالب Vue 3 جاهز للإنتاج مع أدوات حديثة ونظام سمات متعدد وبنية مكونات تكيفية.",
+  "hero_desc": "قالب Vue 3 مع مزودات واجهة قابلة للتبديل، رموز سمات، حدود API مطبوعة، أساس مصادقة، واختبارات موصولة مسبقاً.",
   "hero_github": "GitHub",
   "hero_subtitle": "قالب Vue 3 احترافي",
   "hero_explore": "استكشف المكونات",
@@ -56,7 +56,7 @@
 
   "home_welcome": "مرحباً",
   "home_footer": "مبني بـ Vue 3 و Tailwind CSS و Reka UI.",
-  "home_example_alert": "هذا تنبيه — استخدم التنبيهات لإيصال المعلومات المهمة.",
+  "home_example_alert": "هذا تنبيه: استخدم التنبيهات لإيصال المعلومات المهمة.",
   "home_example_password": "كلمة المرور",
   "home_example_remember_me": "تذكرني",
 
@@ -89,8 +89,11 @@
 
   "theme_default": "الافتراضي",
 
-  "not_found_message": "الصفحة غير موجودة",
+  "not_found_kicker": "مسار مفقود",
+  "not_found_message": "هذا المسار غير مسجل.",
+  "not_found_description": "خريطة الوحدات لا تحتوي على صفحة لهذا الرابط. ابدأ من التوثيق أو عد إلى واجهة التطبيق.",
   "not_found_home": "العودة للرئيسية",
+  "not_found_docs": "فتح التوثيق",
 
   "common_search": "بحث...",
   "common_previous": "السابق",

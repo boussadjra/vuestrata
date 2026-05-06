@@ -42,7 +42,7 @@
 
   "hero_title": "Vuestrata",
   "hero_cta": "Commencer",
-  "hero_desc": "Un modèle de démarrage Vue 3 prêt pour la production avec des outils modernes, un système multi-thèmes et une architecture de composants adaptateurs.",
+  "hero_desc": "Un starter Vue 3 avec adaptateurs de fournisseurs, tokens de thème, limites API typées, base d'authentification et tests déjà connectés.",
   "hero_github": "GitHub",
   "hero_subtitle": "Modèle professionnel Vue 3",
   "hero_explore": "Explorer les composants",
@@ -56,7 +56,7 @@
 
   "home_welcome": "Bienvenue",
   "home_footer": "Construit avec Vue 3, Tailwind CSS & Reka UI.",
-  "home_example_alert": "Ceci est un avertissement — utilisez les alertes pour communiquer des informations importantes.",
+  "home_example_alert": "Ceci est un avertissement : utilisez les alertes pour communiquer des informations importantes.",
   "home_example_password": "Mot de passe",
   "home_example_remember_me": "Se souvenir de moi",
 
@@ -89,8 +89,11 @@
 
   "theme_default": "Par défaut",
 
-  "not_found_message": "Page non trouvée",
+  "not_found_kicker": "Route manquante",
+  "not_found_message": "Cette route n'est pas enregistrée.",
+  "not_found_description": "La carte des modules ne contient aucune page pour cette URL. Ouvrez la documentation ou revenez à l'application.",
   "not_found_home": "Retour à l'accueil",
+  "not_found_docs": "Ouvrir la documentation",
 
   "common_search": "Rechercher...",
   "common_previous": "Précédent",
