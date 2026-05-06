@@ -31,15 +31,15 @@ function onInput(e: Event) {
       isOpen.value = true
     } else {
       isOpen.value = false
+      query.value = ''
     }
   } else {
     isOpen.value = false
+    query.value = ''
   }
 }
 
-function onMentionMouseDown(id: string) {
-  const mention = filteredMentions.value.find((m) => m.id === id)
-  if (!mention) return
+function onSelectMention(mention: { id: string; label: string }) {
   insertMention(mention)
   emit('update:modelValue', fieldValue.value ?? '')
 }
@@ -47,27 +47,41 @@ function onMentionMouseDown(id: string) {
 
 <template>
   <div class="flex flex-col gap-1">
-    <label v-if="label" v-bind="labelProps" class="text-sm font-medium">{{ label }}</label>
+    <label
+      v-if="label"
+      v-bind="labelProps"
+      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
+    >
+      {{ label }}
+      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+    </label>
     <div class="relative" data-provider="vuetify0" data-ui="mentions-field">
       <textarea
         :value="fieldValue"
         :placeholder="placeholder"
         :disabled="disabled"
-        class="min-h-20 w-full rounded border px-3 py-2 text-sm"
+        :readonly="readonly"
+        class="border-surface-300 dark:border-surface-600 dark:bg-surface-800 min-h-[80px] w-full resize-y rounded-md border bg-white px-3 py-2 text-sm"
         @input="onInput"
       />
       <div
         v-if="isOpen && filteredMentions.length"
-        class="dark:bg-surface-800 absolute z-50 mt-1 max-h-40 w-full overflow-auto rounded border bg-white shadow"
+        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 absolute z-50 mt-1 max-h-40 w-full overflow-auto rounded-md border bg-white shadow-lg"
       >
         <button
-          v-for="m in filteredMentions"
-          :key="m.id"
+          v-for="mention in filteredMentions"
+          :key="mention.id"
           type="button"
-          class="hover:bg-surface-100 w-full px-3 py-2 text-left text-sm"
-          @mousedown.prevent="onMentionMouseDown(m.id)"
+          class="hover:bg-surface-100 dark:hover:bg-surface-700 flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+          @mousedown.prevent="onSelectMention(mention)"
         >
-          {{ m.label }}
+          <img
+            v-if="mention.avatar"
+            :src="mention.avatar"
+            :alt="mention.label"
+            class="h-5 w-5 rounded-full"
+          />
+          <span>{{ mention.label }}</span>
         </button>
       </div>
     </div>

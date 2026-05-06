@@ -68,7 +68,7 @@ const triggerClasses = computed(() => [
       <div
         v-show="isOpen"
         v-bind="listBoxProps"
-        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated absolute z-50 mt-1 w-full min-w-[180px] overflow-hidden rounded-lg border bg-white p-1"
+        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated absolute z-50 mt-1 w-auto min-w-45 overflow-hidden rounded-lg border bg-white p-1"
       >
         <template v-for="option in options" :key="'value' in option ? option.value : option.label">
           <RekaOptionGroup v-if="isGroup(option)" :label="option.label">

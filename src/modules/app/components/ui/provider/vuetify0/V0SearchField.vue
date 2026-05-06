@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useBaseSearchField, type SearchFieldProps } from '@/components/ui/base'
+import { resolveIcon } from '~/config/icon-provider'
 
 const props = withDefaults(defineProps<SearchFieldProps>(), {
   size: 'md',
@@ -21,11 +22,34 @@ const {
   model,
   displayError,
 } = useBaseSearchField(props, (value) => emit('search', value))
+
+const sizeClasses: Record<string, string> = {
+  xs: 'px-2 py-1 text-xs',
+  sm: 'px-2.5 py-1.5 text-sm',
+  md: 'px-3 py-2 text-sm',
+  lg: 'px-4 py-3 text-base',
+}
+
+const inputClasses = computed(() => [
+  'w-full rounded-lg border bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200 transition-colors',
+  'placeholder:text-surface-400 dark:placeholder:text-surface-500',
+  'focus:outline-none focus:ring-2 focus:ring-offset-0',
+  displayError.value
+    ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
+    : 'border-surface-300 dark:border-surface-600 focus:ring-primary-300 focus:border-primary-400',
+  'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-50 dark:disabled:bg-surface-900',
+  sizeClasses[props.size ?? 'md'],
+  'pr-8',
+])
 </script>
 
 <template>
   <div class="flex flex-col gap-1">
-    <label v-if="label" v-bind="labelProps" class="text-sm font-medium">
+    <label
+      v-if="label"
+      v-bind="labelProps"
+      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
+    >
       {{ label }}
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
@@ -33,23 +57,27 @@ const {
       <input
         v-bind="inputProps"
         type="search"
-        class="w-full rounded border px-3 py-2 pr-8 text-sm focus:ring-2 focus:outline-none"
-        data-ui="searchfield"
+        :class="inputClasses"
         data-provider="vuetify0"
+        data-ui="searchfield"
       />
       <button
         v-if="model"
         v-bind="clearBtnProps"
-        class="text-surface-400 hover:text-surface-600 absolute top-1/2 right-2 -translate-y-1/2"
+        class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 absolute top-1/2 right-2 -translate-y-1/2"
         @click="emit('clear')"
       >
-        &#10005;
+        <span :class="[resolveIcon('close'), 'h-4 w-4']" />
       </button>
     </div>
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}
     </p>
-    <p v-else-if="hint || description" v-bind="descriptionProps" class="text-surface-500 text-xs">
+    <p
+      v-else-if="hint || description"
+      v-bind="descriptionProps"
+      class="text-surface-500 dark:text-surface-400 text-xs"
+    >
       {{ hint || description }}
     </p>
   </div>

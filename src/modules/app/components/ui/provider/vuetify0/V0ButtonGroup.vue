@@ -11,8 +11,24 @@ export interface ButtonGroupProps {
 const props = defineProps<ButtonGroupProps>()
 const emit = defineEmits<{ 'update:modelValue': [value: any] }>()
 
+const updateValue = (val: any) => {
+  if (props.multiple) {
+    const current = Array.isArray(props.modelValue) ? [...props.modelValue] : []
+    const index = current.indexOf(val)
+    if (index > -1) {
+      current.splice(index, 1)
+    } else {
+      current.push(val)
+    }
+    emit('update:modelValue', current)
+  } else {
+    emit('update:modelValue', props.deselectable && props.modelValue === val ? undefined : val)
+  }
+}
+
 provide('v0-button-group', {
   modelValue: computed(() => props.modelValue),
+  updateValue,
 })
 </script>
 

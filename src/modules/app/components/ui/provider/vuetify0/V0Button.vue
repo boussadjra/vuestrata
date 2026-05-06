@@ -35,7 +35,10 @@ const props = withDefaults(defineProps<ButtonProps>(), {
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 const slots = useSlots()
 
-const buttonGroup = inject<{ modelValue: Ref<any> } | null>('v0-button-group', null)
+const buttonGroup = inject<{ modelValue: Ref<any>; updateValue: (val: any) => void } | null>(
+  'v0-button-group',
+  null,
+)
 
 const isActive = computed(() => {
   if (buttonGroup && props.value !== undefined) {
@@ -121,6 +124,9 @@ function onClick(e: MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     return
+  }
+  if (buttonGroup && props.value !== undefined) {
+    buttonGroup.updateValue(props.value)
   }
   emit('click', e)
 }

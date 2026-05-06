@@ -24,18 +24,34 @@ function onStarClick(star: number) {
 
 <template>
   <div class="flex flex-col gap-1">
-    <label v-if="label" v-bind="labelProps" class="text-sm font-medium">{{ label }}</label>
-    <div class="flex gap-0.5" data-provider="vuetify0" data-ui="rating" role="radiogroup">
+    <label
+      v-if="label"
+      v-bind="labelProps"
+      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
+    >
+      {{ label }}
+      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+    </label>
+    <div
+      class="flex items-center gap-0.5"
+      data-provider="vuetify0"
+      data-ui="rating"
+      role="radiogroup"
+      :aria-label="label"
+    >
       <button
         v-for="star in maxStars"
         :key="star"
         type="button"
-        class="text-xl"
+        class="text-xl transition-colors focus:outline-none"
         :class="{
           'text-yellow-400': star <= (hoveredStar || (fieldValue ?? 0)),
-          'text-surface-300': star > (hoveredStar || (fieldValue ?? 0)),
+          'text-surface-300 dark:text-surface-600': star > (hoveredStar || (fieldValue ?? 0)),
+          'cursor-not-allowed opacity-50': disabled,
+          'cursor-pointer': !disabled,
         }"
         :disabled="disabled"
+        :aria-label="`${star} star${star > 1 ? 's' : ''}`"
         @click="onStarClick(star)"
         @mouseenter="hoveredStar = star"
         @mouseleave="hoveredStar = 0"

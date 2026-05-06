@@ -22,25 +22,42 @@ function onInput(e: Event) {
   setValue(val)
   emit('update:modelValue', val)
 }
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter') stopEditing()
+  if (e.key === 'Escape') stopEditing()
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-1">
-    <label v-if="label" v-bind="labelProps" class="text-sm font-medium">{{ label }}</label>
+    <label
+      v-if="label"
+      v-bind="labelProps"
+      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
+    >
+      {{ label }}
+    </label>
+
     <div data-provider="vuetify0" data-ui="editable">
       <input
         v-if="isEditing"
         :value="fieldValue"
-        class="rounded border px-2 py-1 text-sm"
+        :placeholder="placeholder"
+        class="border-primary-300 focus:ring-primary-300 rounded border px-2 py-1 text-sm focus:ring-2 focus:outline-none"
         autofocus
         @input="onInput"
         @blur="stopEditing"
-        @keydown.enter="stopEditing"
-        @keydown.escape="stopEditing"
+        @keydown="onKeydown"
       />
-      <span v-else class="cursor-pointer text-sm" @click="startEditing">{{
-        fieldValue || placeholder || 'Click to edit'
-      }}</span>
+      <span
+        v-else
+        class="hover:bg-surface-100 dark:hover:bg-surface-700 inline-block cursor-pointer rounded px-2 py-1 text-sm"
+        :class="{ 'cursor-not-allowed opacity-50': disabled }"
+        @click="startEditing"
+      >
+        {{ fieldValue || placeholder || 'Click to edit' }}
+      </span>
     </div>
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

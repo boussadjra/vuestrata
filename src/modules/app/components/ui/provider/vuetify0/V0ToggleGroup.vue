@@ -19,7 +19,7 @@ const sizeClasses: Record<string, string> = {
 
 <template>
   <div class="flex flex-col gap-1">
-    <label v-if="label" class="text-sm font-medium">
+    <label v-if="label" class="text-surface-700 dark:text-surface-300 text-sm font-medium">
       {{ label }}
     </label>
     <div class="inline-flex" role="group" data-provider="vuetify0" data-ui="togglegroup">
@@ -29,10 +29,12 @@ const sizeClasses: Record<string, string> = {
         type="button"
         :class="[
           'inline-flex items-center justify-center font-medium transition-colors',
+          'focus-visible:ring-primary-300 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+          'disabled:cursor-not-allowed disabled:opacity-50',
           'border-y border-r first:rounded-l-md first:border-l last:rounded-r-md',
           isSelected(option.value)
             ? 'bg-primary-500 border-primary-500 text-white'
-            : 'border-surface-300 text-surface-700 hover:bg-surface-50 bg-white',
+            : 'dark:bg-surface-800 border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-700 bg-white',
           option.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
           sizeClasses[size],
         ]"

@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import { usePicker } from '@formwerk/core'
+import { DateTimeSegment, usePicker } from '@formwerk/core'
 
 import { useBaseDateField, type DateFieldProps } from '@/components/ui/base'
 
-const props = withDefaults(defineProps<DateFieldProps>(), { size: 'md' })
+const props = withDefaults(defineProps<DateFieldProps>(), {
+  size: 'md',
+  formatOptions: () => ({ year: 'numeric', month: 'long' }),
+})
 
 defineEmits<{ 'update:modelValue': [value: Date] }>()
 
-const { controlProps, labelProps, errorMessageProps, descriptionProps, displayError } =
-  useBaseDateField({
-    ...props,
-    formatOptions: { year: 'numeric', month: 'long' },
-  })
+const {
+  controlProps,
+  segments,
+  labelProps,
+  errorMessageProps,
+  descriptionProps,
+  displayError,
+  direction,
+} = useBaseDateField(props)
 const { isOpen, pickerProps, pickerTriggerProps } = usePicker({
-  label: props.label ?? '',
+  label: () => props.label ?? 'Pick month',
   disabled: () => props.disabled,
 })
 
@@ -21,47 +28,68 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 </script>
 
 <template>
-  <div class="flex flex-col gap-1" data-provider="vuetify0">
-    <label v-if="label" v-bind="labelProps" class="text-sm font-medium">
+  <div class="flex flex-col gap-1">
+    <label
+      v-if="label"
+      v-bind="labelProps"
+      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
+    >
       {{ label }}
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
+
     <div class="relative">
-      <button
-        type="button"
-        v-bind="controlProps"
-        class="w-full rounded border px-3 py-2 text-left text-sm"
-        :disabled="disabled"
-        @click="isOpen = !isOpen"
-      >
-        {{
-          modelValue
-            ? `${months[modelValue.getMonth()]} ${modelValue.getFullYear()}`
-            : 'Select month'
-        }}
-      </button>
+      <div class="flex items-center gap-1">
+        <div
+          v-bind="controlProps"
+          :dir="direction"
+          :class="[
+            'inline-flex flex-1 items-center gap-0.5 rounded-lg border px-3 py-2 text-sm',
+            'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
+            displayError
+              ? 'border-red-400 dark:border-red-500'
+              : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300 focus-within:ring-2',
+          ]"
+          data-ui="month-picker"
+          data-provider="vuetify0"
+        >
+          <DateTimeSegment v-for="(segment, index) in segments" :key="index" v-bind="segment" />
+        </div>
+        <button
+          v-bind="pickerTriggerProps"
+          type="button"
+          class="border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 rounded-lg border p-2"
+        >
+          📅
+        </button>
+      </div>
+
       <div
         v-if="isOpen"
         v-bind="pickerProps"
-        class="dark:bg-surface-800 absolute z-50 mt-1 rounded border bg-white p-2 shadow"
+        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated absolute z-50 mt-1 rounded-lg border bg-white p-3"
       >
         <div class="grid grid-cols-3 gap-1">
           <button
-            v-for="(m, i) in months"
-            :key="m"
+            v-for="month in months"
+            :key="month"
             type="button"
-            class="hover:bg-primary-100 dark:hover:bg-primary-900 rounded px-2 py-1.5 text-sm"
-            :class="{ 'bg-primary-500 text-white': modelValue?.getMonth() === i }"
+            class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-md px-3 py-2 text-sm"
           >
-            {{ m }}
+            {{ month }}
           </button>
         </div>
       </div>
     </div>
+
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}
     </p>
-    <p v-else-if="hint || description" v-bind="descriptionProps" class="text-surface-500 text-xs">
+    <p
+      v-else-if="hint || description"
+      v-bind="descriptionProps"
+      class="text-surface-500 dark:text-surface-400 text-xs"
+    >
       {{ hint || description }}
     </p>
   </div>
