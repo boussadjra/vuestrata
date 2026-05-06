@@ -93,7 +93,7 @@ function switchLocale(code: string) {
       <!-- User menu -->
       <template v-if="authStore.isAuthenticated">
         <RouterLink
-          to="/settings"
+          to="/dashboard/settings"
           class="hover:bg-surface-100 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 rounded-xl p-3 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           :aria-label="t('nav_settings')"
         >

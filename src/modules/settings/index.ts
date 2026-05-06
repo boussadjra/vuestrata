@@ -28,6 +28,7 @@ const settingsModule: ModuleDefinition = {
     category: 'system',
     order: 100,
     enabledByDefault: true,
+    required: true,
     permissions: [],
   },
 

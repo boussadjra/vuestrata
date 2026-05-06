@@ -13,6 +13,10 @@ describe('settings module', () => {
       expect(settingsModule.config.enabledByDefault).toBe(true)
     })
 
+    it('is required because the app header always links to settings', () => {
+      expect(settingsModule.config.required).toBe(true)
+    })
+
     it('requires no permissions (universal access)', () => {
       expect(settingsModule.config.permissions).toHaveLength(0)
     })

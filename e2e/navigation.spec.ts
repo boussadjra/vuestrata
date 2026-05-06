@@ -9,14 +9,16 @@ test.describe('Settings page', () => {
 
   test('should display theming controls', async ({ page }) => {
     await page.goto('/settings')
-    // Should have some settings headings or controls
-    await expect(page.locator('h1, h2').first()).toBeVisible()
+    await expect(page).toHaveURL(/\/dashboard\/settings/)
+    await expect(page.getByRole('heading', { name: 'Application Settings' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Theme' })).toBeVisible()
   })
 
   test('should load settings page without errors', async ({ page }) => {
     await page.goto('/settings')
-    // Verify the page loaded and has interactive elements
-    await expect(page).toHaveURL(/\/settings/)
+    await expect(page).toHaveURL(/\/dashboard\/settings/)
+    await expect(page.getByRole('button', { name: 'Default' })).toBeVisible()
   })
 })
 
