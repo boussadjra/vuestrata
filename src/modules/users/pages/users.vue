@@ -3,6 +3,7 @@ import { createColumnHelper } from '@tanstack/vue-table'
 import { FlexRender } from '@tanstack/vue-table'
 import { useI18n } from 'vue-i18n'
 
+import { UiButton, UiSelect, UiTextField } from '@/components/ui'
 import { useDataTable } from '@/composables/useDataTable'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
@@ -172,14 +173,10 @@ function onPageSizeChange(event: Event) {
         <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('users_subtitle') }}</p>
       </div>
       <div class="flex gap-3">
-        <button
-          v-if="can('users:create')"
-          class="bg-primary-600 hover:bg-primary-500 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all active:scale-95"
-          @click="showInviteDialog = true"
-        >
+        <UiButton v-if="can('users:create')" variant="primary" @click="showInviteDialog = true">
           <span :class="[resolveIcon('user-plus'), 'h-4 w-4']" />
           {{ t('users_invite') }}
-        </button>
+        </UiButton>
       </div>
     </div>
 
@@ -203,20 +200,13 @@ function onPageSizeChange(event: Event) {
         class="border-surface-200 dark:border-surface-700 flex flex-col items-start justify-between gap-3 border-b p-4 sm:flex-row sm:items-center"
       >
         <div class="flex w-full items-center gap-3 sm:w-auto">
-          <div class="relative flex-1 sm:flex-none">
-            <span
-              :class="[
-                resolveIcon('search'),
-                'text-surface-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2',
-              ]"
-            />
-            <input
-              v-model="globalFilter"
-              type="text"
-              :placeholder="t('users_search')"
-              class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border py-2 pr-3 pl-9 text-sm transition-all outline-none focus:ring-2 sm:w-64"
-            />
-          </div>
+          <UiTextField
+            v-model="globalFilter"
+            type="text"
+            :placeholder="t('users_search')"
+            icon="search"
+            class="sm:w-64"
+          />
           <span v-if="selectedRows.length" class="text-surface-500 text-sm">
             {{ selectedRows.length }} {{ t('common_selected') }}
           </span>
@@ -287,14 +277,7 @@ function onPageSizeChange(event: Event) {
                 <!-- Role column: custom rendering -->
                 <template v-if="cell.column.id === 'role'">
                   <template v-if="editingUserId === row.original.id">
-                    <select
-                      v-model="editingRole"
-                      class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 rounded-lg border bg-white px-2 py-1 text-sm"
-                    >
-                      <option v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
-                        {{ opt.label }}
-                      </option>
-                    </select>
+                    <UiSelect v-model="editingRole" :options="roleOptions" size="sm" />
                   </template>
                   <template v-else>
                     <span
@@ -338,33 +321,25 @@ function onPageSizeChange(event: Event) {
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2">
                   <template v-if="editingUserId === row.original.id">
-                    <button
-                      class="text-xs font-medium text-green-600 hover:text-green-500"
-                      @click="saveRole(row.original)"
-                    >
+                    <UiButton variant="ghost" size="sm" @click="saveRole(row.original)">
                       {{ t('button_save') }}
-                    </button>
-                    <button
-                      class="text-surface-400 hover:text-surface-600 text-xs font-medium"
-                      @click="cancelEdit()"
-                    >
+                    </UiButton>
+                    <UiButton variant="ghost" size="sm" @click="cancelEdit()">
                       {{ t('button_cancel') }}
-                    </button>
+                    </UiButton>
                   </template>
                   <template v-else-if="can('roles:assign')">
-                    <button
-                      class="text-primary-600 hover:text-primary-500 text-xs font-medium"
-                      @click="startEditRole(row.original)"
-                    >
+                    <UiButton variant="ghost" size="sm" @click="startEditRole(row.original)">
                       {{ t('users_change_role') }}
-                    </button>
-                    <button
+                    </UiButton>
+                    <UiButton
                       v-if="can('users:update')"
-                      class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 text-xs font-medium"
+                      variant="ghost"
+                      size="sm"
                       @click="selectedUser = row.original"
                     >
                       {{ t('users_permissions') }}
-                    </button>
+                    </UiButton>
                   </template>
                 </div>
               </td>
@@ -379,32 +354,33 @@ function onPageSizeChange(event: Event) {
       >
         <div class="flex items-center gap-2">
           <span class="text-surface-500 text-sm">{{ t('common_rows_per_page') }}:</span>
-          <select
-            :value="pagination.pageSize"
-            class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 rounded-lg border bg-white px-2 py-1 text-sm"
-            @change="onPageSizeChange"
-          >
-            <option v-for="s in [5, 10, 20, 50]" :key="s" :value="s">{{ s }}</option>
-          </select>
+          <UiSelect
+            :model-value="pagination.pageSize"
+            :options="[5, 10, 20, 50].map((s) => ({ value: s, label: String(s) }))"
+            size="sm"
+            @update:model-value="(v) => onPageSizeChange({ target: { value: v } } as any)"
+          />
         </div>
         <div class="flex items-center gap-2">
-          <button
+          <UiButton
+            variant="secondary"
+            size="sm"
             :disabled="!table.getCanPreviousPage()"
-            class="border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg border px-3 py-1.5 text-sm transition-colors disabled:opacity-40"
             @click="table.previousPage()"
           >
             {{ t('common_previous') }}
-          </button>
+          </UiButton>
           <span class="text-surface-600 dark:text-surface-300 text-sm font-medium tabular-nums">
             {{ currentPage }} / {{ pageCount }}
           </span>
-          <button
+          <UiButton
+            variant="secondary"
+            size="sm"
             :disabled="!table.getCanNextPage()"
-            class="border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg border px-3 py-1.5 text-sm transition-colors disabled:opacity-40"
             @click="table.nextPage()"
           >
             {{ t('common_next') }}
-          </button>
+          </UiButton>
         </div>
       </div>
     </div>

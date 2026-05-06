@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { UiButton } from '@/components/ui'
 import { useTheme } from '@/composables/useTheme'
 import { resolveIcon } from '@/config/icon-provider'
 
@@ -87,30 +88,14 @@ onUnmounted(() => {
           </p>
 
           <div class="animate-slide-up mb-12 flex flex-wrap gap-3" style="animation-delay: 0.16s">
-            <RouterLink
-              to="/docs/components/overview"
-              class="group bg-primary-500 hover:bg-primary-600 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 text-surface-50 relative inline-flex min-h-11 items-center gap-2.5 rounded-lg px-7 py-3 font-semibold shadow-(--shadow-soft) transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-            >
-              <span
-                :class="[
-                  resolveIcon('widget'),
-                  'h-5 w-5 transition-transform group-hover:rotate-12',
-                ]"
-              />
+            <UiButton to="/docs/components/overview" variant="primary" size="lg">
+              <span :class="[resolveIcon('widget'), 'h-5 w-5']" />
               {{ t('hero_explore') }}
-            </RouterLink>
-            <RouterLink
-              to="/dashboard"
-              class="group border-surface-200 bg-surface-50 text-surface-700 hover:border-primary-300 hover:bg-surface-100 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200 dark:hover:border-primary-700 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 inline-flex min-h-11 items-center gap-2.5 rounded-lg border px-7 py-3 font-semibold transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-            >
-              <span
-                :class="[
-                  resolveIcon('chart'),
-                  'h-5 w-5 transition-transform group-hover:scale-110',
-                ]"
-              />
+            </UiButton>
+            <UiButton to="/dashboard" variant="ghost" size="lg">
+              <span :class="[resolveIcon('chart'), 'h-5 w-5']" />
               {{ t('hero_dashboard') }}
-            </RouterLink>
+            </UiButton>
           </div>
 
           <div

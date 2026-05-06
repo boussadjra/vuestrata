@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { UiButton, UiCheckbox } from '@/components/ui'
 import { getRegisteredPermissions, getRolePermissions } from '@/lib/rbac'
 import type { BuiltinPermission } from '@/lib/rbac/types'
 import { useAuthStore } from '@/stores/auth'
@@ -94,13 +95,9 @@ async function submit() {
             {{ user.name }} · <span class="capitalize">{{ user.role }}</span>
           </p>
         </div>
-        <button
-          class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
-          aria-label="Close"
-          @click="$emit('close')"
-        >
+        <UiButton variant="ghost" size="sm" icon aria-label="Close" @click="$emit('close')">
           ✕
-        </button>
+        </UiButton>
       </div>
 
       <!-- Self-edit warning -->
@@ -142,11 +139,9 @@ async function submit() {
                 'cursor-not-allowed opacity-50': isUsersReadDisabled(perm as Permission),
               }"
             >
-              <input
-                type="checkbox"
+              <UiCheckbox
                 :checked="selected.has(perm as Permission)"
                 :disabled="isUsersReadDisabled(perm as Permission)"
-                class="text-primary-600 focus:ring-primary-500 h-4 w-4 rounded"
                 @change="togglePermission(perm as Permission)"
               />
               <span class="text-surface-800 dark:text-surface-200 flex-1 text-sm">
@@ -167,29 +162,14 @@ async function submit() {
       <div
         class="border-surface-200 dark:border-surface-700 flex items-center justify-between border-t px-6 py-4"
       >
-        <button
-          type="button"
-          class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 text-sm underline-offset-2 hover:underline"
-          @click="resetToRoleDefaults"
-        >
+        <UiButton type="button" variant="ghost" size="sm" @click="resetToRoleDefaults">
           Reset to role defaults
-        </button>
+        </UiButton>
         <div class="flex gap-3">
-          <button
-            type="button"
-            class="border-surface-200 dark:border-surface-600 text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl border px-4 py-2 text-sm font-medium"
-            @click="$emit('close')"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            :disabled="isPending"
-            class="bg-primary-600 hover:bg-primary-500 disabled:bg-primary-300 rounded-xl px-4 py-2 text-sm font-medium text-white transition-colors"
-            @click="submit"
-          >
+          <UiButton type="button" variant="secondary" @click="$emit('close')"> Cancel </UiButton>
+          <UiButton type="button" variant="primary" :disabled="isPending" @click="submit">
             {{ isPending ? 'Saving…' : 'Save' }}
-          </button>
+          </UiButton>
         </div>
       </div>
     </div>

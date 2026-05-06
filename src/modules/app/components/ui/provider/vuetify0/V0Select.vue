@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useOption } from '@formwerk/core'
-
 import { useBaseSelect, type SelectProps } from '@/components/ui/base'
+
+import V0Option from './V0Option.vue'
+import V0OptionGroup from './V0OptionGroup.vue'
 
 const props = withDefaults(defineProps<SelectProps>(), {
   placeholder: 'Select...',
@@ -51,24 +52,21 @@ function isGroup(
         class="dark:bg-surface-800 absolute z-50 mt-1 w-full rounded border bg-white p-1 shadow"
       >
         <template v-for="option in options" :key="'value' in option ? option.value : option.label">
-          <template v-if="isGroup(option)">
-            <div class="text-surface-400 px-3 py-1 text-xs font-semibold uppercase">
-              {{ option.label }}
-            </div>
-            <div
+          <V0OptionGroup v-if="isGroup(option)" :label="option.label">
+            <V0Option
               v-for="child in option.options"
               :key="child.value"
-              class="hover:bg-surface-100 dark:hover:bg-surface-700 cursor-pointer px-3 py-1.5 text-sm"
-            >
-              {{ child.label }}
-            </div>
-          </template>
-          <div
+              :label="child.label"
+              :value="child.value"
+              :disabled="child.disabled"
+            />
+          </V0OptionGroup>
+          <V0Option
             v-else
-            class="hover:bg-surface-100 dark:hover:bg-surface-700 cursor-pointer px-3 py-1.5 text-sm"
-          >
-            {{ option.label }}
-          </div>
+            :label="option.label"
+            :value="option.value"
+            :disabled="option.disabled"
+          />
         </template>
       </div>
     </div>

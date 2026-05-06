@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { UiButton } from '@/components/ui'
 import { resolveIcon } from '@/config/icon-provider'
 
 const { t } = useI18n()
@@ -33,20 +34,14 @@ const { t } = useI18n()
         </p>
 
         <div class="mt-8 flex flex-wrap gap-3">
-          <RouterLink
-            to="/"
-            class="bg-primary-500 hover:bg-primary-600 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 text-surface-50 inline-flex min-h-11 items-center gap-2 rounded-lg px-5 py-3 font-semibold shadow-(--shadow-soft) transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-          >
+          <UiButton to="/" variant="primary" size="lg">
             <span :class="[resolveIcon('home'), 'h-5 w-5']" aria-hidden="true" />
             {{ t('not_found_home') }}
-          </RouterLink>
-          <RouterLink
-            to="/docs"
-            class="border-surface-200 bg-surface-50 text-surface-700 hover:border-primary-300 hover:bg-surface-100 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200 dark:hover:border-primary-700 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 inline-flex min-h-11 items-center gap-2 rounded-lg border px-5 py-3 font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-          >
+          </UiButton>
+          <UiButton to="/docs" variant="ghost" size="lg">
             <span :class="[resolveIcon('document'), 'h-5 w-5']" aria-hidden="true" />
             {{ t('not_found_docs') }}
-          </RouterLink>
+          </UiButton>
         </div>
       </div>
     </section>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { UiButton } from '@/components/ui'
 import { resolveIcon } from '@/config/icon-provider'
 
 const router = useRouter()
@@ -19,20 +20,14 @@ const router = useRouter()
         this is an error.
       </p>
       <div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <button
-          class="bg-primary-500 hover:bg-primary-600 inline-flex items-center gap-2 rounded-xl px-6 py-3 font-medium text-white transition-colors"
-          @click="router.push('/dashboard')"
-        >
+        <UiButton variant="primary" @click="router.push('/dashboard')">
           <span :class="[resolveIcon('home'), 'h-5 w-5']" />
           Go to Dashboard
-        </button>
-        <button
-          class="border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 inline-flex items-center gap-2 rounded-xl border px-6 py-3 font-medium transition-colors"
-          @click="router.back()"
-        >
+        </UiButton>
+        <UiButton variant="secondary" @click="router.back()">
           <span :class="[resolveIcon('arrow-left'), 'h-5 w-5']" />
           Go Back
-        </button>
+        </UiButton>
       </div>
     </div>
   </div>

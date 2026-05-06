@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@vuetify/v0'
+import type { RouteLocationRaw } from 'vue-router'
+import { RouterLink } from 'vue-router'
 
 import { resolveIcon } from '~/config/icon-provider'
 
@@ -14,6 +16,10 @@ export interface ButtonProps {
   value?: any
   active?: boolean
   ariaLabel?: string
+  to?: RouteLocationRaw
+  href?: string
+  target?: string
+  rel?: string
 }
 
 const props = withDefaults(defineProps<ButtonProps>(), {
@@ -93,6 +99,7 @@ const classes = computed(() => {
     'transition duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-900',
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
+    isLink.value && (props.disabled || props.loading) ? 'pointer-events-none opacity-50' : '',
     !props.block && !props.loading ? 'hover:scale-[1.02] active:scale-[0.97]' : '',
     'motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
     iconOnly ? iconOnlySizeClasses[props.size] : sizeClasses[props.size],
@@ -102,18 +109,34 @@ const classes = computed(() => {
   ]
 })
 
+const isLink = computed(() => Boolean(props.to || props.href))
+const rootTag = computed(() => {
+  if (props.to) return RouterLink
+  if (props.href) return 'a'
+  return Button.Root
+})
+
 function onClick(e: MouseEvent) {
-  if (!props.disabled && !props.loading) {
-    emit('click', e)
+  if (props.disabled || props.loading) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
   }
+  emit('click', e)
 }
 </script>
 
 <template>
-  <Button.Root
-    :type="type"
+  <component
+    :is="rootTag"
+    :to="to || undefined"
+    :href="href || undefined"
+    :target="target || undefined"
+    :rel="rel || undefined"
+    :type="!isLink ? type : undefined"
     :value="value"
-    :disabled="disabled || undefined"
+    :disabled="!isLink ? disabled || undefined : undefined"
+    :tabindex="isLink && (disabled || loading) ? -1 : undefined"
     :class="classes"
     :aria-disabled="disabled || loading || undefined"
     :aria-busy="loading || undefined"
@@ -136,7 +159,7 @@ function onClick(e: MouseEvent) {
       aria-hidden="true"
     />
     <slot />
-  </Button.Root>
+  </component>
 </template>
 
 <style scoped>

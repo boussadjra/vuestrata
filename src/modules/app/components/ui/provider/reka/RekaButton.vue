@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
+import { RouterLink } from 'vue-router'
+
 import { resolveIcon } from '~/config/icon-provider'
 
 export interface ButtonProps {
@@ -12,6 +15,10 @@ export interface ButtonProps {
   value?: any
   active?: boolean
   ariaLabel?: string
+  to?: RouteLocationRaw
+  href?: string
+  target?: string
+  rel?: string
 }
 
 const props = withDefaults(defineProps<ButtonProps>(), {
@@ -100,6 +107,7 @@ const classes = computed(() => {
     'transition duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-900',
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
+    isLink.value && (props.disabled || props.loading) ? 'pointer-events-none opacity-50' : '',
     // Hover lift (1.02×) + press dip (0.97×): clear interactive feedback without decoration.
     // Skipped on block buttons (full-width scale is distracting) and loading (processing state).
     !props.block && !props.loading ? 'hover:scale-[1.02] active:scale-[0.97]' : '',
@@ -114,21 +122,37 @@ const classes = computed(() => {
   ]
 })
 
+const isLink = computed(() => Boolean(props.to || props.href))
+const rootTag = computed(() => {
+  if (props.to) return RouterLink
+  if (props.href) return 'a'
+  return 'button'
+})
+
 function onClick(e: MouseEvent) {
-  if (!props.disabled && !props.loading) {
-    if (buttonGroup && props.value !== undefined) {
-      buttonGroup.updateValue(props.value)
-    }
-    emit('click', e)
+  if (props.disabled || props.loading) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
   }
+  if (buttonGroup && props.value !== undefined) {
+    buttonGroup.updateValue(props.value)
+  }
+  emit('click', e)
 }
 </script>
 
 <template>
-  <button
-    :type="type"
+  <component
+    :is="rootTag"
+    :to="to || undefined"
+    :href="href || undefined"
+    :target="target || undefined"
+    :rel="rel || undefined"
+    :type="!isLink ? type : undefined"
     :class="classes"
-    :disabled="disabled || undefined"
+    :disabled="!isLink ? disabled || undefined : undefined"
+    :tabindex="isLink && (disabled || loading) ? -1 : undefined"
     :aria-disabled="disabled || loading || undefined"
     :aria-busy="loading || undefined"
     :aria-pressed="buttonGroup ? isActive : undefined"
@@ -150,7 +174,7 @@ function onClick(e: MouseEvent) {
       aria-hidden="true"
     />
     <slot />
-  </button>
+  </component>
 </template>
 
 <style scoped>

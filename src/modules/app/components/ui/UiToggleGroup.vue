@@ -15,14 +15,18 @@ export interface UiToggleGroupProps extends Omit<BaseFieldProps, 'size'> {
   size?: 'sm' | 'md' | 'lg'
 }
 
-defineProps<UiToggleGroupProps>()
-defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
+const props = defineProps<UiToggleGroupProps>()
+const emit = defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
 
 const UiToggleGroup = resolveUiComponent('ToggleGroup')
 </script>
 
 <template>
-  <component :is="UiToggleGroup" v-bind="$attrs">
+  <component
+    :is="UiToggleGroup"
+    v-bind="{ ...props, ...$attrs }"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <slot />
   </component>
 </template>
