@@ -9,46 +9,26 @@ const features: {
   iconName: IconName
   title: string
   desc: string
-  color: string
-  bg: string
-  text: string
-  ring: string
 }[] = [
   {
     iconName: 'bolt',
-    title: 'Lightning Fast',
-    desc: 'Vite-powered HMR, tree-shaking, and optimized builds out of the box.',
-    color: 'from-primary-500 to-primary-600',
-    bg: 'bg-primary-500/10 dark:bg-primary-500/20',
-    text: 'text-primary-500',
-    ring: 'group-hover:ring-primary-500/20',
+    title: 'Vite+ command path',
+    desc: 'Install, check, test, build, and run through one toolchain instead of a pile of wrappers.',
   },
   {
     iconName: 'shield-check',
-    title: 'Type-Safe',
-    desc: 'End-to-end TypeScript with strict mode — catch bugs before runtime.',
-    color: 'from-accent-500 to-accent-600',
-    bg: 'bg-accent-500/10 dark:bg-accent-500/20',
-    text: 'text-accent-500',
-    ring: 'group-hover:ring-accent-500/20',
+    title: 'Typed boundaries',
+    desc: 'Query keys, API calls, validation, and module contracts stay explicit from the start.',
   },
   {
     iconName: 'palette',
-    title: 'Beautiful UI',
-    desc: '25+ headless components with Tailwind v4 — dark mode included.',
-    color: 'from-secondary-500 to-secondary-600',
-    bg: 'bg-secondary-500/10 dark:bg-secondary-500/20',
-    text: 'text-secondary-500',
-    ring: 'group-hover:ring-secondary-500/20',
+    title: 'Theme integrity',
+    desc: 'Ten theme personalities share one token vocabulary across light and dark modes.',
   },
   {
     iconName: 'lock',
-    title: 'Auth Ready',
-    desc: 'JWT, OAuth, magic links, RBAC — production auth patterns built in.',
-    color: 'from-cyan-500 to-teal-600',
-    bg: 'bg-cyan-500/10 dark:bg-cyan-500/20',
-    text: 'text-cyan-500',
-    ring: 'group-hover:ring-cyan-500/20',
+    title: 'Auth contract',
+    desc: 'JWT, OAuth, magic-link mocks, RBAC, env keys, and docs stay aligned as one surface.',
   },
 ]
 

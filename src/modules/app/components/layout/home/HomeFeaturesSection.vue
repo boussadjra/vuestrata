@@ -6,15 +6,18 @@ type FeatureItem = {
   iconName: IconName
   title: string
   desc: string
-  color: string
-  bg: string
-  text: string
-  ring: string
 }
 
 defineProps<{
   features: FeatureItem[]
 }>()
+
+const FEATURE_ICON_CLASSES = [
+  'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300',
+  'border-accent-200 bg-accent-50 text-accent-700 dark:border-accent-800 dark:bg-accent-950/30 dark:text-accent-300',
+  'border-secondary-200 bg-secondary-50 text-secondary-800 dark:border-secondary-800 dark:bg-secondary-950/40 dark:text-secondary-200',
+  'border-primary-300 bg-surface-50 text-primary-700 dark:border-primary-700 dark:bg-surface-950 dark:text-primary-300',
+] as const
 </script>
 
 <template>
@@ -22,72 +25,49 @@ defineProps<{
     <div class="mx-auto max-w-7xl px-5 sm:px-8">
       <div class="mb-16 max-w-2xl">
         <p
-          class="text-primary-500 dark:text-primary-400 mb-3 text-sm font-semibold tracking-widest uppercase"
+          class="text-primary-600 dark:text-primary-400 mb-3 text-sm font-semibold tracking-wide uppercase"
         >
-          Features
+          System defaults
         </p>
         <h2
           class="text-surface-900 dark:text-surface-50 mb-4 text-3xl font-bold tracking-tight md:text-4xl"
         >
-          Everything you need,<br />nothing you don't
+          The parts that usually drift are already wired.
         </h2>
         <p class="text-surface-500 dark:text-surface-400 text-lg">
-          Enterprise-grade patterns packaged in a lightweight, elegant starter — so you focus on
-          your product.
+          Vuestrata keeps the starter honest: toolchain, data boundaries, theming, and auth all
+          share one source of truth.
         </p>
       </div>
 
-      <!--
-        Bento grid (4 features): row 1 = wide(col-span-2) + narrow, row 2 = narrow + wide(col-span-2).
-        Wide cards use a horizontal layout; narrow cards use a compact vertical layout.
-      -->
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <div
-          v-for="(f, i) in features"
-          :key="f.title"
-          class="group border-surface-200/80 dark:border-surface-700/50 dark:bg-surface-900 hover:shadow-elevated animate-slide-up relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 hover:-translate-y-0.5"
-          :class="i === 0 || i === 3 ? 'p-9 sm:col-span-2 lg:p-11' : 'p-7 sm:col-span-1 lg:p-8'"
-          :style="{ animationDelay: `${0.1 + i * 0.08}s` }"
+      <ol class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12">
+        <li
+          v-for="(feature, featureIndex) in features"
+          :key="feature.title"
+          class="border-surface-200/80 bg-surface-50 dark:border-surface-700/60 dark:bg-surface-900 animate-slide-up group hover:border-primary-300 dark:hover:border-primary-700 relative overflow-hidden rounded-xl border p-6 transition-colors duration-200 lg:p-7"
+          :class="featureIndex === 0 || featureIndex === 3 ? 'lg:col-span-7' : 'lg:col-span-5'"
+          :style="{ animationDelay: `${0.1 + featureIndex * 0.08}s` }"
         >
-          <!-- Wide card: horizontal layout -->
-          <template v-if="i === 0 || i === 3">
-            <div class="flex items-center gap-6">
-              <div
-                class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
-                :class="f.bg"
-              >
-                <span :class="[resolveIcon(f.iconName), 'h-7 w-7', f.text]" />
-              </div>
-              <div>
-                <h3 class="text-surface-900 dark:text-surface-100 mb-2 text-xl font-semibold">
-                  {{ f.title }}
-                </h3>
-                <p
-                  class="text-surface-500 dark:text-surface-400 max-w-sm text-base leading-relaxed"
-                >
-                  {{ f.desc }}
-                </p>
-              </div>
-            </div>
-          </template>
-
-          <!-- Narrow card: vertical layout -->
-          <template v-else>
+          <div class="mb-8 flex items-center justify-between gap-4">
             <div
-              class="mb-5 flex h-11 w-11 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
-              :class="f.bg"
+              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-transform duration-200 group-hover:-translate-y-0.5"
+              :class="FEATURE_ICON_CLASSES[featureIndex]"
             >
-              <span :class="[resolveIcon(f.iconName), 'h-5 w-5', f.text]" />
+              <span :class="[resolveIcon(feature.iconName), 'h-5 w-5']" aria-hidden="true" />
             </div>
-            <h3 class="text-surface-900 dark:text-surface-100 mb-1.5 text-lg font-semibold">
-              {{ f.title }}
-            </h3>
-            <p class="text-surface-500 dark:text-surface-400 text-base leading-relaxed">
-              {{ f.desc }}
-            </p>
-          </template>
-        </div>
-      </div>
+            <span class="text-surface-400 dark:text-surface-500 font-mono text-xs">
+              {{ String(featureIndex + 1).padStart(2, '0') }}
+            </span>
+          </div>
+
+          <h3 class="text-surface-900 dark:text-surface-100 mb-2 text-xl font-semibold">
+            {{ feature.title }}
+          </h3>
+          <p class="text-surface-600 dark:text-surface-400 max-w-xl text-base leading-relaxed">
+            {{ feature.desc }}
+          </p>
+        </li>
+      </ol>
     </div>
   </section>
 </template>

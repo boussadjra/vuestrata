@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { useTheme } from '@/composables/useTheme'
 import { resolveIcon } from '@/config/icon-provider'
 
 import HeroCodePreview from './HeroCodePreview.vue'
@@ -16,6 +17,7 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
+const { isDark } = useTheme()
 const mouseX = ref(0)
 const mouseY = ref(0)
 
@@ -39,26 +41,26 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="relative flex min-h-screen items-center overflow-hidden">
+  <section class="relative flex min-h-[calc(100svh-5rem)] items-center overflow-hidden">
     <div class="pointer-events-none absolute inset-0 select-none" aria-hidden="true">
       <div class="hero-dots absolute inset-0" />
+      <div class="hero-rule hero-rule-horizontal" />
+      <div class="hero-rule hero-rule-vertical" />
       <div
-        class="hero-blob bg-primary-400/20 dark:bg-primary-500/10 animate-float absolute -top-32 -right-32 h-170 w-170 rounded-full blur-[80px]"
-      />
-      <div
-        class="hero-blob bg-accent-400/15 dark:bg-accent-500/8 animate-float absolute -bottom-40 -left-20 h-130 w-130 rounded-full blur-[70px]"
-        style="animation-delay: -4s"
-      />
-      <div
-        class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,var(--color-surface-50)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_40%,var(--color-surface-950)_100%)]"
+        class="hero-vignette absolute inset-0"
+        :style="{
+          background: isDark
+            ? 'linear-gradient(to bottom, transparent 0%, transparent 58%, color-mix(in oklch, var(--color-surface-950) 94%, black) 100%)'
+            : 'radial-gradient(ellipse at 35% 25%, transparent 0%, transparent 46%, var(--color-surface-50) 100%)',
+        }"
       />
     </div>
 
-    <div class="relative z-10 mx-auto w-full max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
+    <div class="relative z-10 mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 lg:py-20">
       <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-16">
         <div class="max-w-2xl lg:col-span-7">
           <div
-            class="bg-primary-500/8 dark:bg-primary-400/10 ring-primary-500/20 dark:ring-primary-400/20 text-primary-600 dark:text-primary-400 animate-slide-down mb-7 inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[13px] font-semibold tracking-wide ring-1"
+            class="bg-primary-50 dark:bg-primary-950/30 ring-primary-500/20 dark:ring-primary-400/20 text-primary-700 dark:text-primary-300 animate-slide-down mb-7 inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[13px] font-semibold tracking-wide ring-1"
           >
             <span class="relative flex h-1.5 w-1.5">
               <span
@@ -66,7 +68,7 @@ onUnmounted(() => {
               />
               <span class="bg-primary-500 relative inline-flex h-1.5 w-1.5 rounded-full" />
             </span>
-            Open-source&ensp;·&ensp;Vue 3&ensp;·&ensp;TypeScript
+            Open source / Vue 3 / Vite+
           </div>
 
           <h1
@@ -87,7 +89,7 @@ onUnmounted(() => {
           <div class="animate-slide-up mb-12 flex flex-wrap gap-3" style="animation-delay: 0.16s">
             <RouterLink
               to="/docs/components/overview"
-              class="group bg-primary-500 hover:bg-primary-600 shadow-primary-500/30 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 relative inline-flex items-center gap-2.5 rounded-xl px-7 py-3 font-semibold text-white shadow-[0_2px_20px_-4px] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_28px_-4px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0"
+              class="group bg-primary-500 hover:bg-primary-600 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 text-surface-50 relative inline-flex min-h-11 items-center gap-2.5 rounded-lg px-7 py-3 font-semibold shadow-(--shadow-soft) transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <span
                 :class="[
@@ -99,7 +101,7 @@ onUnmounted(() => {
             </RouterLink>
             <RouterLink
               to="/dashboard"
-              class="group border-surface-200 dark:border-surface-700 dark:bg-surface-800/60 text-surface-700 dark:text-surface-200 hover:border-primary-300 dark:hover:border-primary-700 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 inline-flex items-center gap-2.5 rounded-xl border bg-white/60 px-7 py-3 font-semibold backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0"
+              class="group border-surface-200 bg-surface-50 text-surface-700 hover:border-primary-300 hover:bg-surface-100 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200 dark:hover:border-primary-700 dark:hover:bg-surface-800 focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-900 inline-flex min-h-11 items-center gap-2.5 rounded-lg border px-7 py-3 font-semibold transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <span
                 :class="[
@@ -128,34 +130,54 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div
-      class="via-surface-200 dark:via-surface-800 absolute right-0 bottom-0 left-0 h-px bg-linear-to-r from-transparent to-transparent"
-    />
+    <div class="bg-surface-200/70 absolute right-0 bottom-0 left-0 h-px dark:bg-transparent" />
   </section>
 </template>
 
 <style scoped>
-.hero-blob {
-  will-change: transform;
-  contain: layout style;
-}
-
 .hero-dots {
-  background-image: radial-gradient(
-    circle,
-    color-mix(in oklch, var(--color-primary-500) 12%, transparent) 1px,
-    transparent 1px
-  );
-  background-size: 28px 28px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 80%);
+  background-image:
+    linear-gradient(
+      color-mix(in oklch, var(--color-primary-500) 10%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--color-primary-500) 10%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black 0%, black 64%, transparent 96%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 64%, transparent 96%);
 }
 
-:global(html.dark) .hero-dots {
-  background-image: radial-gradient(
-    circle,
-    color-mix(in oklch, var(--color-surface-400) 8%, transparent) 1px,
-    transparent 1px
-  );
+:global(.dark) .hero-dots {
+  background-image:
+    linear-gradient(
+      color-mix(in oklch, var(--color-surface-400) 9%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--color-surface-400) 9%, transparent) 1px,
+      transparent 1px
+    );
+}
+
+.hero-rule {
+  position: absolute;
+  background: color-mix(in oklch, var(--color-primary-500) 26%, transparent);
+}
+
+.hero-rule-horizontal {
+  inset-inline: 0;
+  top: 18%;
+  height: 1px;
+}
+
+.hero-rule-vertical {
+  inset-block: 0;
+  inset-inline-start: 62%;
+  width: 1px;
 }
 </style>
