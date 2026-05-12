@@ -5,7 +5,7 @@ const UiFileUpload = resolveUiComponent('FileUpload')
 </script>
 
 <template>
-  <component :is="UiFileUpload" v-bind="$attrs">
+  <component :is="UiFileUpload" v-bind="$props">
     <slot />
   </component>
 </template>

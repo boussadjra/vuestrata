@@ -5,7 +5,7 @@ const UiColorPicker = resolveUiComponent('ColorPicker')
 </script>
 
 <template>
-  <component :is="UiColorPicker" v-bind="$attrs">
+  <component :is="UiColorPicker" v-bind="$props">
     <slot />
   </component>
 </template>

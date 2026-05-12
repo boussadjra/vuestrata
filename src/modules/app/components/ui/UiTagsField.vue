@@ -5,7 +5,7 @@ const UiTagsField = resolveUiComponent('TagsField')
 </script>
 
 <template>
-  <component :is="UiTagsField" v-bind="$attrs">
+  <component :is="UiTagsField" v-bind="$props">
     <slot />
   </component>
 </template>

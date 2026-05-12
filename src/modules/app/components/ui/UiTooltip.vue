@@ -5,7 +5,7 @@ const UiTooltip = resolveUiComponent('Tooltip')
 </script>
 
 <template>
-  <component :is="UiTooltip" v-bind="$attrs">
+  <component :is="UiTooltip" v-bind="$props">
     <slot />
   </component>
 </template>

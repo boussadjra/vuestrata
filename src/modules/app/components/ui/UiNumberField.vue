@@ -20,7 +20,7 @@ const UiNumberField = resolveUiComponent('NumberField')
 </script>
 
 <template>
-  <component :is="UiNumberField" v-bind="$attrs">
+  <component :is="UiNumberField" v-bind="$props">
     <slot />
   </component>
 </template>

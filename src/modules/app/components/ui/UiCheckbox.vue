@@ -17,7 +17,7 @@ const UiCheckbox = resolveUiComponent('Checkbox')
 </script>
 
 <template>
-  <component :is="UiCheckbox" v-bind="$attrs">
+  <component :is="UiCheckbox" v-bind="$props">
     <slot />
   </component>
 </template>

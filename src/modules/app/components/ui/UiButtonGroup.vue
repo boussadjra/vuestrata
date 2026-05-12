@@ -5,7 +5,7 @@ const UiButtonGroup = resolveUiComponent('ButtonGroup')
 </script>
 
 <template>
-  <component :is="UiButtonGroup" v-bind="$attrs">
+  <component :is="UiButtonGroup" v-bind="$props">
     <slot />
   </component>
 </template>

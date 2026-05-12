@@ -14,26 +14,26 @@ Vuestrata provides a layered form system powered by [Formwerk](https://formwerk.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Your page / component                                       │
+│  Your page / component                                      │
 │                                                             │
 │  ┌───────────────────┐   ┌────────────────────────────────┐ │
 │  │  UiForm / shell   │   │  useFormBuilder()              │ │
 │  │  components       │   │  config-driven generation      │ │
 │  └────────┬──────────┘   └───────────────┬────────────────┘ │
-│           │                              │                   │
+│           │                              │                  │
 │  ┌────────▼──────────────────────────────▼────────────────┐ │
 │  │  Ui* field wrappers  (UiTextField, UiSelect, …)        │ │
 │  │       resolve the active provider at runtime           │ │
 │  └────────────────────────────┬───────────────────────────┘ │
 │                               │                             │
 │  ┌────────────────────────────▼───────────────────────────┐ │
-│  │  Provider components  (reka/ or vuetify0/)              │ │
+│  │  Provider components  (reka/ or vuetify0/)             │ │
 │  │       styling layer — Tailwind CSS / Vuetify           │ │
 │  └────────────────────────────┬───────────────────────────┘ │
 │                               │                             │
 │  ┌────────────────────────────▼───────────────────────────┐ │
-│  │  Formwerk composables  (useTextField, useSelect, …)     │ │
-│  │       headless a11y engine, fully unstyled              │ │
+│  │  Formwerk composables  (useTextField, useSelect, …)    │ │
+│  │       headless a11y engine, fully unstyled             │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```

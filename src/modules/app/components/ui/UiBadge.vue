@@ -5,7 +5,7 @@ const UiBadge = resolveUiComponent('Badge')
 </script>
 
 <template>
-  <component :is="UiBadge" v-bind="$attrs">
+  <component :is="UiBadge" v-bind="$props">
     <slot />
   </component>
 </template>

@@ -5,7 +5,7 @@ const UiToast = resolveUiComponent('Toast')
 </script>
 
 <template>
-  <component :is="UiToast" v-bind="$attrs">
+  <component :is="UiToast" v-bind="$props">
     <slot />
   </component>
 </template>

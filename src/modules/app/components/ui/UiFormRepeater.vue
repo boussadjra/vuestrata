@@ -5,7 +5,7 @@ const UiFormRepeater = resolveUiComponent('FormRepeater')
 </script>
 
 <template>
-  <component :is="UiFormRepeater" v-bind="$attrs">
+  <component :is="UiFormRepeater" v-bind="$props">
     <template v-for="(_, name) in $slots" #[name]="slotData">
       <slot :name="name" v-bind="slotData ?? {}" />
     </template>

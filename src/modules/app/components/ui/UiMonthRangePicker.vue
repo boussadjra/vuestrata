@@ -5,7 +5,7 @@ const UiMonthRangePicker = resolveUiComponent('MonthRangePicker')
 </script>
 
 <template>
-  <component :is="UiMonthRangePicker" v-bind="$attrs">
+  <component :is="UiMonthRangePicker" v-bind="$props">
     <slot />
   </component>
 </template>

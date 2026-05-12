@@ -20,7 +20,7 @@ const UiSearchField = resolveUiComponent('SearchField')
 </script>
 
 <template>
-  <component :is="UiSearchField" v-bind="$attrs">
+  <component :is="UiSearchField" v-bind="$props">
     <slot />
   </component>
 </template>

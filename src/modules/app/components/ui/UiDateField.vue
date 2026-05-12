@@ -5,7 +5,7 @@ const UiDateField = resolveUiComponent('DateField')
 </script>
 
 <template>
-  <component :is="UiDateField" v-bind="$attrs">
+  <component :is="UiDateField" v-bind="$props">
     <slot />
   </component>
 </template>

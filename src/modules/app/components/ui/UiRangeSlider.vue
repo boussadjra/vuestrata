@@ -5,7 +5,7 @@ const UiRangeSlider = resolveUiComponent('RangeSlider')
 </script>
 
 <template>
-  <component :is="UiRangeSlider" v-bind="$attrs">
+  <component :is="UiRangeSlider" v-bind="$props">
     <slot />
   </component>
 </template>

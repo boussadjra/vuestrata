@@ -5,7 +5,7 @@ const UiCommandPalette = resolveUiComponent('CommandPalette')
 </script>
 
 <template>
-  <component :is="UiCommandPalette" v-bind="$attrs">
+  <component :is="UiCommandPalette" v-bind="$props">
     <slot />
   </component>
 </template>

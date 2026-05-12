@@ -5,7 +5,7 @@ const UiSheet = resolveUiComponent('Sheet')
 </script>
 
 <template>
-  <component :is="UiSheet" v-bind="$attrs">
+  <component :is="UiSheet" v-bind="$props">
     <template #trigger><slot name="trigger" /></template>
     <slot />
   </component>

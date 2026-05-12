@@ -5,7 +5,7 @@ const UiTabs = resolveUiComponent('Tabs')
 </script>
 
 <template>
-  <component :is="UiTabs" v-bind="$attrs">
+  <component :is="UiTabs" v-bind="$props">
     <template v-for="(_, name) in $slots" :key="name" #[name]>
       <slot :name="name" />
     </template>

@@ -5,7 +5,7 @@ const UiYearRangePicker = resolveUiComponent('YearRangePicker')
 </script>
 
 <template>
-  <component :is="UiYearRangePicker" v-bind="$attrs">
+  <component :is="UiYearRangePicker" v-bind="$props">
     <slot />
   </component>
 </template>

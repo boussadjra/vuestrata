@@ -5,5 +5,5 @@ const UiAvatar = resolveUiComponent('Avatar')
 </script>
 
 <template>
-  <component :is="UiAvatar" v-bind="$attrs" />
+  <component :is="UiAvatar" v-bind="$props" />
 </template>

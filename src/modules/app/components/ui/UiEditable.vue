@@ -5,7 +5,7 @@ const UiEditable = resolveUiComponent('Editable')
 </script>
 
 <template>
-  <component :is="UiEditable" v-bind="$attrs">
+  <component :is="UiEditable" v-bind="$props">
     <slot />
   </component>
 </template>

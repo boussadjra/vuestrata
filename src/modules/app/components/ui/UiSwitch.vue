@@ -14,7 +14,7 @@ const UiSwitch = resolveUiComponent('Switch')
 </script>
 
 <template>
-  <component :is="UiSwitch" v-bind="$attrs">
+  <component :is="UiSwitch" v-bind="$props">
     <slot />
   </component>
 </template>

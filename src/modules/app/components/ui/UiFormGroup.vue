@@ -5,7 +5,7 @@ const UiFormGroup = resolveUiComponent('FormGroup')
 </script>
 
 <template>
-  <component :is="UiFormGroup" v-bind="$attrs">
+  <component :is="UiFormGroup" v-bind="$props">
     <template v-for="(_, name) in $slots" #[name]="slotData">
       <slot :name="name" v-bind="slotData ?? {}" />
     </template>

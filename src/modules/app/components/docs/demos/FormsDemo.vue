@@ -8,7 +8,7 @@ const roleOptions = [
 ]
 
 const memberSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+  name: z.string().min(3, 'Name must be at least 3 characters'),
   role: z.enum(['admin', 'member', 'viewer']),
   notes: z.string().max(280, 'Notes must be 280 characters or less').optional(),
   agreed: z.literal(true, {

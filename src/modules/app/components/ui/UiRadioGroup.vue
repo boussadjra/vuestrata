@@ -23,7 +23,7 @@ const UiRadioGroup = resolveUiComponent('RadioGroup')
 </script>
 
 <template>
-  <component :is="UiRadioGroup" v-bind="$attrs">
+  <component :is="UiRadioGroup" v-bind="$props">
     <slot />
   </component>
 </template>

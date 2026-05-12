@@ -5,7 +5,7 @@ const UiStepper = resolveUiComponent('Stepper')
 </script>
 
 <template>
-  <component :is="UiStepper" v-bind="$attrs">
+  <component :is="UiStepper" v-bind="$props">
     <slot />
   </component>
 </template>

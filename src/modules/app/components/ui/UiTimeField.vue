@@ -5,7 +5,7 @@ const UiTimeField = resolveUiComponent('TimeField')
 </script>
 
 <template>
-  <component :is="UiTimeField" v-bind="$attrs">
+  <component :is="UiTimeField" v-bind="$props">
     <slot />
   </component>
 </template>

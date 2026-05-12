@@ -5,7 +5,7 @@ const UiOTPField = resolveUiComponent('OTPField')
 </script>
 
 <template>
-  <component :is="UiOTPField" v-bind="$attrs">
+  <component :is="UiOTPField" v-bind="$props">
     <slot />
   </component>
 </template>

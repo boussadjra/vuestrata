@@ -5,7 +5,7 @@ const UiDatePicker = resolveUiComponent('DatePicker')
 </script>
 
 <template>
-  <component :is="UiDatePicker" v-bind="$attrs">
+  <component :is="UiDatePicker" v-bind="$props">
     <slot />
   </component>
 </template>

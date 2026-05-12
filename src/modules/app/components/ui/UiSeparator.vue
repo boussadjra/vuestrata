@@ -5,7 +5,7 @@ const UiSeparator = resolveUiComponent('Separator')
 </script>
 
 <template>
-  <component :is="UiSeparator" v-bind="$attrs">
+  <component :is="UiSeparator" v-bind="$props">
     <slot />
   </component>
 </template>

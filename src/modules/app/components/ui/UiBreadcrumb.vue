@@ -5,5 +5,5 @@ const UiBreadcrumb = resolveUiComponent('Breadcrumb')
 </script>
 
 <template>
-  <component :is="UiBreadcrumb" v-bind="$attrs" />
+  <component :is="UiBreadcrumb" v-bind="$props" />
 </template>

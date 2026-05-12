@@ -5,5 +5,5 @@ const UiAccordion = resolveUiComponent('Accordion')
 </script>
 
 <template>
-  <component :is="UiAccordion" v-bind="$attrs" />
+  <component :is="UiAccordion" v-bind="$props" />
 </template>

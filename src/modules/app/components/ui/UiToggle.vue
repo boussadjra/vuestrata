@@ -14,7 +14,7 @@ const UiToggle = resolveUiComponent('Toggle')
 </script>
 
 <template>
-  <component :is="UiToggle" v-bind="$attrs">
+  <component :is="UiToggle" v-bind="$props">
     <slot />
   </component>
 </template>

@@ -18,7 +18,7 @@ const UiTextarea = resolveUiComponent('Textarea')
 </script>
 
 <template>
-  <component :is="UiTextarea" v-bind="$attrs">
+  <component :is="UiTextarea" v-bind="$props">
     <slot />
   </component>
 </template>

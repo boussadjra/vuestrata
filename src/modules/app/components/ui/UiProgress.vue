@@ -5,7 +5,7 @@ const UiProgress = resolveUiComponent('Progress')
 </script>
 
 <template>
-  <component :is="UiProgress" v-bind="$attrs">
+  <component :is="UiProgress" v-bind="$props">
     <slot />
   </component>
 </template>

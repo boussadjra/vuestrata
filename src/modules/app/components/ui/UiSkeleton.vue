@@ -5,7 +5,7 @@ const UiSkeleton = resolveUiComponent('Skeleton')
 </script>
 
 <template>
-  <component :is="UiSkeleton" v-bind="$attrs">
+  <component :is="UiSkeleton" v-bind="$props">
     <slot />
   </component>
 </template>
