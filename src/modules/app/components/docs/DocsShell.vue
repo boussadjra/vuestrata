@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { Comark } from 'comark/vue'
 import type { Component } from 'vue'
 
-import { UiButton } from '@/components/ui'
-import { docsComarkComponents, docsComarkPlugins } from '@/config/comark'
 import { COMPONENT_DEMO_DOCS, buildComponentDemoDocSlug } from '@/config/component-docs'
+
+import DocsContent from './DocsContent.vue'
+import {
+  buildSidebarSections,
+  findActiveSidebarGroup,
+  getGroupKey,
+  type DocEntry,
+} from './docsNavigation'
+import DocsSidebar from './DocsSidebar.vue'
 
 const markdownModules = import.meta.glob('/docs/**/*.md', {
   query: '?raw',
@@ -19,31 +25,6 @@ const componentDemoModules = import.meta.glob<Component>(
     eager: true,
   },
 )
-
-interface DocEntry {
-  slug: string
-  title: string
-  description: string
-  content: string
-  order: number
-  section: string
-  sectionOrder: number
-  subsection?: string
-  subsectionLabel?: string
-  subsectionOrder?: number
-  component?: Component
-}
-
-interface SubsectionGroup {
-  key: string
-  label: string
-  order: number
-  items: DocEntry[]
-}
-
-type SidebarEntry =
-  | { kind: 'item'; doc: DocEntry; order: number }
-  | { kind: 'group'; group: SubsectionGroup; order: number }
 
 function parseFrontmatter(raw: string): { attrs: Record<string, string>; body: string } {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
@@ -149,6 +130,7 @@ const rootDoc = docs.find((doc) => doc.slug === '')
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
+const sidebarSections = computed(() => buildSidebarSections(docs))
 
 const currentSlug = computed(() => {
   const slugParam = (route.params as Record<string, string | string[]>).slug
@@ -169,276 +151,45 @@ function toggleGroup(key: string) {
   else expandedGroups.value.add(key)
 }
 
-function getGroupKey(section: string, subsection: string) {
-  return `${section}/${subsection}`
-}
-
-function getGroupPanelId(key: string) {
-  return `docs-sidebar-group-${key.replace(/[^a-z0-9_-]/gi, '-')}`
-}
-
-function isGroupExpanded(key: string) {
-  return expandedGroups.value.has(key)
-}
-
-function isGroupActive(group: SubsectionGroup) {
-  return group.items.some((doc) => isActive(doc.slug))
-}
-
 function closeSidebar() {
   sidebarOpen.value = false
-}
-
-function getSidebarEntrySortTier(sectionKey: string, entry: SidebarEntry) {
-  if (sectionKey !== 'components') return 0
-  if (entry.kind === 'item' && entry.doc.slug === 'components/overview') return 0
-  if (entry.kind === 'group') return 1
-  return 2
-}
-
-function getSidebarEntryLabel(entry: SidebarEntry) {
-  return entry.kind === 'item' ? entry.doc.title : entry.group.label
-}
-
-function sortSidebarEntries(sectionKey: string, left: SidebarEntry, right: SidebarEntry) {
-  const leftTier = getSidebarEntrySortTier(sectionKey, left)
-  const rightTier = getSidebarEntrySortTier(sectionKey, right)
-  if (leftTier !== rightTier) return leftTier - rightTier
-
-  const orderDiff = left.order - right.order
-  if (orderDiff !== 0) return orderDiff
-
-  return getSidebarEntryLabel(left).localeCompare(getSidebarEntryLabel(right))
 }
 
 watch(
   currentSlug,
   () => {
-    const active = docs.find((d) => d.slug === currentSlug.value)
-    if (active?.subsection) expandedGroups.value.add(getGroupKey(active.section, active.subsection))
+    const activeGroup = findActiveSidebarGroup(sidebarSections.value, currentSlug.value)
+    if (activeGroup) {
+      expandedGroups.value.add(activeGroup.key)
+      return
+    }
+
+    const activeDoc = docs.find((doc) => doc.slug === currentSlug.value)
+    if (activeDoc?.subsection) {
+      expandedGroups.value.add(getGroupKey(activeDoc.section, activeDoc.subsection))
+    }
   },
   { immediate: true },
 )
-
-const sortedSections = computed(() => {
-  return [...sections.entries()]
-    .map(([key, value]) => ({ key, ...value }))
-    .sort((left, right) => left.order - right.order)
-    .map((section) => {
-      const sectionDocs = docs.filter((doc) => doc.section === section.key)
-
-      const regularItems: SidebarEntry[] = sectionDocs
-        .filter((doc) => !doc.subsection)
-        .map((doc) => ({ kind: 'item' as const, doc, order: doc.order }))
-
-      const labelOverrides = new Map<string, string>()
-      for (const doc of sectionDocs) {
-        if (doc.subsection && doc.subsectionLabel)
-          labelOverrides.set(getGroupKey(section.key, doc.subsection), doc.subsectionLabel)
-      }
-
-      const subsGroups = new Map<string, SubsectionGroup>()
-      for (const doc of sectionDocs.filter((d) => d.subsection)) {
-        const groupKey = getGroupKey(section.key, doc.subsection!)
-        if (!subsGroups.has(groupKey)) {
-          subsGroups.set(groupKey, {
-            key: groupKey,
-            label: labelOverrides.get(groupKey) ?? doc.subsection!.replace(/-/g, ' '),
-            order: doc.subsectionOrder!,
-            items: [],
-          })
-        }
-        subsGroups.get(groupKey)!.items.push(doc)
-      }
-
-      for (const group of subsGroups.values()) group.items.sort((a, b) => a.order - b.order)
-
-      const groupEntries: SidebarEntry[] = [...subsGroups.values()].map((g) => ({
-        kind: 'group' as const,
-        group: g,
-        order: g.order,
-      }))
-
-      const entries = [...regularItems, ...groupEntries].sort((left, right) =>
-        sortSidebarEntries(section.key, left, right),
-      )
-
-      return { ...section, entries }
-    })
-})
 
 function navigateTo(slug: string) {
   sidebarOpen.value = false
   router.push(slug ? `/docs/${slug}` : '/docs')
 }
-
-function isActive(slug: string) {
-  return currentSlug.value === slug
-}
 </script>
 
 <template>
   <div class="flex h-full min-h-0">
-    <UiButton
-      variant="primary"
-      size="lg"
-      icon
-      class="fixed inset-e-4 bottom-4 z-40 rounded-full lg:hidden"
-      aria-controls="docs-sidebar"
-      aria-label="Toggle documentation navigation"
-      :aria-expanded="sidebarOpen"
-      @click="sidebarOpen = !sidebarOpen"
-    >
-      <span class="i-solar-hamburger-menu-bold h-5 w-5" aria-hidden="true" />
-    </UiButton>
-
-    <aside
-      id="docs-sidebar"
-      aria-label="Documentation sidebar"
-      :class="[
-        'border-surface-200/80 bg-surface-50/98 dark:border-surface-700 dark:bg-surface-900/98 min-h-0 w-72 shrink-0 border-e shadow-(--shadow-elevated) lg:shadow-none',
-        'overflow-y-auto p-4 lg:sticky lg:top-0 lg:h-full',
-        'fixed inset-y-16 inset-s-0 z-30 lg:relative lg:inset-auto',
-        sidebarOpen ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
-        'transition-transform duration-200',
-      ]"
-      @keydown.esc="closeSidebar"
-    >
-      <RouterLink
-        to="/docs"
-        :class="[
-          'focus-visible:ring-primary-300 mb-3 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
-          currentSlug === ''
-            ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300'
-            : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800',
-        ]"
-        :aria-current="currentSlug === '' ? 'page' : undefined"
-        @click="closeSidebar"
-      >
-        Documentation
-      </RouterLink>
-
-      <nav aria-label="Documentation" class="space-y-4 lg:space-y-3">
-        <section v-for="section in sortedSections" :key="section.key">
-          <h2
-            :id="`docs-section-${section.key}`"
-            class="text-surface-500 dark:text-surface-400 mb-2 px-3 text-xs font-bold tracking-wider uppercase"
-          >
-            {{ section.label }}
-          </h2>
-          <ul class="space-y-1" :aria-labelledby="`docs-section-${section.key}`">
-            <template
-              v-for="entry in section.entries"
-              :key="entry.kind === 'item' ? entry.doc.slug : entry.group.key"
-            >
-              <li v-if="entry.kind === 'item'">
-                <RouterLink
-                  :to="entry.doc.slug ? `/docs/${entry.doc.slug}` : '/docs'"
-                  :class="[
-                    'focus-visible:ring-primary-300 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
-                    isActive(entry.doc.slug)
-                      ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 font-semibold'
-                      : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
-                  ]"
-                  :aria-current="isActive(entry.doc.slug) ? 'page' : undefined"
-                  @click="closeSidebar"
-                >
-                  {{ entry.doc.title }}
-                </RouterLink>
-              </li>
-              <li v-else>
-                <UiButton
-                  variant="ghost"
-                  size="md"
-                  class="w-full justify-between text-left"
-                  :class="[
-                    isGroupActive(entry.group)
-                      ? 'bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100'
-                      : '',
-                  ]"
-                  :aria-expanded="isGroupExpanded(entry.group.key)"
-                  :aria-controls="getGroupPanelId(entry.group.key)"
-                  @click="toggleGroup(entry.group.key)"
-                >
-                  <span class="font-semibold">{{ entry.group.label }}</span>
-                  <span
-                    :class="[
-                      'i-solar-alt-arrow-right-linear h-4 w-4 shrink-0 transition-transform duration-200',
-                      isGroupExpanded(entry.group.key) ? 'rotate-90' : '',
-                    ]"
-                    aria-hidden="true"
-                  />
-                </UiButton>
-                <ul
-                  v-show="isGroupExpanded(entry.group.key)"
-                  :id="getGroupPanelId(entry.group.key)"
-                  class="border-surface-200 dark:border-surface-700 ms-3 mt-1 space-y-1 border-s ps-2"
-                >
-                  <li v-for="sub in entry.group.items" :key="sub.slug">
-                    <RouterLink
-                      :to="`/docs/${sub.slug}`"
-                      :class="[
-                        'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5',
-                        isActive(sub.slug)
-                          ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/30 dark:text-primary-300 font-semibold'
-                          : 'text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
-                      ]"
-                      :aria-current="isActive(sub.slug) ? 'page' : undefined"
-                      @click="closeSidebar"
-                    >
-                      {{ sub.title }}
-                    </RouterLink>
-                  </li>
-                </ul>
-              </li>
-            </template>
-          </ul>
-        </section>
-      </nav>
-    </aside>
-
-    <div
-      v-if="sidebarOpen"
-      class="fixed inset-0 z-20 bg-black/30 lg:hidden"
-      aria-hidden="true"
-      @click="sidebarOpen = false"
+    <DocsSidebar
+      :sections="sidebarSections"
+      :current-slug="currentSlug"
+      :open="sidebarOpen"
+      :expanded-groups="expandedGroups"
+      @toggle-open="sidebarOpen = !sidebarOpen"
+      @toggle-group="toggleGroup"
+      @close="closeSidebar"
     />
 
-    <main
-      class="bg-surface-50/60 dark:bg-surface-950 min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-4"
-    >
-      <article
-        v-if="currentDoc"
-        class="docs-content dark:border-surface-800 mx-auto max-w-6xl rounded py-8"
-      >
-        <Suspense>
-          <component v-if="currentDoc.component" :is="currentDoc.component" />
-          <Comark
-            v-else
-            :markdown="currentDoc.content"
-            :components="docsComarkComponents"
-            :plugins="docsComarkPlugins"
-          />
-          <template #fallback>
-            <div class="text-surface-400 flex items-center gap-2 py-12">
-              <span class="i-solar-refresh-bold-duotone h-5 w-5 animate-spin" />
-              Loading...
-            </div>
-          </template>
-        </Suspense>
-      </article>
-
-      <div v-else class="mx-auto max-w-xl py-20 text-center">
-        <p class="text-surface-900 dark:text-surface-100 text-lg font-semibold">
-          This docs route is not indexed.
-        </p>
-        <p class="text-surface-500 dark:text-surface-400 mt-2 text-sm leading-6">
-          The markdown registry has no entry for this URL.
-        </p>
-        <UiButton variant="ghost" size="md" class="mt-5" @click="navigateTo('')">
-          Back to docs
-        </UiButton>
-      </div>
-    </main>
+    <DocsContent :doc="currentDoc" @back="navigateTo('')" />
   </div>
 </template>

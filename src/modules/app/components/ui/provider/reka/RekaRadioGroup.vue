@@ -1,99 +1,10 @@
 <script setup lang="ts">
-import { useBaseRadioGroup, type RadioGroupProps } from '@/components/ui/base'
+import type { RadioGroupProps } from '@/components/ui/base'
+import BaseRadioGroupField from '@/components/ui/base/BaseRadioGroupField.vue'
 
-const props = withDefaults(defineProps<RadioGroupProps>(), {
-  orientation: 'vertical',
-})
-
-defineEmits<{ 'update:modelValue': [value: string] }>()
-
-const { groupProps, labelProps, errorMessageProps, descriptionProps, displayError } =
-  useBaseRadioGroup(props)
+defineProps<RadioGroupProps>()
 </script>
 
 <template>
-  <div class="flex flex-col gap-2" data-provider="reka" data-ui="radiogroup">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
-      {{ label }}
-    </label>
-
-    <div
-      v-bind="groupProps"
-      :class="orientation === 'horizontal' ? 'flex flex-wrap gap-3' : 'space-y-2'"
-    >
-      <RekaRadioOption
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value"
-        :label="option.label"
-        :disabled="option.disabled || disabled"
-        :description="option.description"
-        :model-value="modelValue"
-      />
-    </div>
-
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
-      {{ displayError }}
-    </p>
-    <p v-else-if="hint || description" v-bind="descriptionProps" class="text-surface-500 text-xs">
-      {{ hint || description }}
-    </p>
-  </div>
+  <BaseRadioGroupField v-bind="$props" provider="reka" />
 </template>
-
-<script lang="ts">
-import { useRadio as useFormwerkRadio } from '@formwerk/core'
-
-const RekaRadioOption = defineComponent({
-  name: 'RekaRadioOption',
-  props: {
-    value: { type: String, required: true },
-    label: { type: String, required: true },
-    disabled: { type: Boolean, default: false },
-    description: { type: String, default: undefined },
-    modelValue: { type: String, default: undefined },
-  },
-  setup(props) {
-    const { inputProps, labelProps, isChecked, isDisabled } = useFormwerkRadio({
-      value: () => props.value,
-      label: () => props.label,
-      disabled: () => props.disabled,
-    })
-
-    return { inputProps, labelProps, isChecked, isDisabled }
-  },
-  render() {
-    return h(
-      'label',
-      {
-        class: [
-          'inline-flex items-start gap-2 rounded-lg border px-3 py-2 transition-colors',
-          this.isChecked
-            ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-900/25'
-            : 'border-surface-200 dark:border-surface-700',
-          this.isDisabled
-            ? 'opacity-50 cursor-not-allowed'
-            : 'cursor-pointer hover:border-surface-300 dark:hover:border-surface-600',
-        ],
-        ...this.labelProps,
-      },
-      [
-        h('input', {
-          ...this.inputProps,
-          class: 'mt-0.5 h-4 w-4 accent-primary-500',
-        }),
-        h('span', { class: 'flex flex-col' }, [
-          h('span', { class: 'text-sm text-surface-700 dark:text-surface-300' }, this.label),
-          this.description
-            ? h('span', { class: 'text-xs text-surface-500' }, this.description)
-            : null,
-        ]),
-      ],
-    )
-  },
-})
-</script>

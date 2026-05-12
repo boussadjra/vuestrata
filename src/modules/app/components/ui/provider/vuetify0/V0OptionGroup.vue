@@ -1,23 +1,13 @@
 <script setup lang="ts">
-import { useOptionGroup } from '@formwerk/core'
+import BaseOptionGroup from '@/components/ui/base/BaseOptionGroup.vue'
 
-const props = defineProps<{
+defineProps<{
   label: string
 }>()
-
-const { groupProps, labelProps } = useOptionGroup({
-  label: () => props.label,
-})
 </script>
 
 <template>
-  <div v-bind="groupProps" class="py-1" data-provider="vuetify0">
-    <div
-      v-bind="labelProps"
-      class="text-surface-400 dark:text-surface-500 px-3 py-1.5 text-xs font-semibold tracking-wide uppercase"
-    >
-      {{ label }}
-    </div>
+  <BaseOptionGroup v-bind="$props" provider="vuetify0">
     <slot />
-  </div>
+  </BaseOptionGroup>
 </template>

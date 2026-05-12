@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import BaseSeparator from '@/components/ui/base/BaseSeparator.vue'
+
 export interface SeparatorProps {
   orientation?: 'horizontal' | 'vertical'
   decorative?: boolean
@@ -11,15 +13,5 @@ withDefaults(defineProps<SeparatorProps>(), {
 </script>
 
 <template>
-  <div
-    :class="[
-      'bg-surface-200 dark:bg-surface-700 shrink-0',
-      orientation === 'vertical' ? 'h-full w-px' : 'h-px w-full',
-    ]"
-    role="separator"
-    :aria-orientation="orientation"
-    :aria-hidden="decorative"
-    data-ui="separator"
-    data-provider="vuetify0"
-  />
+  <BaseSeparator v-bind="$props" provider="vuetify0" />
 </template>

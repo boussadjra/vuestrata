@@ -836,26 +836,6 @@ html.dark [data-ui='skeleton'] {
   font-variant-numeric: tabular-nums;
 }
 
-/* Header — crisp top bar */
-header {
-  background: white;
-  border-bottom: 1px solid var(--color-surface-200);
-}
-html.dark header {
-  background: var(--color-surface-700);
-  border-bottom-color: var(--color-surface-700);
-}
-
-/* Sidebar */
-aside {
-  background: white;
-  border-right: 1px solid var(--color-surface-200);
-}
-html.dark aside {
-  background: var(--color-surface-700);
-  border-right-color: var(--color-surface-700);
-}
-
 /* ===========================
    NProgress bar
    =========================== */
@@ -879,15 +859,6 @@ html.dark aside {
 [dir='rtl'] {
   text-align: right;
   font-family: 'Tajawal', 'Cairo', 'Inter', ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Sidebar: flip border to inline-end in RTL */
-[dir='rtl'] aside {
-  border-right: none;
-  border-left: 1px solid var(--color-surface-200);
-}
-html.dark[dir='rtl'] aside {
-  border-left-color: var(--color-surface-700);
 }
 
 /* NProgress bar for RTL */
