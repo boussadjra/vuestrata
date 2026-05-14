@@ -10,7 +10,12 @@ export interface UiCheckboxProps extends Omit<BaseFieldProps, 'size'> {
   size?: 'sm' | 'md' | 'lg'
 }
 
-defineProps<UiCheckboxProps>()
+withDefaults(defineProps<UiCheckboxProps>(), {
+  modelValue: undefined,
+  trueValue: undefined,
+  falseValue: undefined,
+  indeterminate: undefined,
+})
 defineEmits<{ 'update:modelValue': [value: boolean | 'indeterminate'] }>()
 
 const UiCheckbox = resolveUiComponent('Checkbox')

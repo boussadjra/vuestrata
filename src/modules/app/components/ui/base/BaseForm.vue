@@ -36,7 +36,7 @@ defineExpose({ values, context, isSubmitting, wasSubmitted, isDirty, isTouched, 
 </script>
 
 <template>
-  <form @submit="onSubmit">
+  <form :novalidate="disableHtmlValidation" @submit.prevent="onSubmit">
     <slot
       :values="values"
       :is-submitting="isSubmitting"

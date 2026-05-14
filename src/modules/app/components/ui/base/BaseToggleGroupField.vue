@@ -23,7 +23,7 @@ const { isSelected, toggleValue } = useBaseToggleGroup(props, emit)
 
 const sizeClasses: Record<string, string> = {
   sm: 'px-2 py-1 text-xs',
-  md: 'px-3 py-1.5 text-sm',
+  md: 'px-3 py-2 text-sm min-h-[44px] min-w-[44px] lg:min-h-8 lg:min-w-8 lg:py-1.5',
   lg: 'px-4 py-2 text-base',
 }
 

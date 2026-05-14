@@ -2,6 +2,8 @@
 import { useBaseCheckbox, type CheckboxProps } from '@/components/ui/base'
 import { resolveIcon } from '~/config/icon-provider'
 
+import { fieldErrorMessageClass, invalidCheckboxClass } from './validationPresentation'
+
 const props = withDefaults(
   defineProps<
     CheckboxProps & {
@@ -9,6 +11,10 @@ const props = withDefaults(
     }
   >(),
   {
+    modelValue: undefined,
+    trueValue: undefined,
+    falseValue: undefined,
+    indeterminate: undefined,
     size: 'md',
   },
 )
@@ -39,9 +45,11 @@ const indicatorSizeMap: Record<string, string> = {
 
 const checkboxClasses = computed(() => [
   'inline-flex items-center justify-center rounded border-2 transition-colors',
-  'border-surface-300 dark:border-surface-600',
+  displayError.value
+    ? invalidCheckboxClass
+    : 'border-surface-300 dark:border-surface-600 focus-visible:ring-primary-300',
   isChecked.value ? 'bg-primary-500 border-primary-500' : '',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
   'disabled:opacity-50 disabled:cursor-not-allowed',
   sizeMap[props.size],
 ])
@@ -57,8 +65,6 @@ const checkboxClasses = computed(() => [
         :class="checkboxClasses"
         data-ui="checkbox"
         :data-provider="provider"
-        @click="toggle()"
-        @keydown.space.prevent="toggle()"
       >
         <span v-if="isChecked" class="flex items-center justify-center text-white">
           <span
@@ -72,7 +78,7 @@ const checkboxClasses = computed(() => [
         {{ label }}
       </label>
     </div>
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" :class="fieldErrorMessageClass" role="alert">
       {{ displayError }}
     </p>
   </div>

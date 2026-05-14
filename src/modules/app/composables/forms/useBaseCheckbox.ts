@@ -11,16 +11,31 @@ export interface CheckboxProps extends Omit<BaseFieldProps, 'size'> {
 }
 
 export function useBaseCheckbox(props: CheckboxProps) {
-  const formwerk = useCheckbox({
+  const baseOptions = {
     name: () => props.name,
     label: () => props.label ?? '',
-    modelValue: () => props.modelValue as boolean | undefined,
     disabled: () => props.disabled,
     readonly: () => props.readonly,
     required: () => props.required,
+    trueValue: () => props.trueValue,
+    falseValue: () => props.falseValue,
     indeterminate: () => props.indeterminate,
     schema: props.schema as undefined,
-  })
+  }
+
+  const formwerk =
+    props.modelValue === undefined
+      ? useCheckbox(baseOptions)
+      : useCheckbox({
+          ...baseOptions,
+          modelValue: () => props.modelValue as boolean | undefined,
+        })
+
+  if (props.modelValue === undefined && props.name) {
+    void nextTick(() => {
+      void formwerk.validate()
+    })
+  }
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)
 

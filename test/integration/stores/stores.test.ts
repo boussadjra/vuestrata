@@ -1,7 +1,8 @@
-import { type StoreGeneric, setActivePinia, createPinia } from 'pinia'
-import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
-import { nextTick } from 'vue'
+import { setActivePinia, createPinia } from 'pinia'
+import { describe, it, expect, beforeEach } from 'vite-plus/test'
+import { nextTick, createApp } from 'vue'
 
+import { getI18n, installI18n } from '@/plugins/i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
@@ -208,24 +209,17 @@ describe('App Store', () => {
   })
 
   it('i18n locale should follow the app store locale', async () => {
-    vi.resetModules()
     localStorage.setItem('vuestrata-locale', 'fr')
 
-    const { pinia } = await import('@/plugins/pinia')
-    ;(pinia as typeof pinia & { _s: Map<string, StoreGeneric> })._s.clear()
-    pinia.state.value = {}
-
-    const { createApp } = await import('vue')
-    const { installI18n, getI18n } = await import('@/plugins/i18n')
-    const { useAppStore: useRuntimeAppStore } = await import('@/stores/app')
-
+    const runtimePinia = createPinia()
     const app = createApp({ render: () => null })
-    app.use(pinia)
+    app.use(runtimePinia)
     installI18n(app)
     app.mount(document.createElement('div'))
-    const store = useRuntimeAppStore(pinia)
 
+    const store = useAppStore(runtimePinia)
     expect(getI18n().global.locale.value).toBe('fr')
+
     store.setLocale('ar')
     await nextTick()
     expect(getI18n().global.locale.value).toBe('ar')

@@ -2,7 +2,12 @@
 import type { CheckboxProps } from '@/components/ui/base'
 import BaseCheckboxField from '@/components/ui/base/BaseCheckboxField.vue'
 
-defineProps<CheckboxProps>()
+withDefaults(defineProps<CheckboxProps>(), {
+  modelValue: undefined,
+  trueValue: undefined,
+  falseValue: undefined,
+  indeterminate: undefined,
+})
 </script>
 
 <template>

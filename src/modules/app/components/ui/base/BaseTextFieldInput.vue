@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { useBaseTextField, type TextFieldProps } from '@/components/ui/base'
 
+import {
+  fieldErrorMessageClass,
+  fieldRequiredIndicatorClass,
+  invalidTextInputClass,
+} from './validationPresentation'
+
 const props = withDefaults(defineProps<TextFieldProps & { provider: 'reka' | 'vuetify0' }>(), {
   type: 'text',
   size: 'md',
@@ -28,7 +34,7 @@ const inputClasses = computed(() => [
   'placeholder:text-surface-400 dark:placeholder:text-surface-500',
   'focus:outline-none focus:ring-2 focus:ring-offset-0',
   displayError.value
-    ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
+    ? invalidTextInputClass
     : 'border-surface-300 dark:border-surface-600 focus:ring-primary-300 focus:border-primary-400',
   'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-50 dark:disabled:bg-surface-900',
   sizeClasses[props.size ?? 'md'],
@@ -43,7 +49,7 @@ const inputClasses = computed(() => [
       class="text-surface-700 dark:text-surface-300 text-sm font-medium"
     >
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" :class="fieldRequiredIndicatorClass">*</span>
     </label>
     <input
       v-bind="inputProps"
@@ -52,7 +58,7 @@ const inputClasses = computed(() => [
       :data-provider="provider"
       data-ui="textfield"
     />
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" :class="fieldErrorMessageClass" role="alert">
       {{ displayError }}
     </p>
     <p

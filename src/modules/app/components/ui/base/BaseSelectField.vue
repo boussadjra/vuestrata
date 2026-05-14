@@ -3,6 +3,12 @@ import type { Component } from 'vue'
 
 import { useBaseSelect, type SelectProps } from '@/components/ui/base'
 
+import {
+  fieldErrorMessageClass,
+  fieldRequiredIndicatorClass,
+  invalidSelectTriggerClass,
+} from './validationPresentation'
+
 const props = withDefaults(
   defineProps<
     SelectProps & {
@@ -39,9 +45,7 @@ function isGroup(
 const triggerClasses = computed(() => [
   'inline-flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm',
   'bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200',
-  displayError.value
-    ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
-    : 'border-surface-300 dark:border-surface-600',
+  displayError.value ? invalidSelectTriggerClass : 'border-surface-300 dark:border-surface-600',
   'hover:border-surface-400 dark:hover:border-surface-500',
   'focus:outline-none focus:ring-2 focus:ring-primary-300',
   'disabled:cursor-not-allowed disabled:opacity-50',
@@ -57,7 +61,7 @@ const triggerClasses = computed(() => [
       class="text-surface-700 dark:text-surface-300 text-sm font-medium"
     >
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" :class="fieldRequiredIndicatorClass">*</span>
     </label>
 
     <div class="relative">
@@ -100,7 +104,7 @@ const triggerClasses = computed(() => [
       </div>
     </div>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" :class="fieldErrorMessageClass" role="alert">
       {{ displayError }}
     </p>
     <p
