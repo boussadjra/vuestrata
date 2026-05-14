@@ -66,81 +66,96 @@ async function onSubmit(values: Record<string, unknown>) {
 </script>
 
 <template>
-  <div class="w-full">
-    <div class="mb-8 text-center">
-      <div class="mb-4 flex justify-center">
-        <Logo class="h-16 w-auto" />
-      </div>
-      <p class="text-surface-400 mb-2 text-xs font-semibold tracking-[0.28em] uppercase">
-        Vuestrata
-      </p>
-      <h1 class="text-2xl font-bold">{{ t('auth_register') }}</h1>
-      <p class="text-surface-500 mt-1 text-sm">{{ t('auth_register_subtitle') }}</p>
-    </div>
-
-    <UiForm
-      class="space-y-4"
-      :schema="registerSchema"
-      :initial-values="registerInitialValues"
-      @submit="onSubmit"
+  <div class="mx-auto w-full max-w-xl">
+    <div
+      class="border-surface-200/80 bg-surface-50/86 dark:border-surface-800 dark:bg-surface-900/78 rounded-[calc(var(--shape-radius)+0.375rem)] border p-6 shadow-(--shadow-card) sm:p-8"
     >
-      <template #default="{ values, isSubmitting }">
-        <UiAlert v-if="error" variant="error" :title="t('auth_register_fail')">
-          {{ error }}
-        </UiAlert>
+      <div class="mb-8 flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <p
+            class="text-surface-400 dark:text-surface-500 mb-2 text-xs font-semibold tracking-[0.28em] uppercase"
+          >
+            Vuestrata
+          </p>
+          <h1 class="text-surface-950 dark:text-surface-50 text-3xl font-bold tracking-tight">
+            {{ t('auth_register') }}
+          </h1>
+          <p class="text-surface-600 dark:text-surface-300 mt-2 text-sm leading-6">
+            {{ t('auth_register_subtitle') }}
+          </p>
+        </div>
 
-        <UiTextField
-          id="name"
-          name="name"
-          :label="t('auth_name')"
-          :placeholder="t('auth_name_placeholder')"
-          autocomplete="name"
-          required
-        />
-
-        <UiTextField
-          id="email"
-          name="email"
-          type="email"
-          :label="t('auth_email')"
-          :placeholder="t('auth_email_placeholder')"
-          autocomplete="email"
-          required
-        />
-
-        <UiTextField
-          id="password"
-          name="password"
-          type="password"
-          :label="t('auth_password')"
-          :placeholder="t('auth_password_placeholder')"
-          autocomplete="new-password"
-          :min-length="8"
-          required
-        />
-
-        <UiTextField
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          :label="t('auth_confirm_password')"
-          :placeholder="t('auth_confirm_password_placeholder')"
-          :error="isPasswordMismatch(values) ? t('auth_passwords_mismatch') : undefined"
-          autocomplete="new-password"
-          :min-length="8"
-          required
-        />
-
-        <UiButton
-          type="submit"
-          block
-          :loading="isLoading || isSubmitting"
-          :disabled="isSubmitDisabled(values, isSubmitting)"
+        <span
+          class="border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-950 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border shadow-(--shadow-soft)"
         >
-          {{ t('auth_register') }}
-        </UiButton>
-      </template>
-    </UiForm>
+          <Logo class="h-9 w-auto" />
+        </span>
+      </div>
+
+      <UiForm
+        class="space-y-5"
+        :schema="registerSchema"
+        :initial-values="registerInitialValues"
+        @submit="onSubmit"
+      >
+        <template #default="{ values, isSubmitting }">
+          <UiAlert v-if="error" variant="error" :title="t('auth_register_fail')">
+            {{ error }}
+          </UiAlert>
+
+          <UiTextField
+            id="name"
+            name="name"
+            :label="t('auth_name')"
+            :placeholder="t('auth_name_placeholder')"
+            autocomplete="name"
+            required
+          />
+
+          <UiTextField
+            id="email"
+            name="email"
+            type="email"
+            :label="t('auth_email')"
+            :placeholder="t('auth_email_placeholder')"
+            autocomplete="email"
+            required
+          />
+
+          <UiTextField
+            id="password"
+            name="password"
+            type="password"
+            :label="t('auth_password')"
+            :placeholder="t('auth_password_placeholder')"
+            autocomplete="new-password"
+            :min-length="8"
+            required
+          />
+
+          <UiTextField
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            :label="t('auth_confirm_password')"
+            :placeholder="t('auth_confirm_password_placeholder')"
+            :error="isPasswordMismatch(values) ? t('auth_passwords_mismatch') : undefined"
+            autocomplete="new-password"
+            :min-length="8"
+            required
+          />
+
+          <UiButton
+            type="submit"
+            block
+            :loading="isLoading || isSubmitting"
+            :disabled="isSubmitDisabled(values, isSubmitting)"
+          >
+            {{ t('auth_register') }}
+          </UiButton>
+        </template>
+      </UiForm>
+    </div>
 
     <p class="text-surface-500 mt-6 text-center text-sm">
       {{ t('auth_has_account') }}
