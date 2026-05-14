@@ -4,10 +4,10 @@ import { resolveIcon } from '@/config/icon-provider'
 </script>
 
 <template>
-  <section class="bg-surface-50 dark:bg-surface-950 py-20 lg:py-24">
+  <section class="py-20 lg:py-24">
     <div class="mx-auto max-w-7xl px-5 sm:px-8">
       <div
-        class="border-surface-200 dark:border-surface-800 grid gap-8 border-y py-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:py-12"
+        class="border-surface-200/80 bg-surface-50/88 dark:border-surface-800 dark:bg-surface-900/72 grid gap-8 rounded-[calc(var(--shape-radius)+0.5rem)] border p-6 shadow-(--shadow-card) lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:p-8"
       >
         <div>
           <p
@@ -27,35 +27,39 @@ import { resolveIcon } from '@/config/icon-provider'
         </div>
 
         <div class="space-y-5 lg:justify-self-end">
-          <ul class="text-surface-600 dark:text-surface-400 grid gap-2 text-sm">
-            <li class="flex items-center gap-2">
-              <span
-                :class="[
-                  resolveIcon('check-circle'),
-                  'text-primary-600 dark:text-primary-400 h-4 w-4',
-                ]"
-              />
-              Runtime UI provider switching
-            </li>
-            <li class="flex items-center gap-2">
-              <span
-                :class="[
-                  resolveIcon('check-circle'),
-                  'text-primary-600 dark:text-primary-400 h-4 w-4',
-                ]"
-              />
-              Ten themes with light and dark modes
-            </li>
-            <li class="flex items-center gap-2">
-              <span
-                :class="[
-                  resolveIcon('check-circle'),
-                  'text-primary-600 dark:text-primary-400 h-4 w-4',
-                ]"
-              />
-              Unit, integration, and Playwright coverage
-            </li>
-          </ul>
+          <div
+            class="border-surface-200/80 bg-surface-50/90 dark:border-surface-700 dark:bg-surface-950/78 rounded-[calc(var(--shape-radius)+0.125rem)] border p-5 shadow-(--shadow-soft)"
+          >
+            <ul class="text-surface-600 dark:text-surface-400 grid gap-2 text-sm">
+              <li class="flex items-center gap-2">
+                <span
+                  :class="[
+                    resolveIcon('check-circle'),
+                    'text-primary-600 dark:text-primary-400 h-4 w-4',
+                  ]"
+                />
+                Runtime UI provider switching
+              </li>
+              <li class="flex items-center gap-2">
+                <span
+                  :class="[
+                    resolveIcon('check-circle'),
+                    'text-primary-600 dark:text-primary-400 h-4 w-4',
+                  ]"
+                />
+                Ten themes with light and dark modes
+              </li>
+              <li class="flex items-center gap-2">
+                <span
+                  :class="[
+                    resolveIcon('check-circle'),
+                    'text-primary-600 dark:text-primary-400 h-4 w-4',
+                  ]"
+                />
+                Unit, integration, and Playwright coverage
+              </li>
+            </ul>
+          </div>
 
           <div class="flex flex-wrap gap-3">
             <UiButton to="/docs/getting-started/installation" variant="primary" size="lg">

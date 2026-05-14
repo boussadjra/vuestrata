@@ -21,46 +21,69 @@ const FEATURE_ICON_CLASSES = [
 </script>
 
 <template>
-  <section class="bg-surface-50 dark:bg-surface-950 relative py-24 lg:py-32">
+  <section class="relative py-20 lg:py-24">
+    <div
+      class="from-primary-50/60 dark:from-primary-950/12 pointer-events-none absolute inset-x-0 top-0 h-32 bg-linear-to-b to-transparent"
+      aria-hidden="true"
+    />
+
     <div class="mx-auto max-w-7xl px-5 sm:px-8">
-      <div class="mb-16 max-w-2xl">
-        <p
-          class="text-primary-600 dark:text-primary-400 mb-3 text-sm font-semibold tracking-wide uppercase"
+      <div class="mb-12 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-end">
+        <div class="max-w-3xl">
+          <p
+            class="text-primary-600 dark:text-primary-400 mb-3 text-sm font-semibold tracking-wide uppercase"
+          >
+            System defaults
+          </p>
+          <h2
+            class="text-surface-900 dark:text-surface-50 mb-4 text-3xl font-bold tracking-tight md:text-4xl"
+          >
+            The parts that usually drift are already wired.
+          </h2>
+          <p class="text-surface-500 dark:text-surface-400 text-lg leading-8">
+            Vuestrata keeps the starter honest: toolchain, data boundaries, theming, and auth all
+            share one source of truth.
+          </p>
+        </div>
+
+        <div
+          class="border-surface-200/80 bg-surface-50/82 dark:border-surface-800 dark:bg-surface-900/68 text-surface-500 rounded-[calc(var(--shape-radius)+0.125rem)] border px-4 py-3 text-sm shadow-(--shadow-soft)"
         >
-          System defaults
-        </p>
-        <h2
-          class="text-surface-900 dark:text-surface-50 mb-4 text-3xl font-bold tracking-tight md:text-4xl"
-        >
-          The parts that usually drift are already wired.
-        </h2>
-        <p class="text-surface-500 dark:text-surface-400 text-lg">
-          Vuestrata keeps the starter honest: toolchain, data boundaries, theming, and auth all
-          share one source of truth.
-        </p>
+          Toolchain, theming, auth, and typed data ship as one contract, so the starter feels like a
+          product baseline instead of a demo scaffold.
+        </div>
       </div>
 
       <ol class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12">
         <li
           v-for="(feature, featureIndex) in features"
           :key="feature.title"
-          class="border-surface-200/80 bg-surface-50 dark:border-surface-700/60 dark:bg-surface-900 animate-slide-up group hover:border-primary-300 dark:hover:border-primary-700 relative overflow-hidden rounded-xl border p-6 transition-colors duration-200 lg:p-7"
+          class="border-surface-200/80 bg-surface-50/88 dark:border-surface-800 dark:bg-surface-900/82 animate-slide-up group hover:border-primary-200 dark:hover:border-primary-700/70 relative overflow-hidden rounded-[calc(var(--shape-radius)+0.25rem)] border p-6 shadow-(--shadow-soft) transition-[transform,border-color,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-(--shadow-card-hover) lg:p-7"
           :class="featureIndex === 0 || featureIndex === 3 ? 'lg:col-span-7' : 'lg:col-span-5'"
           :style="{ animationDelay: `${0.1 + featureIndex * 0.08}s` }"
         >
-          <div class="mb-8 flex items-center justify-between gap-4">
-            <div
-              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-transform duration-200 group-hover:-translate-y-0.5"
-              :class="FEATURE_ICON_CLASSES[featureIndex]"
-            >
-              <span :class="[resolveIcon(feature.iconName), 'h-5 w-5']" aria-hidden="true" />
+          <div class="mb-8 flex items-start justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div
+                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-transform duration-200 group-hover:-translate-y-0.5"
+                :class="FEATURE_ICON_CLASSES[featureIndex]"
+              >
+                <span :class="[resolveIcon(feature.iconName), 'h-5 w-5']" aria-hidden="true" />
+              </div>
+              <span class="text-surface-400 dark:text-surface-500 font-mono text-xs">
+                {{ String(featureIndex + 1).padStart(2, '0') }}
+              </span>
             </div>
-            <span class="text-surface-400 dark:text-surface-500 font-mono text-xs">
-              {{ String(featureIndex + 1).padStart(2, '0') }}
-            </span>
+
+            <span
+              class="i-solar-arrow-right-up-linear text-surface-300 dark:text-surface-600 h-5 w-5 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              aria-hidden="true"
+            />
           </div>
 
-          <h3 class="text-surface-900 dark:text-surface-100 mb-2 text-xl font-semibold">
+          <h3
+            class="text-surface-950 dark:text-surface-50 mb-2 text-xl font-semibold tracking-tight"
+          >
             {{ feature.title }}
           </h3>
           <p class="text-surface-600 dark:text-surface-400 max-w-xl text-base leading-relaxed">
