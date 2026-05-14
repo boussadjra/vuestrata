@@ -6,6 +6,12 @@ const results = ref<AxeResults | null>(null)
 const running = ref(false)
 const error = ref('')
 
+const summaryDotClass = {
+  passed: 'bg-accent-500',
+  violations: 'bg-danger-500',
+  incomplete: 'bg-secondary-500',
+} as const
+
 async function runAudit() {
   if (!target.value) return
   running.value = true
@@ -27,33 +33,18 @@ async function runAudit() {
   }
 }
 
-function impactColor(impact?: string) {
-  switch (impact) {
-    case 'critical':
-      return 'text-red-600 dark:text-red-400'
-    case 'serious':
-      return 'text-orange-600 dark:text-orange-400'
-    case 'moderate':
-      return 'text-yellow-600 dark:text-yellow-400'
-    case 'minor':
-      return 'text-blue-600 dark:text-blue-400'
-    default:
-      return 'text-surface-500'
-  }
-}
-
 function impactBadge(impact?: string | null) {
   switch (impact) {
     case 'critical':
-      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+      return 'bg-danger-100 text-danger-700 dark:bg-danger-950/35 dark:text-danger-300'
     case 'serious':
-      return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+      return 'bg-danger-50 text-danger-700 dark:bg-danger-950/20 dark:text-danger-300'
     case 'moderate':
-      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+      return 'bg-secondary-100 text-secondary-700 dark:bg-secondary-950/35 dark:text-secondary-300'
     case 'minor':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+      return 'bg-primary-100 text-primary-700 dark:bg-primary-950/35 dark:text-primary-300'
     default:
-      return 'bg-surface-100 text-surface-600'
+      return 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300'
   }
 }
 </script>
@@ -73,31 +64,31 @@ function impactBadge(impact?: string | null) {
     </div>
 
     <!-- Target component -->
-    <div ref="target" class="dark:bg-surface-900 bg-white p-6">
+    <div ref="target" class="bg-surface-50 dark:bg-surface-900 p-6">
       <slot />
     </div>
 
     <!-- Results -->
     <div
       v-if="error"
-      class="border-surface-200 dark:border-surface-700/60 border-t bg-red-50 px-4 py-3 dark:bg-red-950/20"
+      class="border-surface-200 dark:border-surface-700/60 bg-danger-50/70 dark:bg-danger-950/20 border-t px-4 py-3"
     >
-      <p class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
+      <p class="text-danger-700 dark:text-danger-300 text-sm">{{ error }}</p>
     </div>
 
     <div v-else-if="results" class="border-surface-200 dark:border-surface-700/60 border-t">
       <!-- Summary -->
       <div class="bg-surface-50 dark:bg-surface-800/30 flex flex-wrap gap-4 px-4 py-3 text-xs">
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full bg-green-500" />
+          <span :class="['size-2 rounded-full', summaryDotClass.passed]" />
           <span class="font-medium">{{ results.passes.length }}</span> passed
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full bg-red-500" />
+          <span :class="['size-2 rounded-full', summaryDotClass.violations]" />
           <span class="font-medium">{{ results.violations.length }}</span> violations
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full bg-yellow-500" />
+          <span :class="['size-2 rounded-full', summaryDotClass.incomplete]" />
           <span class="font-medium">{{ results.incomplete.length }}</span> incomplete
         </span>
       </div>
@@ -125,7 +116,7 @@ function impactBadge(impact?: string | null) {
 
       <!-- All passed -->
       <div v-else class="px-4 py-6 text-center">
-        <p class="text-sm font-medium text-green-600 dark:text-green-400">
+        <p class="text-accent-600 dark:text-accent-300 text-sm font-medium">
           All accessibility checks passed!
         </p>
         <p class="text-surface-500 mt-1 text-xs">

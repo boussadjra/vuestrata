@@ -69,7 +69,7 @@ function reset() {
     >
       <!-- Preview -->
       <div
-        class="dark:bg-surface-900 flex min-h-40 flex-col items-center justify-center bg-white p-6"
+        class="bg-surface-50 dark:bg-surface-900 flex min-h-40 flex-col items-center justify-center p-6"
       >
         <slot :props="boundProps" :slots="slotValues" />
       </div>

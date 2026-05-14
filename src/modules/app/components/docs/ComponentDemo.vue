@@ -32,7 +32,7 @@ const codeMarkdown = computed(() => `\`\`\`vue\n${props.code.trim()}\n\`\`\``)
         @update:model-value="(value) => (activeTab = value as 'preview' | 'code')"
       />
     </div>
-    <div v-if="activeTab === 'preview'" class="dark:bg-surface-900 bg-white p-6">
+    <div v-if="activeTab === 'preview'" class="bg-surface-50 dark:bg-surface-900 p-6">
       <slot />
     </div>
     <div

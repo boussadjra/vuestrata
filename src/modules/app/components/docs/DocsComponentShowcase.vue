@@ -108,18 +108,17 @@ const activePanel = ref<'preview' | 'code'>('preview')
 
 <template>
   <section
-    class="docs-showcase border-surface-200 dark:border-surface-700 dark:bg-surface-900 shadow-soft my-8 overflow-hidden rounded-[1.75rem] border bg-white"
+    class="docs-showcase border-surface-200/80 dark:border-surface-700/80 bg-surface-50/80 dark:bg-surface-900/70 my-8 overflow-hidden rounded-2xl border"
   >
-    <div class="border-surface-200 dark:border-surface-700 border-b px-5 py-4 lg:px-6">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p
-            class="text-primary-600 dark:text-primary-300 text-xs font-semibold tracking-[0.22em] uppercase"
-          >
-            Component Demo
+    <div class="border-surface-200/80 dark:border-surface-700/80 border-b px-5 py-5 lg:px-6">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="max-w-2xl">
+          <h3 class="text-surface-900 dark:text-surface-100 text-lg font-semibold">
+            {{ demo.title }}
+          </h3>
+          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm leading-6">
+            {{ demo.description }}
           </p>
-          <h3 class="text-surface-900 mt-1 text-xl font-bold dark:text-white">{{ demo.title }}</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">{{ demo.description }}</p>
         </div>
 
         <UiToggleGroup
@@ -129,6 +128,7 @@ const activePanel = ref<'preview' | 'code'>('preview')
             { label: 'Code', value: 'code' },
           ]"
           size="md"
+          class="self-start"
           @update:model-value="(value) => (activePanel = value as 'preview' | 'code')"
         />
       </div>
@@ -136,38 +136,14 @@ const activePanel = ref<'preview' | 'code'>('preview')
 
     <div
       v-if="activePanel === 'preview'"
-      class="from-surface-50 to-primary-50/40 dark:from-surface-900 dark:via-surface-900 dark:to-primary-950/25 bg-linear-to-br via-white p-5 lg:p-6"
+      class="bg-surface-50/35 dark:bg-surface-950/35 p-5 lg:p-6"
     >
-      <div class="mb-4 flex items-center justify-between gap-3">
-        <h4
-          class="text-surface-500 dark:text-surface-400 text-sm font-semibold tracking-[0.18em] uppercase"
-        >
-          Preview
-        </h4>
-        <span
-          class="border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300 rounded-full border px-3 py-1 text-xs font-semibold"
-          >Live</span
-        >
-      </div>
-      <div
-        class="border-surface-200/80 shadow-soft dark:border-surface-700 dark:bg-surface-900/80 rounded-[1.25rem] border bg-white/85 p-4 lg:p-5"
-      >
+      <div class="min-w-0">
         <component :is="demo.component" />
       </div>
     </div>
 
-    <div v-else class="bg-surface-50 dark:bg-surface-950 p-5 lg:p-6">
-      <div class="mb-4 flex items-center justify-between gap-3">
-        <h4
-          class="text-surface-500 dark:text-surface-400 text-sm font-semibold tracking-[0.18em] uppercase"
-        >
-          Code
-        </h4>
-        <span
-          class="border-surface-200 text-surface-500 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-400 rounded-full border bg-white px-3 py-1 text-xs font-medium"
-          >Vue SFC</span
-        >
-      </div>
+    <div v-else class="bg-surface-50/35 dark:bg-surface-950/55 p-5 lg:p-6">
       <Comark :markdown="codeMarkdown" :plugins="docsComarkPlugins" />
     </div>
   </section>

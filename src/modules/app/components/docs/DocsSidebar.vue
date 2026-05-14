@@ -10,15 +10,38 @@ const props = defineProps<{
   expandedGroups: Set<string>
 }>()
 
+const DESKTOP_BREAKPOINT = '(min-width: 1024px)'
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ')
+
 const emit = defineEmits<{
   close: []
   toggleOpen: []
   toggleGroup: [key: string]
 }>()
 
+const sidebarRef = ref<HTMLElement | null>(null)
+const toggleButtonContainerRef = ref<HTMLElement | null>(null)
+const isDesktop = ref(false)
+const restoreFocusOnClose = ref(true)
+const focusMainOnClose = ref(false)
+const lastFocusedElement = ref<HTMLElement | null>(null)
+
+let desktopMediaQuery: MediaQueryList | null = null
+let previousBodyOverflow = ''
+
 function isActive(slug: string) {
   return props.currentSlug === slug
 }
+
+const isMobileOpen = computed(() => !isDesktop.value && props.open)
+const isMobileClosed = computed(() => !isDesktop.value && !props.open)
 
 function isGroupExpanded(key: string) {
   return props.expandedGroups.has(key)
@@ -28,9 +51,186 @@ function isGroupActive(group: SubsectionGroup) {
   return group.items.some((doc) => isActive(doc.slug))
 }
 
-function closeSidebar() {
+function closeSidebar(options: { restoreFocus?: boolean; focusMain?: boolean } = {}) {
+  restoreFocusOnClose.value = options.restoreFocus ?? true
+  focusMainOnClose.value = options.focusMain ?? false
   emit('close')
 }
+
+function closeSidebarAfterNavigation() {
+  closeSidebar({ restoreFocus: false, focusMain: true })
+}
+
+function handleToggleOpen() {
+  restoreFocusOnClose.value = true
+  focusMainOnClose.value = false
+  emit('toggleOpen')
+}
+
+function syncDesktopState(event?: MediaQueryListEvent) {
+  isDesktop.value = event?.matches ?? desktopMediaQuery?.matches ?? false
+}
+
+function setBodyScrollLock(locked: boolean) {
+  if (typeof document === 'undefined') return
+
+  if (locked) {
+    previousBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return
+  }
+
+  document.body.style.overflow = previousBodyOverflow
+  previousBodyOverflow = ''
+}
+
+function getToggleButtonElement() {
+  return toggleButtonContainerRef.value?.querySelector<HTMLElement>('[data-ui="button"]') ?? null
+}
+
+function getFocusableElements() {
+  if (!sidebarRef.value) return []
+
+  return [...sidebarRef.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
+    (element) => {
+      if (element.matches('[disabled], [inert], [aria-hidden="true"]')) return false
+      if (getComputedStyle(element).visibility === 'hidden') return false
+      return element.getClientRects().length > 0
+    },
+  )
+}
+
+function focusElement(target: HTMLElement | null) {
+  if (!target) return
+
+  const hadTabindex = target.hasAttribute('tabindex')
+  if (!hadTabindex) target.setAttribute('tabindex', '-1')
+
+  target.focus({ preventScroll: true })
+
+  if (!hadTabindex) {
+    target.addEventListener(
+      'blur',
+      () => {
+        target.removeAttribute('tabindex')
+      },
+      { once: true },
+    )
+  }
+}
+
+function focusSidebarContent() {
+  const currentPageLink = sidebarRef.value?.querySelector<HTMLElement>('[aria-current="page"]')
+  focusElement(currentPageLink ?? getFocusableElements()[0] ?? sidebarRef.value)
+}
+
+function restoreStoredFocus() {
+  const target = lastFocusedElement.value?.isConnected
+    ? lastFocusedElement.value
+    : getToggleButtonElement()
+  focusElement(target)
+}
+
+function focusMainContent() {
+  if (typeof document === 'undefined') return
+
+  const target =
+    document.querySelector<HTMLElement>('main h1, main [role="heading"][aria-level="1"], main') ??
+    document.querySelector<HTMLElement>('main')
+
+  focusElement(target)
+}
+
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (!isMobileOpen.value) return
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeSidebar()
+    return
+  }
+
+  if (event.key !== 'Tab') return
+
+  const focusableElements = getFocusableElements()
+  const first = focusableElements[0]
+  const last = focusableElements[focusableElements.length - 1]
+  const activeElement =
+    document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+  if (!first || !last) {
+    event.preventDefault()
+    focusElement(sidebarRef.value)
+    return
+  }
+
+  if (!activeElement || !sidebarRef.value?.contains(activeElement)) {
+    event.preventDefault()
+    focusElement(first)
+    return
+  }
+
+  if (event.shiftKey && (activeElement === first || activeElement === sidebarRef.value)) {
+    event.preventDefault()
+    focusElement(last)
+    return
+  }
+
+  if (!event.shiftKey && activeElement === last) {
+    event.preventDefault()
+    focusElement(first)
+  }
+}
+
+onMounted(() => {
+  if (typeof window === 'undefined') return
+
+  desktopMediaQuery = window.matchMedia(DESKTOP_BREAKPOINT)
+  syncDesktopState()
+  desktopMediaQuery.addEventListener('change', syncDesktopState)
+})
+
+onBeforeUnmount(() => {
+  desktopMediaQuery?.removeEventListener('change', syncDesktopState)
+  document.removeEventListener('keydown', handleDocumentKeydown)
+  setBodyScrollLock(false)
+})
+
+watch(
+  isMobileOpen,
+  async (open, wasOpen) => {
+    document.removeEventListener('keydown', handleDocumentKeydown)
+    setBodyScrollLock(open)
+
+    if (open) {
+      if (document.activeElement instanceof HTMLElement) {
+        lastFocusedElement.value = document.activeElement
+      }
+
+      document.addEventListener('keydown', handleDocumentKeydown)
+      await nextTick()
+      focusSidebarContent()
+      return
+    }
+
+    if (!wasOpen) return
+
+    if (focusMainOnClose.value) {
+      await nextTick()
+      requestAnimationFrame(() => {
+        focusMainContent()
+        focusMainOnClose.value = false
+      })
+    } else if (!isDesktop.value && restoreFocusOnClose.value) {
+      await nextTick()
+      restoreStoredFocus()
+    }
+
+    lastFocusedElement.value = null
+    restoreFocusOnClose.value = true
+  },
+  { flush: 'post' },
+)
 
 const itemLinkClass =
   'focus-visible:ring-primary-300 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5'
@@ -40,22 +240,28 @@ const childLinkClass =
 </script>
 
 <template>
-  <UiButton
-    variant="primary"
-    size="lg"
-    icon
-    class="fixed inset-e-4 bottom-4 z-40 rounded-full lg:hidden"
-    aria-controls="docs-sidebar"
-    aria-label="Toggle documentation navigation"
-    :aria-expanded="open"
-    @click="emit('toggleOpen')"
-  >
-    <span class="i-solar-hamburger-menu-bold h-5 w-5" aria-hidden="true" />
-  </UiButton>
+  <div ref="toggleButtonContainerRef" class="lg:hidden">
+    <UiButton
+      variant="primary"
+      size="lg"
+      icon
+      class="fixed inset-e-4 bottom-4 z-40 rounded-full"
+      aria-controls="docs-sidebar"
+      aria-label="Toggle documentation navigation"
+      :aria-expanded="open"
+      @click="handleToggleOpen"
+    >
+      <span class="i-solar-hamburger-menu-bold h-5 w-5" aria-hidden="true" />
+    </UiButton>
+  </div>
 
   <aside
+    ref="sidebarRef"
     id="docs-sidebar"
     aria-label="Documentation sidebar"
+    :aria-hidden="isMobileClosed ? 'true' : undefined"
+    :inert="isMobileClosed || undefined"
+    :tabindex="isMobileOpen ? -1 : undefined"
     :class="[
       'border-surface-200/80 bg-surface-50/98 dark:border-surface-700 dark:bg-surface-900/98 min-h-0 w-72 shrink-0 border-e shadow-(--shadow-elevated) lg:shadow-none',
       'overflow-y-auto p-4 lg:sticky lg:top-0 lg:h-full',
@@ -63,7 +269,6 @@ const childLinkClass =
       open ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
       'transition-transform duration-200',
     ]"
-    @keydown.esc="closeSidebar"
   >
     <RouterLink
       to="/docs"
@@ -75,7 +280,7 @@ const childLinkClass =
           : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800',
       ]"
       :aria-current="currentSlug === '' ? 'page' : undefined"
-      @click="closeSidebar"
+      @click="closeSidebarAfterNavigation"
     >
       Documentation
     </RouterLink>
@@ -104,7 +309,7 @@ const childLinkClass =
                   : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
               ]"
               :aria-current="isActive(entry.doc.slug) ? 'page' : undefined"
-              @click="closeSidebar"
+              @click="closeSidebarAfterNavigation"
             >
               {{ entry.doc.title }}
             </RouterLink>
@@ -117,7 +322,7 @@ const childLinkClass =
                   'justify-between font-semibold',
                   isGroupActive(entry.group)
                     ? 'bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100'
-                    : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-100',
+                    : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
                 ]"
                 :aria-expanded="isGroupExpanded(entry.group.key)"
                 :aria-controls="getGroupPanelId(entry.group.key)"
@@ -148,7 +353,7 @@ const childLinkClass =
                         : 'text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
                     ]"
                     :aria-current="isActive(sub.slug) ? 'page' : undefined"
-                    @click="closeSidebar"
+                    @click="closeSidebarAfterNavigation"
                   >
                     {{ sub.title }}
                   </RouterLink>
@@ -162,9 +367,9 @@ const childLinkClass =
   </aside>
 
   <div
-    v-if="open"
+    v-if="isMobileOpen"
     class="fixed inset-0 z-20 bg-black/30 lg:hidden"
     aria-hidden="true"
-    @click="closeSidebar"
+    @click="closeSidebar()"
   />
 </template>

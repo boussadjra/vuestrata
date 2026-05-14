@@ -43,19 +43,22 @@ watch(activeTab, () => {
 
 <template>
   <div
-    class="docs-code-group border-surface-200 dark:border-surface-700 dark:bg-surface-900 shadow-soft my-6 overflow-hidden rounded-2xl border bg-white"
+    class="docs-code-group border-surface-200/80 dark:border-surface-700/80 bg-surface-50/70 dark:bg-surface-900/70 my-6 overflow-hidden rounded-2xl border"
   >
     <div
-      class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 flex items-center gap-2 border-b px-4 py-3 text-xs font-semibold tracking-[0.2em] uppercase"
+      class="border-surface-200/80 dark:border-surface-700/80 bg-surface-50/80 dark:bg-surface-900/80 flex flex-wrap items-center gap-2 border-b px-3 py-3"
     >
-      <span class="h-2.5 w-2.5 rounded-full bg-red-400" />
-      <span class="h-2.5 w-2.5 rounded-full bg-amber-400" />
-      <span class="h-2.5 w-2.5 rounded-full bg-green-400" />
-      <div class="ml-2 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+      <span
+        v-if="tabs.length <= 1"
+        class="text-surface-500 dark:text-surface-400 px-2 text-xs font-medium"
+      >
+        {{ tabs[0]?.label ?? 'Code sample' }}
+      </span>
+      <div v-else class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
         <UiButton
           v-for="(tab, index) in tabs"
           :key="tab.label"
-          :variant="activeTab === index ? 'primary' : 'secondary'"
+          :variant="activeTab === index ? 'secondary' : 'ghost'"
           size="sm"
           class="rounded-full whitespace-nowrap"
           @click="activeTab = index"
