@@ -54,22 +54,22 @@ const isActive = computed(() => {
 const sizeClasses: Record<string, string> = {
   xs: 'px-2 py-1 text-xs',
   sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
+  md: 'px-4 py-2 text-sm min-h-[44px] min-w-[44px] lg:min-h-9 lg:min-w-9',
   lg: 'px-5 py-2.5 text-base',
   xl: 'px-6 py-3 text-lg',
 }
 
 const variantClasses: Record<string, string> = {
   primary:
-    'bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 focus-visible:ring-primary-300',
+    'bg-primary-500 text-white shadow-[var(--shadow-soft)] hover:bg-primary-600 hover:shadow-[var(--shadow-card)] active:bg-primary-700 focus-visible:ring-primary-300',
   secondary:
-    'bg-secondary-500 text-white hover:bg-secondary-600 active:bg-secondary-700 focus-visible:ring-secondary-300',
+    'bg-secondary-500 text-white shadow-[var(--shadow-soft)] hover:bg-secondary-600 hover:shadow-[var(--shadow-card)] active:bg-secondary-700 focus-visible:ring-secondary-300',
   accent:
-    'bg-accent-500 text-white hover:bg-accent-600 active:bg-accent-700 focus-visible:ring-accent-300',
+    'bg-accent-500 text-white shadow-[var(--shadow-soft)] hover:bg-accent-600 hover:shadow-[var(--shadow-card)] active:bg-accent-700 focus-visible:ring-accent-300',
   ghost:
     'bg-transparent text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800',
   destructive:
-    'bg-danger-500 text-white hover:bg-danger-600 active:bg-danger-700 focus-visible:ring-danger-300',
+    'bg-danger-500 text-white shadow-[var(--shadow-soft)] hover:bg-danger-600 hover:shadow-[var(--shadow-card)] active:bg-danger-700 focus-visible:ring-danger-300',
 }
 
 const activeVariantClasses: Record<string, string> = {
@@ -96,20 +96,24 @@ const iconOnlySizeClasses: Record<string, string> = {
   xl: 'p-3 text-lg min-h-[44px] min-w-[44px]',
 }
 
+const iconOnly = computed(() => props.icon === true || (!!props.icon && !slots.default))
+
+const needsPositionContext = computed(() => !iconOnly.value && Boolean(touchHitArea[props.size]))
+
 const classes = computed(() => {
-  const iconOnly = props.icon === true || (!!props.icon && !slots.default)
   return [
-    'btn relative inline-flex items-center justify-center gap-2 rounded-lg font-medium',
+    'btn inline-flex items-center justify-center gap-2 rounded-[var(--shape-radius-sm)] font-medium',
+    needsPositionContext.value ? 'relative' : '',
     'transition duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-900',
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
     isLink.value && (props.disabled || props.loading) ? 'pointer-events-none opacity-50' : '',
     !props.block && !props.loading ? 'hover:scale-[1.02] active:scale-[0.97]' : '',
     'motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
-    iconOnly ? iconOnlySizeClasses[props.size] : sizeClasses[props.size],
+    iconOnly.value ? iconOnlySizeClasses[props.size] : sizeClasses[props.size],
     isActive.value ? activeVariantClasses[props.variant] : variantClasses[props.variant],
     props.block ? 'w-full' : '',
-    !iconOnly ? touchHitArea[props.size] : '',
+    !iconOnly.value ? touchHitArea[props.size] : '',
   ]
 })
 

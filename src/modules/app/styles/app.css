@@ -15,21 +15,6 @@
  * Custom theme configuration (Tailwind CSS v4)
  * All design tokens are defined here via CSS custom properties.
  */
-@font-face {
-  font-family: 'Rubik';
-  src: url('./../../src/assets/fonts/Rubik-VariableFont_wght.ttf') format('truetype');
-  font-weight: 300 900;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Rubik';
-  src: url('./../../src/assets/fonts/Rubik-Italic-VariableFont_wght.ttf') format('truetype');
-  font-weight: 300 900;
-  font-style: italic;
-  font-display: swap;
-}
-
 @theme {
   /* Primary — Teal (modern, professional) */
   --color-primary-50: #eefbf5;
@@ -101,7 +86,7 @@
   --color-logo-secondary: var(--color-secondary-400);
 
   /* Font families */
-  --font-sans: 'Inter', 'Tajawal', 'Cairo', 'Rubik', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Tajawal', 'Cairo', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   /* Border radius tokens */
@@ -114,17 +99,17 @@
 
   /* Shadows */
   --shadow-soft:
-    0 2px 8px -2px color-mix(in oklch, var(--color-primary-500) 10%, transparent),
-    0 2px 4px -2px color-mix(in oklch, var(--color-surface-900) 6%, transparent);
+    0 1px 2px color-mix(in oklch, var(--color-surface-900) 4%, transparent),
+    0 10px 30px -22px color-mix(in oklch, var(--color-primary-500) 18%, transparent);
   --shadow-elevated:
-    0 8px 24px -4px color-mix(in oklch, var(--color-primary-500) 16%, transparent),
-    0 4px 8px -2px color-mix(in oklch, var(--color-surface-900) 8%, transparent);
+    0 24px 48px -28px color-mix(in oklch, var(--color-primary-500) 26%, transparent),
+    0 12px 20px -16px color-mix(in oklch, var(--color-surface-900) 18%, transparent);
   --shadow-card:
-    0 1px 3px color-mix(in oklch, var(--color-primary-500) 8%, transparent),
-    0 1px 2px color-mix(in oklch, var(--color-surface-900) 5%, transparent);
+    0 1px 2px color-mix(in oklch, var(--color-surface-900) 5%, transparent),
+    0 16px 32px -26px color-mix(in oklch, var(--color-primary-500) 20%, transparent);
   --shadow-card-hover:
-    0 10px 30px -6px color-mix(in oklch, var(--color-primary-500) 16%, transparent),
-    0 4px 6px -2px color-mix(in oklch, var(--color-surface-900) 7%, transparent);
+    0 28px 48px -28px color-mix(in oklch, var(--color-primary-500) 26%, transparent),
+    0 16px 24px -18px color-mix(in oklch, var(--color-surface-900) 18%, transparent);
   --shadow-glow-primary: 0 0 20px color-mix(in oklch, var(--color-primary-500) 25%, transparent);
   --shadow-glow-secondary: 0 0 20px color-mix(in oklch, var(--color-secondary-500) 25%, transparent);
   --shadow-glow-accent: 0 0 20px color-mix(in oklch, var(--color-accent-500) 25%, transparent);
@@ -147,14 +132,14 @@
  * Controlled by shape-radius-*, shape-border-*, shape-shadow-* classes on <html>.
  */
 :root {
-  --shape-radius: 0.75rem;
-  --shape-radius-sm: 0.375rem;
-  --shape-radius-lg: 1rem;
+  --shape-radius: 0.875rem;
+  --shape-radius-sm: 0.625rem;
+  --shape-radius-lg: 1.125rem;
   --shape-radius-xl: 1.5rem;
   --shape-radius-full: 9999px;
   --shape-border-width: 1px;
-  --shape-shadow: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
-  --shape-shadow-hover: 0 10px 30px -6px rgb(0 0 0 / 0.12), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+  --shape-shadow: var(--shadow-card);
+  --shape-shadow-hover: var(--shadow-card-hover);
 }
 
 /* Radius presets */
@@ -206,33 +191,26 @@
   --shape-shadow-hover: none;
 }
 :root.shape-shadow-subtle {
-  --shape-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
-  --shape-shadow-hover: 0 4px 12px -2px rgb(0 0 0 / 0.08);
+  --shape-shadow:
+    0 1px 2px color-mix(in oklch, var(--color-surface-900) 4%, transparent),
+    0 8px 18px -18px color-mix(in oklch, var(--color-primary-500) 14%, transparent);
+  --shape-shadow-hover:
+    0 16px 28px -24px color-mix(in oklch, var(--color-primary-500) 18%, transparent),
+    0 8px 12px -10px color-mix(in oklch, var(--color-surface-900) 12%, transparent);
 }
 /* shape-shadow-medium is the default — no override needed */
 :root.shape-shadow-elevated {
-  --shape-shadow: 0 4px 16px -2px rgb(0 0 0 / 0.1), 0 2px 6px -1px rgb(0 0 0 / 0.06);
-  --shape-shadow-hover: 0 16px 48px -8px rgb(0 0 0 / 0.18), 0 8px 16px -4px rgb(0 0 0 / 0.08);
-}
-
-/* Apply shape tokens to card-like containers */
-.card,
-.bg-white\/90 {
-  border-radius: var(--shape-radius) !important;
-  box-shadow: var(--shape-shadow) !important;
+  --shape-shadow:
+    0 24px 40px -28px color-mix(in oklch, var(--color-primary-500) 24%, transparent),
+    0 12px 18px -14px color-mix(in oklch, var(--color-surface-900) 16%, transparent);
+  --shape-shadow-hover:
+    0 34px 60px -30px color-mix(in oklch, var(--color-primary-500) 30%, transparent),
+    0 20px 28px -20px color-mix(in oklch, var(--color-surface-900) 20%, transparent);
 }
 
 /* Elements that opt into shaped borders */
 .shaped-border {
   border-width: var(--shape-border-width) !important;
-}
-
-/* Buttons get a smaller radius */
-button:not([class*='rounded-full']):not(.shrink-0),
-input:not([type='checkbox']):not([type='radio']),
-select,
-textarea {
-  border-radius: var(--shape-radius-sm) !important;
 }
 
 /* Keyframes */
@@ -603,7 +581,11 @@ textarea {
 }
 
 .docs-code-group .docs-code-group-body > * + * {
-  border-top: 1px solid rgb(255 255 255 / 0.08);
+  border-top: 1px solid color-mix(in oklch, var(--color-surface-200) 82%, transparent);
+}
+
+.dark .docs-code-group .docs-code-group-body > * + * {
+  border-top-color: color-mix(in oklch, var(--color-surface-700) 80%, transparent);
 }
 
 .docs-code-group .docs-code-group-body pre {
@@ -691,6 +673,18 @@ body {
   font-family: var(--font-sans);
   color: var(--color-surface-700);
   background-color: var(--color-surface-50);
+  background-image:
+    radial-gradient(
+      circle at 0% 0%,
+      color-mix(in oklch, var(--color-primary-500) 10%, transparent) 0%,
+      transparent 34%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--color-surface-100) 78%, transparent) 0%,
+      transparent 30%
+    );
+  background-attachment: fixed;
   transition:
     background-color 0.4s ease,
     color 0.3s ease;
@@ -704,6 +698,17 @@ body {
 html.dark body {
   color: var(--color-surface-100);
   background-color: var(--color-surface-950);
+  background-image:
+    radial-gradient(
+      circle at 0% 0%,
+      color-mix(in oklch, var(--color-primary-400) 10%, transparent) 0%,
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--color-surface-900) 88%, transparent) 0%,
+      transparent 34%
+    );
 }
 
 /* Scrollbar */
@@ -724,8 +729,8 @@ html.dark ::-webkit-scrollbar-thumb {
 
 /* Focus ring utility */
 *:focus-visible {
-  outline: 2px solid var(--color-primary-500);
-  outline-offset: 2px;
+  outline: 2px solid color-mix(in oklch, var(--color-primary-500) 78%, white);
+  outline-offset: 3px;
 }
 
 /* ===========================
@@ -734,28 +739,30 @@ html.dark ::-webkit-scrollbar-thumb {
 /* Cards — subtle lift on hover */
 .card,
 [data-ui='card'] {
-  background: white;
-  border: 1px solid var(--color-surface-200);
-  border-radius: 1rem;
-  box-shadow: var(--shadow-card);
+  background: color-mix(in oklch, var(--color-surface-50) 94%, white);
+  border: 1px solid color-mix(in oklch, var(--color-surface-200) 90%, white);
+  border-radius: var(--shape-radius);
+  box-shadow: var(--shape-shadow);
   transition:
+    background-color 0.25s ease,
     box-shadow 0.25s ease,
     transform 0.25s ease,
     border-color 0.25s ease;
 }
 .card:hover,
 [data-ui='card']:hover {
-  box-shadow: var(--shadow-card-hover);
-  border-color: var(--color-surface-300);
+  box-shadow: var(--shape-shadow-hover);
+  border-color: color-mix(in oklch, var(--color-primary-200) 54%, var(--color-surface-300));
+  transform: translateY(-1px);
 }
 html.dark .card,
 html.dark [data-ui='card'] {
-  background: var(--color-surface-800);
-  border-color: var(--color-surface-700);
+  background: color-mix(in oklch, var(--color-surface-800) 92%, black);
+  border-color: color-mix(in oklch, var(--color-surface-700) 92%, black);
 }
 html.dark .card:hover,
 html.dark [data-ui='card']:hover {
-  border-color: var(--color-surface-600);
+  border-color: color-mix(in oklch, var(--color-primary-700) 42%, var(--color-surface-600));
 }
 
 /* Buttons — default refinement */
@@ -764,24 +771,34 @@ button,
 [data-ui='button'],
 [role='button'] {
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn,
+[data-ui='button'] {
+  border-radius: var(--shape-radius-sm);
 }
 button:active,
 .btn:active,
 [data-ui='button']:active {
-  transform: scale(0.97);
+  transform: scale(0.985);
 }
 
 /* Inputs — consistent styling */
 input:not([type='checkbox']):not([type='radio']),
 select,
 textarea {
-  border: 1px solid var(--color-surface-300);
-  border-radius: var(--radius-lg);
-  background: white;
+  border: 1px solid color-mix(in oklch, var(--color-surface-300) 88%, white);
+  border-radius: var(--shape-radius-sm);
+  background: color-mix(in oklch, var(--color-surface-50) 96%, white);
   transition:
     border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 input:not([type='checkbox']):not([type='radio']):focus,
 select:focus,
@@ -792,8 +809,8 @@ textarea:focus {
 html.dark input:not([type='checkbox']):not([type='radio']),
 html.dark select,
 html.dark textarea {
-  background: var(--color-surface-800);
-  border-color: var(--color-surface-600);
+  background: color-mix(in oklch, var(--color-surface-800) 94%, black);
+  border-color: color-mix(in oklch, var(--color-surface-700) 92%, black);
 }
 html.dark input:not([type='checkbox']):not([type='radio']):focus,
 html.dark select:focus,

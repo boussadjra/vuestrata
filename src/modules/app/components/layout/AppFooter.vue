@@ -9,25 +9,44 @@ const year = new Date().getFullYear()
 </script>
 
 <template>
-  <footer class="border-surface-200/60 dark:border-surface-700/40 border-t px-4 py-8 lg:px-6">
+  <footer
+    class="border-surface-200/70 bg-surface-50/72 dark:border-surface-800/70 dark:bg-surface-950/70 border-t backdrop-blur-sm"
+  >
     <div
-      class="text-surface-500 mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-sm sm:flex-row"
+      class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-6"
     >
-      <div class="flex items-center gap-2">
-        <span class="mt-2 h-10 w-auto shrink-0">
-          <Logo className="" />
+      <div class="flex items-center gap-3">
+        <span class="me-2 flex h-10 w-10 items-center">
+          <Logo className="h-6 w-auto" />
         </span>
-        <span class="whitespace-nowrap">© {{ year }} Vuestrata. {{ t('home_footer') }}</span>
+        <div class="min-w-0">
+          <p
+            class="text-surface-400 dark:text-surface-500 text-[11px] font-medium tracking-[0.18em] uppercase"
+          >
+            Starter workbench
+          </p>
+          <p class="text-surface-600 dark:text-surface-300 text-sm">
+            © {{ year }} Vuestrata. {{ t('home_footer') }}
+          </p>
+        </div>
       </div>
-      <div class="flex items-center gap-4">
+
+      <div class="flex flex-wrap items-center gap-2">
+        <RouterLink
+          to="/docs"
+          class="border-surface-200/80 bg-surface-50 text-surface-600 hover:text-surface-900 dark:border-surface-700/70 dark:bg-surface-900/75 dark:text-surface-300 dark:hover:text-surface-50 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+        >
+          <span class="i-solar-document-text-bold h-4 w-4" />
+          Docs
+        </RouterLink>
         <a
           href="https://github.com/boussadjra/vuestrata"
           target="_blank"
           rel="noopener noreferrer"
-          class="group hover:text-surface-700 dark:hover:text-surface-300 flex items-center gap-1.5 transition-colors"
+          class="border-surface-200/80 bg-surface-50 text-surface-600 hover:text-surface-900 dark:border-surface-700/70 dark:bg-surface-900/75 dark:text-surface-300 dark:hover:text-surface-50 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
         >
-          <span class="i-solar-github-bold h-5 w-5 transition-transform group-hover:scale-110" />
-          <span class="hidden text-xs font-medium sm:inline">GitHub</span>
+          <span class="i-solar-github-bold h-4 w-4" />
+          <span>GitHub</span>
         </a>
       </div>
     </div>
