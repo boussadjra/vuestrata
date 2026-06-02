@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+/// <reference types="node" />
 /**
  * Vuestrata Scaffold CLI
  *
@@ -7,13 +8,16 @@
  *
  * Usage: pnpm scaffold
  */
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import * as readline from 'node:readline'
+import * as fs from 'fs'
+import * as path from 'path'
+import * as readline from 'readline'
+import { fileURLToPath } from 'url'
 
 // ─── Configuration ──────────────────────────────────────
 
-const ROOT = path.resolve(import.meta.dirname, '..')
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const ROOT = path.resolve(__dirname, '..')
 
 const UI_PROVIDERS: Record<string, { folder: string; prefix: string; dep?: string }> = {
   reka: { folder: 'reka', prefix: 'Reka' },
@@ -28,8 +32,15 @@ const ICON_PROVIDERS: Record<string, { mapFile: string; dep?: string }> = {
 
 const THEMES: Record<string, { cssFile: string | null }> = {
   default: { cssFile: null },
+  blueprint: { cssFile: 'blueprint.css' },
   brutalist: { cssFile: 'brutalist.css' },
+  febin: { cssFile: 'febin.css' },
+  forest: { cssFile: 'forest.css' },
   ghibli: { cssFile: 'ghibli.css' },
+  ocean: { cssFile: 'ocean.css' },
+  rose: { cssFile: 'rose.css' },
+  sunset: { cssFile: 'sunset.css' },
+  terminal: { cssFile: 'terminal.css' },
 }
 
 const VALIDATION_ADAPTERS: Record<string, { adapterFile: string; dep?: string }> = {
@@ -51,7 +62,7 @@ function ask(question: string, options: string[]): Promise<string> {
 
   return new Promise((resolve) => {
     const askOnce = () => {
-      rl.question(prompt, (answer) => {
+      rl.question(prompt, (answer: string) => {
         const idx = parseInt(answer.trim(), 10) - 1
         if (idx >= 0 && idx < options.length) {
           rl.close()
@@ -97,40 +108,44 @@ function replaceInFile(filePath: string, search: string | RegExp, replacement: s
 
 function pruneUiProviders(chosen: string) {
   console.log(`\n🧱 UI Provider: keeping "${chosen}"`)
-  const providerDir = path.join(ROOT, 'src/components/ui/provider')
+  const providerDir = path.join(ROOT, 'src/modules/app/components/ui/provider')
 
   for (const [name, config] of Object.entries(UI_PROVIDERS)) {
     if (name === chosen) continue
     rmDir(path.join(providerDir, config.folder))
   }
 
-  // Hard-code the chosen provider in ui-provider.ts
-  const configFile = path.join(ROOT, 'src/config/ui-provider.ts')
+  // Hard-code the chosen provider by updating the app store fallback
+  const storeFile = path.join(ROOT, 'src/modules/app/stores/app.ts')
   replaceInFile(
-    configFile,
-    /const\s+provider\s*=\s*ref<UiProvider>\([^)]+\)/,
-    `const provider = ref<UiProvider>('${chosen}')`,
+    storeFile,
+    /import\.meta\.env\.VUESTRATA_UI_PROVIDER\s*\|\|\s*'[^']+'/,
+    `import.meta.env.VUESTRATA_UI_PROVIDER || '${chosen}'`,
   )
 }
 
 function pruneIconProviders(chosen: string) {
   console.log(`\n🎨 Icon Provider: keeping "${chosen}"`)
-  const mapsDir = path.join(ROOT, 'src/icons/maps')
+  const mapsDir = path.join(ROOT, 'src/modules/app/icons/maps')
 
   for (const [name, config] of Object.entries(ICON_PROVIDERS)) {
     if (name === chosen) continue
     rmFile(path.join(mapsDir, config.mapFile))
   }
 
-  // Hard-code the chosen icon provider
-  const configFile = path.join(ROOT, 'src/config/icon-provider.ts')
-  replaceInFile(configFile, /ref<IconProvider>\([^)]+\)/, `ref<IconProvider>('${chosen}')`)
+  // Hard-code the chosen icon provider by updating the app store fallback
+  const storeFile = path.join(ROOT, 'src/modules/app/stores/app.ts')
+  replaceInFile(
+    storeFile,
+    /import\.meta\.env\.VUESTRATA_ICON_PROVIDER\s*\|\|\s*'[^']+'/,
+    `import.meta.env.VUESTRATA_ICON_PROVIDER || '${chosen}'`,
+  )
 }
 
 function pruneThemes(chosen: string) {
   console.log(`\n🎭 Theme: keeping "${chosen}"`)
-  const themesDir = path.join(ROOT, 'src/styles/themes')
-  const appCss = path.join(ROOT, 'src/styles/app.css')
+  const themesDir = path.join(ROOT, 'src/modules/app/styles/themes')
+  const appCss = path.join(ROOT, 'src/modules/app/styles/app.css')
 
   for (const [name, config] of Object.entries(THEMES)) {
     if (name === chosen || !config.cssFile) continue
@@ -144,7 +159,7 @@ function pruneThemes(chosen: string) {
   }
 
   // Remove unused entries from theme.config.ts
-  const themeConfig = path.join(ROOT, 'src/config/theme.config.ts')
+  const themeConfig = path.join(ROOT, 'src/modules/app/config/theme.config.ts')
   for (const name of Object.keys(THEMES)) {
     if (name === chosen || name === 'default') continue
     replaceInFile(themeConfig, new RegExp(`\\s*\\{[^}]*name:\\s*'${name}'[^}]*\\},?\\n?`), '')
@@ -153,19 +168,19 @@ function pruneThemes(chosen: string) {
 
 function pruneValidationAdapters(chosen: string) {
   console.log(`\n✅ Validation Adapter: keeping "${chosen}"`)
-  const adaptersDir = path.join(ROOT, 'src/lib/validation/adapters')
+  const adaptersDir = path.join(ROOT, 'src/modules/core/lib/validation/adapters')
 
   for (const [name, config] of Object.entries(VALIDATION_ADAPTERS)) {
     if (name === chosen) continue
     rmFile(path.join(adaptersDir, config.adapterFile))
   }
 
-  // Hard-code the chosen adapter
-  const configFile = path.join(ROOT, 'src/config/validation-provider.ts')
+  // Hard-code the chosen validation adapter by updating the app store fallback
+  const storeFile = path.join(ROOT, 'src/modules/app/stores/app.ts')
   replaceInFile(
-    configFile,
-    /ref<ValidationAdapterName>\([^)]+\)/,
-    `ref<ValidationAdapterName>('${chosen}')`,
+    storeFile,
+    /import\.meta\.env\.VUESTRATA_VALIDATION_ADAPTER\s*\|\|\s*'[^']+'/,
+    `import.meta.env.VUESTRATA_VALIDATION_ADAPTER || '${chosen}'`,
   )
 }
 

@@ -18,7 +18,7 @@ Use this skill when auth work could introduce contract drift.
 
 ## Rules
 
-1. Audit `src/composables/useAuth.ts`, `src/config/app.config.ts`, `src/mocks/handlers.ts`, auth pages, `.env.example`, `README.md`, and `docs/6.configuration/`.
+1. Audit `src/modules/auth/composables/useAuth.ts`, `src/modules/app/config/app.config.ts`, `src/modules/auth/mocks/auth.handlers.ts`, auth pages, `.env.example`, `README.md`, and `docs/6.configuration/`.
 2. Treat env-key or adapter-name drift as a regression.
 3. Fix the source of drift, not just the docs.
 4. Do not finish auth work unless runtime, tests, mocks, env examples, and docs agree.

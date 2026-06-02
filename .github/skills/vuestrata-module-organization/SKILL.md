@@ -10,15 +10,15 @@ Use this skill when placing new code.
 
 ## Placement Rules
 
-- shell UI: `src/components/layout/`
-- consumer UI wrappers: `src/components/ui/`
-- provider internals: `src/components/ui/provider/<provider>/`
-- framework-agnostic logic: `src/lib/`
-- reusable Vue behavior: `src/composables/`
-- global state: `src/stores/`
-- app config: `src/config/`
+- shell UI: `src/modules/app/components/layout/`
+- consumer UI wrappers: `src/modules/app/components/ui/`
+- provider internals: `src/modules/app/components/ui/provider/<provider>/`
+- framework-agnostic logic: `src/modules/core/lib/`
+- reusable Vue behavior: `src/modules/app/composables/`
+- global state: `src/modules/app/stores/`
+- app config: `src/modules/app/config/`
 - docs markdown: `docs/`
-- docs-rendering components: `src/components/docs/`
+- docs-rendering components: `src/modules/app/components/docs/`
 
 ## Module Rules
 

@@ -42,9 +42,9 @@ The `module-scope-state` custom lint rule (`scripts/lint/plugins/module-scope-st
 ## Structure
 
 - Preserve the current top-level layout under `src/`.
-- Use `src/components/layout/` for shell UI, `src/components/ui/` for consumer wrappers, `src/components/ui/provider/<provider>/` for provider internals, and `src/lib/` for framework-agnostic logic.
+	- Use `src/modules/app/components/layout/` for shell UI, `src/modules/app/components/ui/` for consumer wrappers, `src/modules/app/components/ui/provider/<provider>/` for provider internals, and `src/modules/core/lib/` for framework-agnostic logic.
 - Keep app features self-contained under `src/modules/<module>/`.
-- Keep docs markdown in `docs/` and docs-rendering components in `src/components/docs/`.
+	- Keep docs markdown in `docs/` and docs-rendering components in `src/modules/app/components/docs/`.
 
 ## Quality Gates
 

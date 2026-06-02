@@ -186,7 +186,7 @@ export interface AppConfig {
 }
 
 // ─── RBAC ────────────────────────────────────────────────
-// Canonical definitions live in src/lib/rbac/types.ts (framework-agnostic lib layer).
+// Canonical definitions live in src/modules/core/lib/rbac/types.ts (framework-agnostic lib layer).
 // Re-exported here so the rest of the app can import from ~/types as before.
 export type { Role, Permission, BuiltinPermission, RoleDefinition }
 

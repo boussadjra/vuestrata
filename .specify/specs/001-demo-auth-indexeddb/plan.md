@@ -10,7 +10,7 @@ Complete the demo auth surface so every flow (credentials, social, magic link, O
 ## Technical Context
 
 - **Stack**: Vue 3.5+, TypeScript strict, Pinia, Vue Router, TanStack Query, MSW, ofetch, jwt-decode, Vite Plus.
-- **Affected area**: `src/modules/auth/**`, `src/modules/app/{stores,mocks,state,composables}/**`, `src/modules/users/**`, `src/modules/core/lib/rbac/**` (read-only verify), `src/main.ts`, `src/config/app.config.ts`, `docs/**`.
+- **Affected area**: `src/modules/auth/**`, `src/modules/app/{stores,mocks,state,composables}/**`, `src/modules/users/**`, `src/modules/core/lib/rbac/**` (read-only verify), `src/main.ts`, `src/modules/app/config/app.config.ts`, `docs/**`.
 - **Constraints**:
   - Preserve `useAuth` orchestrator shape and adapter pattern; do not introduce a fourth adapter or duplicate flow logic.
   - No new top-level mutable module state — use `createGlobalState` or Pinia per `module-scope-state` rule.

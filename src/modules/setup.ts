@@ -10,7 +10,7 @@
  * Architecture contract:
  *   - Server state (API data)      → TanStack Query composable in each module's composables/
  *   - Client state (UI/prefs)      → Pinia store in each module's stores/
- *   - Cross-module communication  → appEvents event bus (src/lib/events.ts)
+ *   - Cross-module communication  → appEvents event bus (src/modules/core/lib/events.ts)
  *   - Public API                  → module's index.ts barrel only (no deep imports)
  *
  * Adding a module:

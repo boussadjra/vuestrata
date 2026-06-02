@@ -18,7 +18,7 @@ Use the `vp` CLI (Vite Plus) for all development commands. Reuse built-in comman
 
 ### IV. Organize By Layer And Module
 
-Keep UI wrappers in `src/components/ui/`, provider internals in `src/components/ui/provider/`, shell layout in `src/components/layout/`, framework-agnostic logic in `src/lib/`, and app features self-contained under `src/modules/<name>/`.
+Keep UI wrappers in `src/modules/app/components/ui/`, provider internals in `src/modules/app/components/ui/provider/`, shell layout in `src/modules/app/components/layout/`, framework-agnostic logic in `src/modules/core/lib/`, and app features self-contained under `src/modules/<name>/`.
 
 ### V. Single Source Of Truth
 
@@ -42,7 +42,7 @@ Prefer clear names, small focused units, shallow nesting, explicit behavior, and
 
 ### X. SOLID By Judgment, Not By Ceremony
 
-Apply SOLID where it reduces coupling or clarifies ownership. Keep adapters extensible, implementations substitutable, interfaces narrow, and `src/lib/` independent from Vue UI layers. Do not invent abstractions before a second real use case exists.
+Apply SOLID where it reduces coupling or clarifies ownership. Keep adapters extensible, implementations substitutable, interfaces narrow, and `src/modules/core/lib/` independent from Vue UI layers. Do not invent abstractions before a second real use case exists.
 
 ### XI. Design Patterns Where They Earn Their Keep
 
@@ -58,7 +58,7 @@ Every page and component must work on mobile, tablet, and desktop. Use Tailwind 
 
 ### XIV. Minimal Dependencies
 
-Every dependency must justify bundle cost, maintenance, and uniqueness. Prefer existing repo capabilities or small `src/lib/` utilities when practical. Keep the lockfile authoritative and remove orphan dependencies with the feature that made them obsolete.
+Every dependency must justify bundle cost, maintenance, and uniqueness. Prefer existing repo capabilities or small `src/modules/core/lib/` utilities when practical. Keep the lockfile authoritative and remove orphan dependencies with the feature that made them obsolete.
 
 ### XV. Test Every Layer, Test With Purpose
 
@@ -66,7 +66,7 @@ Testing is mandatory. Use unit tests for pure logic and stores, component tests 
 
 ### XVI. Declarative Data Fetching With TanStack Query
 
-Use `@tanstack/vue-query` for server state. `ofetch` remains the low-level HTTP client in `src/lib/api/client.ts`, but composables should use `useQuery` and `useMutation` with typed `[module, resource, ...params]` keys instead of manual loading/error/caching state.
+Use `@tanstack/vue-query` for server state. `ofetch` remains the low-level HTTP client in `src/modules/core/lib/api/client.ts`, but composables should use `useQuery` and `useMutation` with typed `[module, resource, ...params]` keys instead of manual loading/error/caching state.
 
 ### XVII. Document Every New Feature
 
@@ -74,7 +74,7 @@ Every new feature, component, composable, or module must ship with matching docu
 
 ### XVIII. Provider Independence And Shared Base Components
 
-Each UI provider directory (`src/components/ui/provider/<provider>/`) MUST be self-contained. A provider component MUST NOT import or delegate to another provider's components — e.g., `V0*` MUST NOT import `Reka*` and vice-versa. Cross-provider imports break the adapter contract and make providers non-substitutable. When multiple providers share identical logic (Formwerk composable wiring, prop interfaces, computed state), that logic MUST be extracted into shared base composables or renderless components under `src/components/ui/base/` so each provider composes from the shared base independently.
+Each UI provider directory (`src/modules/app/components/ui/provider/<provider>/`) MUST be self-contained. A provider component MUST NOT import or delegate to another provider's components — e.g., `V0*` MUST NOT import `Reka*` and vice-versa. Cross-provider imports break the adapter contract and make providers non-substitutable. When multiple providers share identical logic (Formwerk composable wiring, prop interfaces, computed state), that logic MUST be extracted into shared base composables or renderless components under `src/modules/app/components/ui/base/` so each provider composes from the shared base independently.
 
 ## Governance
 
