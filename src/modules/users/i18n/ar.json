@@ -21,5 +21,8 @@
   "users_col_joined": "تاريخ الانضمام",
   "users_col_actions": "إجراءات",
   "users_empty": "لم يتم العثور على أعضاء",
-  "users_empty_search": "لا نتائج لـ « {query} »"
+  "users_empty_search": "لا نتائج لـ « {query} »",
+  "users_permissions_title": "الأذونات",
+  "users_permissions_self_warning": "أنت تقوم بتحرير حسابك الخاص. لا يمكن إزالة إذن users:read.",
+  "users_permissions_reset": "إعادة التعيين إلى الإعدادات الافتراضية للدور"
 }

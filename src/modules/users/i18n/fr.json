@@ -21,5 +21,8 @@
   "users_col_joined": "Rejoint le",
   "users_col_actions": "Actions",
   "users_empty": "Aucun membre trouvé",
-  "users_empty_search": "Aucun résultat pour « {query} »"
+  "users_empty_search": "Aucun résultat pour « {query} »",
+  "users_permissions_title": "Permissions",
+  "users_permissions_self_warning": "Vous modifiez votre propre compte. La permission users:read ne peut pas être supprimée.",
+  "users_permissions_reset": "Réinitialiser aux valeurs par défaut du rôle"
 }

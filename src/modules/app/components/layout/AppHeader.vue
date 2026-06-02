@@ -19,7 +19,7 @@ withDefaults(
   },
 )
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const { logout } = useAuth()
@@ -34,14 +34,34 @@ const locales = [
 
 const supportedLocaleCodes = new Set(locales.map((entry) => entry.code))
 
-function normalizeLocale(code: string) {
-  const lowered = code.toLowerCase()
+function normalizeLocale(code: string | string[] | null | undefined) {
+  const candidate = Array.isArray(code) ? code[0] : code
+  if (typeof candidate !== 'string' || candidate.length === 0) return 'en'
+
+  const lowered = candidate.toLowerCase()
   if (supportedLocaleCodes.has(lowered)) return lowered
   const base = lowered.split('-')[0]
-  return supportedLocaleCodes.has(base) ? base : 'en'
+  return base && supportedLocaleCodes.has(base) ? base : 'en'
 }
 
-const currentLocale = computed(() => normalizeLocale(locale.value || appStore.locale || 'en'))
+// Use a ref instead of writable computed for explicit two-way binding
+const currentLocale = ref(normalizeLocale(appStore.locale))
+
+// Sync store -> local ref (when store changes externally)
+watch(
+  () => appStore.locale,
+  (newLocale) => {
+    currentLocale.value = normalizeLocale(newLocale)
+  },
+)
+
+// Sync local ref -> store (when user selects a different locale)
+watch(currentLocale, (newValue) => {
+  const normalized = normalizeLocale(newValue)
+  if (normalized !== appStore.locale) {
+    appStore.setLocale(normalized)
+  }
+})
 
 const normalizedPath = computed(() => {
   const path = route.path.replace(/\/+$/, '')
@@ -86,26 +106,11 @@ const guestAction = computed(() => {
     className: '',
   }
 })
-
-function switchLocale(code: string) {
-  const normalized = normalizeLocale(code)
-  locale.value = normalized
-  appStore.setLocale(normalized)
-}
-
-watch(
-  () => appStore.locale,
-  (next) => {
-    const normalized = normalizeLocale(next)
-    if (locale.value !== normalized) locale.value = normalized
-  },
-  { immediate: true },
-)
 </script>
 
 <template>
   <header
-    class="border-surface-200/70 bg-surface-50/78 dark:border-surface-800/70 dark:bg-surface-950/84 sticky top-0 z-30 border-b backdrop-blur-xl transition-colors"
+    class="app-header border-surface-200/70 bg-surface-50/78 dark:border-surface-800/70 dark:bg-surface-950/84 sticky top-0 z-30 border-b backdrop-blur-xl transition-colors"
   >
     <div class="mx-auto flex h-16 w-full max-w-400 items-center justify-between gap-3 px-4 lg:px-6">
       <div class="flex min-w-0 items-center gap-2.5">
@@ -138,7 +143,7 @@ watch(
             <span
               class="text-surface-400 dark:text-surface-500 mt-1 truncate text-[11px] font-medium tracking-[0.18em] uppercase"
             >
-              Starter workbench
+              {{ t('common_starter_workbench') }}
             </span>
           </span>
         </RouterLink>
@@ -147,10 +152,10 @@ watch(
           <span
             class="text-surface-400 dark:text-surface-500 text-[11px] font-medium tracking-[0.18em] uppercase"
           >
-            Workspace
+            {{ t('common_workspace') }}
           </span>
           <span class="text-surface-700 dark:text-surface-200 text-sm font-semibold">
-            App shell
+            {{ t('common_app_shell') }}
           </span>
         </div>
       </div>
@@ -161,10 +166,9 @@ watch(
         >
           <UiSelect
             class="min-w-35"
-            :model-value="currentLocale"
+            v-model="currentLocale"
             :options="locales.map((l) => ({ label: l.label, value: l.code }))"
-            :aria-label="t('header_locale_label', 'Change language')"
-            @update:model-value="switchLocale"
+            :aria-label="t('header_locale_label')"
           />
 
           <UiButton to="/docs" variant="ghost" size="md" class="hidden rounded-full sm:inline-flex">
@@ -177,14 +181,14 @@ watch(
                 'h-5 w-5',
               ]"
             />
-            <span class="hidden md:inline">Docs</span>
+            <span class="hidden md:inline">{{ t('common_documentation') }}</span>
           </UiButton>
           <UiButton
             to="/docs"
             variant="ghost"
             size="md"
             icon
-            aria-label="Documentation"
+            :aria-label="t('common_documentation')"
             :class="[
               'rounded-full sm:hidden',
               isDocsRoute
@@ -208,7 +212,7 @@ watch(
             size="md"
             icon
             class="rounded-full"
-            :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+            :aria-label="isDark ? t('common_switch_light_mode') : t('common_switch_dark_mode')"
             @click="toggleDark()"
           >
             <span v-if="isDark" :class="[resolveIcon('sun'), 'h-5 w-5 text-amber-400']" />

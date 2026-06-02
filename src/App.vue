@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { useThemeSync } from '@/composables/useTheme'
 
 // Root-owned DOM sync for theme and dark mode classes.
 useThemeSync()
 
+const { t } = useI18n()
 const appError = ref<Error | null>(null)
 
 // Only capture errors that originate from async component setup (Suspense).
@@ -28,7 +31,7 @@ onErrorCaptured((err, _instance, info) => {
     class="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center"
   >
     <p class="text-surface-600 dark:text-surface-400 text-sm">
-      Something went wrong. Please refresh the page.
+      {{ t('common_error_generic') }}
     </p>
   </div>
 
@@ -36,7 +39,11 @@ onErrorCaptured((err, _instance, info) => {
     <RouterView />
 
     <template #fallback>
-      <div class="flex min-h-screen items-center justify-center" role="status" aria-label="Loading">
+      <div
+        class="flex min-h-screen items-center justify-center"
+        role="status"
+        :aria-label="t('common_loading_aria')"
+      >
         <AppIcon name="spinner" size="xl" class="text-primary-500 animate-spin" />
       </div>
     </template>

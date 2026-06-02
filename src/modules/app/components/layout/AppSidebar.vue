@@ -65,7 +65,7 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
           <span
             class="text-surface-400 dark:text-surface-500 mt-0.5 block truncate text-[11px] font-medium tracking-[0.18em] uppercase"
           >
-            Workspace
+            {{ t('common_workspace') }}
           </span>
         </span>
       </RouterLink>
@@ -94,7 +94,7 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
         <p
           class="text-surface-400 dark:text-surface-500 text-[11px] font-medium tracking-[0.18em] uppercase"
         >
-          Workspace
+          {{ t('common_workspace') }}
         </p>
       </div>
 

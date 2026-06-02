@@ -1,6 +1,19 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { UiButton } from '@/components/ui'
 import { resolveIcon } from '@/config/icon-provider'
+
+const { t } = useI18n()
+
+const ctaSectionLabel = computed(() => t('cta_section_label'))
+const ctaSectionTitle = computed(() => t('cta_section_title'))
+const ctaSectionDesc = computed(() => t('cta_section_desc'))
+const ctaFeature1 = computed(() => t('cta_feature_1'))
+const ctaFeature2 = computed(() => t('cta_feature_2'))
+const ctaFeature3 = computed(() => t('cta_feature_3'))
+const ctaInstallButton = computed(() => t('cta_install_button'))
+const ctaSourceButton = computed(() => t('cta_source_button'))
 </script>
 
 <template>
@@ -13,16 +26,15 @@ import { resolveIcon } from '@/config/icon-provider'
           <p
             class="text-primary-600 dark:text-primary-400 mb-3 text-sm font-semibold tracking-wide uppercase"
           >
-            Start from the workbench
+            {{ ctaSectionLabel }}
           </p>
           <h2
             class="text-surface-900 dark:text-surface-50 text-3xl font-bold tracking-tight md:text-4xl"
           >
-            Clone a Vue app that already knows its boundaries.
+            {{ ctaSectionTitle }}
           </h2>
           <p class="text-surface-600 dark:text-surface-400 mt-4 max-w-2xl text-lg leading-relaxed">
-            Provider adapters, theme tokens, auth scaffolding, query keys, docs, and tests are in
-            place before the first product screen is yours.
+            {{ ctaSectionDesc }}
           </p>
         </div>
 
@@ -38,7 +50,7 @@ import { resolveIcon } from '@/config/icon-provider'
                     'text-primary-600 dark:text-primary-400 h-4 w-4',
                   ]"
                 />
-                Runtime UI provider switching
+                {{ ctaFeature1 }}
               </li>
               <li class="flex items-center gap-2">
                 <span
@@ -47,7 +59,7 @@ import { resolveIcon } from '@/config/icon-provider'
                     'text-primary-600 dark:text-primary-400 h-4 w-4',
                   ]"
                 />
-                Ten themes with light and dark modes
+                {{ ctaFeature2 }}
               </li>
               <li class="flex items-center gap-2">
                 <span
@@ -56,7 +68,7 @@ import { resolveIcon } from '@/config/icon-provider'
                     'text-primary-600 dark:text-primary-400 h-4 w-4',
                   ]"
                 />
-                Unit, integration, and Playwright coverage
+                {{ ctaFeature3 }}
               </li>
             </ul>
           </div>
@@ -64,7 +76,7 @@ import { resolveIcon } from '@/config/icon-provider'
           <div class="flex flex-wrap gap-3">
             <UiButton to="/docs/getting-started/installation" variant="primary" size="lg">
               <span :class="[resolveIcon('rocket'), 'h-5 w-5']" />
-              Install Vuestrata
+              {{ ctaInstallButton }}
             </UiButton>
             <UiButton
               href="https://github.com/boussadjra/vuestrata"
@@ -74,7 +86,7 @@ import { resolveIcon } from '@/config/icon-provider'
               size="lg"
             >
               <span class="i-simple-icons-github h-5 w-5" />
-              View source
+              {{ ctaSourceButton }}
             </UiButton>
           </div>
         </div>

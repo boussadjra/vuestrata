@@ -23,7 +23,7 @@ const year = new Date().getFullYear()
           <p
             class="text-surface-400 dark:text-surface-500 text-[11px] font-medium tracking-[0.18em] uppercase"
           >
-            Starter workbench
+            {{ t('common_starter_workbench') }}
           </p>
           <p class="text-surface-600 dark:text-surface-300 text-sm">
             © {{ year }} Vuestrata. {{ t('home_footer') }}
@@ -37,7 +37,7 @@ const year = new Date().getFullYear()
           class="border-surface-200/80 bg-surface-50 text-surface-600 hover:text-surface-900 dark:border-surface-700/70 dark:bg-surface-900/75 dark:text-surface-300 dark:hover:text-surface-50 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
         >
           <span class="i-solar-document-text-bold h-4 w-4" />
-          Docs
+          {{ t('common_documentation') }}
         </RouterLink>
         <a
           href="https://github.com/boussadjra/vuestrata"

@@ -21,5 +21,8 @@
   "users_col_joined": "Joined",
   "users_col_actions": "Actions",
   "users_empty": "No team members found",
-  "users_empty_search": "No results for \"{query}\""
+  "users_empty_search": "No results for \"{query}\"",
+  "users_permissions_title": "Permissions",
+  "users_permissions_self_warning": "You are editing your own account. The users:read permission cannot be removed.",
+  "users_permissions_reset": "Reset to role defaults"
 }
