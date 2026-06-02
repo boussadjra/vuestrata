@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { UiButton } from '@/components/ui'
 
 import { getGroupPanelId, type SidebarSection, type SubsectionGroup } from './docsNavigation'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   sections: SidebarSection[]
@@ -247,7 +251,7 @@ const childLinkClass =
       icon
       class="fixed inset-e-4 bottom-4 z-40 rounded-full"
       aria-controls="docs-sidebar"
-      aria-label="Toggle documentation navigation"
+      :aria-label="t('common_toggle_docs_nav')"
       :aria-expanded="open"
       @click="handleToggleOpen"
     >
@@ -258,7 +262,7 @@ const childLinkClass =
   <aside
     ref="sidebarRef"
     id="docs-sidebar"
-    aria-label="Documentation sidebar"
+    :aria-label="t('common_docs_sidebar_label')"
     :aria-hidden="isMobileClosed ? 'true' : undefined"
     :inert="isMobileClosed || undefined"
     :tabindex="isMobileOpen ? -1 : undefined"
@@ -282,10 +286,10 @@ const childLinkClass =
       :aria-current="currentSlug === '' ? 'page' : undefined"
       @click="closeSidebarAfterNavigation"
     >
-      Documentation
+      {{ t('common_documentation') }}
     </RouterLink>
 
-    <nav aria-label="Documentation" class="space-y-4 lg:space-y-3">
+    <nav :aria-label="t('common_documentation')" class="space-y-4 lg:space-y-3">
       <section v-for="section in sections" :key="section.key">
         <h2
           :id="`docs-section-${section.key}`"

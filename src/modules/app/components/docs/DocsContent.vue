@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { Comark } from 'comark/vue'
+import { useI18n } from 'vue-i18n'
 
 import { UiButton } from '@/components/ui'
 import { docsComarkComponents, docsComarkPlugins } from '@/config/comark'
 
 import type { DocEntry } from './docsNavigation'
+
+const { t } = useI18n()
 
 defineProps<{
   doc?: DocEntry
@@ -25,7 +28,9 @@ const emit = defineEmits<{ back: [] }>()
             <div
               class="text-surface-400 dark:text-surface-500 flex flex-wrap items-center gap-2 text-[11px] font-medium tracking-[0.18em] uppercase"
             >
-              <span>{{ doc.section ? doc.section.replace(/-/g, ' ') : 'Documentation' }}</span>
+              <span>{{
+                doc.section ? doc.section.replace(/-/g, ' ') : t('common_documentation')
+              }}</span>
               <span
                 v-if="doc.subsection || doc.subsectionLabel"
                 class="bg-surface-300 dark:bg-surface-600 h-1 w-1 rounded-full"
