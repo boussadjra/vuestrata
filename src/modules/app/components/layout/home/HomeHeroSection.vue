@@ -61,6 +61,7 @@ onUnmounted(() => {
       <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-16">
         <div class="max-w-2xl lg:col-span-7">
           <div
+            dir="ltr"
             class="bg-primary-50 dark:bg-primary-950/30 ring-primary-500/20 dark:ring-primary-400/20 text-primary-700 dark:text-primary-300 animate-slide-down mb-7 inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[13px] font-semibold tracking-wide ring-1"
           >
             <span class="relative flex h-1.5 w-1.5">
@@ -69,15 +70,17 @@ onUnmounted(() => {
               />
               <span class="bg-primary-500 relative inline-flex h-1.5 w-1.5 rounded-full" />
             </span>
-            Open source / Vue 3 / Vite+
+            {{ t('hero_badge') }}
           </div>
 
           <h1
             class="animate-fade-in mb-6 text-[2.75rem] leading-[1.1] font-extrabold tracking-tight sm:text-5xl lg:text-[3.5rem] xl:text-6xl"
           >
-            Ship
-            <span class="text-primary-600 dark:text-primary-400">production&#8209;grade</span> apps,
-            <br class="hidden sm:block" />not boilerplate
+            {{ t('hero_title_ship') }}
+            <span class="text-primary-600 dark:text-primary-400">{{
+              t('hero_title_production_grade')
+            }}</span>
+            {{ t('hero_title_suffix') }}
           </h1>
 
           <p
@@ -109,7 +112,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="hidden justify-center lg:col-span-5 lg:flex">
+        <div dir="ltr" class="hidden justify-center lg:col-span-5 lg:flex">
           <HeroCodePreview :mouse-x="mouseX" :mouse-y="mouseY" />
         </div>
       </div>
