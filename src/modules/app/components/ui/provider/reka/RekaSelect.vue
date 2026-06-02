@@ -6,11 +6,15 @@ import RekaOption from './RekaOption.vue'
 import RekaOptionGroup from './RekaOptionGroup.vue'
 
 defineProps<SelectProps>()
+
+defineOptions({
+  inheritAttrs: false,
+})
 </script>
 
 <template>
   <BaseSelectField
-    v-bind="$props"
+    v-bind="{ ...$props, ...$attrs }"
     provider="reka"
     :option-component="RekaOption"
     :option-group-component="RekaOptionGroup"

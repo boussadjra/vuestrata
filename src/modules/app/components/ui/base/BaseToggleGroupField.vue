@@ -48,7 +48,7 @@ function itemClasses(option: ToggleGroupOption) {
       {{ label }}
     </label>
     <div
-      class="border-surface-300 dark:border-surface-600 inline-flex overflow-hidden rounded-md border"
+      class="btns-wrapper border-surface-300 dark:border-surface-600 inline-flex overflow-hidden rounded-md border"
       role="group"
       :data-provider="provider"
       data-ui="togglegroup"
@@ -57,6 +57,7 @@ function itemClasses(option: ToggleGroupOption) {
         v-for="option in options"
         :key="option.value"
         type="button"
+        class="flex-1"
         :class="itemClasses(option)"
         :disabled="option.disabled || disabled"
         :aria-pressed="isSelected(option.value)"

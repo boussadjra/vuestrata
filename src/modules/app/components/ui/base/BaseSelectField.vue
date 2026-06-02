@@ -23,7 +23,9 @@ const props = withDefaults(
   },
 )
 
-defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
+
+const formwerk = useBaseSelect(props)
 
 const {
   triggerProps,
@@ -34,7 +36,17 @@ const {
   displayError,
   isOpen,
   selectedOption,
-} = useBaseSelect(props)
+} = formwerk
+
+// Bridge formwerk's internal fieldValue to Vue's v-model
+watch(
+  () => formwerk.fieldValue.value,
+  (newValue) => {
+    if (newValue !== undefined && newValue !== props.modelValue) {
+      emit('update:modelValue', newValue)
+    }
+  },
+)
 
 function isGroup(
   opt: (typeof props.options)[number],
