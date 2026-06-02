@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { createScopedLogger } from '~/lib/logger'
 import { exchangeOAuthCode } from '~/modules/auth'
 import { useAuthStore } from '~/stores/auth'
@@ -7,6 +9,7 @@ const router = useRouter()
 const route = useRoute()
 const store = useAuthStore()
 const logger = createScopedLogger('oauth-callback')
+const { t } = useI18n()
 
 const error = ref<string | null>(null)
 const isProcessing = ref(true)
@@ -54,7 +57,7 @@ onMounted(async () => {
         <div
           class="border-primary-200 border-t-primary-600 mx-auto mb-4 size-8 animate-spin rounded-full border-4"
         />
-        <p class="text-surface-600 dark:text-surface-400">Completing sign in...</p>
+        <p class="text-surface-600 dark:text-surface-400">{{ t('auth_callback_processing') }}</p>
       </div>
 
       <div v-else-if="error" class="text-center">
@@ -64,14 +67,14 @@ onMounted(async () => {
           <span class="text-xl text-red-600 dark:text-red-400">!</span>
         </div>
         <h2 class="text-surface-900 mb-2 text-lg font-semibold dark:text-white">
-          Authentication Failed
+          {{ t('auth_callback_failed') }}
         </h2>
         <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">{{ error }}</p>
         <button
           class="bg-primary-600 hover:bg-primary-700 rounded-lg px-4 py-2 text-sm font-medium text-white"
           @click="router.push('/auth/login')"
         >
-          Back to Login
+          {{ t('auth_callback_back_to_login') }}
         </button>
       </div>
     </div>

@@ -17,9 +17,11 @@ type LoginMode = 'credentials' | 'magic-link'
 const mode = ref<LoginMode>('credentials')
 const magicLinkSent = ref(false)
 
-function setMode(newMode: LoginMode) {
-  mode.value = newMode
-  magicLinkSent.value = false
+function setMode(newMode: string | string[]) {
+  if (typeof newMode === 'string' && (newMode === 'credentials' || newMode === 'magic-link')) {
+    mode.value = newMode
+    magicLinkSent.value = false
+  }
 }
 
 const form = ref({
@@ -54,26 +56,26 @@ function onForgotPassword() {
   })
 }
 
-const socialProviders = [
+const socialProviders = computed(() => [
   {
     id: 'google' as const,
-    label: 'Google',
+    label: t('auth_provider_google'),
     icon: 'i-logos-google-icon',
     bg: 'hover:bg-red-50 dark:hover:bg-red-950/20',
   },
   {
     id: 'github' as const,
-    label: 'GitHub',
+    label: t('auth_provider_github'),
     icon: 'i-logos-github-icon',
     bg: 'hover:bg-surface-100 dark:hover:bg-surface-800',
   },
   {
     id: 'microsoft' as const,
-    label: 'Microsoft',
+    label: t('auth_provider_microsoft'),
     icon: 'i-logos-microsoft-icon',
     bg: 'hover:bg-blue-50 dark:hover:bg-blue-950/20',
   },
-]
+])
 </script>
 
 <template>
@@ -96,9 +98,7 @@ const socialProviders = [
           </p>
         </div>
 
-        <span
-          class="border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-950 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border shadow-(--shadow-soft)"
-        >
+        <span class="flex h-14 w-14 shrink-0 items-center">
           <Logo class="h-9 w-auto" />
         </span>
       </div>
@@ -114,7 +114,7 @@ const socialProviders = [
           @click="socialLogin(provider.id)"
         >
           <span :class="[provider.icon, 'h-5 w-5']" />
-          Continue with {{ provider.label }}
+          {{ t('auth_continue_with_provider', { provider: provider.label }) }}
         </UiButton>
       </div>
 
@@ -124,7 +124,7 @@ const socialProviders = [
         </div>
         <div class="relative flex justify-center text-xs">
           <span class="text-surface-400 bg-surface-50/95 dark:bg-surface-900/95 px-3">
-            or continue with
+            {{ t('auth_or_continue_with') }}
           </span>
         </div>
       </div>
@@ -132,8 +132,8 @@ const socialProviders = [
       <UiToggleGroup
         :model-value="mode"
         :options="[
-          { label: 'Email & Password', value: 'credentials' },
-          { label: 'Magic Link', value: 'magic-link' },
+          { label: t('auth_mode_credentials'), value: 'credentials' },
+          { label: t('auth_mode_magic_link'), value: 'magic-link' },
         ]"
         size="md"
         class="mb-6"
@@ -153,11 +153,10 @@ const socialProviders = [
       >
         <div class="mb-1 flex items-center gap-2 font-medium">
           <span :class="[resolveIcon('letter'), 'h-4 w-4']" />
-          Check your inbox
+          {{ t('auth_magic_link_sent_title') }}
         </div>
         <p class="text-green-600 dark:text-green-400/80">
-          We sent a magic link to <strong>{{ form.email }}</strong
-          >. Click the link to sign in.
+          {{ t('auth_magic_link_sent_body', { email: form.email }) }}
         </p>
       </div>
 
@@ -169,14 +168,14 @@ const socialProviders = [
         <div
           class="rounded-[var(--shape-radius-sm)] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400"
         >
-          Multi-factor authentication is required for this account.
+          {{ t('auth_mfa_required') }}
         </div>
 
         <UiTextField
           id="mfa-code"
           v-model="mfaCode"
           type="text"
-          label="MFA code"
+          :label="t('auth_mfa_code_label')"
           placeholder="000000"
           inputmode="numeric"
           pattern="[0-9]*"
@@ -190,7 +189,7 @@ const socialProviders = [
             v-if="isLoading"
             :class="[resolveIcon('spinner'), 'mr-2 inline-block h-4 w-4 animate-spin']"
           />
-          Verify code
+          {{ t('auth_mfa_verify_button') }}
         </UiButton>
       </form>
 
@@ -212,7 +211,7 @@ const socialProviders = [
               href="#"
               class="text-primary-500 hover:text-primary-600 text-xs"
               @click.prevent="onForgotPassword"
-              >Forgot password?</a
+              >{{ t('auth_forgot') }}</a
             >
           </div>
           <UiTextField
@@ -248,7 +247,7 @@ const socialProviders = [
         <UiButton type="submit" variant="primary" block :disabled="isLoading">
           <span v-if="isLoading" :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']" />
           <span v-else :class="[resolveIcon('letter'), 'h-4 w-4']" />
-          Send Magic Link
+          {{ t('auth_magic_link_send_button') }}
         </UiButton>
       </form>
 
@@ -256,11 +255,10 @@ const socialProviders = [
         v-if="isDev"
         class="border-surface-200/80 bg-surface-50/90 text-surface-500 dark:border-surface-700 dark:bg-surface-950/80 dark:text-surface-400 mt-6 rounded-[var(--shape-radius-sm)] border p-4 text-sm"
       >
-        <p class="text-surface-800 dark:text-surface-100 font-medium">Demo credentials</p>
+        <p class="text-surface-800 dark:text-surface-100 font-medium">{{ t('auth_demo_title') }}</p>
         <p class="mt-1">demo@vuestrata.dev / password</p>
         <p class="mt-2 text-xs leading-5">
-          Mock auth fully supports credentials, social entry points, and magic links. JWT and OAuth
-          adapters are contract stubs.
+          {{ t('auth_demo_body') }}
         </p>
       </div>
     </div>

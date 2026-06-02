@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { UiButton, UiCheckbox } from '@/components/ui'
 import { getRegisteredPermissions, getRolePermissions } from '@/lib/rbac'
 import type { BuiltinPermission } from '@/lib/rbac/types'
@@ -9,6 +11,8 @@ import { useUpdatePermissionsMutation } from '../composables/useUpdatePermission
 
 const props = defineProps<{ user: User }>()
 const emit = defineEmits<{ close: [] }>()
+
+const { t } = useI18n()
 
 const authStore = useAuthStore()
 const { updatePermissions, isPending } = useUpdatePermissionsMutation()
@@ -89,7 +93,7 @@ async function submit() {
             id="permissions-panel-title"
             class="text-surface-900 text-lg font-semibold dark:text-white"
           >
-            Permissions
+            {{ t('users_permissions_title') }}
           </h2>
           <p class="text-surface-500 dark:text-surface-400 mt-0.5 text-sm">
             {{ user.name }} · <span class="capitalize">{{ user.role }}</span>
@@ -106,8 +110,7 @@ async function submit() {
         role="status"
         class="mx-6 mt-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
       >
-        You are editing your own account. The <strong>users:read</strong> permission cannot be
-        removed.
+        {{ t('users_permissions_self_warning') }}
       </div>
 
       <!-- Server error -->
@@ -163,12 +166,14 @@ async function submit() {
         class="border-surface-200 dark:border-surface-700 flex items-center justify-between border-t px-6 py-4"
       >
         <UiButton type="button" variant="ghost" size="sm" @click="resetToRoleDefaults">
-          Reset to role defaults
+          {{ t('users_permissions_reset') }}
         </UiButton>
         <div class="flex gap-3">
-          <UiButton type="button" variant="secondary" @click="$emit('close')"> Cancel </UiButton>
+          <UiButton type="button" variant="secondary" @click="$emit('close')">
+            {{ t('button_cancel') }}
+          </UiButton>
           <UiButton type="button" variant="primary" :disabled="isPending" @click="submit">
-            {{ isPending ? 'Saving…' : 'Save' }}
+            {{ isPending ? t('forms_saving') : t('button_save') }}
           </UiButton>
         </div>
       </div>

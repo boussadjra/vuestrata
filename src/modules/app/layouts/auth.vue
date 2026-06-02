@@ -6,7 +6,7 @@ import AppNotifications from '@/components/layout/AppNotifications.vue'
   <div
     class="bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex min-h-screen items-center justify-center"
   >
-    <div class="w-full max-w-md px-4">
+    <div class="w-full max-w-md px-4 py-8">
       <RouterView />
     </div>
     <AppNotifications />

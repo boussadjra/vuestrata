@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { UiButton, UiSelect, UiTextField } from '@/components/ui'
 import { ROLE_DEFINITIONS } from '@/lib/rbac'
 import type { Role } from '@/types'
@@ -6,6 +8,7 @@ import type { Role } from '@/types'
 import { useInviteUserMutation } from '../composables/useInviteUserMutation'
 
 const emit = defineEmits<{ close: [] }>()
+const { t } = useI18n()
 
 const { inviteUser, isPending } = useInviteUserMutation()
 
@@ -57,7 +60,7 @@ async function submit() {
         class="border-surface-200 dark:border-surface-700 flex items-center justify-between border-b px-6 py-4"
       >
         <h2 id="invite-dialog-title" class="text-surface-900 text-lg font-semibold dark:text-white">
-          Invite User
+          {{ t('users_invite_title') }}
         </h2>
         <UiButton variant="ghost" size="sm" icon aria-label="Close dialog" @click="$emit('close')">
           ✕
@@ -80,7 +83,7 @@ async function submit() {
           id="invite-email"
           v-model="email"
           type="email"
-          label="Email"
+          :label="t('users_invite_email')"
           autocomplete="email"
           :error="fieldErrors.email"
           @blur="() => {}"
@@ -91,20 +94,27 @@ async function submit() {
           id="invite-name"
           v-model="name"
           type="text"
-          label="Name"
+          :label="t('forms_name')"
           autocomplete="name"
           :error="fieldErrors.name"
           @blur="() => {}"
         />
 
         <!-- Role -->
-        <UiSelect id="invite-role" v-model="role" label="Role" :options="roleOptions" />
+        <UiSelect
+          id="invite-role"
+          v-model="role"
+          :label="t('users_invite_role')"
+          :options="roleOptions"
+        />
 
         <!-- Footer -->
         <div class="flex justify-end gap-3 pt-2">
-          <UiButton type="button" variant="secondary" @click="$emit('close')"> Cancel </UiButton>
+          <UiButton type="button" variant="secondary" @click="$emit('close')">
+            {{ t('button_cancel') }}
+          </UiButton>
           <UiButton type="submit" variant="primary" :disabled="isPending">
-            {{ isPending ? 'Sending…' : 'Send Invite' }}
+            {{ isPending ? t('forms_sending') : t('users_invite_send') }}
           </UiButton>
         </div>
       </form>
