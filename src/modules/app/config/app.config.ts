@@ -13,12 +13,15 @@ const VALID_AUTH_PROVIDERS = ['mock', 'jwt', 'oauth'] as const satisfies Readonl
 const VALID_UI_PROVIDERS = ['reka', 'vuetify0'] as const satisfies ReadonlyArray<
   AppConfig['uiProvider']
 >
-const VALID_ICON_PROVIDERS = ['solar', 'lucide', 'heroicons'] as const satisfies ReadonlyArray<
+const VALID_ICON_PROVIDERS = ['solar', 'lucide', 'phosphor'] as const satisfies ReadonlyArray<
   AppConfig['iconProvider']
 >
-const VALID_VALIDATION_ADAPTERS = ['zod', 'valibot', 'yup'] as const satisfies ReadonlyArray<
-  AppConfig['validationAdapter']
->
+const VALID_VALIDATION_ADAPTERS = [
+  'zod',
+  'valibot',
+  'yup',
+  'arktype',
+] as const satisfies ReadonlyArray<AppConfig['validationAdapter']>
 
 /**
  * Validate an env value against a fixed allowlist and fall back to a default
