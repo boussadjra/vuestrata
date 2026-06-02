@@ -7,6 +7,7 @@ defineProps<{
 
 <template>
   <div
+    dir="ltr"
     class="terminal-wrapper animate-scale-in"
     aria-label="Vuestrata app shell code preview"
     :style="{
@@ -112,6 +113,10 @@ defineProps<{
   will-change: transform;
 }
 
+.terminal-wrapper div {
+  direction: ltr;
+}
+
 .code-line {
   display: flex;
   align-items: baseline;
@@ -132,11 +137,11 @@ defineProps<{
 }
 
 .pl1 {
-  padding-left: 1.25rem;
+  padding-start: 1.25rem;
 }
 
 .pl2 {
-  padding-left: 2.5rem;
+  padding-start: 2.5rem;
 }
 
 @keyframes code-appear {
