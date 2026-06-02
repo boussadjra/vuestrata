@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { resolveIcon } from '@/config/icon-provider'
 import type { IconName } from '@/types'
 
@@ -11,6 +13,8 @@ type FeatureItem = {
 defineProps<{
   features: FeatureItem[]
 }>()
+
+const { t } = useI18n()
 
 const FEATURE_ICON_CLASSES = [
   'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300',
@@ -33,24 +37,22 @@ const FEATURE_ICON_CLASSES = [
           <p
             class="text-primary-600 dark:text-primary-400 mb-3 text-sm font-semibold tracking-wide uppercase"
           >
-            System defaults
+            {{ t('features_section_label') }}
           </p>
           <h2
             class="text-surface-900 dark:text-surface-50 mb-4 text-3xl font-bold tracking-tight md:text-4xl"
           >
-            The parts that usually drift are already wired.
+            {{ t('features_section_title') }}
           </h2>
           <p class="text-surface-500 dark:text-surface-400 text-lg leading-8">
-            Vuestrata keeps the starter honest: toolchain, data boundaries, theming, and auth all
-            share one source of truth.
+            {{ t('features_section_desc') }}
           </p>
         </div>
 
         <div
           class="border-surface-200/80 bg-surface-50/82 dark:border-surface-800 dark:bg-surface-900/68 text-surface-500 rounded-[calc(var(--shape-radius)+0.125rem)] border px-4 py-3 text-sm shadow-(--shadow-soft)"
         >
-          Toolchain, theming, auth, and typed data ship as one contract, so the starter feels like a
-          product baseline instead of a demo scaffold.
+          {{ t('features_section_note') }}
         </div>
       </div>
 

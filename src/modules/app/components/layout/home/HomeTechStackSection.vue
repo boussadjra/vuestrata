@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 type StackItem = {
   icon: string
   label: string
@@ -8,6 +10,8 @@ type StackItem = {
 defineProps<{
   stackItems: StackItem[]
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -24,15 +28,14 @@ defineProps<{
         <p
           class="text-primary-600 dark:text-primary-400 mb-3 text-sm font-semibold tracking-wide uppercase"
         >
-          Stack contract
+          {{ t('stack_section_label') }}
         </p>
         <h2 class="text-surface-900 dark:text-surface-50 text-2xl font-bold tracking-tight">
-          One starter, one toolchain, replaceable layers.
+          {{ t('stack_section_title') }}
         </h2>
 
         <p class="text-surface-500 dark:text-surface-400 mt-4 text-base leading-7">
-          The same tokens and conventions carry from theme switching to provider adapters, typed
-          queries, and test infrastructure.
+          {{ t('stack_section_desc') }}
         </p>
       </div>
 
