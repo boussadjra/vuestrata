@@ -21,15 +21,12 @@ const props = withDefaults(
 
 defineEmits<{ 'update:modelValue': [value: boolean | 'indeterminate'] }>()
 
-const {
-  inputProps,
-  labelProps,
-  isChecked,
-  indeterminate,
-  toggle,
-  errorMessageProps,
-  displayError,
-} = useBaseCheckbox(props)
+const { inputProps, labelProps, isChecked, toggle, errorMessageProps, displayError } =
+  useBaseCheckbox(props)
+
+const isIndeterminate = computed(
+  () => props.indeterminate === true || props.modelValue === 'indeterminate',
+)
 
 const sizeMap: Record<string, string> = {
   sm: 'h-4 w-4',
@@ -68,15 +65,20 @@ const checkboxClasses = computed(() => [
       >
         <span v-if="isChecked" class="flex items-center justify-center text-white">
           <span
-            v-if="indeterminate"
+            v-if="isIndeterminate"
             :class="[resolveIcon('minus-circle'), indicatorSizeMap[size]]"
           />
           <span v-else :class="[resolveIcon('check'), indicatorSizeMap[size]]" />
         </span>
       </span>
-      <label v-if="label" v-bind="labelProps" class="cursor-pointer text-sm select-none">
+      <span
+        v-if="label"
+        v-bind="labelProps"
+        class="cursor-pointer text-sm select-none"
+        @click="toggle"
+      >
         {{ label }}
-      </label>
+      </span>
     </div>
     <p v-if="displayError" v-bind="errorMessageProps" :class="fieldErrorMessageClass" role="alert">
       {{ displayError }}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ExpansionPanel } from '@vuetify/v0'
+import type { Component } from 'vue'
 
 import BaseAccordionField from '@/components/ui/base/BaseAccordionField.vue'
 import type { AccordionItemData } from '~/types'
@@ -17,11 +18,11 @@ withDefaults(defineProps<AccordionProps>(), {
 })
 
 const components = {
-  root: ExpansionPanel.Group,
-  item: ExpansionPanel.Root,
-  trigger: ExpansionPanel.Activator,
-  content: ExpansionPanel.Content,
-  cue: ExpansionPanel.Cue,
+  root: ExpansionPanel.Group as Component,
+  item: ExpansionPanel.Root as unknown as Component,
+  trigger: ExpansionPanel.Activator as unknown as Component,
+  content: ExpansionPanel.Content as unknown as Component,
+  cue: ExpansionPanel.Cue as unknown as Component,
 }
 </script>
 

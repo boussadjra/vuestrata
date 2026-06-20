@@ -4,7 +4,7 @@ import type { BaseFieldProps } from '@/types'
 
 export interface SelectOption {
   label: string
-  value: string
+  value: string | number
   disabled?: boolean
 }
 
@@ -14,7 +14,7 @@ export interface SelectOptionGroup {
 }
 
 export interface SelectProps extends BaseFieldProps {
-  modelValue?: string | string[]
+  modelValue?: string | number | Array<string | number>
   options: (SelectOption | SelectOptionGroup)[]
   placeholder?: string
   hint?: string
@@ -40,7 +40,11 @@ export function useBaseSelect(props: SelectProps) {
   return { ...formwerk, displayError, isOpen }
 }
 
-export function useBaseOption(props: { label: string; value: string; disabled?: boolean }) {
+export function useBaseOption(props: {
+  label: string
+  value: string | number
+  disabled?: boolean
+}) {
   return useOption({
     label: () => props.label,
     value: () => props.value,

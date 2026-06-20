@@ -3,7 +3,7 @@ import BaseOptionItem from '@/components/ui/base/BaseOptionItem.vue'
 
 defineProps<{
   label: string
-  value: string
+  value: string | number
   disabled?: boolean
 }>()
 </script>

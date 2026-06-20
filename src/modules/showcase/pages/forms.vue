@@ -1,13 +1,5 @@
 <script setup lang="ts">
-import {
-  useTextField,
-  useCheckbox,
-  useSwitch,
-  useSelect,
-  useNumberField,
-  useRadioGroup,
-  useRadio,
-} from '@formwerk/core'
+import { useTextField, useCheckbox, useNumberField } from '@formwerk/core'
 import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 
@@ -17,6 +9,7 @@ import { resolveIcon } from '~/config/icon-provider'
 
 const notifications = useNotificationStore()
 const { t } = useI18n()
+const formwerkFieldOptions = { disableHtmlValidation: true }
 
 // ─── Contact Form (Zod validated) ────────────────────────
 
@@ -66,17 +59,19 @@ async function handleContactSubmit() {
 
 // ─── Formwerk Primitives Demo ────────────────────────────
 
-const nameField = useTextField({ label: 'Full Name', required: true })
-const emailField = useTextField({ label: 'Email', type: 'email', required: true })
-const bioField = useTextField({ label: 'Bio' })
-const ageField = useNumberField({ label: 'Age', min: 18, max: 120 })
-const newsletter = useCheckbox({ label: 'Subscribe to newsletter' })
-const darkMode = useSwitch({ label: 'Dark mode' })
-const priority = useSelect({ label: 'Priority' })
-const roleGroup = useRadioGroup({ label: 'Preferred Role' })
-const roleOption1 = useRadio({ value: 'developer', label: 'Developer' })
-const roleOption2 = useRadio({ value: 'designer', label: 'Designer' })
-const roleOption3 = useRadio({ value: 'manager', label: 'Manager' })
+const nameField = useTextField({
+  label: 'Full Name',
+  ...formwerkFieldOptions,
+})
+const emailField = useTextField({
+  label: 'Email',
+  type: 'email',
+  ...formwerkFieldOptions,
+})
+const bioField = useTextField({ label: 'Bio', ...formwerkFieldOptions })
+const ageField = useNumberField({ label: 'Age', min: 18, max: 120, ...formwerkFieldOptions })
+const newsletter = useCheckbox({ label: 'Subscribe to newsletter', ...formwerkFieldOptions })
+const primitiveRole = ref<'developer' | 'designer' | 'manager'>('developer')
 
 // ─── Profile Form ────────────────────────────────────────
 
@@ -546,44 +541,41 @@ async function handleProfileSubmit() {
         </div>
 
         <!-- RadioGroup -->
-        <div class="space-y-2">
-          <span class="text-surface-700 dark:text-surface-300 block text-sm font-medium">{{
-            t('forms_preferred_role')
-          }}</span>
+        <fieldset class="space-y-2">
+          <legend class="text-surface-700 dark:text-surface-300 block text-sm font-medium">
+            {{ t('forms_preferred_role') }}
+          </legend>
           <div class="space-y-2">
-            <label
-              v-bind="roleOption1.labelProps.value"
-              class="flex cursor-pointer items-center gap-2"
-            >
+            <label class="flex cursor-pointer items-center gap-2">
               <input
-                v-bind="roleOption1.inputProps.value"
+                v-model="primitiveRole"
                 type="radio"
+                name="primitive-role"
+                value="developer"
                 class="accent-primary-500"
               />
               <span class="text-surface-600 dark:text-surface-300 text-sm">{{
                 t('forms_developer')
               }}</span>
             </label>
-            <label
-              v-bind="roleOption2.labelProps.value"
-              class="flex cursor-pointer items-center gap-2"
-            >
+            <label class="flex cursor-pointer items-center gap-2">
               <input
-                v-bind="roleOption2.inputProps.value"
+                v-model="primitiveRole"
                 type="radio"
+                name="primitive-role"
+                value="designer"
                 class="accent-primary-500"
               />
               <span class="text-surface-600 dark:text-surface-300 text-sm">{{
                 t('forms_designer')
               }}</span>
             </label>
-            <label
-              v-bind="roleOption3.labelProps.value"
-              class="flex cursor-pointer items-center gap-2"
-            >
+            <label class="flex cursor-pointer items-center gap-2">
               <input
-                v-bind="roleOption3.inputProps.value"
+                v-model="primitiveRole"
                 type="radio"
+                name="primitive-role"
+                value="manager"
                 class="accent-primary-500"
               />
               <span class="text-surface-600 dark:text-surface-300 text-sm">{{
@@ -591,7 +583,7 @@ async function handleProfileSubmit() {
               }}</span>
             </label>
           </div>
-        </div>
+        </fieldset>
       </div>
     </div>
   </div>

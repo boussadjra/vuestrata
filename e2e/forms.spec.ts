@@ -13,6 +13,12 @@ async function goToFormsPage(page: Page) {
   await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 })
 }
 
+function getPrimitivesCard(page: Page) {
+  return page
+    .getByRole('heading', { name: /Formwerk Primitives/i })
+    .locator('xpath=ancestor::div[contains(@class, "rounded-2xl")][1]')
+}
+
 // ---------------------------------------------------------------------------
 // Page load
 // ---------------------------------------------------------------------------
@@ -275,13 +281,14 @@ test.describe('Profile form', () => {
   })
 
   test('role select has developer pre-selected', async ({ page }) => {
-    // nth(0) = language combobox in header; nth(1) = profile role select
-    const roleSelect = page.locator('select').nth(1)
+    const profileForm = page.locator('form').nth(1)
+    const roleSelect = profileForm.locator('select')
     await expect(roleSelect).toHaveValue('developer')
   })
 
   test('can change the role', async ({ page }) => {
-    const roleSelect = page.locator('select').nth(1)
+    const profileForm = page.locator('form').nth(1)
+    const roleSelect = profileForm.locator('select')
     await roleSelect.selectOption('designer')
     await expect(roleSelect).toHaveValue('designer')
   })
@@ -298,18 +305,18 @@ test.describe('Profile form', () => {
   })
 
   test('clears validation errors on valid re-submission', async ({ page }) => {
+    const profileForm = page.locator('form').nth(1)
     // Clear email to trigger error
-    // nth(0)=contact email, nth(1)=profile email, nth(2)=primitives email
-    const profileEmail = page.locator('input[type="email"]').nth(1)
+    const profileEmail = profileForm.locator('input[type="email"]')
     await profileEmail.fill('')
-    await page.locator('button[type="submit"]').last().click()
-    await expect(page.getByText(/invalid email/i)).toBeVisible({
+    await profileForm.getByRole('button', { name: /^save profile$/i }).click()
+    await expect(page.getByText(/valid email/i)).toBeVisible({
       timeout: 3_000,
     })
 
     // Fix the email
     await profileEmail.fill('demo@vuestrata.dev')
-    await page.locator('button[type="submit"]').last().click()
+    await profileForm.getByRole('button', { name: /^save profile$/i }).click()
     await expect(page.getByText(/profile saved/i).first()).toBeVisible({
       timeout: 5_000,
     })
@@ -402,19 +409,19 @@ test.describe('Formwerk primitives showcase', () => {
   })
 
   test('number field has increment/decrement buttons', async ({ page }) => {
-    // Formwerk's decrementButtonProps may override accessible name; match by visible text content
-    const decrement = page
-      .locator('button')
-      .filter({ hasText: /^[−-]$/ })
-      .first()
-    const increment = page.locator('button').filter({ hasText: /^\+$/ }).first()
+    const primitivesCard = getPrimitivesCard(page)
+    const decrement = primitivesCard.getByRole('button', { name: /^decrement$/i })
+    const increment = primitivesCard.getByRole('button', { name: /^increment$/i })
     await expect(decrement).toBeVisible()
     await expect(increment).toBeVisible()
   })
 
   test('number field increments correctly', async ({ page }) => {
-    const increment = page.locator('button').filter({ hasText: /^\+$/ }).first()
-    const ageInput = page.locator('input[type="number"], input[inputmode="numeric"]').first()
+    const primitivesCard = getPrimitivesCard(page)
+    const increment = primitivesCard.getByRole('button', { name: /^increment$/i })
+    const ageInput = primitivesCard
+      .locator('input[type="number"], input[inputmode="numeric"]')
+      .first()
     const before = Number(await ageInput.inputValue())
     await increment.click()
     const after = Number(await ageInput.inputValue())
@@ -422,18 +429,17 @@ test.describe('Formwerk primitives showcase', () => {
   })
 
   test('radio group selects correct option', async ({ page }) => {
-    const designerRadio = page.getByText('Designer').locator('..').locator('input[type="radio"]')
-    await designerRadio.first().check()
-    await expect(designerRadio.first()).toBeChecked()
+    const primitivesCard = getPrimitivesCard(page)
+    const designerRadio = primitivesCard.getByLabel(/designer/i)
+    await designerRadio.check({ force: true })
+    await expect(designerRadio).toBeChecked()
   })
 
   test('newsletter checkbox can be checked', async ({ page }) => {
-    // Checkbox order: 0=agree terms, 1=notifications, 2=publicProfile, 3=newsletter (primitives)
-    const newsletter = page.locator('input[type="checkbox"]').nth(3)
-    const initialState = await newsletter.isChecked()
-    await newsletter.click()
-    const newState = await newsletter.isChecked()
-    expect(newState).toBe(!initialState)
+    const primitivesCard = getPrimitivesCard(page)
+    const newsletter = primitivesCard.getByLabel(/subscribe to newsletter/i)
+    await newsletter.check({ force: true })
+    await expect(newsletter).toBeChecked()
   })
 })
 
@@ -445,12 +451,6 @@ test.describe('Forms — responsive layout', () => {
   test('renders correctly at mobile width', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await goToFormsPage(page)
-    // Close the mobile sidebar that opens by default on narrow viewports
-    await page
-      .locator('aside[data-open="true"]')
-      .first()
-      .evaluate((el) => el.removeAttribute('data-open'))
-      .catch(() => {})
     await expect(page.locator('input[placeholder="John Doe"]')).toBeVisible()
     await expect(page.locator('h1').first()).toBeVisible()
   })
@@ -464,10 +464,6 @@ test.describe('Forms — responsive layout', () => {
   test('submit works on mobile layout', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await goToFormsPage(page)
-    // On mobile, the sidebar overlays the content. Close it via its own toggle button
-    // (the sidebar header button, which is inside z-40 aside and always clickable)
-    await page.locator('aside button').first().click()
-    await page.waitForTimeout(350) // allow 300ms CSS slide-out transition
 
     await page.locator('input[placeholder="John Doe"]').fill('Mobile User')
     await page

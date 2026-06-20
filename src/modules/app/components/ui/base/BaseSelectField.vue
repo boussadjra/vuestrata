@@ -23,7 +23,15 @@ const props = withDefaults(
   },
 )
 
-const emit = defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
+defineOptions({
+  inheritAttrs: false,
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string | number | Array<string | number>]
+}>()
+
+const attrs = useAttrs()
 
 const formwerk = useBaseSelect(props)
 
@@ -37,6 +45,33 @@ const {
   isOpen,
   selectedOption,
 } = formwerk
+
+const controlId = computed(() => props.id ?? formwerk.controlId)
+const errorId = computed(() => (controlId.value ? `${controlId.value}-e` : undefined))
+const descriptionId = computed(() => (controlId.value ? `${controlId.value}-d` : undefined))
+
+const enhancedLabelProps = computed(() => ({ ...labelProps.value, for: controlId.value }))
+
+const enhancedErrorMessageProps = computed(() => {
+  if (!errorId.value) return errorMessageProps.value
+  return { ...errorMessageProps.value, id: errorId.value }
+})
+
+const enhancedDescriptionProps = computed(() => {
+  if (!descriptionId.value) return descriptionProps.value
+  return { ...descriptionProps.value, id: descriptionId.value }
+})
+
+const enhancedTriggerProps = computed(() => ({
+  ...triggerProps.value,
+  ...Object.fromEntries(
+    Object.entries(attrs).filter(([key]) => key !== 'class' && key !== 'style'),
+  ),
+  id: controlId.value,
+  'aria-errormessage': displayError.value ? errorId.value : undefined,
+  'aria-describedby':
+    !displayError.value && (props.hint || props.description) ? descriptionId.value : undefined,
+}))
 
 // Bridge formwerk's internal fieldValue to Vue's v-model
 watch(
@@ -66,10 +101,10 @@ const triggerClasses = computed(() => [
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
+  <div class="flex flex-col gap-1" :class="attrs.class" :style="attrs.style">
     <label
       v-if="label"
-      v-bind="labelProps"
+      v-bind="enhancedLabelProps"
       class="text-surface-700 dark:text-surface-300 text-sm font-medium"
     >
       {{ label }}
@@ -78,7 +113,7 @@ const triggerClasses = computed(() => [
 
     <div class="relative">
       <button
-        v-bind="triggerProps"
+        v-bind="enhancedTriggerProps"
         type="button"
         :class="triggerClasses"
         :data-provider="provider"
@@ -116,12 +151,17 @@ const triggerClasses = computed(() => [
       </div>
     </div>
 
-    <p v-if="displayError" v-bind="errorMessageProps" :class="fieldErrorMessageClass" role="alert">
+    <p
+      v-if="displayError"
+      v-bind="enhancedErrorMessageProps"
+      :class="fieldErrorMessageClass"
+      role="alert"
+    >
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
-      v-bind="descriptionProps"
+      v-bind="enhancedDescriptionProps"
       class="text-surface-500 dark:text-surface-400 text-xs"
     >
       {{ hint || description }}

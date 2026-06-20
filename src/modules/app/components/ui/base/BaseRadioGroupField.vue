@@ -26,9 +26,9 @@ const labelClass = computed(() =>
 
 <template>
   <div class="flex flex-col gap-2" :data-provider="provider" data-ui="radiogroup">
-    <label v-if="label" v-bind="labelProps" :class="labelClass">
+    <div v-if="label" v-bind="labelProps" :class="labelClass">
       {{ label }}
-    </label>
+    </div>
 
     <div
       v-bind="groupProps"
