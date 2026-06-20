@@ -1,5 +1,10 @@
+import { config as VTUConfig } from '@vue/test-utils'
 import { beforeEach, vi } from 'vite-plus/test'
 import { defineComponent, h } from 'vue'
+
+import { loadModuleTranslations } from '@/modules/i18n'
+import { appModules } from '@/modules/setup'
+import { getI18n } from '@/plugins/i18n'
 
 import { resetRuntimeState } from './utils/reset-runtime-state'
 
@@ -186,3 +191,12 @@ Object.defineProperty(window, 'matchMedia', {
 beforeEach(async () => {
   await resetRuntimeState()
 })
+
+// Ensure vue-i18n is available to every `mount()` in the test environment so
+// components that call `useI18n()` do not need to manually install the plugin.
+VTUConfig.global.plugins = VTUConfig.global.plugins || []
+VTUConfig.global.plugins.push(getI18n())
+
+// Merge module-scoped translations (e.g. `src/modules/users/i18n/en.json`) into
+// the global i18n instance so components under test can `t()` module keys.
+loadModuleTranslations(appModules)
