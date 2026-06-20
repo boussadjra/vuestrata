@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { Button } from '@vuetify/v0'
 
+import type { ButtonGroupItemValue, ButtonGroupModelValue } from './button-group.types'
+
 export interface BaseButtonGroupProps {
   provider: 'reka' | 'vuetify0'
-  modelValue?: any
+  modelValue?: ButtonGroupModelValue
   multiple?: boolean
   deselectable?: boolean
   ariaLabel?: string
 }
 
 const props = defineProps<BaseButtonGroupProps>()
-const emit = defineEmits<{ 'update:modelValue': [value: any] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: ButtonGroupModelValue] }>()
 
-const updateValue = (val: any) => {
+const updateValue = (val: ButtonGroupItemValue) => {
   if (props.multiple) {
     const current = Array.isArray(props.modelValue) ? [...props.modelValue] : []
     const index = current.indexOf(val)
@@ -43,7 +45,7 @@ provide(props.provider === 'vuetify0' ? 'v0-button-group' : 'reka-button-group',
     data-provider="vuetify0"
     role="group"
     :aria-label="ariaLabel"
-    @update:model-value="(v: any) => emit('update:modelValue', v)"
+    @update:model-value="(v: ButtonGroupModelValue) => emit('update:modelValue', v)"
   >
     <slot />
   </Button.Group>

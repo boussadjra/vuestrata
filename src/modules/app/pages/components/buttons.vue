@@ -100,7 +100,11 @@ const apiProps: ApiPropRow[] = [
     default: 'false',
     description: 'Icon class to display, or boolean for icon-only square style',
   },
-  { name: 'value', type: 'any', description: 'Value when used inside a UiButtonGroup' },
+  {
+    name: 'value',
+    type: 'string | number | boolean | null',
+    description: 'Value when used inside a UiButtonGroup',
+  },
   {
     name: 'active',
     type: 'boolean',
@@ -122,7 +126,11 @@ const apiEvents: ApiEventRow[] = [
 const apiSlots: ApiSlotRow[] = [{ name: 'default', description: 'Button label content' }]
 
 const groupApiProps: ApiPropRow[] = [
-  { name: 'modelValue', type: 'any', description: 'Currently selected value (use v-model)' },
+  {
+    name: 'modelValue',
+    type: 'string | number | boolean | null | Array<string | number | boolean | null>',
+    description: 'Currently selected value (use v-model)',
+  },
   {
     name: 'multiple',
     type: 'boolean',

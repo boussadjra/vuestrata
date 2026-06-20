@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Button } from '@vuetify/v0'
+import { defineComponent, h } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
 import { resolveIcon } from '~/config/icon-provider'
+
+import type { ButtonGroupItemValue, ButtonGroupModelValue } from './button-group.types'
 
 export interface BaseButtonProps {
   provider: 'reka' | 'vuetify0'
@@ -14,7 +17,7 @@ export interface BaseButtonProps {
   block?: boolean
   icon?: boolean | string
   type?: 'button' | 'submit' | 'reset'
-  value?: any
+  value?: ButtonGroupItemValue
   active?: boolean
   ariaLabel?: string
   to?: RouteLocationRaw
@@ -36,10 +39,10 @@ const props = withDefaults(defineProps<BaseButtonProps>(), {
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 const slots = useSlots()
 
-const buttonGroup = inject<{ modelValue: Ref<any>; updateValue: (val: any) => void } | null>(
-  props.provider === 'vuetify0' ? 'v0-button-group' : 'reka-button-group',
-  null,
-)
+const buttonGroup = inject<{
+  modelValue: Ref<ButtonGroupModelValue>
+  updateValue: (val: ButtonGroupItemValue) => void
+} | null>(props.provider === 'vuetify0' ? 'v0-button-group' : 'reka-button-group', null)
 
 const isActive = computed(() => {
   if (buttonGroup && props.value !== undefined) {
@@ -119,11 +122,30 @@ const classes = computed(() => {
 
 const isLink = computed(() => Boolean(props.to || props.href))
 
-const rootTag = computed(() => {
-  if (props.to) return RouterLink
-  if (props.href) return 'a'
-  return props.provider === 'vuetify0' ? Button.Root : 'button'
+// When rendering the `@vuetify/v0` Button.Root, that component
+// controls the underlying element and often uses `inheritAttrs: false`.
+// Some implementations set the inner `<button>`'s `type` explicitly to
+// "button", which prevents a passed `type="submit"` from being applied.
+// To ensure the `type` attribute reaches the real DOM element we pass a
+// small wrapper component via the `as` prop that renders a native
+// `<button>` and applies the `type` attr from this component's props.
+const AsButton = defineComponent({
+  name: 'BaseButtonV0As',
+  inheritAttrs: false,
+  setup(_, { attrs, slots }) {
+    return () => h('button', { ...attrs, type: props.type }, slots.default && slots.default())
+  },
 })
+
+const commonAttrs = computed(() => ({
+  class: classes.value,
+  'aria-disabled': props.disabled || props.loading || undefined,
+  'aria-busy': props.loading || undefined,
+  'aria-pressed': buttonGroup ? isActive.value : undefined,
+  'aria-label': props.ariaLabel || undefined,
+  'data-ui': 'button',
+  'data-provider': props.provider,
+}))
 
 function onClick(e: MouseEvent) {
   if (props.disabled || props.loading) {
@@ -136,26 +158,72 @@ function onClick(e: MouseEvent) {
   }
   emit('click', e)
 }
+
+function onRouterLinkClick(e: MouseEvent, navigate: (event?: MouseEvent) => void) {
+  onClick(e)
+  if (e.defaultPrevented) return
+  navigate(e)
+}
 </script>
 
 <template>
-  <component
-    :is="rootTag"
-    :to="to || undefined"
-    :href="href || undefined"
+  <RouterLink v-if="to" :to="to" custom v-slot="{ href: routerHref, navigate }">
+    <a
+      :href="routerHref"
+      :target="target || undefined"
+      :rel="rel || undefined"
+      :tabindex="disabled || loading ? -1 : undefined"
+      v-bind="commonAttrs"
+      @click="onRouterLinkClick($event, navigate)"
+    >
+      <Transition name="btn-spin">
+        <span
+          v-if="loading"
+          :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']"
+          aria-hidden="true"
+        />
+      </Transition>
+      <span
+        v-if="!loading && typeof icon === 'string'"
+        :class="[icon, 'text-[1.15em]']"
+        aria-hidden="true"
+      />
+      <slot />
+    </a>
+  </RouterLink>
+
+  <a
+    v-else-if="href"
+    :href="href"
     :target="target || undefined"
     :rel="rel || undefined"
-    :type="!isLink ? type : undefined"
+    :tabindex="disabled || loading ? -1 : undefined"
+    v-bind="commonAttrs"
+    @click="onClick"
+  >
+    <Transition name="btn-spin">
+      <span
+        v-if="loading"
+        :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']"
+        aria-hidden="true"
+      />
+    </Transition>
+    <span
+      v-if="!loading && typeof icon === 'string'"
+      :class="[icon, 'text-[1.15em]']"
+      aria-hidden="true"
+    />
+    <slot />
+  </a>
+
+  <component
+    v-else
+    :is="provider === 'vuetify0' ? Button.Root : 'button'"
+    :as="provider === 'vuetify0' ? AsButton : undefined"
+    :type="provider === 'vuetify0' ? undefined : type"
     :value="provider === 'vuetify0' ? value : undefined"
-    :disabled="!isLink ? disabled || undefined : undefined"
-    :tabindex="isLink && (disabled || loading) ? -1 : undefined"
-    :class="classes"
-    :aria-disabled="disabled || loading || undefined"
-    :aria-busy="loading || undefined"
-    :aria-pressed="buttonGroup ? isActive : undefined"
-    :aria-label="ariaLabel || undefined"
-    data-ui="button"
-    :data-provider="provider"
+    :disabled="disabled || undefined"
+    v-bind="commonAttrs"
     @click="onClick"
   >
     <Transition name="btn-spin">
