@@ -56,7 +56,9 @@ export function createDemoUser(overrides: Partial<DemoUser> = {}): DemoUser {
 }
 
 export async function logInAsDemoAdmin(page: Page): Promise<void> {
+  await seedDemoUsers(page, [createDemoUser()])
   await page.goto('/auth/login', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('#email')).toBeVisible({ timeout: 10_000 })
   await page.locator('#email').fill(DEMO_ADMIN_EMAIL)
   await page.locator('#password').fill(DEMO_PASSWORD)
   await page.getByRole('button', { name: /^sign in$/i }).click()

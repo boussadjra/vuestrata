@@ -9,7 +9,26 @@ import { applyAuthHeaders, handleTokenRefresh, notifySessionExpired } from './au
 export { installApiAuth, resetAuthInterceptor } from './auth-interceptor'
 export type { ApiAuthProvider } from './types'
 type ApiRequestOptions = Omit<FetchOptions<'json'>, 'method' | 'body'>
-const baseURL = import.meta.env.VUESTRATA_API_URL || '/api'
+// import.meta.env.VUESTRATA_API_URL may be a relative path like '/api'.
+// In Node (tests) a relative base breaks URL resolution inside ofetch
+// (new URL requires an absolute base). Normalize to an absolute URL
+// using the current origin in browser environments or fallback to
+// http://localhost during tests/Node.
+const _rawBaseURL = import.meta.env.VUESTRATA_API_URL || '/api'
+const baseURL = ((): string => {
+  try {
+    if (typeof _rawBaseURL !== 'string') return String(_rawBaseURL)
+    if (!_rawBaseURL.startsWith('/')) return _rawBaseURL
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost'
+    return `${origin.replace(/\/+$/, '')}${_rawBaseURL}`
+  } catch {
+    // Fallback to raw value if anything unexpected happens.
+    return String(_rawBaseURL)
+  }
+})()
 const apiLogger = createScopedLogger('api')
 
 /**

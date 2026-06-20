@@ -42,12 +42,12 @@ describe('mock auth adapter contract', () => {
   it('should use the mock adapter for credentials login, magic link request, and logout-capable flows', async () => {
     vi.resetModules()
     vi.doMock('~/lib/api/client', () => ({
-      apiFetch: vi.fn(async (url: string, options?: { body?: any }) => {
+      apiFetch: vi.fn(async (url: string, options?: { body?: { email?: string } }) => {
         if (url === '/auth/login') {
           return {
             user: {
               id: '1',
-              email: options?.body.email,
+              email: options?.body?.email,
               name: 'Demo Admin',
               role: 'admin',
             },
@@ -58,7 +58,7 @@ describe('mock auth adapter contract', () => {
         }
 
         if (url === '/auth/magic-link') {
-          return { message: `Magic link sent to ${options?.body.email}` }
+          return { message: `Magic link sent to ${options?.body?.email}` }
         }
 
         if (url === '/auth/logout') {

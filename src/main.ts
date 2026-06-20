@@ -1,3 +1,5 @@
+import { configure as configureFormwerk } from '@formwerk/core'
+
 import { authAdapter as configuredAuthAdapter } from '@/config/app.config'
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
 // Utilities & error handling
@@ -14,7 +16,7 @@ import { pinia } from '@/plugins/pinia'
 import { router, layoutMap } from '@/plugins/router'
 import { VueQueryPlugin, vueQueryOptions } from '@/plugins/vue-query'
 import { onInvalidation } from '@/state/demo-storage'
-import { getDemoSession } from '@/state/demo-store'
+import { ensureDefaultDemoUsers, getDemoSession } from '@/state/demo-store'
 import { installRuntimeBackends } from '@/state/runtime-backends'
 // Stores
 import { useAuthStore } from '@/stores/auth'
@@ -29,6 +31,11 @@ import '@/styles/app.css'
 // first paint already matches the user's preferences (no FOUC). After mount,
 // `useThemeSync` (in App.vue) keeps the same DOM in sync with the store.
 bootstrapTheme()
+
+// Vuestrata relies on app/schema validation rather than browser-native HTML
+// validation messages. Disabling Formwerk's HTML validation integration
+// removes browser-locale warning noise and keeps feedback consistent.
+configureFormwerk({ disableHtmlValidation: true })
 
 // ─── Bootstrap helpers ────────────────────────────────────────────────────────
 
@@ -133,6 +140,7 @@ function removeAppLoader(): void {
   }
 
   loader.style.opacity = '0'
+  loader.style.pointerEvents = 'none'
   // { once: true } prevents a listener leak when the transition never fires.
   loader.addEventListener('transitionend', () => loader.remove(), { once: true })
   // Belt-and-suspenders: remove after the longest plausible transition time.
@@ -174,6 +182,10 @@ async function bootstrap() {
   // Register plugins that module setup depends on.
   app.use(VueQueryPlugin, vueQueryOptions)
   installI18n(app)
+
+  if (configuredAuthAdapter === 'mock') {
+    await ensureDefaultDemoUsers()
+  }
 
   await restoreSession(authStore)
 

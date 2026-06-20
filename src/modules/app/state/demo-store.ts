@@ -11,8 +11,49 @@ export type DemoSession = {
   expiresIn: number
 }
 
+export const DEFAULT_DEMO_PERMISSIONS = [
+  'users:read',
+  'users:create',
+  'users:update',
+  'users:delete',
+  'roles:read',
+  'roles:assign',
+  'billing:read',
+  'billing:manage',
+  'dashboard:read',
+  'dashboard:export',
+  'settings:read',
+  'settings:update',
+  'reports:read',
+  'reports:create',
+  'reports:export',
+  'audit:read',
+] as const
+
+export const DEFAULT_DEMO_USERS: User[] = [
+  {
+    id: '1',
+    email: 'demo@vuestrata.dev',
+    name: 'Demo Admin',
+    role: 'super_admin',
+    permissions: [...DEFAULT_DEMO_PERMISSIONS],
+    emailVerified: true,
+    mfaEnabled: false,
+    provider: 'credentials',
+    createdAt: new Date(0).toISOString(),
+    lastLoginAt: new Date(0).toISOString(),
+  },
+]
+
 export async function getDemoUsers(): Promise<User[]> {
   return (await readEnvelope<User[]>('users', 'list')) ?? []
+}
+
+export async function ensureDefaultDemoUsers(): Promise<User[]> {
+  const users = await getDemoUsers()
+  if (users.length > 0) return users
+  await setDemoUsers(DEFAULT_DEMO_USERS)
+  return DEFAULT_DEMO_USERS
 }
 
 export async function setDemoUsers(users: User[]): Promise<void> {

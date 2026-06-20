@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from 'msw'
 
 import { createMockJwt, isValidToken } from '@/mocks/utils'
 import { useDemoAuthBackend } from '@/state/demo-auth-backend'
+import { ensureDefaultDemoUsers } from '@/state/demo-store'
 import type { AuthCredentials, User } from '~/types'
 
 function tokensFor(user: User) {
@@ -21,9 +22,9 @@ function tokensFor(user: User) {
 export const authMockHandlers = [
   http.post('*/auth/login', async ({ request }) => {
     await delay(300)
-    const { getDemoUsers, setDemoSession } = useDemoAuthBackend()
+    const { setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as AuthCredentials
-    const users = await getDemoUsers()
+    const users = await ensureDefaultDemoUsers()
     const matchedUser = users.find((u) => u.email === body.email)
     if (matchedUser && body.password) {
       if (matchedUser.mfaEnabled) {
@@ -48,9 +49,9 @@ export const authMockHandlers = [
 
   http.post('*/auth/register', async ({ request }) => {
     await delay(300)
-    const { getDemoUsers, setDemoUsers, setDemoSession } = useDemoAuthBackend()
+    const { setDemoUsers, setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as AuthCredentials & { name: string }
-    const users = await getDemoUsers()
+    const users = await ensureDefaultDemoUsers()
     const newUser: User = {
       id: crypto.randomUUID(),
       email: body.email,
@@ -74,8 +75,8 @@ export const authMockHandlers = [
 
   http.post('*/auth/magic-link/verify', async () => {
     await delay(300)
-    const { getDemoUsers, setDemoSession } = useDemoAuthBackend()
-    const users = await getDemoUsers()
+    const { setDemoSession } = useDemoAuthBackend()
+    const users = await ensureDefaultDemoUsers()
     const user = users[0]!
     const tokens = tokensFor(user)
     await setDemoSession({ user, ...tokens })
@@ -98,10 +99,10 @@ export const authMockHandlers = [
 
   http.post('*/auth/mfa/verify', async ({ request }) => {
     await delay(300)
-    const { getDemoUsers, setDemoSession } = useDemoAuthBackend()
+    const { setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as { mfaToken: string; code: string }
     if (body.code === '000000' || body.code?.length === 6) {
-      const users = await getDemoUsers()
+      const users = await ensureDefaultDemoUsers()
       const user = { ...users[0]!, mfaEnabled: true }
       const tokens = tokensFor(user)
       await setDemoSession({ user, ...tokens })
@@ -157,10 +158,10 @@ export const authMockHandlers = [
   // ── OAuth token exchange ─────────────────────────────────
   http.post('*/auth/token', async ({ request }) => {
     await delay(300)
-    const { getDemoUsers, setDemoSession } = useDemoAuthBackend()
+    const { setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as Record<string, string>
     const code = body['code'] ?? ''
-    const users = await getDemoUsers()
+    const users = await ensureDefaultDemoUsers()
 
     // Deterministic mock code: demo-oauth-code-<provider>
     const providerMatch = code.match(/^demo-oauth-code-(.+)$/)
