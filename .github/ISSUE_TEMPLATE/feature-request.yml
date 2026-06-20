@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a new capability or template improvement.
+title: 'feat: '
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or maintainer problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the shape of the feature or improvement.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: docs
+    attributes:
+      label: Docs impact
+      description: Which README/docs pages would need updates?

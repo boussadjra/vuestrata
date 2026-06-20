@@ -7,7 +7,7 @@ A modern, production-ready Vue 3 template with multi-theme support, adapter-base
 ## Features
 
 - **Vue 3.5+** with `<script setup>` and Composition API
-- **TypeScript 5.7+** in strict mode
+- **TypeScript 6.0+** in strict mode
 - **Tailwind CSS v4** with CSS-first configuration
 - **Multi-theme system** — 10 built-in themes (Default, Blueprint, Brutalist, Febin, Forest, Ghibli, Ocean, Rose, Sunset, Terminal) + dark mode
 - **Adapter-based UI architecture** — Swap between Reka UI and Vuetify 0 at runtime
@@ -32,7 +32,7 @@ vp install
 # Start dev server (with MSW mocks)
 vp dev
 
-# Type check
+# Project checks (format, lint, typecheck)
 vp check
 
 # Lint
@@ -72,7 +72,7 @@ src/
 │   │   ├── assets/         # Static assets (fonts, images)
 │   │   ├── components/
 │   │   │   ├── layout/     # AppHeader, AppSidebar, AppFooter
-│   │   │   └── ui/         # 60+ adapter-driven UI components
+│   │   │   └── ui/         # Adapter-driven UI components
 │   │   │       ├── Ui*.vue # Consumer-facing adapter wrappers
 │   │   │       ├── base/   # Shared base composables (Formwerk integration)
 │   │   │       └── provider/
@@ -87,6 +87,7 @@ src/
 │   │   ├── stores/         # Pinia stores (auth, app, notification)
 │   │   ├── styles/         # Tailwind CSS entry + themes
 │   │   └── types/          # App-level TypeScript types
+│   ├── analytics/          # Dashboard, audit log, and charts module
 │   ├── auth/               # Auth feature module (login/register/callback pages, useAuth, PKCE)
 │   ├── core/
 │   │   └── lib/            # Framework-agnostic utilities
@@ -97,6 +98,7 @@ src/
 │   │       ├── rbac/       # RBAC engine
 │   │       └── validation/ # Multi-adapter validation (Zod, Valibot, Yup, ArkType)
 │   ├── billing/            # Billing module (TanStack Query pattern)
+│   ├── showcase/           # Forms and data-table demo module
 │   ├── users/              # Users module (TanStack Query pattern)
 │   └── settings/           # Settings module (Pinia pattern)
 ├── App.vue                 # Root component
@@ -105,16 +107,11 @@ src/
 
 ## Theme System
 
-Switch between 4 themes + dark mode:
+Vuestrata ships with 10 built-in themes plus dark mode:
 
-| Theme         | Description                                  |
-| ------------- | -------------------------------------------- |
-| Default       | Clean, modern design with subtle shadows     |
-| Brutalist     | Bold borders, monospace fonts, raw aesthetic |
-| Glassmorphism | Frosted glass effects with backdrop blur     |
-| Neumorphism   | Soft shadows, embossed/debossed elements     |
+`default`, `blueprint`, `brutalist`, `febin`, `forest`, `ghibli`, `ocean`, `rose`, `sunset`, and `terminal`.
 
-Themes are applied via CSS classes on `<html>` and managed through the `useTheme()` composable.
+Themes are registered in `src/modules/app/config/theme.config.ts`, applied as `theme-*` classes on `<html>`, and managed through `useTheme()` with first-paint syncing handled by `bootstrapTheme()`.
 
 ## Adapter UI System
 
@@ -141,7 +138,7 @@ The auth system uses a pluggable adapter pattern:
 ```ts
 import { useAuth } from '@/modules/auth'
 
-const { login, register, logout, loading, error } = useAuth()
+const { login, register, logout, isLoading, error } = useAuth()
 await login({ email: 'demo@vuestrata.dev', password: 'password' })
 ```
 
@@ -161,7 +158,7 @@ Adapter maturity:
 
 ## Environment Variables
 
-All prefixed with `VUESTRATA_`. See `.env.example` for all options.
+Runtime env keys use the `VUESTRATA_` prefix, and demo-session retention uses `VITE_VUESTRATA_DEMO_AUTH_RETENTION_HOURS`. See `.env.example` for the current set.
 
 ## Docker
 
@@ -173,6 +170,64 @@ vp run docker:run
 # Or with docker-compose
 docker compose up -d
 ```
+
+The container build bootstraps the global `vp` CLI once, then uses `vp install --frozen-lockfile`
+and `vp build` so the Docker path matches the repo's normal toolchain.
+
+## Release and Versioning
+
+Vuestrata now uses explicit SemVer scripts, including prerelease channels.
+
+```bash
+# Show current version
+vp run version:show
+
+# Stable bumps
+vp run version:patch
+vp run version:minor
+vp run version:major
+
+# Start prerelease trains
+vp run version:prepatch
+vp run version:preminor
+vp run version:premajor
+
+# Continue an existing prerelease
+vp run version:prerelease
+vp run version:prerelease:beta
+vp run version:prerelease:rc
+
+# Explicit prerelease id override
+vp run version:prerelease -- --preid beta
+```
+
+Tag releases as `v<version>`; tags with a prerelease suffix such as `v2.1.0-beta.0` are treated
+as GitHub prereleases by the release workflow. See `RELEASE.md` for the full release checklist.
+
+## Publish Checklist
+
+Before publishing a new template version:
+
+```bash
+vp check
+vp test --run
+vp run test:e2e
+vp run docker:build
+```
+
+Then:
+
+1. Update `CHANGELOG.md`.
+2. Bump the version with one of the `vp run version:*` scripts.
+3. Tag the release as `v<version>`.
+4. Push the tag so the GitHub release workflow can publish the artifact.
+
+## Community
+
+- Contributor guide: `CONTRIBUTING.md`
+- Security policy: `SECURITY.md`
+- Code of conduct: `CODE_OF_CONDUCT.md`
+- Changelog and release process: `CHANGELOG.md`, `RELEASE.md`
 
 ## License
 
@@ -187,7 +242,7 @@ MIT
 If you prefer to do it manually with the cleaner git history
 
 ```bash
-npx degit boussadjra/vuestrata my-app
+vp dlx degit boussadjra/vuestrata my-app
 cd my-app
 vp install
 ```

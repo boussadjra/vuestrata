@@ -1,17 +1,19 @@
 # Stage 1: Build
-FROM node:20.14-slim AS build
+FROM node:22-slim AS build
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm@10.33.0 vite-plus@0.1.16 @voidzero-dev/vite-plus-linux-x64-gnu@0.1.16
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN node -e "const fs=require('fs');const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));delete pkg.scripts?.prepare;fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)+'\n');"
+RUN vp install --frozen-lockfile
 
 COPY . .
-RUN pnpm build
+RUN vp build
 
 # Stage 2: Serve
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
