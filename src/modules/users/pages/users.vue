@@ -153,10 +153,10 @@ function permLabel(perm: string): string {
   return t(`perm_${perm.replace(':', '_')}`)
 }
 
-function onPageSizeChange(event: Event) {
+function setPageSize(value: number | string) {
   pagination.value = {
     ...pagination.value,
-    pageSize: Number((event.target as HTMLSelectElement).value),
+    pageSize: Number(value),
     pageIndex: 0,
   }
 }
@@ -358,7 +358,7 @@ function onPageSizeChange(event: Event) {
             :model-value="pagination.pageSize"
             :options="[5, 10, 20, 50].map((s) => ({ value: s, label: String(s) }))"
             size="sm"
-            @update:model-value="(v) => onPageSizeChange({ target: { value: v } } as any)"
+            @update:model-value="setPageSize"
           />
         </div>
         <div class="flex items-center gap-2">

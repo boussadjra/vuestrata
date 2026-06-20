@@ -7,51 +7,13 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
-import { createI18n } from 'vue-i18n'
 import { createRouter, createMemoryHistory } from 'vue-router'
 
-import UsersPage from '@/modules/users/pages/users.vue'
+// UsersPage import moved below so we can mock its child composables first.
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
 
 // Minimal i18n for t() calls used in the template
-const i18n = createI18n({
-  legacy: false,
-  locale: 'en',
-  messages: {
-    en: {
-      users_title: 'Users',
-      users_subtitle: 'Manage team members',
-      users_invite: 'Invite',
-      users_search: 'Search',
-      users_total: 'total',
-      users_loading: 'Loading…',
-      users_col_name: 'Name',
-      users_col_email: 'Email',
-      users_col_role: 'Role',
-      users_col_provider: 'Provider',
-      users_col_verified: 'Verified',
-      users_col_last_login: 'Last Login',
-      users_col_actions: 'Actions',
-      users_col_permission: 'Permission',
-      users_change_role: 'Change Role',
-      users_role_updated: 'Role updated',
-      users_role_update_failed: 'Update failed',
-      users_permissions: 'Permissions',
-      users_permissions_desc: 'Permissions matrix',
-      common_yes: 'Yes',
-      common_no: 'No',
-      common_selected: 'selected',
-      common_page_of: '{current}/{total}',
-      common_rows_per_page: 'Rows',
-      common_previous: 'Previous',
-      common_next: 'Next',
-      common_error: 'Error',
-      button_save: 'Save',
-      button_cancel: 'Cancel',
-    },
-  },
-})
 
 const mockSuperAdmin: User = {
   id: 'u-admin',
@@ -124,6 +86,27 @@ vi.mock('~/modules/users', async (importOriginal) => {
   }
 })
 
+// Mock composables used directly by child components (InviteUserDialog, UserPermissionsPanel)
+vi.mock('~/modules/users/composables/useInviteUserMutation', () => ({
+  useInviteUserMutation: () => ({
+    inviteUser: vi.fn().mockResolvedValue({}),
+    isPending: computed(() => false),
+    error: computed(() => null),
+    reset: vi.fn(),
+  }),
+}))
+
+vi.mock('~/modules/users/composables/useUpdatePermissionsMutation', () => ({
+  useUpdatePermissionsMutation: () => ({
+    updatePermissions: vi.fn().mockResolvedValue({}),
+    isPending: computed(() => false),
+    error: computed(() => null),
+    reset: vi.fn(),
+  }),
+}))
+
+import UsersPage from '@/modules/users/pages/users.vue'
+
 function mountPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const router = createRouter({
@@ -138,7 +121,7 @@ function mountPage() {
 
   return mount(UsersPage, {
     global: {
-      plugins: [[VueQueryPlugin, { queryClient }], router, i18n, pinia],
+      plugins: [[VueQueryPlugin, { queryClient }], router, pinia],
     },
   })
 }

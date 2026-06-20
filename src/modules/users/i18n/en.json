@@ -20,6 +20,8 @@
   "users_col_role": "Role",
   "users_col_joined": "Joined",
   "users_col_actions": "Actions",
+  "users_permissions": "Permissions",
+  "perm_users_manage": "Manage Users",
   "users_empty": "No team members found",
   "users_empty_search": "No results for \"{query}\"",
   "users_permissions_title": "Permissions",

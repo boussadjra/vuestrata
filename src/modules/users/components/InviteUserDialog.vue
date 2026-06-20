@@ -21,6 +21,13 @@ const roleOptions = Object.values(ROLE_DEFINITIONS)
   .filter((r) => r.name !== 'guest')
   .map((r) => ({ value: r.name as Role, label: r.label }))
 
+function readInputValue(event: Event | undefined, selector: string, fallback = ''): string {
+  const formElement = event?.currentTarget
+  if (!(formElement instanceof HTMLFormElement)) return fallback
+  const input = formElement.querySelector<HTMLInputElement>(selector)
+  return input?.value ?? fallback
+}
+
 function validate(): boolean {
   fieldErrors.value = {}
   if (!email.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
@@ -32,7 +39,9 @@ function validate(): boolean {
   return Object.keys(fieldErrors.value).length === 0
 }
 
-async function submit() {
+async function submit(event: Event) {
+  email.value = readInputValue(event, '#invite-email', email.value)
+  name.value = readInputValue(event, '#invite-name', name.value)
   if (!validate()) return
   try {
     await inviteUser({ email: email.value, name: name.value.trim(), role: role.value })

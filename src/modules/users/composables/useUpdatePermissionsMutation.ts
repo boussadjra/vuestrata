@@ -13,13 +13,21 @@ export interface UpdatePermissionsPayload {
   permissions: Permission[]
 }
 
+interface UpdatePermissionsMutationTestGlobals {
+  __vuestrata_apiPatch?: typeof apiPatch
+}
+
 export function useUpdatePermissionsMutation() {
   const queryClient = useQueryClient()
+
+  // Allow tests to inject a mock implementation via `globalThis.__vuestrata_apiPatch`
+  const testGlobals = globalThis as typeof globalThis & UpdatePermissionsMutationTestGlobals
+  const _apiPatch = testGlobals.__vuestrata_apiPatch ?? apiPatch
 
   const mutation = useMutation({
     mutationKey: ['users', 'permissions'],
     mutationFn: ({ id, permissions }: UpdatePermissionsPayload) =>
-      apiPatch<User>(`/users/${id}/permissions`, { permissions }),
+      _apiPatch<User>(`/users/${id}/permissions`, { permissions }),
     onSuccess: (_user, { id }) => {
       void queryClient.invalidateQueries({ queryKey: usersModuleKeys.all })
       log.info('User permissions updated', { userId: id })

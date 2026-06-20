@@ -57,9 +57,20 @@ const user: User = {
   emailVerified: false,
 }
 
+interface UserMutationTestGlobals {
+  __vuestrata_apiPost?: typeof apiMocks.apiPost
+  __vuestrata_apiPatch?: typeof apiMocks.apiPatch
+}
+
 beforeEach(() => {
   apiMocks.apiPost.mockReset()
   apiMocks.apiPatch.mockReset()
+})
+
+beforeEach(() => {
+  const g = globalThis as typeof globalThis & UserMutationTestGlobals
+  g.__vuestrata_apiPost = apiMocks.apiPost
+  g.__vuestrata_apiPatch = apiMocks.apiPatch
 })
 
 describe('useInviteUserMutation', () => {
