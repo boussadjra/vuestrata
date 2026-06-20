@@ -79,7 +79,7 @@ const emptyCode = `<UiDataTable :table="emptyTable" empty-text="No records found
 const apiProps: ApiPropRow[] = [
   {
     name: 'table',
-    type: 'Table<any>',
+    type: 'Table<TData>',
     default: '—',
     description: 'TanStack Table instance from useDataTable()',
   },

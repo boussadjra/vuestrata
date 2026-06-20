@@ -1,8 +1,8 @@
-<script setup lang="ts">
-import { FlexRender, type Table } from '@tanstack/vue-table'
+<script setup lang="ts" generic="TData extends RowData">
+import { FlexRender, type RowData, type Table } from '@tanstack/vue-table'
 
 defineProps<{
-  table: Table<any>
+  table: Table<TData>
   emptyText?: string
 }>()
 </script>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { EChartsOption } from 'echarts'
 import { LineChart, PieChart, BarChart } from 'echarts/charts'
 import {
   GridComponent,
@@ -36,7 +37,7 @@ const { stats, isLoading: loading } = useDashboardStatsQuery()
 
 const themeLabel = computed(() => t('theme_default'))
 
-function makeSparkline(data: number[], color: string) {
+function makeSparkline(data: number[], color: string): EChartsOption {
   return {
     backgroundColor: 'transparent',
     animation: false,
@@ -85,7 +86,7 @@ const metricStrip = computed(() => {
   ]
 })
 
-const chartOptionsMain = computed(() => ({
+const chartOptionsMain = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'axis',
@@ -132,7 +133,7 @@ const chartOptionsMain = computed(() => ({
   ],
 }))
 
-const chartOptionsBars = computed(() => ({
+const chartOptionsBars = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...chart.tooltip.value },
   grid: { left: '2%', right: '3%', bottom: '1%', top: '15%', containLabel: true },
@@ -164,7 +165,7 @@ const chartOptionsBars = computed(() => ({
   ],
 }))
 
-const chartOptionsPie = computed(() => ({
+const chartOptionsPie = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: { trigger: 'item', ...chart.tooltip.value },
   legend: { top: '5%', left: 'center', ...chart.legend.value },

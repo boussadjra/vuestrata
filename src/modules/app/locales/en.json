@@ -173,6 +173,7 @@
   "dash_team_capacity": "Team Capacity",
   "dash_sprint": "Sprint",
   "dash_balanced_workload": "Balanced workload across squads with room to grow in Docs and Ops coverage.",
+  "dash_chart_options": "Chart options",
 
   "audit_title": "Audit Log",
   "audit_subtitle": "Track all system events, user actions, and security-related activity",

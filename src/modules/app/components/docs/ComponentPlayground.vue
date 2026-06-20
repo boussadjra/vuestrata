@@ -39,6 +39,24 @@ const boundProps = computed(() => {
   return result
 })
 
+function getStringValue(name: string): string {
+  const value = values[name]
+  return typeof value === 'string' ? value : ''
+}
+
+function setStringValue(name: string, value: string): void {
+  values[name] = value
+}
+
+function getNumberValue(name: string): number {
+  const value = values[name]
+  return typeof value === 'number' ? value : 0
+}
+
+function setNumberValue(name: string, value: number): void {
+  values[name] = value
+}
+
 function reset() {
   for (const def of props.propDefs) {
     values[def.name] =
@@ -89,14 +107,16 @@ function reset() {
 
           <UiTextField
             v-else-if="def.type === 'string'"
-            v-model="values[def.name]"
+            :model-value="getStringValue(def.name)"
+            @update:model-value="setStringValue(def.name, $event)"
             size="sm"
             class="w-full max-w-48"
           />
 
           <UiNumberField
             v-else-if="def.type === 'number'"
-            v-model="values[def.name]"
+            :model-value="getNumberValue(def.name)"
+            @update:model-value="setNumberValue(def.name, $event)"
             size="sm"
             class="w-24"
           />

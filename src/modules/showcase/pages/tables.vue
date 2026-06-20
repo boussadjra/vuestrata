@@ -231,6 +231,7 @@ const columns = [
     header: ({ table }) =>
       h('input', {
         type: 'checkbox',
+        'aria-label': 'Select all rows',
         checked: table.getIsAllPageRowsSelected(),
         onChange: (e: Event) =>
           table.toggleAllPageRowsSelected((e.target as HTMLInputElement).checked),
@@ -239,6 +240,7 @@ const columns = [
     cell: ({ row }) =>
       h('input', {
         type: 'checkbox',
+        'aria-label': `Select row ${row.original.name}`,
         checked: row.getIsSelected(),
         onChange: () => row.toggleSelected(),
         class: 'rounded border-surface-300 dark:border-surface-600 accent-primary-500',

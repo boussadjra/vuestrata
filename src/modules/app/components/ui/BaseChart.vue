@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import type { EChartsOption } from 'echarts'
 import VChart from 'vue-echarts'
 
 export interface BaseChartProps {
-  option: Record<string, any>
+  option: EChartsOption
   height?: string
   loading?: boolean
   title?: string

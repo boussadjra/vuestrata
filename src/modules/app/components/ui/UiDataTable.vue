@@ -1,10 +1,10 @@
-<script setup lang="ts">
-import type { Table } from '@tanstack/vue-table'
+<script setup lang="ts" generic="TData extends RowData">
+import type { RowData, Table } from '@tanstack/vue-table'
 
 import { resolveUiComponent } from '@/config/ui-provider'
 
 defineProps<{
-  table: Table<any>
+  table: Table<TData>
   emptyText?: string
 }>()
 

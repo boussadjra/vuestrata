@@ -1,5 +1,7 @@
 <script setup lang="ts">
-const option = {
+import type { EChartsOption } from 'echarts'
+
+const option: EChartsOption = {
   tooltip: { trigger: 'axis' },
   grid: { left: 24, right: 18, top: 24, bottom: 24, containLabel: true },
   xAxis: {

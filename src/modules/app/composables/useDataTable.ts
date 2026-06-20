@@ -31,7 +31,7 @@ export type {
 
 export interface UseDataTableOptions<T> {
   data: T[] | (() => T[])
-  columns: ColumnDef<T, any>[]
+  columns: ColumnDef<T, unknown>[]
   enableSorting?: boolean
   enableFiltering?: boolean
   enablePagination?: boolean

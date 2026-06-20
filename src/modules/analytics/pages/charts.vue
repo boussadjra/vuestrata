@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { EChartsOption } from 'echarts'
 import {
   LineChart,
   BarChart,
@@ -78,7 +79,7 @@ function tooltip(trigger: 'axis' | 'item' = 'axis') {
 }
 
 // === Area / Line ===
-const areaLine = computed(() => ({
+const areaLine = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: { ...tooltip(), axisPointer: { type: 'cross', label: { backgroundColor: '#64748b' } } },
   legend: { top: 0, textStyle: { color: textColor.value } },
@@ -166,7 +167,7 @@ const areaLine = computed(() => ({
 }))
 
 // === Stacked Bar ===
-const stackedBar = computed(() => ({
+const stackedBar = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: { ...tooltip(), axisPointer: { type: 'shadow' } },
   legend: { top: 0, textStyle: { color: textColor.value } },
@@ -217,7 +218,7 @@ const stackedBar = computed(() => ({
 }))
 
 // === Donut / Pie ===
-const donut = computed(() => ({
+const donut = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: tooltip('item'),
   legend: {
@@ -259,7 +260,7 @@ const donut = computed(() => ({
 }))
 
 // === Radar ===
-const radar = computed(() => ({
+const radar = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: tooltip('item'),
   legend: { top: 0, textStyle: { color: textColor.value } },
@@ -308,12 +309,14 @@ const radar = computed(() => ({
 }))
 
 // === Scatter ===
-const scatter = computed(() => ({
+const scatter = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     ...tooltip(),
-    formatter: (p: { value: number[] }) =>
-      `Price: $${p.value[0]}<br/>Sales: ${p.value[1]}<br/>Rating: ${p.value[2]}`,
+    formatter: (p) => {
+      const value = !Array.isArray(p) && Array.isArray(p.value) ? p.value : []
+      return `Price: $${value[0] ?? '—'}<br/>Sales: ${value[1] ?? '—'}<br/>Rating: ${value[2] ?? '—'}`
+    },
   },
   grid: { left: '3%', right: '5%', bottom: '5%', top: '8%', containLabel: true },
   xAxis: {
@@ -362,7 +365,7 @@ const scatter = computed(() => ({
 
 // === Gauge ===
 const gaugeValue = ref(73)
-const gauge = computed(() => ({
+const gauge = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   series: [
     {
@@ -394,7 +397,7 @@ const gauge = computed(() => ({
 }))
 
 // === Treemap ===
-const treemap = computed(() => ({
+const treemap = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: tooltip('item'),
   series: [
@@ -442,12 +445,17 @@ for (let d = 0; d < 7; d++) {
   }
 }
 
-const heatmap = computed(() => ({
+const heatmap = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     ...tooltip(),
-    formatter: (p: { value: number[] }) =>
-      `${days[p.value[1]!]} ${hours[p.value[0]!]}: ${p.value[2]} requests`,
+    formatter: (p) => {
+      const value = !Array.isArray(p) && Array.isArray(p.value) ? p.value : []
+      const hourIndex = typeof value[0] === 'number' ? value[0] : 0
+      const dayIndex = typeof value[1] === 'number' ? value[1] : 0
+      const requests = typeof value[2] === 'number' ? value[2] : 0
+      return `${days[dayIndex] ?? '—'} ${hours[hourIndex] ?? '—'}: ${requests} requests`
+    },
   },
   grid: { left: '10%', right: '6%', bottom: '12%', top: '4%' },
   xAxis: {
