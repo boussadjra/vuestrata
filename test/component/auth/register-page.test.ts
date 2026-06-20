@@ -3,7 +3,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { defineComponent, h, inject, provide, reactive } from 'vue'
 import type { PropType } from 'vue'
-import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import RegisterPage from '@/modules/auth/pages/register.vue'
@@ -25,34 +24,6 @@ vi.mock('~/modules/auth', () => {
       error: authRefs.error,
     }),
   }
-})
-
-const i18n = createI18n({
-  legacy: false,
-  locale: 'en',
-  messages: {
-    en: {
-      auth_register: 'Create account',
-      auth_register_subtitle: 'Create your account to get started',
-      auth_register_fail: 'Registration failed',
-      auth_has_account: 'Already have an account?',
-      auth_login: 'Sign in',
-      auth_name: 'Full name',
-      auth_name_placeholder: 'Enter your full name',
-      auth_email: 'Email',
-      auth_email_placeholder: 'Email address',
-      auth_password: 'Password',
-      auth_password_placeholder: 'Enter your password',
-      auth_confirm_password: 'Confirm password',
-      auth_confirm_password_placeholder: 'Re-enter your password',
-      auth_passwords_mismatch: 'Passwords do not match',
-      validation: {
-        required: '{field} is required',
-        email: 'Please enter a valid email address',
-        min_length: 'Must be at least {min} characters',
-      },
-    },
-  },
 })
 
 const REGISTER_FORM_VALUES_KEY = 'registerFormValues'
@@ -171,7 +142,7 @@ function mountRegisterPage() {
 
   return mount(RegisterPage, {
     global: {
-      plugins: [pinia, router, i18n],
+      plugins: [pinia, router],
       stubs: {
         Logo: true,
         UiAlert: UiAlertStub,

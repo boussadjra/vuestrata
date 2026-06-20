@@ -1,7 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
-import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import LoginPage from '@/modules/auth/pages/login.vue'
@@ -33,25 +32,6 @@ vi.mock('~/modules/auth', () => {
   }
 })
 
-const i18n = createI18n({
-  legacy: false,
-  locale: 'en',
-  messages: {
-    en: {
-      auth_login: 'Sign in',
-      auth_login_subtitle: 'Welcome back',
-      auth_email: 'Email',
-      auth_email_placeholder: 'email address',
-      auth_password: 'Password',
-      auth_password_placeholder: 'password',
-      auth_no_account: 'No account?',
-      auth_register: 'Register',
-      common_coming_soon: 'Coming soon',
-      auth_forgot_password_soon: 'Forgot password is coming soon',
-    },
-  },
-})
-
 function mountLoginPage() {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -65,7 +45,7 @@ function mountLoginPage() {
 
   return mount(LoginPage, {
     global: {
-      plugins: [pinia, router, i18n],
+      plugins: [pinia, router],
       stubs: { Logo: true },
     },
   })

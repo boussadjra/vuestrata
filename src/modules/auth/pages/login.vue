@@ -30,22 +30,39 @@ const form = ref({
 })
 const mfaCode = ref('')
 
-async function onSubmit() {
-  await login({ email: form.value.email, password: form.value.password })
+function readInputValue(event: Event | undefined, selector: string, fallback = ''): string {
+  const formElement = event?.currentTarget
+  if (!(formElement instanceof HTMLFormElement)) return fallback
+  const input = formElement.querySelector<HTMLInputElement>(selector)
+  return input?.value ?? fallback
+}
+
+async function onSubmit(event: Event) {
+  const email = readInputValue(event, '#email', form.value.email)
+  const password = readInputValue(event, '#password', form.value.password)
+
+  form.value.email = email
+  form.value.password = password
+
+  await login({ email, password })
   // Always wipe the password field after the attempt so a failed login does
   // not leave the credential lingering in the DOM (and out of the autocomplete
   // history) for the next user on a shared device.
   if (error.value) form.value.password = ''
 }
 
-async function onMagicLink() {
+async function onMagicLink(event: Event) {
   magicLinkSent.value = false
-  await sendMagicLink(form.value.email)
+  const email = readInputValue(event, '#magic-email', form.value.email)
+  form.value.email = email
+  await sendMagicLink(email)
   if (!error.value) magicLinkSent.value = true
 }
 
-async function onMfaSubmit() {
-  await verifyMfaCode(mfaCode.value)
+async function onMfaSubmit(event: Event) {
+  const code = readInputValue(event, '#mfa-code', mfaCode.value)
+  mfaCode.value = code
+  await verifyMfaCode(code)
 }
 
 function onForgotPassword() {
@@ -107,6 +124,7 @@ const socialProviders = computed(() => [
         <UiButton
           v-for="provider in socialProviders"
           :key="provider.id"
+          :id="provider.id"
           variant="ghost"
           block
           class="border-surface-200 bg-surface-50 text-surface-700 hover:text-surface-900 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200 dark:hover:text-surface-50 justify-start border shadow-none"

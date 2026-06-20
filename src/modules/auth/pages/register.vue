@@ -85,9 +85,7 @@ async function onSubmit(values: Record<string, unknown>) {
           </p>
         </div>
 
-        <span
-          class="border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-950 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border shadow-(--shadow-soft)"
-        >
+        <span class="flex h-14 w-14 shrink-0 items-center justify-center">
           <Logo class="h-9 w-auto" />
         </span>
       </div>
@@ -95,6 +93,7 @@ async function onSubmit(values: Record<string, unknown>) {
       <UiForm
         class="space-y-5"
         :schema="registerSchema"
+        disableHtmlValidation
         :initial-values="registerInitialValues"
         @submit="onSubmit"
       >
