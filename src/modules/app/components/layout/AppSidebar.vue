@@ -15,10 +15,47 @@ const appStore = useAppStore()
 const route = useRoute()
 const { can } = useRbac()
 const moduleStore = useModuleStore()
+const isMobileViewport = ref(false)
+
+function syncViewportState() {
+  if (typeof window === 'undefined') return
+  isMobileViewport.value = window.innerWidth < 1024
+}
+
+const isSidebarOpen = computed(() =>
+  isMobileViewport.value ? appStore.mobileSidebarOpen : !appStore.sidebarCollapsed,
+)
 
 const navItems: (SidebarItem & { iconName: IconName })[] = [
   { label: 'sidebar_components', icon: '', iconName: 'widget', to: '/docs/components/overview' },
 ]
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (isMobileViewport.value) {
+      appStore.closeSidebar()
+    }
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  syncViewportState()
+  window.addEventListener('resize', syncViewportState)
+})
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('resize', syncViewportState)
+})
+
+function closeSidebarAfterNavigation() {
+  if (isMobileViewport.value) {
+    appStore.closeSidebar()
+  }
+}
 
 function isVisible(item: SidebarItem): boolean {
   if (!item.permission) return true
@@ -39,10 +76,10 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
       'fixed inset-y-0 inset-s-0 z-40 flex flex-col border-e',
       'border-surface-200/70 bg-surface-50/88 dark:border-surface-800/70 dark:bg-surface-950/84 backdrop-blur-xl',
       'transition-[width,transform,background-color,border-color] duration-300',
-      appStore.sidebarCollapsed ? 'w-[4.5rem]' : 'w-72',
+      isMobileViewport ? 'w-72' : appStore.sidebarCollapsed ? 'w-[4.5rem]' : 'w-72',
       'max-lg:data-[open=true]:translate-x-0 max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
     ]"
-    :data-open="!appStore.sidebarCollapsed"
+    :data-open="isSidebarOpen"
   >
     <!-- Sidebar header -->
     <div
@@ -117,6 +154,7 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
               'focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
             ]"
             active-class="!bg-primary-50/90 dark:!bg-primary-950/36 !text-primary-700 dark:!text-primary-300 shadow-[var(--shadow-soft)]"
+            @click="closeSidebarAfterNavigation"
           >
             <span
               :class="[
@@ -150,6 +188,7 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
               'focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
             ]"
             active-class="!bg-primary-50/90 dark:!bg-primary-950/36 !text-primary-700 dark:!text-primary-300 shadow-[var(--shadow-soft)]"
+            @click="closeSidebarAfterNavigation"
           >
             <span
               :class="[
@@ -174,9 +213,9 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
     leave-to-class="opacity-0"
   >
     <div
-      v-if="!appStore.sidebarCollapsed"
+      v-if="isMobileViewport && isSidebarOpen"
       class="bg-surface-950/45 fixed inset-0 z-30 backdrop-blur-[2px] lg:hidden"
-      @click="appStore.toggleSidebar()"
+      @click="appStore.closeSidebar()"
     />
   </Transition>
 </template>

@@ -5,6 +5,13 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
+
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  if (window.matchMedia('(max-width: 1023px)').matches) {
+    appStore.closeSidebar()
+  }
+})
 </script>
 
 <template>

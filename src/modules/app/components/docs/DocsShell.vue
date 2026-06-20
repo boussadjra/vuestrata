@@ -66,7 +66,7 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
   '/docs/5.components/1.overview.md': {
     title: 'Components',
     navTitle: 'Overview',
-    description: 'Overview of the 55+ adapter-based UI components.',
+    description: 'Overview of the adapter-based UI components.',
   },
   '/docs/5.components/2.provider-architecture.md': {
     title: 'Provider Architecture',

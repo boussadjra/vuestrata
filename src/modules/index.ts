@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Router } from 'vue-router'
+import type { RouteComponent, Router } from 'vue-router'
 
 import { createJsonSerializer, useAppStorage } from '~/composables/useAppStorage'
 import { createScopedLogger } from '~/lib/logger'
@@ -305,7 +305,7 @@ export const useModuleStore = defineStore('modules', () => {
 export async function setupModules(
   router: Router,
   definitions: ModuleDefinition[],
-  layoutMap: Record<string, Component>,
+  layoutMap: Record<string, RouteComponent>,
 ): Promise<void> {
   const store = useModuleStore()
   await store.initModules(definitions)

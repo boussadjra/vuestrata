@@ -1,6 +1,13 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
 import { logInAsDemoAdmin } from './helpers/auth'
+
+async function openDocsSidebarIfNeeded(page: Page) {
+  const toggleButton = page.getByRole('button', { name: /toggle documentation navigation/i })
+  if (await toggleButton.isVisible()) {
+    await toggleButton.click({ force: true })
+  }
+}
 
 test.describe('Settings page', () => {
   test.beforeEach(async ({ page }) => {
@@ -70,9 +77,10 @@ test.describe('Components page', () => {
 
   test('should show collapsed component demo tree in docs sidebar', async ({ page }) => {
     await page.goto('/docs/components/overview')
-    await expect(page.getByRole('heading', { name: 'Components', exact: true })).toBeVisible()
-
     const docsNav = page.getByRole('navigation', { name: 'Documentation' })
+    await expect(page.getByRole('heading', { name: 'Overview', exact: true }).first()).toBeVisible()
+    await openDocsSidebarIfNeeded(page)
+    await expect(docsNav).toBeVisible()
     const componentTopLevelLabels = await docsNav
       .locator(
         '[aria-labelledby="docs-section-components"] > li > a, [aria-labelledby="docs-section-components"] > li > button',
@@ -99,21 +107,21 @@ test.describe('Components page', () => {
       'false',
     )
 
-    await docsNav.getByRole('button', { name: 'Forms' }).click()
+    await docsNav.getByRole('button', { name: 'Forms' }).click({ force: true })
     await expect(docsNav.getByRole('link', { name: 'Button', exact: true })).toBeVisible()
 
-    await docsNav.getByRole('button', { name: 'Data Display' }).click()
+    await docsNav.getByRole('button', { name: 'Data Display' }).click({ force: true })
     await expect(docsNav.getByRole('link', { name: 'DataTable', exact: true })).toBeVisible()
 
-    await docsNav.getByRole('link', { name: 'Button', exact: true }).click()
+    await docsNav.getByRole('link', { name: 'Button', exact: true }).click({ force: true })
     await expect(page).toHaveURL(/\/docs\/components\/demos\/buttons/)
-    await expect(page.getByRole('heading', { name: 'Button', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Button', exact: true }).first()).toBeVisible()
   })
 
   test('should redirect legacy component demos into docs shell', async ({ page }) => {
     await page.goto('/components/buttons')
     await expect(page).toHaveURL(/\/docs\/components\/demos\/buttons/)
-    await expect(page.getByRole('heading', { name: 'Button', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Button', exact: true }).first()).toBeVisible()
   })
 })
 

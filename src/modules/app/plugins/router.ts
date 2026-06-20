@@ -1,10 +1,17 @@
 import NProgress from 'nprogress'
 import { setupLayouts } from 'virtual:generated-layouts'
-import { defineAsyncComponent, type Component } from 'vue'
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory,
+  type RouteComponent,
+  type RouteRecordRaw,
+} from 'vue-router'
 import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
-import { resolveLegacyComponentsDocsPath } from '@/config/component-docs'
+import {
+  LEGACY_COMPONENT_DOC_ROUTE_ENTRIES,
+  resolveLegacyComponentsDocsPath,
+} from '@/config/component-docs'
 import DefaultLayout from '@/layouts/default.vue'
 import { useAuthStore } from '@/stores/auth'
 import { createScopedLogger } from '~/lib/logger'
@@ -21,10 +28,22 @@ import { pinia } from './pinia'
 
 const routerLogger = createScopedLogger('router')
 
+NProgress.configure({
+  showSpinner: false,
+  barSelector: '[data-role="bar"]',
+  spinnerSelector: '[data-role="spinner"]',
+  template: '<div class="bar" data-role="bar"><div class="peg"></div></div>',
+})
+
 function resolveStaticRoutes(fileRoutes: readonly RouteRecordRaw[]): RouteRecordRaw[] {
   return [
     // Compatibility redirect: /settings → /dashboard/settings
     { path: '/settings', redirect: '/dashboard/settings' },
+    ...LEGACY_COMPONENT_DOC_ROUTE_ENTRIES.map(({ path, target }) => ({ path, redirect: target })),
+    {
+      path: '/components/:slug(.*)*',
+      redirect: (to) => resolveLegacyComponentsDocsPath(to.path) ?? '/docs/components/overview',
+    },
     ...(setupLayouts([...fileRoutes]) as RouteRecordRaw[]),
   ]
 }
@@ -45,18 +64,6 @@ if (import.meta.hot) {
     }
   })
 }
-
-router.beforeEach((to) => {
-  const docsPath = resolveLegacyComponentsDocsPath(to.path)
-  if (!docsPath) return true
-
-  return {
-    path: docsPath,
-    query: to.query,
-    hash: to.hash,
-    replace: true,
-  }
-})
 
 router.beforeEach(() => {
   NProgress.start()
@@ -155,11 +162,11 @@ router.beforeEach((to) => {
  * the routing layer and never leaks into bootstrap or module infrastructure.
  *
  */
-export const layoutMap: Record<string, Component> = {
-  auth: defineAsyncComponent(() => import('@/layouts/auth.vue')),
-  blank: defineAsyncComponent(() => import('@/layouts/blank.vue')),
-  components: defineAsyncComponent(() => import('@/layouts/components.vue')),
+export const layoutMap: Record<string, RouteComponent> = {
+  auth: () => import('@/layouts/auth.vue'),
+  blank: () => import('@/layouts/blank.vue'),
+  components: () => import('@/layouts/components.vue'),
   default: DefaultLayout,
-  dashboard: defineAsyncComponent(() => import('@/layouts/dashboard.vue')),
-  docs: defineAsyncComponent(() => import('@/layouts/docs.vue')),
+  dashboard: () => import('@/layouts/dashboard.vue'),
+  docs: () => import('@/layouts/docs.vue'),
 }

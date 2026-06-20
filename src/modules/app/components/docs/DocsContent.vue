@@ -39,6 +39,11 @@ const emit = defineEmits<{ back: [] }>()
                 {{ doc.subsectionLabel || doc.subsection?.replace(/-/g, ' ') }}
               </span>
             </div>
+            <h1
+              class="text-surface-900 dark:text-surface-100 mt-3 text-3xl font-bold tracking-tight"
+            >
+              {{ doc.title }}
+            </h1>
             <p
               v-if="doc.description"
               class="text-surface-600 dark:text-surface-300 mt-3 max-w-3xl text-sm leading-6 sm:text-base"

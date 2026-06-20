@@ -234,6 +234,13 @@ const LEGACY_COMPONENT_DOC_REDIRECTS: Readonly<Record<string, string>> = {
   overview: COMPONENTS_DOCS_OVERVIEW_PATH,
 }
 
+export const LEGACY_COMPONENT_DOC_ROUTE_ENTRIES = Object.entries(
+  LEGACY_COMPONENT_DOC_REDIRECTS,
+).map(([legacySlug, target]) => ({
+  path: legacySlug ? `/components/${legacySlug}` : '/components',
+  target,
+}))
+
 export function resolveLegacyComponentsDocsPath(path: string): string | undefined {
   if (path !== '/components' && !path.startsWith('/components/')) return undefined
 

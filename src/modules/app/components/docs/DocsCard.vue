@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
+
 import type { IconName } from '@/types'
 
 defineProps<{
@@ -10,7 +12,7 @@ defineProps<{
 
 <template>
   <component
-    :is="to ? 'RouterLink' : 'div'"
+    :is="to ? RouterLink : 'div'"
     :to="to"
     :class="[
       'docs-card group border-surface-200/80 bg-surface-50/92 dark:border-surface-800 dark:bg-surface-900/88 block overflow-hidden rounded-[calc(var(--shape-radius)+0.125rem)] border p-6 no-underline! shadow-[var(--shadow-soft)] transition-[transform,box-shadow,border-color,background-color] duration-200',
