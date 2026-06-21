@@ -19,7 +19,6 @@ Object.defineProperty(window, 'matchMedia', {
 
 import Logo from '@/components/Logo.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
-import { resolveUiComponent } from '@/config/ui-provider'
 
 describe('AppIcon', () => {
   beforeEach(() => {
@@ -87,41 +86,5 @@ describe('Logo', () => {
   it('should apply custom className', () => {
     const wrapper = mount(Logo, { props: { className: 'my-custom-class' } })
     expect(wrapper.find('svg').classes()).toContain('my-custom-class')
-  })
-})
-
-describe('UiForm', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    localStorage.clear()
-  })
-
-  it('should resolve via the provider system', () => {
-    const resolved = resolveUiComponent('Form')
-    expect(resolved).toBeDefined()
-  })
-})
-
-describe('UiFormGroup', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    localStorage.clear()
-  })
-
-  it('should resolve via the provider system', () => {
-    const resolved = resolveUiComponent('FormGroup')
-    expect(resolved).toBeDefined()
-  })
-})
-
-describe('UiFormRepeater', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    localStorage.clear()
-  })
-
-  it('should resolve via the provider system', () => {
-    const resolved = resolveUiComponent('FormRepeater')
-    expect(resolved).toBeDefined()
   })
 })

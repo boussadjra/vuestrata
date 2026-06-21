@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { SteppedFormProps } from '@/components/ui/base'
+import BaseSteppedFormLayout from '@/components/ui/base/BaseSteppedFormLayout.vue'
 
-const UiSteppedForm = resolveUiComponent('SteppedForm')
+defineProps<SteppedFormProps>()
 </script>
 
 <template>
-  <component :is="UiSteppedForm" v-bind="$props">
-    <slot />
-  </component>
+  <BaseSteppedFormLayout v-bind="$props" provider="reka">
+    <template #default="slotProps">
+      <slot v-bind="slotProps" />
+    </template>
+  </BaseSteppedFormLayout>
 </template>

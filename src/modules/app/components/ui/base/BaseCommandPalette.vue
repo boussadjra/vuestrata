@@ -3,7 +3,7 @@ import { resolveIcon } from '~/config/icon-provider'
 import type { CommandItem } from '~/types'
 
 export interface BaseCommandPaletteProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   items: CommandItem[]
   modelValue?: string
   placeholder?: string
@@ -41,12 +41,12 @@ function selectItem(id: string) {
 
 <template>
   <div
-    class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 rounded-xl border bg-white p-3"
+    class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-900 border bg-white p-3"
     data-ui="command-palette"
     :data-provider="provider"
   >
     <div
-      class="border-surface-200 bg-surface-50 text-surface-700 focus-within:border-primary-400 focus-within:ring-primary-300/30 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:focus-within:border-primary-500 dark:focus-within:ring-primary-500/20 mb-3 flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors focus-within:ring-2"
+      class="shaped-border shaped-radius-sm border-surface-200 bg-surface-50 text-surface-700 focus-within:border-primary-400 focus-within:ring-primary-300/30 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:focus-within:border-primary-500 dark:focus-within:ring-primary-500/20 mb-3 flex items-center gap-2 border px-2.5 py-2 transition-colors focus-within:ring-2"
     >
       <span :class="[resolveIcon('search'), 'text-surface-500 h-4 w-4']" />
       <input
@@ -60,7 +60,7 @@ function selectItem(id: string) {
     <ul v-if="filtered.length" class="space-y-1">
       <li v-for="item in filtered" :key="item.id">
         <button
-          class="text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800/80 flex w-full items-start justify-between rounded-lg px-2.5 py-2 text-left transition-colors"
+          class="shaped-radius-sm text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800/80 flex w-full items-start justify-between px-2.5 py-2 text-left transition-colors"
           @click="selectItem(item.id)"
         >
           <span class="text-sm">{{ item.label }}</span>

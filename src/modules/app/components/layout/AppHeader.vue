@@ -112,7 +112,12 @@ const guestAction = computed(() => {
   <header
     class="app-header border-surface-200/70 bg-surface-50/78 dark:border-surface-800/70 dark:bg-surface-950/84 sticky top-0 z-30 border-b backdrop-blur-xl transition-colors"
   >
-    <div class="mx-auto flex h-16 w-full max-w-400 items-center justify-between gap-3 px-4 lg:px-6">
+    <div
+      :class="[
+        'flex h-16 w-full items-center justify-between gap-3 px-4 lg:px-6',
+        showBrand ? 'mx-auto max-w-400' : '',
+      ]"
+    >
       <div class="flex min-w-0 items-center gap-2.5">
         <UiButton
           v-if="isDashboardRoute"
@@ -120,19 +125,31 @@ const guestAction = computed(() => {
           size="md"
           icon
           aria-label="Toggle sidebar"
-          class="rounded-full lg:hidden"
+          class="lg:hidden"
           @click="appStore.toggleSidebar()"
         >
           <span :class="[resolveIcon('menu'), 'h-5 w-5']" />
         </UiButton>
 
+        <UiButton
+          v-if="isDashboardRoute"
+          variant="ghost"
+          size="md"
+          icon
+          class="hidden shrink-0 lg:inline-flex"
+          :aria-label="t('sidebar_toggle')"
+          @click="appStore.toggleSidebar()"
+        >
+          <span :class="[resolveIcon('sidebar'), 'h-4 w-4']" />
+        </UiButton>
+
         <RouterLink
           v-if="showBrand"
           to="/"
-          class="group focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 px- flex min-w-0 items-center gap-3 rounded-full py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          class="group focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex min-w-0 items-center gap-3 rounded-lg py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
-          <span class="me-2 flex h-10 w-10 items-center">
-            <Logo className="h-7 w-auto shrink-0" />
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center p-1">
+            <Logo className="h-6 w-auto shrink-0" />
           </span>
           <span class="hidden min-w-0 flex-col sm:flex">
             <span
@@ -161,9 +178,7 @@ const guestAction = computed(() => {
       </div>
 
       <div class="flex items-center gap-2">
-        <div
-          class="border-surface-200/80 bg-surface-50/86 dark:border-surface-700/70 dark:bg-surface-900/82 flex items-center gap-1 rounded-full border p-1 px-6 shadow-(--shadow-soft)"
-        >
+        <div class="flex items-center gap-1.5 sm:gap-2">
           <UiSelect
             class="min-w-35"
             v-model="currentLocale"
@@ -171,7 +186,7 @@ const guestAction = computed(() => {
             :aria-label="t('header_locale_label')"
           />
 
-          <UiButton to="/docs" variant="ghost" size="md" class="hidden rounded-full sm:inline-flex">
+          <UiButton to="/docs" variant="ghost" size="md" class="hidden sm:inline-flex">
             <span
               :class="[
                 resolveIcon('document'),
@@ -189,12 +204,7 @@ const guestAction = computed(() => {
             size="md"
             icon
             :aria-label="t('common_documentation')"
-            :class="[
-              'rounded-full sm:hidden',
-              isDocsRoute
-                ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/36 dark:text-primary-300 shadow-(--shadow-soft)'
-                : '',
-            ]"
+            :class="['sm:hidden', isDocsRoute ? 'text-primary-700 dark:text-primary-300' : '']"
           >
             <span
               :class="[
@@ -211,7 +221,6 @@ const guestAction = computed(() => {
             variant="ghost"
             size="md"
             icon
-            class="rounded-full"
             :aria-label="isDark ? t('common_switch_light_mode') : t('common_switch_dark_mode')"
             @click="toggleDark()"
           >
@@ -225,7 +234,6 @@ const guestAction = computed(() => {
               variant="ghost"
               size="md"
               icon
-              class="rounded-full"
               :aria-label="t('nav_settings')"
             >
               <span
@@ -237,19 +245,11 @@ const guestAction = computed(() => {
               variant="ghost"
               size="md"
               icon
-              class="rounded-full"
               :aria-label="t('sidebar_dashboard')"
             >
               <span :class="[resolveIcon('chart'), 'text-primary-500 h-5 w-5']" />
             </UiButton>
-            <UiButton
-              variant="ghost"
-              size="md"
-              icon
-              class="rounded-full"
-              :aria-label="t('auth_logout')"
-              @click="logout"
-            >
+            <UiButton variant="ghost" size="md" icon :aria-label="t('auth_logout')" @click="logout">
               <span
                 :class="[resolveIcon('logout'), 'text-surface-500 dark:text-surface-400 h-5 w-5']"
               />
@@ -260,7 +260,7 @@ const guestAction = computed(() => {
               :to="guestAction.to"
               :variant="guestAction.variant"
               size="sm"
-              :class="['rounded-full px-4', guestAction.className]"
+              :class="['px-4', guestAction.className]"
             >
               <span :class="[resolveIcon(guestAction.icon), 'h-4 w-4']" />
               {{ guestAction.label }}

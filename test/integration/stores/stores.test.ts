@@ -98,9 +98,7 @@ describe('App Store', () => {
     expect(store.sidebarCollapsed).toBe(false)
     expect(store.locale).toBe('en')
     expect(store.theme).toBe('default')
-    expect(store.uiProvider).toBe('reka')
     expect(store.iconProvider).toBe('solar')
-    expect(store.validationAdapter).toBe('zod')
   })
 
   it('should toggle sidebar', () => {
@@ -142,43 +140,12 @@ describe('App Store', () => {
     expect(store.locale).toBe('en')
   })
 
-  it('should switch uiProvider and persist to localStorage', async () => {
-    const store = useAppStore()
-    store.setUiProvider('vuetify0')
-    await nextTick()
-    expect(store.uiProvider).toBe('vuetify0')
-    expect(localStorage.getItem('vuestrata-ui-provider')).toBe('vuetify0')
-  })
-
   it('should switch iconProvider and persist to localStorage', async () => {
     const store = useAppStore()
     store.setIconProvider('lucide')
     await nextTick()
     expect(store.iconProvider).toBe('lucide')
     expect(localStorage.getItem('vuestrata-icon-provider')).toBe('lucide')
-  })
-
-  it('should switch validationAdapter and persist to localStorage', async () => {
-    const store = useAppStore()
-    store.setValidationAdapter('valibot')
-    await nextTick()
-    expect(store.validationAdapter).toBe('valibot')
-    expect(localStorage.getItem('vuestrata-validation-adapter')).toBe('valibot')
-  })
-
-  it('should restore valid uiProvider from localStorage', async () => {
-    localStorage.setItem('vuestrata-ui-provider', 'vuetify0')
-    const store = useAppStore()
-    await nextTick()
-    expect(store.uiProvider).toBe('vuetify0')
-  })
-
-  it('should fall back to default and overwrite unknown uiProvider in localStorage', async () => {
-    localStorage.setItem('vuestrata-ui-provider', 'unknown-lib')
-    const store = useAppStore()
-    await nextTick()
-    expect(store.uiProvider).toBe('reka')
-    expect(localStorage.getItem('vuestrata-ui-provider')).toBe('reka')
   })
 
   it('should fall back to default and overwrite unknown iconProvider in localStorage', async () => {
@@ -189,23 +156,11 @@ describe('App Store', () => {
     expect(localStorage.getItem('vuestrata-icon-provider')).toBe('solar')
   })
 
-  it('should fall back to default and overwrite unknown validationAdapter in localStorage', async () => {
-    localStorage.setItem('vuestrata-validation-adapter', 'badlib')
+  it('settings parity: store state is the single source for icon display', () => {
     const store = useAppStore()
-    await nextTick()
-    expect(store.validationAdapter).toBe('zod')
-    expect(localStorage.getItem('vuestrata-validation-adapter')).toBe('zod')
-  })
-
-  it('settings parity: store state is the single source for provider/adapter display', () => {
-    const store = useAppStore()
-    store.setUiProvider('vuetify0')
     store.setIconProvider('phosphor')
-    store.setValidationAdapter('yup')
     // Simulate what settings.vue reads for active-state highlighting
-    expect(store.uiProvider).toBe('vuetify0')
     expect(store.iconProvider).toBe('phosphor')
-    expect(store.validationAdapter).toBe('yup')
   })
 
   it('i18n locale should follow the app store locale', async () => {

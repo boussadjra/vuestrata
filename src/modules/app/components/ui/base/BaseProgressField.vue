@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 
 export interface BaseProgressProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   value?: number
   max?: number
   label?: string

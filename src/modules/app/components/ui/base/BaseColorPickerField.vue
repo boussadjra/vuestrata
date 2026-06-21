@@ -2,7 +2,7 @@
 import { useBaseColorPicker, type ColorPickerProps } from '@/components/ui/base'
 
 export interface BaseColorPickerFieldProps extends ColorPickerProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
 }
 
 const props = withDefaults(defineProps<BaseColorPickerFieldProps>(), {

@@ -3,7 +3,7 @@ import { resolveIcon } from '~/config/icon-provider'
 import { useNotificationStore } from '~/stores/notification'
 
 export interface BaseToastProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   title?: string
   message: string
   variant?: 'info' | 'success' | 'warning' | 'error'

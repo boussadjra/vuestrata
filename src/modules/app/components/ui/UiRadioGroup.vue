@@ -1,29 +1,10 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
-import type { BaseFieldProps } from '@/types'
+import type { RadioGroupProps } from '@/components/ui/base'
+import BaseRadioGroupField from '@/components/ui/base/BaseRadioGroupField.vue'
 
-export interface RadioOption {
-  label: string
-  value: string
-  disabled?: boolean
-  description?: string
-}
-
-export interface UiRadioGroupProps extends BaseFieldProps {
-  modelValue?: string
-  options: RadioOption[]
-  hint?: string
-  orientation?: 'vertical' | 'horizontal'
-}
-
-defineProps<UiRadioGroupProps>()
-defineEmits<{ 'update:modelValue': [value: string] }>()
-
-const UiRadioGroup = resolveUiComponent('RadioGroup')
+defineProps<RadioGroupProps>()
 </script>
 
 <template>
-  <component :is="UiRadioGroup" v-bind="$props">
-    <slot />
-  </component>
+  <BaseRadioGroupField v-bind="$props" provider="reka" />
 </template>

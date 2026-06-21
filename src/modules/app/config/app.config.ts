@@ -10,18 +10,9 @@ const configLogger = createScopedLogger('app-config')
 const VALID_AUTH_PROVIDERS = ['mock', 'jwt', 'oauth'] as const satisfies ReadonlyArray<
   AppConfig['authProvider']
 >
-const VALID_UI_PROVIDERS = ['reka', 'vuetify0'] as const satisfies ReadonlyArray<
-  AppConfig['uiProvider']
->
 const VALID_ICON_PROVIDERS = ['solar', 'lucide', 'phosphor'] as const satisfies ReadonlyArray<
   AppConfig['iconProvider']
 >
-const VALID_VALIDATION_ADAPTERS = [
-  'zod',
-  'valibot',
-  'yup',
-  'arktype',
-] as const satisfies ReadonlyArray<AppConfig['validationAdapter']>
 
 /**
  * Validate an env value against a fixed allowlist and fall back to a default
@@ -64,23 +55,11 @@ export const appConfig: AppConfig = {
   apiUrl: import.meta.env.VUESTRATA_API_URL || '/api',
   useMocks: import.meta.env.VUESTRATA_USE_MOCKS === 'true',
   authProvider: authAdapter,
-  uiProvider: pickEnum(
-    'VUESTRATA_UI_PROVIDER',
-    import.meta.env.VUESTRATA_UI_PROVIDER,
-    VALID_UI_PROVIDERS,
-    'reka',
-  ),
   iconProvider: pickEnum(
     'VUESTRATA_ICON_PROVIDER',
     import.meta.env.VUESTRATA_ICON_PROVIDER,
     VALID_ICON_PROVIDERS,
     'solar',
-  ),
-  validationAdapter: pickEnum(
-    'VUESTRATA_VALIDATION_ADAPTER',
-    import.meta.env.VUESTRATA_VALIDATION_ADAPTER,
-    VALID_VALIDATION_ADAPTERS,
-    'zod',
   ),
   demoAuth: {
     retentionHours: (() => {

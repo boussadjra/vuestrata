@@ -1,24 +1,19 @@
 import { getValidationCacheBackend } from '~/lib/runtime'
 import type { ValidationAdapter, ValidationAdapterName } from '~/types'
 
-/** Lazy adapter loaders — each returns a Promise that code-splits the adapter */
-const adapterLoaders: Record<ValidationAdapterName, () => Promise<ValidationAdapter>> = {
-  zod: () => import('./adapters/zod').then((m) => m.zodAdapter),
-  valibot: () => import('./adapters/valibot').then((m) => m.valibotAdapter),
-  yup: () => import('./adapters/yup').then((m) => m.yupAdapter),
-  arktype: () => import('./adapters/arktype').then((m) => m.arktypeAdapter),
-}
+const ZOD_ADAPTER_NAME: ValidationAdapterName = 'zod'
 
-/** Lazy-load a validation adapter by name */
-export async function createValidator(name: ValidationAdapterName): Promise<ValidationAdapter> {
+/** Lazy-load the repo's single supported validation adapter (Zod). */
+export async function createValidator(
+  _name: ValidationAdapterName = ZOD_ADAPTER_NAME,
+): Promise<ValidationAdapter> {
   const cache = getValidationCacheBackend<ValidationAdapter>()
-  const cached = cache.get(name)
+  const cached = cache.get(ZOD_ADAPTER_NAME)
   if (cached) return cached
 
-  const loader = adapterLoaders[name] ?? adapterLoaders.zod
-  const adapter = await loader()
+  const adapter = await import('./adapters/zod').then((m) => m.zodAdapter)
 
-  cache.set(name, adapter)
+  cache.set(ZOD_ADAPTER_NAME, adapter)
   return adapter
 }
 

@@ -3,18 +3,6 @@ import { describe, it, expect, vi } from 'vite-plus/test'
 import { useFormBuilder } from '@/composables/useFormBuilder'
 import type { FormFieldDefinition } from '~/types'
 
-// Mock the validation provider
-vi.mock('@/config/validation-provider', () => ({
-  useValidationProvider: () => ({
-    adapterName: { value: 'zod' },
-    setAdapter: vi.fn(),
-    getAdapter: vi.fn().mockResolvedValue({
-      validate: vi.fn().mockReturnValue({ success: true, data: {} }),
-      validateField: vi.fn().mockReturnValue(true),
-    }),
-  }),
-}))
-
 // Mock @formwerk/core — useForm context for unit tests without Vue component setup
 vi.mock('@formwerk/core', () => ({
   useForm: (opts: Record<string, unknown>) => {

@@ -140,7 +140,10 @@ const apiEvents: ApiEventRow[] = [
       <h2 class="text-xl font-semibold">Playground</h2>
       <ComponentPlayground :prop-defs="propDefs">
         <template #default="{ props: p }">
-          <UiToast v-bind="p" />
+          <UiToast
+            v-bind="p"
+            :message="typeof p.message === 'string' ? p.message : 'Saved successfully'"
+          />
         </template>
       </ComponentPlayground>
     </section>

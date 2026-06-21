@@ -1,20 +1,12 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
-import type { BaseFieldProps } from '@/types'
+import type { ToggleProps } from '@/components/ui/base'
+import BaseToggleField from '@/components/ui/base/BaseToggleField.vue'
 
-export interface UiToggleProps extends Omit<BaseFieldProps, 'size'> {
-  modelValue?: boolean
-  size?: 'sm' | 'md' | 'lg'
-}
-
-defineProps<UiToggleProps>()
-defineEmits<{ 'update:modelValue': [value: boolean] }>()
-
-const UiToggle = resolveUiComponent('Toggle')
+defineProps<ToggleProps>()
 </script>
 
 <template>
-  <component :is="UiToggle" v-bind="$props">
+  <BaseToggleField v-bind="$props" provider="reka">
     <slot />
-  </component>
+  </BaseToggleField>
 </template>

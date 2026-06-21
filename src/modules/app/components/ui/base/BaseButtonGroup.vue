@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { Button } from '@vuetify/v0'
-
 import type { ButtonGroupItemValue, ButtonGroupModelValue } from './button-group.types'
 
 export interface BaseButtonGroupProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   modelValue?: ButtonGroupModelValue
   multiple?: boolean
   deselectable?: boolean
@@ -29,30 +27,15 @@ const updateValue = (val: ButtonGroupItemValue) => {
   }
 }
 
-provide(props.provider === 'vuetify0' ? 'v0-button-group' : 'reka-button-group', {
+provide('reka-button-group', {
   modelValue: computed(() => props.modelValue),
   updateValue,
 })
 </script>
 
 <template>
-  <Button.Group
-    v-if="provider === 'vuetify0'"
-    :model-value="modelValue"
-    :multiple="multiple"
-    :mandatory="!deselectable ? 'force' : false"
-    class="border-surface-200 dark:border-surface-700 [&>[data-ui=button]]:border-surface-200 dark:[&>[data-ui=button]]:border-surface-700 inline-flex rounded-lg border shadow-sm [&>[data-ui=button]]:relative [&>[data-ui=button]]:!rounded-none [&>[data-ui=button]]:border-x first:[&>[data-ui=button]]:!rounded-s-lg last:[&>[data-ui=button]]:!rounded-e-lg hover:[&>[data-ui=button]]:z-10 focus-visible:[&>[data-ui=button]]:z-20 active:[&>[data-ui=button]]:z-20 [&>[data-ui=button]:not(:first-child)]:-ms-px"
-    data-provider="vuetify0"
-    role="group"
-    :aria-label="ariaLabel"
-    @update:model-value="(v: ButtonGroupModelValue) => emit('update:modelValue', v)"
-  >
-    <slot />
-  </Button.Group>
-
   <div
-    v-else
-    class="border-surface-200 dark:border-surface-700 [&>[data-ui=button]]:border-surface-200 dark:[&>[data-ui=button]]:border-surface-700 inline-flex rounded-lg border shadow-sm [&>[data-ui=button]]:relative [&>[data-ui=button]]:!rounded-none [&>[data-ui=button]]:border-x first:[&>[data-ui=button]]:!rounded-s-lg last:[&>[data-ui=button]]:!rounded-e-lg hover:[&>[data-ui=button]]:z-10 focus-visible:[&>[data-ui=button]]:z-20 active:[&>[data-ui=button]]:z-20 [&>[data-ui=button]:not(:first-child)]:-ms-px"
+    class="shaped-border shaped-radius-sm border-surface-200 dark:border-surface-700 *:data-[ui=button]:border-surface-200 dark:*:data-[ui=button]:border-surface-700 inline-flex border shadow-sm *:data-[ui=button]:relative *:data-[ui=button]:rounded-none! *:data-[ui=button]:border-x first:*:data-[ui=button]:rounded-s-[var(--shape-radius-sm)]! last:*:data-[ui=button]:rounded-e-[var(--shape-radius-sm)]! hover:*:data-[ui=button]:z-10 focus-visible:*:data-[ui=button]:z-20 active:*:data-[ui=button]:z-20 [&>[data-ui=button]:not(:first-child)]:-ms-px"
     data-provider="reka"
     role="group"
     :aria-label="ariaLabel"

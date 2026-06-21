@@ -1,16 +1,15 @@
 <script setup lang="ts">
+import BaseButton from '@/components/ui/base/BaseButton.vue'
 import type { BaseButtonProps } from '@/components/ui/base/BaseButton.vue'
-import { resolveUiComponent } from '@/config/ui-provider'
 
-export interface UiButtonProps extends Omit<BaseButtonProps, 'provider'> {}
+export interface ButtonProps extends Omit<BaseButtonProps, 'provider'> {}
 
-defineProps<UiButtonProps>()
+defineProps<ButtonProps>()
 defineEmits<{ click: [event: MouseEvent] }>()
-const UiButton = resolveUiComponent('Button')
 </script>
 
 <template>
-  <component :is="UiButton" v-bind="{ ...$props, ...$attrs }" @click="$emit('click', $event)">
+  <BaseButton v-bind="$props" provider="reka" @click="$emit('click', $event)">
     <slot />
-  </component>
+  </BaseButton>
 </template>

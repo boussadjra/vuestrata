@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseAlert from '@/components/ui/base/BaseAlert.vue'
 
-const UiAlert = resolveUiComponent('Alert')
+export interface AlertProps {
+  variant?: 'info' | 'success' | 'warning' | 'error'
+  title?: string
+  dismissible?: boolean
+  icon?: boolean
+}
+
+defineProps<AlertProps>()
 </script>
 
 <template>
-  <component :is="UiAlert" v-bind="$props">
+  <BaseAlert v-bind="$props" provider="reka" @dismiss="$emit('dismiss')">
     <slot />
-  </component>
+  </BaseAlert>
 </template>

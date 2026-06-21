@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { TagsFieldProps } from '@/components/ui/base'
+import BaseTagsFieldInput from '@/components/ui/base/BaseTagsFieldInput.vue'
 
-const UiTagsField = resolveUiComponent('TagsField')
+defineProps<TagsFieldProps>()
 </script>
 
 <template>
-  <component :is="UiTagsField" v-bind="$props">
-    <slot />
-  </component>
+  <BaseTagsFieldInput v-bind="$props" provider="reka" />
 </template>

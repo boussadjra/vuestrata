@@ -10,7 +10,7 @@ interface BaseTooltipComponents {
 }
 
 export interface BaseTooltipProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   components: BaseTooltipComponents
   content: string
   side?: 'top' | 'right' | 'bottom' | 'left'

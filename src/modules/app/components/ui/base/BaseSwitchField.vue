@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useBaseSwitch, type SwitchProps } from '@/components/ui/base'
+import { useAppStore } from '@/stores/app'
 
 const props = withDefaults(
   defineProps<
     SwitchProps & {
-      provider: 'reka' | 'vuetify0'
+      provider: 'reka'
     }
   >(),
   {
@@ -14,20 +15,30 @@ const props = withDefaults(
 
 defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
+const appStore = useAppStore()
 const { inputProps, labelProps, isPressed, errorMessageProps, displayError } = useBaseSwitch(props)
 
-const sizeMap: Record<string, { track: string; thumb: string; translate: string }> = {
-  sm: { track: 'h-5 w-9', thumb: 'h-3.5 w-3.5', translate: 'translate-x-4' },
-  md: { track: 'h-6 w-11', thumb: 'h-4 w-4', translate: 'translate-x-5' },
-  lg: { track: 'h-7 w-14', thumb: 'h-5 w-5', translate: 'translate-x-7' },
+const sizeMap: Record<string, { track: string; thumb: string; on: string; off: string }> = {
+  sm: { track: 'h-5 w-9', thumb: 'h-3.5 w-3.5', on: 'translate-x-4', off: 'translate-x-1' },
+  md: { track: 'h-6 w-11', thumb: 'h-4 w-4', on: 'translate-x-5', off: 'translate-x-1' },
+  lg: { track: 'h-7 w-14', thumb: 'h-5 w-5', on: 'translate-x-7', off: 'translate-x-1' },
 }
 
 const s = computed(() => sizeMap[props.size]!)
+const thumbPositionClass = computed(() => {
+  if (appStore.isRtl) {
+    return isPressed.value
+      ? s.value.off.replace('translate-x', '-translate-x')
+      : s.value.on.replace('translate-x', '-translate-x')
+  }
+
+  return isPressed.value ? s.value.on : s.value.off
+})
 
 const trackClasses = computed(() => [
   'relative inline-flex shrink-0 cursor-pointer rounded-full transition-colors',
   isPressed.value
-    ? 'bg-primary-500'
+    ? 'bg-primary-700'
     : props.provider === 'reka'
       ? 'bg-surface-300 dark:bg-surface-600'
       : 'bg-surface-300',
@@ -52,7 +63,7 @@ const trackClasses = computed(() => [
         <span
           :class="[
             'block rounded-full bg-white shadow-sm transition-transform',
-            isPressed ? s.translate : 'translate-x-1',
+            thumbPositionClass,
             s.thumb,
           ]"
           style="margin-top: auto; margin-bottom: auto"

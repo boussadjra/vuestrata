@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseSeparator from '@/components/ui/base/BaseSeparator.vue'
 
-const UiSeparator = resolveUiComponent('Separator')
+export interface SeparatorProps {
+  orientation?: 'horizontal' | 'vertical'
+  decorative?: boolean
+}
+
+withDefaults(defineProps<SeparatorProps>(), {
+  orientation: 'horizontal',
+  decorative: true,
+})
 </script>
 
 <template>
-  <component :is="UiSeparator" v-bind="$props">
-    <slot />
-  </component>
+  <BaseSeparator v-bind="$props" provider="reka" />
 </template>

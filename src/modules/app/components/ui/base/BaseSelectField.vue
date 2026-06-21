@@ -12,7 +12,7 @@ import {
 const props = withDefaults(
   defineProps<
     SelectProps & {
-      provider: 'reka' | 'vuetify0'
+      provider: 'reka'
       optionComponent: Component
       optionGroupComponent: Component
     }
@@ -89,8 +89,14 @@ function isGroup(
   return 'options' in opt
 }
 
+function isSingleOption(
+  opt: (typeof props.options)[number],
+): opt is { label: string; value: string | number; disabled?: boolean } {
+  return 'value' in opt
+}
+
 const triggerClasses = computed(() => [
-  'inline-flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm',
+  'shaped-border shaped-radius-sm inline-flex w-full items-center justify-between border px-3 py-2 text-sm',
   'bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200',
   displayError.value ? invalidSelectTriggerClass : 'border-surface-300 dark:border-surface-600',
   'hover:border-surface-400 dark:hover:border-surface-500',
@@ -127,7 +133,7 @@ const triggerClasses = computed(() => [
       <div
         v-show="isOpen"
         v-bind="listBoxProps"
-        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated absolute z-50 mt-1 w-auto min-w-45 overflow-hidden rounded-lg border bg-white p-1"
+        class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 absolute z-50 mt-1 w-auto min-w-45 overflow-hidden border bg-white p-1"
       >
         <template v-for="option in options" :key="'value' in option ? option.value : option.label">
           <component :is="optionGroupComponent" v-if="isGroup(option)" :label="option.label">
@@ -142,7 +148,7 @@ const triggerClasses = computed(() => [
           </component>
           <component
             :is="optionComponent"
-            v-else
+            v-else-if="isSingleOption(option)"
             :label="option.label"
             :value="option.value"
             :disabled="option.disabled"

@@ -6,7 +6,7 @@ import { useBaseTreeSelect, type TreeSelectProps } from '@/components/ui/base'
 const props = withDefaults(
   defineProps<
     TreeSelectProps & {
-      provider: 'reka' | 'vuetify0'
+      provider: 'reka'
       treeNodeComponent: Component
     }
   >(),

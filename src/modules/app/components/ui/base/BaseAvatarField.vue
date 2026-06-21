@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 
 export interface BaseAvatarProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   src?: string
   alt?: string
   fallback?: string

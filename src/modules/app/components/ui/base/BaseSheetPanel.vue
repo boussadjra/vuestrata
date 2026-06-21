@@ -2,7 +2,7 @@
 import { resolveIcon } from '~/config/icon-provider'
 
 export interface BaseSheetProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   modelValue?: boolean
   side?: 'left' | 'right' | 'top' | 'bottom'
   title?: string

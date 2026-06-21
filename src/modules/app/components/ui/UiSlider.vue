@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { SliderProps } from '@/components/ui/base'
+import BaseSliderField from '@/components/ui/base/BaseSliderField.vue'
 
-const UiSlider = resolveUiComponent('Slider')
+defineProps<SliderProps>()
 </script>
 
 <template>
-  <component :is="UiSlider" v-bind="$props">
-    <slot />
-  </component>
+  <BaseSliderField v-bind="$props" provider="reka" />
 </template>

@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
 import type { FormProps } from '~/types/forms'
 
-const props = defineProps<FormProps>()
+import BaseForm from './base/BaseForm.vue'
 
-const UiForm = resolveUiComponent('Form')
+defineProps<FormProps>()
 </script>
 
 <template>
-  <component :is="UiForm" v-bind="{ ...props, ...$attrs }">
-    <template v-for="(_, name) in $slots" #[name]="slotData">
-      <slot :name="name" v-bind="slotData ?? {}" />
+  <BaseForm v-bind="$props" data-provider="reka" class="flex flex-col gap-4">
+    <template #default="slotProps">
+      <slot v-bind="slotProps" />
     </template>
-  </component>
+  </BaseForm>
 </template>

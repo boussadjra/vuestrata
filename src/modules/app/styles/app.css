@@ -165,13 +165,6 @@
   --shape-radius-xl: 2rem;
   --shape-radius-full: 9999px;
 }
-:root.shape-radius-full {
-  --shape-radius: 9999px;
-  --shape-radius-sm: 9999px;
-  --shape-radius-lg: 9999px;
-  --shape-radius-xl: 9999px;
-  --shape-radius-full: 9999px;
-}
 
 /* Border width presets */
 :root.shape-border-none {
@@ -211,6 +204,56 @@
 /* Elements that opt into shaped borders */
 .shaped-border {
   border-width: var(--shape-border-width) !important;
+}
+
+.shaped-radius {
+  border-radius: var(--shape-radius) !important;
+}
+
+.shaped-radius-sm {
+  border-radius: var(--shape-radius-sm) !important;
+}
+
+.shaped-radius-lg {
+  border-radius: var(--shape-radius-lg) !important;
+}
+
+.shaped-shadow {
+  box-shadow: var(--shape-shadow) !important;
+}
+
+.shaped-shadow-hover:hover {
+  box-shadow: var(--shape-shadow-hover) !important;
+}
+
+[data-ui='textfield'],
+[data-ui='textarea'],
+[data-ui='searchfield'],
+[data-ui='numberfield'],
+[data-ui='combobox'],
+[data-ui='select'],
+[data-ui='date-field'],
+[data-ui='date-picker'],
+[data-ui='datetime-picker'],
+[data-ui='time-field'],
+[data-ui='month-picker'],
+[data-ui='year-picker'],
+[data-ui='tags-field'],
+[data-ui='file-upload'] {
+  border-radius: var(--shape-radius-sm) !important;
+  border-width: var(--shape-border-width) !important;
+}
+
+[data-ui='card'],
+[data-ui='dialog'],
+[data-ui='popover'],
+[data-ui='sheet'],
+[data-ui='command-palette'],
+[data-ui='calendar'],
+[data-ui='datatable'] {
+  border-radius: var(--shape-radius) !important;
+  border-width: var(--shape-border-width) !important;
+  box-shadow: var(--shape-shadow);
 }
 
 /* Keyframes */

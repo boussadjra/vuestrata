@@ -8,7 +8,7 @@ import { useTheme } from '@/composables/useTheme'
 import { getIconProviders, resolveIcon } from '@/config/icon-provider'
 import { useAuth } from '@/modules/auth'
 import { useAppStore } from '@/stores/app'
-import type { UiProvider, IconProvider, ThemeName, ValidationAdapterName } from '@/types'
+import type { IconProvider, ThemeName } from '@/types'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -23,22 +23,10 @@ const {
 } = useShape()
 const { logout } = useAuth()
 
-const providers: { value: UiProvider; label: string; iconName: 'widget' | 'code' }[] = [
-  { value: 'reka', label: 'Reka UI', iconName: 'widget' },
-  { value: 'vuetify0', label: 'Vuetify 0 (experimental)', iconName: 'code' },
-]
-
 const iconProviderOptions: { value: string; label: string }[] = getIconProviders().map((p) => ({
   value: p,
   label: p.charAt(0).toUpperCase() + p.slice(1),
 }))
-
-const validationOptions: { value: ValidationAdapterName; label: string }[] = [
-  { value: 'zod', label: 'Zod' },
-  { value: 'valibot', label: 'Valibot' },
-  { value: 'yup', label: 'Yup' },
-  { value: 'arktype', label: 'ArkType' },
-]
 
 const locales = [
   { code: 'en', label: 'English', flag: '🇺🇸' },
@@ -51,7 +39,6 @@ const radiusOptions: { value: ShapeRadius; label: string; preview: string }[] = 
   { value: 'small', label: 'Subtle', preview: 'rounded' },
   { value: 'medium', label: 'Rounded', preview: 'rounded-xl' },
   { value: 'large', label: 'Soft', preview: 'rounded-2xl' },
-  { value: 'full', label: 'Pill', preview: 'rounded-full' },
 ]
 
 const borderOptions: { value: ShapeBorder; label: string; preview: string }[] = [
@@ -78,10 +65,6 @@ function switchTheme(name: ThemeName) {
 
 function switchIconProvider(p: IconProvider) {
   appStore.setIconProvider(p)
-}
-
-function switchValidationAdapter(a: ValidationAdapterName) {
-  appStore.setValidationAdapter(a)
 }
 </script>
 
@@ -150,7 +133,7 @@ function switchValidationAdapter(a: ValidationAdapterName) {
           <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">
             Border Radius
           </h3>
-          <div class="grid grid-cols-5 gap-3">
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <button
               v-for="opt in radiusOptions"
               :key="opt.value"
@@ -249,32 +232,6 @@ function switchValidationAdapter(a: ValidationAdapterName) {
         </div>
       </section>
 
-      <!-- UI Provider -->
-      <section
-        class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
-      >
-        <h2 class="mb-2 text-lg font-bold">{{ t('settings_ui_provider') }}</h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
-          Switch the underlying component library
-        </p>
-        <div class="grid grid-cols-2 gap-3">
-          <button
-            v-for="p in providers"
-            :key="p.value"
-            :class="[
-              'flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-200',
-              appStore.uiProvider === p.value
-                ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 shadow-md ring-2 ring-offset-2'
-                : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
-            ]"
-            @click="appStore.setUiProvider(p.value)"
-          >
-            <span :class="[resolveIcon(p.iconName), 'h-4 w-4']" />
-            {{ p.label }}
-          </button>
-        </div>
-      </section>
-
       <!-- Theme -->
       <section
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
@@ -323,32 +280,6 @@ function switchValidationAdapter(a: ValidationAdapterName) {
           >
             <span :class="[resolveIcon('star'), 'h-5 w-5']" />
             {{ ip.label }}
-          </button>
-        </div>
-      </section>
-
-      <!-- Validation Adapter -->
-      <section
-        class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
-      >
-        <h2 class="mb-2 text-lg font-bold">Validation Library</h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
-          Choose the schema validation library used for forms
-        </p>
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <button
-            v-for="va in validationOptions"
-            :key="va.value"
-            :class="[
-              'flex flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-200',
-              appStore.validationAdapter === va.value
-                ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 shadow-md ring-2 ring-offset-2'
-                : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
-            ]"
-            @click="switchValidationAdapter(va.value)"
-          >
-            <span :class="[resolveIcon('shield-check'), 'h-5 w-5']" />
-            {{ va.label }}
           </button>
         </div>
       </section>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 export interface BaseCardProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   title?: string
   subtitle?: string
   padding?: boolean
@@ -13,9 +13,9 @@ const props = withDefaults(defineProps<BaseCardProps>(), {
 })
 
 const classes = computed(() => [
-  'card rounded-xl border border-surface-200 dark:border-surface-700',
+  'card shaped-border border border-surface-200 dark:border-surface-700',
   'bg-white dark:bg-surface-800 transition-all duration-200',
-  props.hoverable ? 'hover:shadow-elevated cursor-pointer' : 'shadow-soft',
+  props.hoverable ? 'shaped-shadow-hover cursor-pointer' : 'shaped-shadow',
 ])
 </script>
 

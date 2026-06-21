@@ -48,10 +48,16 @@ const actionColors: Record<string, string> = {
   'user.login': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   'user.logout': 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300',
   'user.register': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  'user.invite': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  'user.update_role': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
   'role.update': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+  'report.create':
+    'bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-400',
   'billing.subscribe':
     'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400',
   'billing.cancel': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  'billing.update_plan':
+    'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400',
   'settings.update': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   'report.export':
     'bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-400',
@@ -61,11 +67,25 @@ const actionIconNames: Record<string, IconName> = {
   'user.login': 'login',
   'user.logout': 'logout',
   'user.register': 'user-plus',
+  'user.invite': 'user-plus',
+  'user.update_role': 'shield-user',
   'role.update': 'shield-user',
+  'report.create': 'document',
   'billing.subscribe': 'card',
   'billing.cancel': 'close-circle',
+  'billing.update_plan': 'card',
   'settings.update': 'settings',
   'report.export': 'download',
+}
+
+function humanizeAuditAction(action: string) {
+  return action.replace(/[._]+/g, ' ').replace(/\b\w/g, (segment) => segment.toUpperCase())
+}
+
+function formatAuditAction(action: string) {
+  const translationKey = `audit_action_${action.replace(/[.]/g, '_')}`
+  const translated = t(translationKey)
+  return translated === translationKey ? humanizeAuditAction(action) : translated
 }
 
 const { locale } = useI18n()
@@ -185,7 +205,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
             ]"
             @click="filterByAction(action)"
           >
-            {{ action }}
+            {{ formatAuditAction(action) }}
           </button>
         </div>
       </div>
@@ -222,7 +242,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
                   'rounded-full px-2 py-0.5 text-xs font-semibold',
                 ]"
               >
-                {{ entry.action }}
+                {{ formatAuditAction(entry.action) }}
               </span>
               <span class="text-surface-600 dark:text-surface-300 text-sm"
                 >{{ t('common_on') }} <span class="font-medium">{{ entry.resource }}</span></span

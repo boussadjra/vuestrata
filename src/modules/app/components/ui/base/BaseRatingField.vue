@@ -2,7 +2,7 @@
 import { useBaseRatingField, type RatingFieldProps } from '@/components/ui/base'
 
 export interface BaseRatingFieldProps extends RatingFieldProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
 }
 
 const props = withDefaults(defineProps<BaseRatingFieldProps>(), {

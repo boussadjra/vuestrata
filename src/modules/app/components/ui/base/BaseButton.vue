@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { Button } from '@vuetify/v0'
-import { defineComponent, h } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
@@ -9,7 +7,7 @@ import { resolveIcon } from '~/config/icon-provider'
 import type { ButtonGroupItemValue, ButtonGroupModelValue } from './button-group.types'
 
 export interface BaseButtonProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   variant?: 'primary' | 'secondary' | 'accent' | 'ghost' | 'destructive'
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   disabled?: boolean
@@ -42,7 +40,7 @@ const slots = useSlots()
 const buttonGroup = inject<{
   modelValue: Ref<ButtonGroupModelValue>
   updateValue: (val: ButtonGroupItemValue) => void
-} | null>(props.provider === 'vuetify0' ? 'v0-button-group' : 'reka-button-group', null)
+} | null>('reka-button-group', null)
 
 const isActive = computed(() => {
   if (buttonGroup && props.value !== undefined) {
@@ -64,23 +62,23 @@ const sizeClasses: Record<string, string> = {
 
 const variantClasses: Record<string, string> = {
   primary:
-    'bg-primary-500 text-white shadow-[var(--shadow-soft)] hover:bg-primary-600 hover:shadow-[var(--shadow-card)] active:bg-primary-700 focus-visible:ring-primary-300',
+    'bg-primary-700 text-white shadow-[var(--shadow-soft)] hover:bg-primary-800 hover:shadow-[var(--shadow-card)] active:bg-primary-900 focus-visible:ring-primary-300',
   secondary:
-    'bg-secondary-500 text-white shadow-[var(--shadow-soft)] hover:bg-secondary-600 hover:shadow-[var(--shadow-card)] active:bg-secondary-700 focus-visible:ring-secondary-300',
+    'bg-secondary-700 text-white shadow-[var(--shadow-soft)] hover:bg-secondary-800 hover:shadow-[var(--shadow-card)] active:bg-secondary-900 focus-visible:ring-secondary-300',
   accent:
-    'bg-accent-500 text-white shadow-[var(--shadow-soft)] hover:bg-accent-600 hover:shadow-[var(--shadow-card)] active:bg-accent-700 focus-visible:ring-accent-300',
+    'bg-accent-700 text-white shadow-[var(--shadow-soft)] hover:bg-accent-800 hover:shadow-[var(--shadow-card)] active:bg-accent-900 focus-visible:ring-accent-300',
   ghost:
     'bg-transparent text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800',
   destructive:
-    'bg-danger-500 text-white shadow-[var(--shadow-soft)] hover:bg-danger-600 hover:shadow-[var(--shadow-card)] active:bg-danger-700 focus-visible:ring-danger-300',
+    'bg-danger-700 text-white shadow-[var(--shadow-soft)] hover:bg-danger-800 hover:shadow-[var(--shadow-card)] active:bg-danger-900 focus-visible:ring-danger-300',
 }
 
 const activeVariantClasses: Record<string, string> = {
-  primary: 'bg-primary-700 text-white hover:bg-primary-800 focus-visible:ring-primary-300',
-  secondary: 'bg-secondary-700 text-white hover:bg-secondary-800 focus-visible:ring-secondary-300',
-  accent: 'bg-accent-700 text-white hover:bg-accent-800 focus-visible:ring-accent-300',
+  primary: 'bg-primary-800 text-white hover:bg-primary-900 focus-visible:ring-primary-300',
+  secondary: 'bg-secondary-800 text-white hover:bg-secondary-900 focus-visible:ring-secondary-300',
+  accent: 'bg-accent-800 text-white hover:bg-accent-900 focus-visible:ring-accent-300',
   ghost: 'bg-surface-200 text-surface-900 dark:bg-surface-800 dark:text-white',
-  destructive: 'bg-danger-700 text-white hover:bg-danger-800 focus-visible:ring-danger-300',
+  destructive: 'bg-danger-800 text-white hover:bg-danger-900 focus-visible:ring-danger-300',
 }
 
 const touchHitArea: Record<string, string> = {
@@ -122,21 +120,6 @@ const classes = computed(() => {
 
 const isLink = computed(() => Boolean(props.to || props.href))
 
-// When rendering the `@vuetify/v0` Button.Root, that component
-// controls the underlying element and often uses `inheritAttrs: false`.
-// Some implementations set the inner `<button>`'s `type` explicitly to
-// "button", which prevents a passed `type="submit"` from being applied.
-// To ensure the `type` attribute reaches the real DOM element we pass a
-// small wrapper component via the `as` prop that renders a native
-// `<button>` and applies the `type` attr from this component's props.
-const AsButton = defineComponent({
-  name: 'BaseButtonV0As',
-  inheritAttrs: false,
-  setup(_, { attrs, slots }) {
-    return () => h('button', { ...attrs, type: props.type }, slots.default && slots.default())
-  },
-})
-
 const commonAttrs = computed(() => ({
   class: classes.value,
   'aria-disabled': props.disabled || props.loading || undefined,
@@ -144,7 +127,7 @@ const commonAttrs = computed(() => ({
   'aria-pressed': buttonGroup ? isActive.value : undefined,
   'aria-label': props.ariaLabel || undefined,
   'data-ui': 'button',
-  'data-provider': props.provider,
+  'data-provider': 'reka',
 }))
 
 function onClick(e: MouseEvent) {
@@ -216,12 +199,10 @@ function onRouterLinkClick(e: MouseEvent, navigate: (event?: MouseEvent) => void
     <slot />
   </a>
 
-  <component
+  <button
     v-else
-    :is="provider === 'vuetify0' ? Button.Root : 'button'"
-    :as="provider === 'vuetify0' ? AsButton : undefined"
-    :type="provider === 'vuetify0' ? undefined : type"
-    :value="provider === 'vuetify0' ? value : undefined"
+    :type="type"
+    :value="value == null ? undefined : String(value)"
     :disabled="disabled || undefined"
     v-bind="commonAttrs"
     @click="onClick"
@@ -239,7 +220,7 @@ function onRouterLinkClick(e: MouseEvent, navigate: (event?: MouseEvent) => void
       aria-hidden="true"
     />
     <slot />
-  </component>
+  </button>
 </template>
 
 <style scoped>

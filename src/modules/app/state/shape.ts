@@ -3,10 +3,29 @@ import type { ShapeBorder, ShapeRadius, ShapeShadow } from '~/composables/useSha
 
 const STORAGE_PREFIX = 'vuestrata-shape'
 
+function normalizeRadius(value: ShapeRadius | 'full' | null | undefined): ShapeRadius {
+  if (value === 'none' || value === 'small' || value === 'medium' || value === 'large') {
+    return value
+  }
+
+  return 'large'
+}
+
 export const useShapeState = createGlobalState(() => {
-  const radius = useAppStorage<ShapeRadius>(`${STORAGE_PREFIX}-radius`, 'medium')
+  const radiusStorage = useAppStorage<ShapeRadius | 'full'>(`${STORAGE_PREFIX}-radius`, 'medium')
+  const radius = computed<ShapeRadius>({
+    get: () => normalizeRadius(radiusStorage.value),
+    set: (value) => {
+      radiusStorage.value = value
+    },
+  })
   const border = useAppStorage<ShapeBorder>(`${STORAGE_PREFIX}-border`, 'thin')
   const shadow = useAppStorage<ShapeShadow>(`${STORAGE_PREFIX}-shadow`, 'medium')
+
+  const normalizedRadius = normalizeRadius(radiusStorage.value)
+  if (radiusStorage.value !== normalizedRadius) {
+    radiusStorage.value = normalizedRadius
+  }
 
   function applyClasses(): void {
     if (typeof window === 'undefined') return

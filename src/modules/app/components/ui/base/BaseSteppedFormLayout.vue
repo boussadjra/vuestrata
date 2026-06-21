@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useBaseSteppedForm, type SteppedFormProps } from '@/components/ui/base'
 
-const props = withDefaults(defineProps<SteppedFormProps & { provider: 'reka' | 'vuetify0' }>(), {
+const props = withDefaults(defineProps<SteppedFormProps & { provider: 'reka' }>(), {
   nextLabel: 'Next',
   previousLabel: 'Previous',
 })
@@ -37,7 +37,7 @@ onDone((data) => {
         <div
           class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium"
           :class="{
-            'bg-primary-500 text-white': idx === currentIndex,
+            'bg-primary-700 text-white': idx === currentIndex,
             'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300':
               idx < currentIndex,
             'bg-surface-200 text-surface-500 dark:bg-surface-700': idx > currentIndex,
@@ -47,7 +47,7 @@ onDone((data) => {
         </div>
         <div v-if="idx < steps.length - 1" class="bg-surface-200 dark:bg-surface-700 h-0.5 flex-1">
           <div
-            class="bg-primary-500 h-full transition-all"
+            class="bg-primary-700 h-full transition-all"
             :style="{ width: idx < currentIndex ? '100%' : '0%' }"
           />
         </div>
@@ -67,7 +67,7 @@ onDone((data) => {
       </button>
       <button
         v-bind="nextButtonProps"
-        class="bg-primary-500 hover:bg-primary-600 rounded-md px-4 py-2 text-sm text-white"
+        class="bg-primary-700 hover:bg-primary-800 rounded-md px-4 py-2 text-sm text-white"
       >
         {{ isLastStep ? 'Submit' : nextLabel }}
       </button>

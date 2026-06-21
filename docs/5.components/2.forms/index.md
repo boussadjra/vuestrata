@@ -5,7 +5,7 @@ description: Architecture, shell components, and common props for the Vuestrata 
 
 # Forms
 
-Vuestrata provides a layered form system powered by [Formwerk](https://formwerk.dev), a headless Vue 3 form library built on the Web platform. Every form element is accessible, keyboard-navigable, and provider-swappable.
+Vuestrata provides a layered form system powered by [Formwerk](https://formwerk.dev), a headless Vue 3 form library built on the Web platform. Every form element is accessible, keyboard-navigable, and backed by the repo's Reka-based `Ui*` wrappers.
 
 ::component-showcase{name="forms"}
 ::
@@ -23,12 +23,12 @@ Vuestrata provides a layered form system powered by [Formwerk](https://formwerk.
 │           │                              │                  │
 │  ┌────────▼──────────────────────────────▼────────────────┐ │
 │  │  Ui* field wrappers  (UiTextField, UiSelect, …)        │ │
-│  │       resolve the active provider at runtime           │ │
+│  │       public component contract                         │ │
 │  └────────────────────────────┬───────────────────────────┘ │
 │                               │                             │
 │  ┌────────────────────────────▼───────────────────────────┐ │
-│  │  Provider components  (reka/ or vuetify0/)             │ │
-│  │       styling layer — Tailwind CSS / Vuetify           │ │
+│  │  Shared base components (BaseTextFieldInput, …)        │ │
+│  │       shared rendering + Formwerk integration          │ │
 │  └────────────────────────────┬───────────────────────────┘ │
 │                               │                             │
 │  ┌────────────────────────────▼───────────────────────────┐ │
@@ -113,7 +113,7 @@ Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and rea
 
 | Prop                    | Type                      | Default | Description                                          |
 | ----------------------- | ------------------------- | ------- | ---------------------------------------------------- |
-| `schema`                | `StandardSchemaV1`        | —       | Validation schema (Zod, Valibot, Yup, ArkType)       |
+| `schema`                | `StandardSchemaV1`        | —       | Validation schema (Zod)                              |
 | `initialValues`         | `Record<string, unknown>` | —       | Starting values; establishes dirty-tracking baseline |
 | `disabled`              | `boolean`                 | `false` | Disables every field in the form                     |
 | `disableHtmlValidation` | `boolean`                 | `true`  | Suppresses browser-native validation popups          |
@@ -231,24 +231,17 @@ The first non-empty error renders in a `<p role="alert">` below the field. When 
 
 ---
 
-## Provider architecture
+## Ui wrapper architecture
 
-Every `Ui*` component calls `resolveUiComponent(name)` to look up the active provider at runtime:
+Every `Ui*` form component is a thin public wrapper over a shared base component:
 
 ```
 UiTextField
-  └─ resolveUiComponent('TextField')
-       ├─ reka/RekaTextField.vue     ← default (Tailwind + Formwerk composables)
-       └─ vuetify0/V0TextField.vue   ← minimal Vuetify stub
+  └─ UiTextField.vue
+       └─ base/BaseTextFieldInput.vue
 ```
 
-Switch the provider globally via `VITE_UI_PROVIDER=vuetify0` or dynamically per session:
-
-```ts
-import { useRuntimeConfig } from '~/config/runtime'
-const { setProvider } = useRuntimeConfig()
-setProvider('reka')
-```
+That split keeps imports stable for consumers while centralizing Formwerk bindings, labels, hints, and error rendering in the base layer.
 
 ### Formwerk composable mapping
 

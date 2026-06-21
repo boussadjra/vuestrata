@@ -8,13 +8,11 @@ import {
   applyAppearance,
   type SupportedLocale,
 } from '~/plugins/appearance'
-import type { ThemeName, UiProvider, IconProvider, ValidationAdapterName } from '~/types'
+import type { ThemeName, IconProvider } from '~/types'
 
 const appStoreLogger = createScopedLogger('app-store')
 
-const UI_PROVIDERS: UiProvider[] = ['reka', 'vuetify0']
 const ICON_PROVIDERS: IconProvider[] = ['solar', 'lucide', 'phosphor']
-const VALIDATION_ADAPTERS: ValidationAdapterName[] = ['zod', 'valibot', 'yup', 'arktype']
 
 function isSupportedLocale(value: unknown): value is SupportedLocale {
   return typeof value === 'string' && (SUPPORTED_LOCALES as readonly string[]).includes(value)
@@ -44,28 +42,12 @@ export const useAppStore = defineStore('app', () => {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
-  const uiProvider = useAppStorage<UiProvider>(
-    'vuestrata-ui-provider',
-    import.meta.env.VUESTRATA_UI_PROVIDER || 'reka',
-    {
-      validate: isAllowed(UI_PROVIDERS),
-      fallback: import.meta.env.VUESTRATA_UI_PROVIDER || 'reka',
-    },
-  )
   const iconProvider = useAppStorage<IconProvider>(
     'vuestrata-icon-provider',
     import.meta.env.VUESTRATA_ICON_PROVIDER || 'solar',
     {
       validate: isAllowed(ICON_PROVIDERS),
       fallback: import.meta.env.VUESTRATA_ICON_PROVIDER || 'solar',
-    },
-  )
-  const validationAdapter = useAppStorage<ValidationAdapterName>(
-    'vuestrata-validation-adapter',
-    import.meta.env.VUESTRATA_VALIDATION_ADAPTER || 'zod',
-    {
-      validate: isAllowed(VALIDATION_ADAPTERS),
-      fallback: import.meta.env.VUESTRATA_VALIDATION_ADAPTER || 'zod',
     },
   )
 
@@ -126,16 +108,8 @@ export const useAppStore = defineStore('app', () => {
     isDark.value = !isDark.value
   }
 
-  function setUiProvider(p: UiProvider) {
-    uiProvider.value = p
-  }
-
   function setIconProvider(p: IconProvider) {
     iconProvider.value = p
-  }
-
-  function setValidationAdapter(a: ValidationAdapterName) {
-    validationAdapter.value = a
   }
 
   return {
@@ -144,9 +118,7 @@ export const useAppStore = defineStore('app', () => {
     locale,
     theme,
     isDark,
-    uiProvider,
     iconProvider,
-    validationAdapter,
     isRtl,
     toggleSidebar,
     closeSidebar,
@@ -154,8 +126,6 @@ export const useAppStore = defineStore('app', () => {
     setLocale,
     setTheme,
     toggleDark,
-    setUiProvider,
     setIconProvider,
-    setValidationAdapter,
   }
 })

@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseProgressField from '@/components/ui/base/BaseProgressField.vue'
 
-const UiProgress = resolveUiComponent('Progress')
+export interface ProgressProps {
+  value?: number
+  max?: number
+  label?: string
+  showValue?: boolean
+  size?: 'sm' | 'md' | 'lg'
+}
+
+defineProps<ProgressProps>()
 </script>
 
 <template>
-  <component :is="UiProgress" v-bind="$props">
-    <slot />
-  </component>
+  <BaseProgressField v-bind="$props" provider="reka" />
 </template>

@@ -8,7 +8,7 @@ import {
 const props = withDefaults(
   defineProps<
     ToggleGroupProps & {
-      provider: 'reka' | 'vuetify0'
+      provider: 'reka'
     }
   >(),
   {
@@ -34,7 +34,7 @@ function itemClasses(option: ToggleGroupOption) {
     'disabled:opacity-50 disabled:cursor-not-allowed',
     'border-e border-surface-300 last:border-e-0 dark:border-surface-600',
     isSelected(option.value)
-      ? 'bg-primary-500 text-white'
+      ? 'bg-primary-700 text-white'
       : 'bg-white text-surface-700 hover:bg-surface-50 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700',
     option.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
     sizeClasses[props.size],

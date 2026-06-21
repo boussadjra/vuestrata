@@ -3,7 +3,7 @@ import { resolveIcon } from '~/config/icon-provider'
 import type { IconName } from '~/types'
 
 export interface BaseAlertProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   variant?: 'info' | 'success' | 'warning' | 'error'
   title?: string
   dismissible?: boolean

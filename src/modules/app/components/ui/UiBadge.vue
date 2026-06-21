@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseBadge from '@/components/ui/base/BaseBadge.vue'
 
-const UiBadge = resolveUiComponent('Badge')
+export interface BadgeProps {
+  variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error'
+  size?: 'sm' | 'md' | 'lg'
+  dot?: boolean
+}
+
+defineProps<BadgeProps>()
 </script>
 
 <template>
-  <component :is="UiBadge" v-bind="$props">
+  <BaseBadge v-bind="$props" provider="reka">
     <slot />
-  </component>
+  </BaseBadge>
 </template>

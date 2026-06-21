@@ -152,7 +152,7 @@ const apiSlots: ApiSlotRow[] = [
             </UiButton>
           </UiTooltip>
           <UiTooltip content="More information available">
-            <UiBadge variant="info">Hover for info</UiBadge>
+            <UiBadge variant="secondary">Hover for info</UiBadge>
           </UiTooltip>
           <UiTooltip content="Profile picture">
             <UiAvatar initials="JD" size="md" />
@@ -166,7 +166,10 @@ const apiSlots: ApiSlotRow[] = [
       <h2 class="text-xl font-semibold">Playground</h2>
       <ComponentPlayground :prop-defs="propDefs">
         <template #default="{ props: p }">
-          <UiTooltip v-bind="p">
+          <UiTooltip
+            v-bind="p"
+            :content="typeof p.content === 'string' ? p.content : 'Helpful context'"
+          >
             <UiButton variant="secondary">Hover me</UiButton>
           </UiTooltip>
         </template>
@@ -182,7 +185,7 @@ const apiSlots: ApiSlotRow[] = [
             <UiButton variant="secondary">Hover me</UiButton>
           </UiTooltip>
           <UiTooltip content="Info tooltip">
-            <UiBadge variant="info">Info</UiBadge>
+            <UiBadge variant="secondary">Info</UiBadge>
           </UiTooltip>
         </div>
       </ComponentTestRunner>

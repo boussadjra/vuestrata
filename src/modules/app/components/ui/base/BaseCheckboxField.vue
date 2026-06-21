@@ -7,7 +7,7 @@ import { fieldErrorMessageClass, invalidCheckboxClass } from './validationPresen
 const props = withDefaults(
   defineProps<
     CheckboxProps & {
-      provider: 'reka' | 'vuetify0'
+      provider: 'reka'
     }
   >(),
   {
@@ -19,10 +19,26 @@ const props = withDefaults(
   },
 )
 
-defineEmits<{ 'update:modelValue': [value: boolean | 'indeterminate'] }>()
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean | 'indeterminate']
+  change: [value: boolean | 'indeterminate']
+}>()
 
 const { inputProps, labelProps, isChecked, toggle, errorMessageProps, displayError } =
   useBaseCheckbox(props)
+
+function emitToggle() {
+  if (props.disabled || props.readonly || isIndeterminate.value) return
+  const currentValue = props.modelValue ?? props.checked ?? isChecked.value
+  const nextValue = !currentValue
+  emit('update:modelValue', nextValue)
+  emit('change', nextValue)
+}
+
+function handleLabelClick() {
+  toggle()
+  emitToggle()
+}
 
 const isIndeterminate = computed(
   () => props.indeterminate === true || props.modelValue === 'indeterminate',
@@ -45,7 +61,7 @@ const checkboxClasses = computed(() => [
   displayError.value
     ? invalidCheckboxClass
     : 'border-surface-300 dark:border-surface-600 focus-visible:ring-primary-300',
-  isChecked.value ? 'bg-primary-500 border-primary-500' : '',
+  isChecked.value ? 'bg-primary-700 border-primary-700' : '',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
   'disabled:opacity-50 disabled:cursor-not-allowed',
   sizeMap[props.size],
@@ -62,6 +78,8 @@ const checkboxClasses = computed(() => [
         :class="checkboxClasses"
         data-ui="checkbox"
         :data-provider="provider"
+        @click="emitToggle"
+        @keydown.space.prevent="emitToggle"
       >
         <span v-if="isChecked" class="flex items-center justify-center text-white">
           <span
@@ -75,7 +93,7 @@ const checkboxClasses = computed(() => [
         v-if="label"
         v-bind="labelProps"
         class="cursor-pointer text-sm select-none"
-        @click="toggle"
+        @click="handleLabelClick"
       >
         {{ label }}
       </span>

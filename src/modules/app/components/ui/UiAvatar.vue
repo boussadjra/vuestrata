@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseAvatarField from '@/components/ui/base/BaseAvatarField.vue'
 
-const UiAvatar = resolveUiComponent('Avatar')
+export interface AvatarProps {
+  src?: string
+  alt?: string
+  fallback?: string
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+}
+
+defineProps<AvatarProps>()
 </script>
 
 <template>
-  <component :is="UiAvatar" v-bind="$props" />
+  <BaseAvatarField v-bind="$props" provider="reka" />
 </template>

@@ -4,6 +4,7 @@ import type { BaseFieldProps } from '@/types'
 
 export interface CheckboxProps extends Omit<BaseFieldProps, 'size'> {
   modelValue?: boolean | 'indeterminate'
+  checked?: boolean
   trueValue?: boolean
   falseValue?: boolean
   indeterminate?: boolean
@@ -11,6 +12,8 @@ export interface CheckboxProps extends Omit<BaseFieldProps, 'size'> {
 }
 
 export function useBaseCheckbox(props: CheckboxProps) {
+  const externalValue = computed(() => props.modelValue ?? props.checked)
+
   const baseOptions = {
     name: () => props.name,
     label: () => props.label ?? '',
@@ -24,14 +27,14 @@ export function useBaseCheckbox(props: CheckboxProps) {
   }
 
   const formwerk =
-    props.modelValue === undefined
+    externalValue.value === undefined
       ? useCheckbox(baseOptions)
       : useCheckbox({
           ...baseOptions,
-          modelValue: () => props.modelValue as boolean | undefined,
+          modelValue: () => externalValue.value as boolean | undefined,
         })
 
-  if (props.modelValue === undefined && props.name) {
+  if (externalValue.value === undefined && props.name) {
     void nextTick(() => {
       void formwerk.validate()
     })

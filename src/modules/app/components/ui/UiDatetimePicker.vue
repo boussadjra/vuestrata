@@ -1,11 +1,32 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { DateFieldProps } from '@/components/ui/base'
+import BaseDatePickerField from '@/components/ui/base/BaseDatePickerField.vue'
 
-const UiDatetimePicker = resolveUiComponent('DatetimePicker')
+import RekaCalendar from './UiCalendar.vue'
+
+export interface DatetimePickerProps extends DateFieldProps {
+  hour12?: boolean
+}
+
+const props = withDefaults(defineProps<DatetimePickerProps>(), {
+  size: 'md',
+  formatOptions: () => ({
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }),
+})
+
+defineEmits<{ 'update:modelValue': [value: Date] }>()
 </script>
 
 <template>
-  <component :is="UiDatetimePicker" v-bind="$props">
-    <slot />
-  </component>
+  <BaseDatePickerField
+    v-bind="props"
+    provider="reka"
+    mode="datetime"
+    :calendar-component="RekaCalendar"
+  />
 </template>

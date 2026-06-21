@@ -4,7 +4,7 @@ import { useBaseToggle, type ToggleProps } from '@/components/ui/base'
 const props = withDefaults(
   defineProps<
     ToggleProps & {
-      provider: 'reka' | 'vuetify0'
+      provider: 'reka'
     }
   >(),
   {
@@ -28,7 +28,7 @@ const toggleClasses = computed(() => [
     ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
     : '',
   isChecked.value
-    ? 'bg-primary-500 border-primary-500 text-white'
+    ? 'bg-primary-700 border-primary-700 text-white hover:bg-primary-800'
     : props.provider === 'reka'
       ? 'bg-white dark:bg-surface-800 border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-700'
       : 'bg-white border-surface-300 text-surface-700 hover:bg-surface-50',

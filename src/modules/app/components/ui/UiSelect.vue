@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { SelectProps } from '@/composables/forms/useBaseSelect'
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { SelectProps } from '@/components/ui/base'
+import BaseSelectField from '@/components/ui/base/BaseSelectField.vue'
 
-const UiSelect = resolveUiComponent('Select')
+import RekaOption from './UiOption.vue'
+import RekaOptionGroup from './UiOptionGroup.vue'
 
 defineProps<SelectProps>()
-
-defineEmits<{ 'update:modelValue': [value: string | number | Array<string | number>] }>()
 
 defineOptions({
   inheritAttrs: false,
@@ -14,11 +13,10 @@ defineOptions({
 </script>
 
 <template>
-  <component
-    :is="UiSelect"
+  <BaseSelectField
     v-bind="{ ...$props, ...$attrs }"
-    @update:model-value="$emit('update:modelValue', $event)"
-  >
-    <slot />
-  </component>
+    provider="reka"
+    :option-component="RekaOption"
+    :option-group-component="RekaOptionGroup"
+  />
 </template>

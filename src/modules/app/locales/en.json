@@ -62,13 +62,13 @@
 
   "hero_title": "Vuestrata",
   "hero_cta": "Get started",
-  "hero_desc": "A Vue 3 starter with provider adapters, theme tokens, typed API boundaries, auth scaffolding, and tests already connected.",
+  "hero_desc": "A Vue 3 starter with Reka UI components, theme tokens, typed API boundaries, auth scaffolding, and tests already connected.",
   "hero_github": "GitHub",
   "hero_subtitle": "Vue 3 Professional Template",
   "hero_explore": "Explore Components",
   "hero_dashboard": "Dashboard",
   "hero_feature_themes": "Multi-theme system with dark mode",
-  "hero_feature_adapter": "Adapter UI components (reka-ui + vuetify0)",
+  "hero_feature_adapter": "Reka UI component library",
   "hero_feature_typed": "Strict TypeScript throughout",
   "hero_feature_testing": "Unit, integration & E2E testing",
   "hero_feature_ci": "CI/CD with GitHub Actions + Docker",
@@ -104,7 +104,6 @@
   "settings_appearance": "Appearance",
   "settings_theme": "Theme",
   "settings_language": "Language",
-  "settings_ui_provider": "UI Provider",
   "settings_dark_mode": "Dark mode",
 
   "theme_default": "Default",
@@ -185,6 +184,18 @@
   "audit_filter_group": "Filter by action",
   "audit_loading": "Loading audit log...",
   "audit_empty": "No events found.",
+  "audit_action_user_login": "Signed in",
+  "audit_action_user_logout": "Signed out",
+  "audit_action_user_register": "User registered",
+  "audit_action_user_invite": "User invited",
+  "audit_action_user_update_role": "Role updated",
+  "audit_action_role_update": "Role updated",
+  "audit_action_report_create": "Report created",
+  "audit_action_report_export": "Report exported",
+  "audit_action_billing_subscribe": "Subscription started",
+  "audit_action_billing_cancel": "Subscription canceled",
+  "audit_action_billing_update_plan": "Plan updated",
+  "audit_action_settings_update": "Settings updated",
 
   "billing_title": "Billing & Subscription",
   "billing_subtitle": "Manage your plan, payment methods, and invoices",
@@ -417,8 +428,8 @@
 
   "cta_section_label": "Start from the workbench",
   "cta_section_title": "Clone a Vue app that already knows its boundaries.",
-  "cta_section_desc": "Provider adapters, theme tokens, auth scaffolding, query keys, docs, and tests are in place before the first product screen is yours.",
-  "cta_feature_1": "Runtime UI provider switching",
+  "cta_section_desc": "Reka UI wrappers, theme tokens, auth scaffolding, query keys, docs, and tests are in place before the first product screen is yours.",
+  "cta_feature_1": "Reka UI wrappers already wired",
   "cta_feature_2": "Ten themes with light and dark modes",
   "cta_feature_3": "Unit, integration, and Playwright coverage",
   "cta_install_button": "Install Vuestrata",
@@ -426,5 +437,5 @@
 
   "stack_section_label": "Stack contract",
   "stack_section_title": "One starter, one toolchain, replaceable layers.",
-  "stack_section_desc": "The same tokens and conventions carry from theme switching to provider adapters, typed queries, and test infrastructure."
+  "stack_section_desc": "The same tokens and conventions carry from theme switching to typed queries and test infrastructure."
 }

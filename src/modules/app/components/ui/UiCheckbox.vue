@@ -1,28 +1,26 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
-import type { BaseFieldProps } from '@/types'
+import type { CheckboxProps } from '@/components/ui/base'
+import BaseCheckboxField from '@/components/ui/base/BaseCheckboxField.vue'
 
-export interface UiCheckboxProps extends Omit<BaseFieldProps, 'size'> {
-  modelValue?: boolean | 'indeterminate'
-  trueValue?: boolean
-  falseValue?: boolean
-  indeterminate?: boolean
-  size?: 'sm' | 'md' | 'lg'
-}
-
-withDefaults(defineProps<UiCheckboxProps>(), {
+withDefaults(defineProps<CheckboxProps>(), {
   modelValue: undefined,
+  checked: undefined,
   trueValue: undefined,
   falseValue: undefined,
   indeterminate: undefined,
 })
-defineEmits<{ 'update:modelValue': [value: boolean | 'indeterminate'] }>()
 
-const UiCheckbox = resolveUiComponent('Checkbox')
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean | 'indeterminate']
+  change: [value: boolean | 'indeterminate']
+}>()
+
+function forwardCheckboxValue(value: boolean | 'indeterminate') {
+  emit('update:modelValue', value)
+  emit('change', value)
+}
 </script>
 
 <template>
-  <component :is="UiCheckbox" v-bind="$props">
-    <slot />
-  </component>
+  <BaseCheckboxField v-bind="$props" provider="reka" @update:model-value="forwardCheckboxValue" />
 </template>

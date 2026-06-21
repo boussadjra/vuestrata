@@ -6,7 +6,7 @@ import { resolveIcon } from '~/config/icon-provider'
 import type { BreadcrumbItem } from '~/types'
 
 export interface BaseBreadcrumbProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   items: BreadcrumbItem[]
   rootComponent?: Component
   listComponent?: Component

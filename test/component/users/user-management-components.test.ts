@@ -39,10 +39,19 @@ vi.mock('@/modules/users/composables/useUpdatePermissionsMutation', async () => 
   }
 })
 
-function permissionInput(wrapper: VueWrapper, permission: Permission) {
+function permissionToggle(wrapper: VueWrapper, permission: Permission) {
   const label = wrapper.findAll('label').find((candidate) => candidate.text().includes(permission))
   if (!label) throw new Error(`Permission label not found: ${permission}`)
-  return label.find<HTMLInputElement>('input[type="checkbox"]')
+  return label.find<HTMLElement>('[role="checkbox"]')
+}
+
+async function selectRole(wrapper: VueWrapper, label: string) {
+  await wrapper.find('#invite-role').trigger('click')
+  const option = wrapper
+    .findAll<HTMLElement>('[role="option"]')
+    .find((candidate) => candidate.text().trim() === label)
+  if (!option) throw new Error(`Role option not found: ${label}`)
+  await option.trigger('click')
 }
 
 beforeEach(() => {
@@ -70,7 +79,7 @@ describe('InviteUserDialog', () => {
 
     await wrapper.find('#invite-email').setValue('new@example.test')
     await wrapper.find('#invite-name').setValue('New User')
-    await wrapper.find('#invite-role').setValue('viewer')
+    await selectRole(wrapper, 'Viewer')
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(mutationMocks.inviteUser).toHaveBeenCalledWith({
@@ -104,7 +113,7 @@ describe('UserPermissionsPanel', () => {
   it('renders a checkbox for every registered permission', () => {
     const wrapper = mountPanel(createAuthTestUser({ role: 'member' }))
 
-    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(getRegisteredPermissions().size)
+    expect(wrapper.findAll('[data-ui="checkbox"]')).toHaveLength(getRegisteredPermissions().size)
   })
 
   it('pre-checks explicit permissions over role defaults', () => {
@@ -114,8 +123,8 @@ describe('UserPermissionsPanel', () => {
     })
     const wrapper = mountPanel(user)
 
-    expect(permissionInput(wrapper, 'users:read').element.checked).toBe(true)
-    expect(permissionInput(wrapper, 'reports:read').element.checked).toBe(false)
+    expect(permissionToggle(wrapper, 'users:read').attributes('aria-checked')).toBe('true')
+    expect(permissionToggle(wrapper, 'reports:read').attributes('aria-checked')).toBe('false')
   })
 
   it('falls back to role default permissions when explicit permissions are absent', () => {
@@ -123,7 +132,7 @@ describe('UserPermissionsPanel', () => {
     const wrapper = mountPanel(user)
 
     for (const permission of getRolePermissions('viewer')) {
-      expect(permissionInput(wrapper, permission).element.checked).toBe(true)
+      expect(permissionToggle(wrapper, permission).attributes('aria-checked')).toBe('true')
     }
   })
 
@@ -154,9 +163,9 @@ describe('UserPermissionsPanel', () => {
       .find((button) => button.text() === 'Reset to role defaults')
     await resetButton!.trigger('click')
 
-    expect(permissionInput(wrapper, 'audit:read').element.checked).toBe(false)
+    expect(permissionToggle(wrapper, 'audit:read').attributes('aria-checked')).toBe('false')
     for (const permission of getRolePermissions('member')) {
-      expect(permissionInput(wrapper, permission).element.checked).toBe(true)
+      expect(permissionToggle(wrapper, permission).attributes('aria-checked')).toBe('true')
     }
   })
 
@@ -174,7 +183,7 @@ describe('UserPermissionsPanel', () => {
     mutationMocks.updatePermissions.mockResolvedValue(user)
     const wrapper = mountPanel(user, currentUser)
 
-    await permissionInput(wrapper, 'settings:read').setValue(true)
+    await permissionToggle(wrapper, 'settings:read').trigger('click')
     const saveButton = wrapper.findAll('button').find((button) => button.text() === 'Save')
     await saveButton!.trigger('click')
 

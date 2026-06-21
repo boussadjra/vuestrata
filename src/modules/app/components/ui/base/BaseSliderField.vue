@@ -3,7 +3,7 @@ import { useSliderThumb } from '@formwerk/core'
 
 import { useBaseSlider, type SliderProps } from '@/components/ui/base'
 
-const props = withDefaults(defineProps<SliderProps & { provider: 'reka' | 'vuetify0' }>(), {
+const props = withDefaults(defineProps<SliderProps & { provider: 'reka' }>(), {
   size: 'md',
   min: 0,
   max: 100,

@@ -209,16 +209,17 @@ vi.mock('@formwerk/core', () => ({
   })),
 }))
 
-import RekaCheckbox from '@/components/ui/provider/reka/RekaCheckbox.vue'
-import RekaNumberField from '@/components/ui/provider/reka/RekaNumberField.vue'
-import RekaRadioGroup from '@/components/ui/provider/reka/RekaRadioGroup.vue'
-import RekaSearchField from '@/components/ui/provider/reka/RekaSearchField.vue'
-import RekaSwitch from '@/components/ui/provider/reka/RekaSwitch.vue'
-import RekaTextarea from '@/components/ui/provider/reka/RekaTextarea.vue'
-// Import components after mocks
-import RekaTextField from '@/components/ui/provider/reka/RekaTextField.vue'
-import RekaToggle from '@/components/ui/provider/reka/RekaToggle.vue'
-import RekaToggleGroup from '@/components/ui/provider/reka/RekaToggleGroup.vue'
+import {
+  UiCheckbox,
+  UiNumberField,
+  UiRadioGroup,
+  UiSearchField,
+  UiSwitch,
+  UiTextarea,
+  UiTextField,
+  UiToggle,
+  UiToggleGroup,
+} from '@/components/ui'
 
 describe('Formwerk Basic Fields', () => {
   beforeEach(() => {
@@ -226,9 +227,9 @@ describe('Formwerk Basic Fields', () => {
     vi.clearAllMocks()
   })
 
-  describe('RekaTextField', () => {
+  describe('UiTextField', () => {
     it('renders label and input via Formwerk', () => {
-      const wrapper = mount(RekaTextField, {
+      const wrapper = mount(UiTextField, {
         props: {
           name: 'username',
           label: 'Username',
@@ -241,7 +242,7 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('uses explicit ids for stable label and input bindings', () => {
-      const wrapper = mount(RekaTextField, {
+      const wrapper = mount(UiTextField, {
         props: { id: 'email', name: 'email', label: 'Email' },
       })
 
@@ -250,37 +251,37 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('shows required indicator', () => {
-      const wrapper = mount(RekaTextField, {
+      const wrapper = mount(UiTextField, {
         props: { name: 'email', label: 'Email', required: true },
       })
       expect(wrapper.find('label').text()).toContain('*')
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaTextField, {
+      const wrapper = mount(UiTextField, {
         props: { name: 'test', label: 'Test', error: 'Required field' },
       })
       expect(wrapper.text()).toContain('Required field')
     })
 
     it('displays hint text', () => {
-      const wrapper = mount(RekaTextField, {
+      const wrapper = mount(UiTextField, {
         props: { name: 'test', label: 'Test', hint: 'Enter your name' },
       })
       expect(wrapper.text()).toContain('Enter your name')
     })
 
     it('works standalone without name prop', () => {
-      const wrapper = mount(RekaTextField, {
+      const wrapper = mount(UiTextField, {
         props: { label: 'Standalone' },
       })
       expect(wrapper.find('input').exists()).toBe(true)
     })
   })
 
-  describe('RekaTextarea', () => {
+  describe('UiTextarea', () => {
     it('renders textarea element', () => {
-      const wrapper = mount(RekaTextarea, {
+      const wrapper = mount(UiTextarea, {
         props: { name: 'bio', label: 'Bio', rows: 5 },
       })
       expect(wrapper.find('textarea').exists()).toBe(true)
@@ -289,16 +290,16 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('shows label text', () => {
-      const wrapper = mount(RekaTextarea, {
+      const wrapper = mount(UiTextarea, {
         props: { name: 'notes', label: 'Notes' },
       })
       expect(wrapper.find('label').text()).toContain('Notes')
     })
   })
 
-  describe('RekaCheckbox', () => {
+  describe('UiCheckbox', () => {
     it('renders checkbox with label', () => {
-      const wrapper = mount(RekaCheckbox, {
+      const wrapper = mount(UiCheckbox, {
         props: { name: 'agree', label: 'I agree' },
       })
       expect(wrapper.find('[data-ui="checkbox"]').exists()).toBe(true)
@@ -306,7 +307,7 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('renders with role=checkbox from Formwerk', () => {
-      const wrapper = mount(RekaCheckbox, {
+      const wrapper = mount(UiCheckbox, {
         props: { name: 'terms', label: 'Accept terms' },
       })
       const checkbox = wrapper.find('[data-ui="checkbox"]')
@@ -314,16 +315,16 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaCheckbox, {
+      const wrapper = mount(UiCheckbox, {
         props: { name: 'agree', label: 'Agree', error: 'Must accept' },
       })
       expect(wrapper.text()).toContain('Must accept')
     })
   })
 
-  describe('RekaSwitch', () => {
+  describe('UiSwitch', () => {
     it('renders switch with role=switch from Formwerk', () => {
-      const wrapper = mount(RekaSwitch, {
+      const wrapper = mount(UiSwitch, {
         props: { name: 'notify', label: 'Notifications' },
       })
       expect(wrapper.find('[data-ui="switch"]').exists()).toBe(true)
@@ -331,21 +332,21 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('shows label text', () => {
-      const wrapper = mount(RekaSwitch, {
+      const wrapper = mount(UiSwitch, {
         props: { name: 'dark', label: 'Dark mode' },
       })
       expect(wrapper.text()).toContain('Dark mode')
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaSwitch, {
+      const wrapper = mount(UiSwitch, {
         props: { name: 'toggle', label: 'Toggle', error: 'Error' },
       })
       expect(wrapper.text()).toContain('Error')
     })
   })
 
-  describe('RekaRadioGroup', () => {
+  describe('UiRadioGroup', () => {
     const options = [
       { label: 'Option A', value: 'a' },
       { label: 'Option B', value: 'b' },
@@ -353,7 +354,7 @@ describe('Formwerk Basic Fields', () => {
     ]
 
     it('renders radio group with role=radiogroup', () => {
-      const wrapper = mount(RekaRadioGroup, {
+      const wrapper = mount(UiRadioGroup, {
         props: { name: 'choice', label: 'Choose', options },
       })
       expect(wrapper.find('[data-ui="radiogroup"]').exists()).toBe(true)
@@ -361,7 +362,7 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('renders all options', () => {
-      const wrapper = mount(RekaRadioGroup, {
+      const wrapper = mount(UiRadioGroup, {
         props: { name: 'choice', label: 'Choose', options },
       })
       expect(wrapper.text()).toContain('Option A')
@@ -370,16 +371,16 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('shows label', () => {
-      const wrapper = mount(RekaRadioGroup, {
+      const wrapper = mount(UiRadioGroup, {
         props: { name: 'size', label: 'Size', options },
       })
       expect(wrapper.text()).toContain('Size')
     })
   })
 
-  describe('RekaSearchField', () => {
+  describe('UiSearchField', () => {
     it('renders search input with clear button', () => {
-      const wrapper = mount(RekaSearchField, {
+      const wrapper = mount(UiSearchField, {
         props: { name: 'search', label: 'Search' },
       })
       expect(wrapper.find('[data-ui="searchfield"]').exists()).toBe(true)
@@ -387,14 +388,14 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('shows label text', () => {
-      const wrapper = mount(RekaSearchField, {
+      const wrapper = mount(UiSearchField, {
         props: { name: 'search', label: 'Search items' },
       })
       expect(wrapper.text()).toContain('Search items')
     })
 
     it('displays clear button when value exists', () => {
-      const wrapper = mount(RekaSearchField, {
+      const wrapper = mount(UiSearchField, {
         props: { name: 'q', label: 'Query', modelValue: 'test' },
       })
       // Clear button should be visible since mock model has value
@@ -402,9 +403,9 @@ describe('Formwerk Basic Fields', () => {
     })
   })
 
-  describe('RekaNumberField', () => {
+  describe('UiNumberField', () => {
     it('renders number input with increment/decrement buttons', () => {
-      const wrapper = mount(RekaNumberField, {
+      const wrapper = mount(UiNumberField, {
         props: { name: 'qty', label: 'Quantity' },
       })
       expect(wrapper.find('[data-ui="numberfield"]').exists()).toBe(true)
@@ -414,23 +415,23 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('shows label text', () => {
-      const wrapper = mount(RekaNumberField, {
+      const wrapper = mount(UiNumberField, {
         props: { name: 'price', label: 'Price' },
       })
       expect(wrapper.text()).toContain('Price')
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaNumberField, {
+      const wrapper = mount(UiNumberField, {
         props: { name: 'amount', label: 'Amount', error: 'Too large' },
       })
       expect(wrapper.text()).toContain('Too large')
     })
   })
 
-  describe('RekaToggle', () => {
+  describe('UiToggle', () => {
     it('renders toggle with checkbox role', () => {
-      const wrapper = mount(RekaToggle, {
+      const wrapper = mount(UiToggle, {
         props: { name: 'bold', label: 'Bold' },
       })
       expect(wrapper.find('[data-ui="toggle"]').exists()).toBe(true)
@@ -438,14 +439,14 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('shows label text', () => {
-      const wrapper = mount(RekaToggle, {
+      const wrapper = mount(UiToggle, {
         props: { name: 'italic', label: 'Italic' },
       })
       expect(wrapper.text()).toContain('Italic')
     })
   })
 
-  describe('RekaToggleGroup', () => {
+  describe('UiToggleGroup', () => {
     const options = [
       { label: 'Left', value: 'left' },
       { label: 'Center', value: 'center' },
@@ -453,7 +454,7 @@ describe('Formwerk Basic Fields', () => {
     ]
 
     it('renders toggle group with all options', () => {
-      const wrapper = mount(RekaToggleGroup, {
+      const wrapper = mount(UiToggleGroup, {
         props: { name: 'align', label: 'Alignment', options },
       })
       expect(wrapper.find('[data-ui="togglegroup"]').exists()).toBe(true)
@@ -463,7 +464,7 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('renders buttons with aria-pressed', () => {
-      const wrapper = mount(RekaToggleGroup, {
+      const wrapper = mount(UiToggleGroup, {
         props: {
           name: 'align',
           label: 'Alignment',
@@ -479,7 +480,7 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('supports multi-select mode', () => {
-      const wrapper = mount(RekaToggleGroup, {
+      const wrapper = mount(UiToggleGroup, {
         props: {
           name: 'format',
           label: 'Format',
@@ -495,7 +496,7 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('emits update on click in single-select mode', async () => {
-      const wrapper = mount(RekaToggleGroup, {
+      const wrapper = mount(UiToggleGroup, {
         props: {
           name: 'align',
           label: 'Alignment',
@@ -508,7 +509,7 @@ describe('Formwerk Basic Fields', () => {
     })
 
     it('emits update on click in multi-select mode', async () => {
-      const wrapper = mount(RekaToggleGroup, {
+      const wrapper = mount(UiToggleGroup, {
         props: {
           name: 'format',
           label: 'Format',

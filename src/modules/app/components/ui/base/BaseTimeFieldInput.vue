@@ -3,7 +3,7 @@ import { DateTimeSegment } from '@formwerk/core'
 
 import { useBaseTimeField, type TimeFieldProps } from '@/components/ui/base'
 
-const props = withDefaults(defineProps<TimeFieldProps & { provider: 'reka' | 'vuetify0' }>(), {
+const props = withDefaults(defineProps<TimeFieldProps & { provider: 'reka' }>(), {
   size: 'md',
 })
 

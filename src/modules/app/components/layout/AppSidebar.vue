@@ -76,23 +76,28 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
       'fixed inset-y-0 inset-s-0 z-40 flex flex-col border-e',
       'border-surface-200/70 bg-surface-50/88 dark:border-surface-800/70 dark:bg-surface-950/84 backdrop-blur-xl',
       'transition-[width,transform,background-color,border-color] duration-300',
-      isMobileViewport ? 'w-72' : appStore.sidebarCollapsed ? 'w-[4.5rem]' : 'w-72',
+      isMobileViewport ? 'w-72' : appStore.sidebarCollapsed ? 'w-20' : 'w-72',
       'max-lg:data-[open=true]:translate-x-0 max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
     ]"
     :data-open="isSidebarOpen"
   >
     <!-- Sidebar header -->
     <div
-      class="border-surface-200/70 dark:border-surface-800/70 flex h-16 items-center justify-between gap-2 border-b px-3"
+      :class="[
+        'border-surface-200/70 dark:border-surface-800/70 flex h-16 items-center border-b',
+        isMobileViewport
+          ? 'justify-between gap-2 px-3'
+          : appStore.sidebarCollapsed
+            ? 'justify-center px-0'
+            : 'justify-start px-3',
+      ]"
     >
       <RouterLink
         v-if="!appStore.sidebarCollapsed"
         to="/"
-        class="focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex min-w-0 items-center gap-3 rounded-full p-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        class="focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex min-w-0 items-center gap-3 rounded-lg py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <span
-          class="border-surface-200/80 bg-surface-50 dark:border-surface-700/70 dark:bg-surface-900/82 flex h-10 w-10 items-center justify-center rounded-full border shadow-(--shadow-soft)"
-        >
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center p-1">
           <Logo class="h-6 w-auto shrink-0" />
         </span>
         <span class="min-w-0">
@@ -109,15 +114,16 @@ function isModuleItemVisible(item: { permission?: SidebarItem['permission'] }): 
       <RouterLink
         v-else
         to="/"
-        class="focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 border-surface-200/80 bg-surface-50 dark:border-surface-700/70 dark:bg-surface-900/82 flex h-10 w-10 items-center justify-center rounded-full border shadow-(--shadow-soft) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        class="focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex h-8 w-8 items-center justify-center rounded-lg p-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <Logo class="h-6 w-auto shrink-0" />
+        <Logo class="h-5 w-auto shrink-0" />
       </RouterLink>
       <UiButton
+        v-if="isMobileViewport"
         variant="ghost"
-        size="md"
+        :size="appStore.sidebarCollapsed ? 'sm' : 'md'"
         icon
-        class="rounded-full"
+        class="shrink-0"
         :aria-label="t('sidebar_toggle')"
         @click="appStore.toggleSidebar()"
       >

@@ -46,13 +46,14 @@ function isUsersReadDisabled(perm: Permission) {
   return isSelf.value && perm === 'users:read'
 }
 
-function togglePermission(perm: Permission) {
+function setPermission(perm: Permission, enabled: boolean | 'indeterminate') {
   if (isUsersReadDisabled(perm)) return
-  if (selected.value.has(perm)) {
-    selected.value.delete(perm)
-  } else {
+  if (enabled === true) {
     selected.value.add(perm)
+    return
   }
+
+  selected.value.delete(perm)
 }
 
 function resetToRoleDefaults() {
@@ -143,9 +144,9 @@ async function submit() {
               }"
             >
               <UiCheckbox
-                :checked="selected.has(perm as Permission)"
+                :model-value="selected.has(perm as Permission)"
                 :disabled="isUsersReadDisabled(perm as Permission)"
-                @change="togglePermission(perm as Permission)"
+                @update:model-value="setPermission(perm as Permission, $event)"
               />
               <span class="text-surface-800 dark:text-surface-200 flex-1 text-sm">
                 {{ perm }}

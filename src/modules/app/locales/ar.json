@@ -62,13 +62,13 @@
 
   "hero_title": "Vuestrata",
   "hero_cta": "ابدأ الآن",
-  "hero_desc": "قالب انطلاق لـ Vue 3 يوفّر محولات للمزودات، ورموزاً للسمات، وحدود API مكتوبة النوع، وبنية مصادقة، واختبارات جاهزة.",
+  "hero_desc": "قالب انطلاق لـ Vue 3 يوفّر مكونات Reka UI، ورموزاً للسمات، وحدود API مكتوبة النوع، وبنية مصادقة، واختبارات جاهزة.",
   "hero_github": "GitHub",
   "hero_subtitle": "قالب احترافي لـ Vue 3",
   "hero_explore": "استكشف المكونات",
   "hero_dashboard": "لوحة التحكم",
   "hero_feature_themes": "نظام سمات متعدد مع وضع داكن",
-  "hero_feature_adapter": "مكونات UI عبر طبقة محولات (reka-ui + vuetify0)",
+  "hero_feature_adapter": "مكتبة مكونات Reka UI",
   "hero_feature_typed": "TypeScript صارم على امتداد التطبيق",
   "hero_feature_testing": "اختبارات وحدات وتكامل وE2E",
   "hero_feature_ci": "CI/CD عبر GitHub Actions وDocker",
@@ -104,7 +104,6 @@
   "settings_appearance": "المظهر",
   "settings_theme": "السمة",
   "settings_language": "اللغة",
-  "settings_ui_provider": "مزود الواجهة",
   "settings_dark_mode": "الوضع الداكن",
 
   "theme_default": "الافتراضي",
@@ -184,6 +183,18 @@
   "audit_filter_group": "التصفية حسب الإجراء",
   "audit_loading": "جارٍ تحميل سجل التدقيق...",
   "audit_empty": "لم يتم العثور على أحداث.",
+  "audit_action_user_login": "تسجيل الدخول",
+  "audit_action_user_logout": "تسجيل الخروج",
+  "audit_action_user_register": "تسجيل مستخدم",
+  "audit_action_user_invite": "دعوة مستخدم",
+  "audit_action_user_update_role": "تحديث الدور",
+  "audit_action_role_update": "تحديث الدور",
+  "audit_action_report_create": "إنشاء تقرير",
+  "audit_action_report_export": "تصدير تقرير",
+  "audit_action_billing_subscribe": "بدء الاشتراك",
+  "audit_action_billing_cancel": "إلغاء الاشتراك",
+  "audit_action_billing_update_plan": "تحديث الخطة",
+  "audit_action_settings_update": "تحديث الإعدادات",
 
   "billing_title": "الفوترة والاشتراك",
   "billing_subtitle": "أدر خطتك ووسائل الدفع والفواتير",
@@ -416,8 +427,8 @@
 
   "cta_section_label": "انطلق من ورشة البداية",
   "cta_section_title": "استنسخ تطبيق Vue يعرف حدوده مسبقاً.",
-  "cta_section_desc": "محولات المزودات ورموز السمات وبنية المصادقة ومفاتيح الاستعلام والتوثيق والاختبارات كلها جاهزة قبل أن تبني أول شاشة من منتجك.",
-  "cta_feature_1": "تبديل مزود واجهة المستخدم أثناء التشغيل",
+  "cta_section_desc": "مكونات Reka UI المغلفة ورموز السمات وبنية المصادقة ومفاتيح الاستعلام والتوثيق والاختبارات كلها جاهزة قبل أن تبني أول شاشة من منتجك.",
+  "cta_feature_1": "مغلفات Reka UI جاهزة مسبقاً",
   "cta_feature_2": "عشر سمات مع وضعين فاتح وداكن",
   "cta_feature_3": "تغطية للوحدات والتكامل وPlaywright",
   "cta_install_button": "ثبّت Vuestrata",
@@ -425,5 +436,5 @@
 
   "stack_section_label": "عقد المكدس التقني",
   "stack_section_title": "نقطة انطلاق واحدة، سلسلة أدوات واحدة، وطبقات قابلة للاستبدال.",
-  "stack_section_desc": "تسري الرموز والاتفاقيات نفسها من تبديل السمات إلى محولات المزودات والاستعلامات مكتوبة النوع والبنية التحتية للاختبار."
+  "stack_section_desc": "تسري الرموز والاتفاقيات نفسها من تبديل السمات إلى الاستعلامات مكتوبة النوع والبنية التحتية للاختبار."
 }

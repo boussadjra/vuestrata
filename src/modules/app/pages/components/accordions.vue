@@ -9,19 +9,19 @@ import ComponentTestRunner from '@/components/docs/ComponentTestRunner.vue'
 const basicItems = [
   {
     value: 'item-1',
-    trigger: 'What is Vueye?',
+    title: 'What is Vueye?',
     content:
       'Vueye is a modular Vue 3 dashboard framework with built-in ecommerce modules, theming, and RBAC.',
   },
   {
     value: 'item-2',
-    trigger: 'How does theming work?',
+    title: 'How does theming work?',
     content:
       'Themes are applied via CSS custom properties and Tailwind utility classes. Toggle between light and dark modes using the useTheme composable.',
   },
   {
     value: 'item-3',
-    trigger: 'Is it open source?',
+    title: 'Is it open source?',
     content: 'Yes, Vueye is released under an open-source license. Contributions are welcome.',
   },
 ]
@@ -29,25 +29,25 @@ const basicItems = [
 const faqItems = [
   {
     value: 'faq-1',
-    trigger: 'How do I install Vueye?',
+    title: 'How do I install Vueye?',
     content:
       'Clone the repository and run pnpm install to get started. See the installation guide for details.',
   },
   {
     value: 'faq-2',
-    trigger: 'Can I use custom components?',
+    title: 'Can I use custom components?',
     content:
       'Absolutely. The Ui* wrapper pattern lets you swap underlying component providers without changing consumer code.',
   },
   {
     value: 'faq-3',
-    trigger: 'Does it support SSR?',
+    title: 'Does it support SSR?',
     content:
       'Currently, Vueye is designed as a client-side SPA. SSR support may be planned for future releases.',
   },
   {
     value: 'faq-4',
-    trigger: 'How do I add a new module?',
+    title: 'How do I add a new module?',
     content:
       'Create a new folder under src/modules/ with its own store, composables, pages, and components. Register it in the module index.',
   },
@@ -56,19 +56,19 @@ const faqItems = [
 const richItems = [
   {
     value: 'rich-1',
-    trigger: 'Getting Started',
+    title: 'Getting Started',
     content:
       'Follow the quick start guide to set up your development environment. You will need Node.js 18+ and pnpm installed globally.',
   },
   {
     value: 'rich-2',
-    trigger: 'Configuration',
+    title: 'Configuration',
     content:
       'Environment variables are managed through .env files. Runtime configuration is handled by the app store and persisted via useAppStorage.',
   },
   {
     value: 'rich-3',
-    trigger: 'Deployment',
+    title: 'Deployment',
     content:
       'Build the project with pnpm build and deploy the dist/ directory to any static hosting provider like Vercel, Netlify, or Cloudflare Pages.',
   },
@@ -102,7 +102,7 @@ const apiProps: ApiPropRow[] = [
     name: 'items',
     type: 'AccordionItem[]',
     default: '[]',
-    description: 'Array of { value, trigger, content }',
+    description: 'Array of { value, title, content }',
   },
   {
     name: 'type',

@@ -107,20 +107,22 @@ vi.mock('@formwerk/core', () => ({
   useFormStep: vi.fn(),
 }))
 
-import RekaColorPicker from '@/components/ui/provider/reka/RekaColorPicker.vue'
-import RekaEditable from '@/components/ui/provider/reka/RekaEditable.vue'
-import RekaMentionsField from '@/components/ui/provider/reka/RekaMentionsField.vue'
-import RekaRatingField from '@/components/ui/provider/reka/RekaRatingField.vue'
-import RekaSlider from '@/components/ui/provider/reka/RekaSlider.vue'
+import {
+  UiColorPicker,
+  UiEditable,
+  UiMentionsField,
+  UiRatingField,
+  UiSlider,
+} from '@/components/ui'
 
 describe('Formwerk Specialized Fields', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  describe('RekaSlider', () => {
+  describe('UiSlider', () => {
     it('renders with label and track', () => {
-      const wrapper = mount(RekaSlider, {
+      const wrapper = mount(UiSlider, {
         props: {
           label: 'Volume',
           name: 'volume',
@@ -131,7 +133,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('renders output element', () => {
-      const wrapper = mount(RekaSlider, {
+      const wrapper = mount(UiSlider, {
         props: {
           label: 'Volume',
           name: 'volume',
@@ -143,7 +145,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaSlider, {
+      const wrapper = mount(UiSlider, {
         props: {
           label: 'Volume',
           name: 'volume',
@@ -154,9 +156,9 @@ describe('Formwerk Specialized Fields', () => {
     })
   })
 
-  describe('RekaColorPicker', () => {
+  describe('UiColorPicker', () => {
     it('renders with label', () => {
-      const wrapper = mount(RekaColorPicker, {
+      const wrapper = mount(UiColorPicker, {
         props: {
           label: 'Theme Color',
           name: 'color',
@@ -167,7 +169,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('renders color input', () => {
-      const wrapper = mount(RekaColorPicker, {
+      const wrapper = mount(UiColorPicker, {
         props: {
           label: 'Color',
           name: 'color',
@@ -177,7 +179,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaColorPicker, {
+      const wrapper = mount(UiColorPicker, {
         props: {
           label: 'Color',
           name: 'color',
@@ -188,9 +190,9 @@ describe('Formwerk Specialized Fields', () => {
     })
   })
 
-  describe('RekaEditable', () => {
+  describe('UiEditable', () => {
     it('renders with label', () => {
-      const wrapper = mount(RekaEditable, {
+      const wrapper = mount(UiEditable, {
         props: {
           label: 'Title',
           name: 'title',
@@ -201,7 +203,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('shows edit button', () => {
-      const wrapper = mount(RekaEditable, {
+      const wrapper = mount(UiEditable, {
         props: {
           label: 'Title',
           name: 'title',
@@ -212,9 +214,9 @@ describe('Formwerk Specialized Fields', () => {
     })
   })
 
-  describe('RekaMentionsField', () => {
+  describe('UiMentionsField', () => {
     it('renders with label', () => {
-      const wrapper = mount(RekaMentionsField, {
+      const wrapper = mount(UiMentionsField, {
         props: {
           label: 'Comment',
           name: 'comment',
@@ -225,7 +227,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('renders textarea', () => {
-      const wrapper = mount(RekaMentionsField, {
+      const wrapper = mount(UiMentionsField, {
         props: {
           label: 'Comment',
           name: 'comment',
@@ -235,9 +237,9 @@ describe('Formwerk Specialized Fields', () => {
     })
   })
 
-  describe('RekaRatingField', () => {
+  describe('UiRatingField', () => {
     it('renders with label', () => {
-      const wrapper = mount(RekaRatingField, {
+      const wrapper = mount(UiRatingField, {
         props: {
           label: 'Rating',
           name: 'rating',
@@ -248,7 +250,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('renders star buttons', () => {
-      const wrapper = mount(RekaRatingField, {
+      const wrapper = mount(UiRatingField, {
         props: {
           label: 'Rating',
           name: 'rating',
@@ -260,7 +262,7 @@ describe('Formwerk Specialized Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaRatingField, {
+      const wrapper = mount(UiRatingField, {
         props: {
           label: 'Rating',
           name: 'rating',

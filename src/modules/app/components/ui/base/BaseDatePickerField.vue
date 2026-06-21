@@ -5,7 +5,7 @@ import type { Component } from 'vue'
 import { useBaseDateField, type DateFieldProps } from '@/components/ui/base'
 
 export interface BaseDatePickerFieldProps extends DateFieldProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   mode?: 'date' | 'datetime'
   calendarComponent: Component
   pickerLabel?: string
@@ -40,8 +40,8 @@ const { isOpen, pickerProps, pickerTriggerProps } = usePicker({
 
 const controlClasses = computed(() => [
   props.mode === 'datetime'
-    ? 'inline-flex flex-1 flex-wrap items-center gap-0.5 rounded-lg border px-3 py-2 text-sm'
-    : 'inline-flex flex-1 items-center gap-0.5 rounded-lg border px-3 py-2 text-sm',
+    ? 'shaped-border shaped-radius-sm inline-flex flex-1 flex-wrap items-center gap-0.5 border px-3 py-2 text-sm'
+    : 'shaped-border shaped-radius-sm inline-flex flex-1 items-center gap-0.5 border px-3 py-2 text-sm',
   'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
   displayError.value
     ? 'border-red-400 dark:border-red-500'
@@ -77,7 +77,7 @@ const dataUi = computed(() => (props.mode === 'datetime' ? 'datetime-picker' : '
         <button
           v-bind="pickerTriggerProps"
           type="button"
-          class="border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 rounded-lg border p-2"
+          class="shaped-border shaped-radius-sm border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 border p-2"
         >
           📅
         </button>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useBaseOTPField, type OTPFieldProps } from '@/components/ui/base'
 
-const props = withDefaults(defineProps<OTPFieldProps & { provider: 'reka' | 'vuetify0' }>(), {
+const props = withDefaults(defineProps<OTPFieldProps & { provider: 'reka' }>(), {
   length: 6,
   accept: 'numeric',
 })

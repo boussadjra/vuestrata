@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import type { StandardSchemaV1 } from '@standard-schema/spec'
-import { type as arkType } from 'arktype'
-import * as v from 'valibot'
-import * as yup from 'yup'
 import { z } from 'zod'
 
 import { resolveIcon } from '~/config/icon-provider'
-import { useValidationProvider } from '~/config/validation-provider'
-import type { ValidationAdapterName } from '~/types'
 
 const roleOptions = [
   { label: 'Admin', value: 'admin' },
@@ -15,104 +10,29 @@ const roleOptions = [
   { label: 'Viewer', value: 'viewer' },
 ]
 
-const validationProvider = useValidationProvider()
-const adapterName = computed(() => validationProvider.adapterName)
+const validatorLabel = 'Zod'
 
-type ValidationDemoStrategy = {
-  buildSchema: () => StandardSchemaV1
-  schemaSnippet: string
+function buildMemberSchema(): StandardSchemaV1 {
+  return z.object({
+    name: z.string().min(3, 'Name must be at least 3 characters'),
+    email: z.string().email('Work email must be valid'),
+    role: z.enum(['admin', 'member', 'viewer']),
+    notes: z.string().max(280, 'Notes must be 280 characters or less').optional(),
+    agreed: z.literal(true, {
+      message: 'You must enable onboarding email to continue',
+    }),
+  }) as unknown as StandardSchemaV1
 }
 
-const validationDemoStrategies: Record<ValidationAdapterName, ValidationDemoStrategy> = {
-  zod: {
-    buildSchema: () =>
-      z.object({
-        name: z.string().min(3, 'Name must be at least 3 characters'),
-        email: z.string().email('Work email must be valid'),
-        role: z.enum(['admin', 'member', 'viewer']),
-        notes: z.string().max(280, 'Notes must be 280 characters or less').optional(),
-        agreed: z.literal(true, {
-          message: 'You must enable onboarding email to continue',
-        }),
-      }) as unknown as StandardSchemaV1,
-    schemaSnippet: `const memberSchema = z.object({
+const schemaSnippet = `const memberSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters'),
   email: z.string().email('Work email must be valid'),
   role: z.enum(['admin', 'member', 'viewer']),
   notes: z.string().max(280, 'Notes must be 280 characters or less').optional(),
   agreed: z.literal(true, { message: 'You must enable onboarding email to continue' }),
-})`,
-  },
-  valibot: {
-    buildSchema: () =>
-      v.object({
-        name: v.pipe(v.string(), v.minLength(3, 'Name must be at least 3 characters')),
-        email: v.pipe(v.string(), v.email('Work email must be valid')),
-        role: v.picklist(['admin', 'member', 'viewer'] as const),
-        notes: v.optional(
-          v.pipe(v.string(), v.maxLength(280, 'Notes must be 280 characters or less')),
-        ),
-        agreed: v.literal(true, 'You must enable onboarding email to continue'),
-      }) as unknown as StandardSchemaV1,
-    schemaSnippet: `const memberSchema = v.object({
-  name: v.pipe(v.string(), v.minLength(3, 'Name must be at least 3 characters')),
-  email: v.pipe(v.string(), v.email('Work email must be valid')),
-  role: v.picklist(['admin', 'member', 'viewer'] as const),
-  notes: v.optional(v.pipe(v.string(), v.maxLength(280, 'Notes must be 280 characters or less'))),
-  agreed: v.literal(true, 'You must enable onboarding email to continue'),
-})`,
-  },
-  yup: {
-    buildSchema: () =>
-      yup
-        .object({
-          name: yup.string().min(3, 'Name must be at least 3 characters').required(),
-          email: yup.string().email('Work email must be valid').required(),
-          role: yup
-            .mixed<'admin' | 'member' | 'viewer'>()
-            .oneOf(['admin', 'member', 'viewer'])
-            .required(),
-          notes: yup.string().max(280, 'Notes must be 280 characters or less').optional(),
-          agreed: yup
-            .boolean()
-            .oneOf([true], 'You must enable onboarding email to continue')
-            .required(),
-        })
-        .required() as unknown as StandardSchemaV1,
-    schemaSnippet: `const memberSchema = yup.object({
-  name: yup.string().min(3, 'Name must be at least 3 characters').required(),
-  email: yup.string().email('Work email must be valid').required(),
-  role: yup.mixed<'admin' | 'member' | 'viewer'>().oneOf(['admin', 'member', 'viewer']).required(),
-  notes: yup.string().max(280, 'Notes must be 280 characters or less').optional(),
-  agreed: yup.boolean().oneOf([true], 'You must enable onboarding email to continue').required(),
-})`,
-  },
-  arktype: {
-    buildSchema: () =>
-      arkType({
-        name: 'string >= 3',
-        email: 'string.email',
-        role: "'admin' | 'member' | 'viewer'",
-        notes: 'string <= 280 | undefined',
-        agreed: 'true',
-      }) as unknown as StandardSchemaV1,
-    schemaSnippet: `const memberSchema = arkType({
-  name: 'string >= 3',
-  email: 'string.email',
-  role: "'admin' | 'member' | 'viewer'",
-  notes: 'string <= 280 | undefined',
-  agreed: 'true',
-})`,
-  },
-}
+})`
 
-function resolveValidationDemoStrategy(adapter: ValidationAdapterName) {
-  return validationDemoStrategies[adapter] ?? validationDemoStrategies.zod
-}
-
-const memberSchema = computed<StandardSchemaV1>(() =>
-  resolveValidationDemoStrategy(adapterName.value).buildSchema(),
-)
+const memberSchema = computed<StandardSchemaV1>(() => buildMemberSchema())
 
 const openScenarioCode = ref<Record<string, boolean>>({})
 
@@ -195,14 +115,14 @@ const demoScenarios: DemoScenario[] = [
   }
 })
 
-function buildSchemaCodeSnippet(adapter: ValidationAdapterName) {
-  return resolveValidationDemoStrategy(adapter).schemaSnippet
+function buildSchemaCodeSnippet() {
+  return schemaSnippet
 }
 
 function buildScenarioCode(scenario: DemoScenario) {
   const initialValues = JSON.stringify(scenario.initialValues, null, 2)
 
-  return `${buildSchemaCodeSnippet(adapterName.value)}
+  return `${buildSchemaCodeSnippet()}
 
 <UiForm
   :schema="memberSchema"
@@ -251,7 +171,7 @@ function syncScenarioCodeState(key: string, event: Event) {
           <span
             class="border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300 rounded-full border px-3 py-1"
           >
-            Adapter: {{ adapterName }}
+            Validator: {{ validatorLabel }}
           </span>
           <span
             class="border-surface-200/80 bg-surface-100/80 text-surface-500 dark:border-surface-700 dark:bg-surface-950/75 dark:text-surface-400 rounded-full border px-3 py-1"
@@ -294,7 +214,7 @@ function syncScenarioCodeState(key: string, event: Event) {
           </div>
 
           <UiForm
-            :key="`${adapterName}-${scenario.key}`"
+            :key="scenario.key"
             :schema="memberSchema"
             :initial-values="scenario.initialValues"
             @submit="scenario.onSubmit"

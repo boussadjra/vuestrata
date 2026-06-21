@@ -2,7 +2,7 @@
 import type { TreeNode } from '@/components/ui/base'
 
 const props = defineProps<{
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   node: TreeNode
   level: number
   isExpanded: (value: string) => boolean

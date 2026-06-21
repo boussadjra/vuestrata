@@ -6,7 +6,7 @@ import { useBaseComboBox, type ComboBoxProps } from '@/components/ui/base'
 const props = withDefaults(
   defineProps<
     ComboBoxProps & {
-      provider: 'reka' | 'vuetify0'
+      provider: 'reka'
       optionComponent: Component
     }
   >(),
@@ -30,7 +30,7 @@ const {
 } = useBaseComboBox(props)
 
 const inputClasses = computed(() => [
-  'w-full rounded-lg border bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200 transition-colors',
+  'shaped-border shaped-radius-sm w-full border bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200 transition-colors',
   'placeholder:text-surface-400 dark:placeholder:text-surface-500',
   'focus:outline-none focus:ring-2 focus:ring-offset-0',
   displayError.value
@@ -73,7 +73,7 @@ const inputClasses = computed(() => [
       <div
         v-show="isOpen"
         v-bind="listBoxProps"
-        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white p-1"
+        class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 absolute z-50 mt-1 max-h-60 w-full overflow-auto border bg-white p-1"
       >
         <component
           :is="optionComponent"

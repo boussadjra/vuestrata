@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { TimeFieldProps } from '@/components/ui/base'
+import BaseTimeFieldInput from '@/components/ui/base/BaseTimeFieldInput.vue'
 
-const UiTimeField = resolveUiComponent('TimeField')
+const props = withDefaults(defineProps<TimeFieldProps>(), {
+  size: 'md',
+})
+
+defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <template>
-  <component :is="UiTimeField" v-bind="$props">
-    <slot />
-  </component>
+  <BaseTimeFieldInput v-bind="props" provider="reka" />
 </template>

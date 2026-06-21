@@ -160,7 +160,7 @@ const apiSlots: ApiSlotRow[] = [
             <UiTextarea label="Description" placeholder="Describe the item" :rows="3" />
             <UiSelect
               label="Category"
-              :items="[
+              :options="[
                 { label: 'Electronics', value: 'electronics' },
                 { label: 'Clothing', value: 'clothing' },
                 { label: 'Books', value: 'books' },

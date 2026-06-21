@@ -77,7 +77,7 @@ const { fields, values, isSubmitting, handleSubmit, reset } = useFormBuilder({
       >
         <template #actions="{ submitting: isBusy }">
           <div class="flex justify-end gap-3 pt-2">
-            <UiButton variant="outline" @click="reset()">Reset</UiButton>
+            <UiButton variant="ghost" @click="reset()">Reset</UiButton>
             <UiButton type="submit" variant="primary" :disabled="isBusy">
               {{ isBusy ? 'Saving…' : 'Create user' }}
             </UiButton>

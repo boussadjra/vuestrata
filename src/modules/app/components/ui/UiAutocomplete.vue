@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { ComboBoxProps } from '@/components/ui/base'
+import BaseComboBoxField from '@/components/ui/base/BaseComboBoxField.vue'
 
-const UiAutocomplete = resolveUiComponent('ComboBox')
+import RekaOption from './UiOption.vue'
+
+const props = withDefaults(defineProps<ComboBoxProps>(), {
+  placeholder: 'Search...',
+  size: 'md',
+})
+
+defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
 </script>
 
 <template>
-  <component :is="UiAutocomplete" v-bind="{ ...$attrs, openOnFocus: true }">
-    <slot />
-  </component>
+  <BaseComboBoxField v-bind="props" provider="reka" :option-component="RekaOption" />
 </template>

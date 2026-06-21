@@ -1,26 +1,10 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
-import type { BaseFieldProps } from '@/types'
+import type { NumberFieldProps } from '@/components/ui/base'
+import BaseNumberFieldInput from '@/components/ui/base/BaseNumberFieldInput.vue'
 
-export interface UiNumberFieldProps extends BaseFieldProps {
-  modelValue?: number
-  placeholder?: string
-  hint?: string
-  min?: number
-  max?: number
-  step?: number
-  locale?: string
-  formatOptions?: Intl.NumberFormatOptions
-}
-
-defineProps<UiNumberFieldProps>()
-defineEmits<{ 'update:modelValue': [value: number] }>()
-
-const UiNumberField = resolveUiComponent('NumberField')
+defineProps<NumberFieldProps>()
 </script>
 
 <template>
-  <component :is="UiNumberField" v-bind="$props">
-    <slot />
-  </component>
+  <BaseNumberFieldInput v-bind="$props" provider="reka" />
 </template>

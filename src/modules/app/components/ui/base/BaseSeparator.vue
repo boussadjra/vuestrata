@@ -1,6 +1,6 @@
 <script setup lang="ts">
 export interface BaseSeparatorProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   orientation?: 'horizontal' | 'vertical'
   decorative?: boolean
 }

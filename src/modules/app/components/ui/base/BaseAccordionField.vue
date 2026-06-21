@@ -14,7 +14,7 @@ interface BaseAccordionComponents {
 }
 
 export interface BaseAccordionProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   components: BaseAccordionComponents
   items: AccordionItemData[]
   type?: 'single' | 'multiple'

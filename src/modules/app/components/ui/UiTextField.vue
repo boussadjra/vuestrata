@@ -1,26 +1,10 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
-import type { BaseFieldProps } from '@/types'
+import type { TextFieldProps } from '@/components/ui/base'
+import BaseTextFieldInput from '@/components/ui/base/BaseTextFieldInput.vue'
 
-export interface UiTextFieldProps extends BaseFieldProps {
-  modelValue?: string
-  type?: 'text' | 'email' | 'password' | 'tel' | 'url'
-  placeholder?: string
-  hint?: string
-}
-
-const props = defineProps<UiTextFieldProps>()
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
-
-const UiTextField = resolveUiComponent('TextField')
+defineProps<TextFieldProps>()
 </script>
 
 <template>
-  <component
-    :is="UiTextField"
-    v-bind="{ ...props, ...$attrs }"
-    @update:model-value="emit('update:modelValue', $event)"
-  >
-    <slot />
-  </component>
+  <BaseTextFieldInput v-bind="$props" provider="reka" />
 </template>

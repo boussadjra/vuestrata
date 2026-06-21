@@ -4,7 +4,7 @@ import type { Component } from 'vue'
 import type { StepperItem } from '~/types'
 
 export interface BaseStepperProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   steps: StepperItem[]
   modelValue?: number
   rootComponent?: Component
@@ -53,7 +53,7 @@ function onUpdateModelValue(value: unknown) {
           class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold"
           :class="
             index <= current
-              ? 'border-primary-500 bg-primary-500 text-white'
+              ? 'border-primary-700 bg-primary-700 text-white'
               : 'border-surface-300 text-surface-500 dark:border-surface-700 dark:text-surface-400'
           "
           :aria-current="index === current ? 'step' : undefined"
@@ -87,7 +87,7 @@ function onUpdateModelValue(value: unknown) {
         class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold"
         :class="
           index <= current
-            ? 'border-primary-500 bg-primary-500 text-white'
+            ? 'border-primary-700 bg-primary-700 text-white'
             : 'border-surface-300 text-surface-500 dark:border-surface-700 dark:text-surface-400'
         "
         :aria-current="index === current ? 'step' : undefined"

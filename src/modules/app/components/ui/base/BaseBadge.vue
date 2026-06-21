@@ -1,6 +1,6 @@
 <script setup lang="ts">
 export interface BaseBadgeProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error'
   size?: 'sm' | 'md' | 'lg'
   dot?: boolean

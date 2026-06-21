@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { TreeSelectProps } from '@/components/ui/base'
+import BaseTreeSelectField from '@/components/ui/base/BaseTreeSelectField.vue'
 
-const UiTreeSelect = resolveUiComponent('TreeSelect')
+import RekaTreeNode from './UiTreeNode.vue'
+
+defineProps<TreeSelectProps>()
 </script>
 
 <template>
-  <component :is="UiTreeSelect" v-bind="$props">
-    <slot />
-  </component>
+  <BaseTreeSelectField v-bind="$props" provider="reka" :tree-node-component="RekaTreeNode" />
 </template>

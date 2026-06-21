@@ -1,6 +1,6 @@
 <script setup lang="ts">
 export interface BaseSkeletonProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   width?: string
   height?: string
   rounded?: 'sm' | 'md' | 'lg' | 'full'

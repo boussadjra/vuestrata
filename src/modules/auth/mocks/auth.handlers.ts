@@ -2,7 +2,7 @@ import { delay, http, HttpResponse } from 'msw'
 
 import { createMockJwt, isValidToken } from '@/mocks/utils'
 import { useDemoAuthBackend } from '@/state/demo-auth-backend'
-import { ensureDefaultDemoUsers } from '@/state/demo-store'
+import { ensureDefaultDemoUsers, getDemoUsers } from '@/state/demo-store'
 import type { AuthCredentials, User } from '~/types'
 
 function tokensFor(user: User) {
@@ -161,7 +161,9 @@ export const authMockHandlers = [
     const { setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as Record<string, string>
     const code = body['code'] ?? ''
-    const users = await ensureDefaultDemoUsers()
+    // Do not reseed here: tests and local demos may intentionally clear the
+    // store to assert that unresolved OAuth codes fail closed.
+    const users = await getDemoUsers()
 
     // Deterministic mock code: demo-oauth-code-<provider>
     const providerMatch = code.match(/^demo-oauth-code-(.+)$/)

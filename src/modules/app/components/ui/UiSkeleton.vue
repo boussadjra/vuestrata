@@ -1,11 +1,21 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseSkeleton from '@/components/ui/base/BaseSkeleton.vue'
 
-const UiSkeleton = resolveUiComponent('Skeleton')
+export interface SkeletonProps {
+  width?: string
+  height?: string
+  rounded?: 'sm' | 'md' | 'lg' | 'full'
+  animated?: boolean
+}
+
+withDefaults(defineProps<SkeletonProps>(), {
+  width: '100%',
+  height: '1rem',
+  rounded: 'md',
+  animated: true,
+})
 </script>
 
 <template>
-  <component :is="UiSkeleton" v-bind="$props">
-    <slot />
-  </component>
+  <BaseSkeleton v-bind="$props" provider="reka" />
 </template>

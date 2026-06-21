@@ -1,12 +1,25 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseSheetPanel from '@/components/ui/base/BaseSheetPanel.vue'
 
-const UiSheet = resolveUiComponent('Sheet')
+export interface SheetProps {
+  modelValue?: boolean
+  side?: 'left' | 'right' | 'top' | 'bottom'
+  title?: string
+  description?: string
+}
+
+withDefaults(defineProps<SheetProps>(), {
+  modelValue: false,
+  side: 'right',
+})
+
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 </script>
 
 <template>
-  <component :is="UiSheet" v-bind="$props">
-    <template #trigger><slot name="trigger" /></template>
-    <slot />
-  </component>
+  <BaseSheetPanel
+    v-bind="$props"
+    provider="reka"
+    @update:modelValue="emit('update:modelValue', $event)"
+  />
 </template>

@@ -1,7 +1,5 @@
 import type { Role, Permission, BuiltinPermission, RoleDefinition } from '~/lib/rbac/types'
 
-export type UiProvider = 'reka' | 'vuetify0'
-
 // ─── Icon System ─────────────────────────────────────────
 export type IconProvider = 'solar' | 'lucide' | 'phosphor' | (string & {})
 
@@ -136,7 +134,7 @@ export interface ThemeTokens {
 }
 
 // ─── Validation System ───────────────────────────────────
-export type ValidationAdapterName = 'zod' | 'valibot' | 'yup' | 'arktype'
+export type ValidationAdapterName = 'zod'
 
 export interface FieldError {
   path: string
@@ -177,9 +175,7 @@ export interface AppConfig {
   apiUrl: string
   useMocks: boolean
   authProvider: 'jwt' | 'oauth' | 'mock'
-  uiProvider: UiProvider
   iconProvider: IconProvider
-  validationAdapter: ValidationAdapterName
   demoAuth: {
     retentionHours: number
   }

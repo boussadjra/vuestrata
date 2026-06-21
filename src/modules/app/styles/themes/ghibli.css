@@ -42,17 +42,17 @@
   --color-accent-900: #213a4d;
   --color-accent-950: #122130;
 
-  /* Surface — Warm cream */
+  /* Surface — Warm cream, but neutral enough for readable UI chrome */
   --color-surface-50: #fdfbf7;
   --color-surface-100: #faf5ed;
   --color-surface-200: #f2e9d8;
-  --color-surface-300: #e5d5bc;
-  --color-surface-400: #c4a882;
-  --color-surface-500: #9e8561;
-  --color-surface-600: #7a674c;
-  --color-surface-700: #5d4e3a;
-  --color-surface-800: #40372a;
-  --color-surface-900: #2b251c;
+  --color-surface-300: #dfd0bc;
+  --color-surface-400: #ac9578;
+  --color-surface-500: #816c57;
+  --color-surface-600: #635141;
+  --color-surface-700: #4a3d31;
+  --color-surface-800: #342b23;
+  --color-surface-900: #241d18;
   --color-surface-950: #161310;
 
   /* Typography — Serif accent */
@@ -73,15 +73,15 @@
 }
 
 :root.theme-ghibli.dark {
-  --color-surface-50: #2b251c;
-  --color-surface-100: #332d22;
-  --color-surface-200: #40372a;
-  --color-surface-300: #5d4e3a;
-  --color-surface-400: #7a674c;
-  --color-surface-500: #9e8561;
-  --color-surface-600: #c4a882;
-  --color-surface-700: #e5d5bc;
-  --color-surface-800: #f2e9d8;
+  --color-surface-50: #241d18;
+  --color-surface-100: #2d251f;
+  --color-surface-200: #3a3028;
+  --color-surface-300: #514337;
+  --color-surface-400: #6f5d4b;
+  --color-surface-500: #947a62;
+  --color-surface-600: #bea387;
+  --color-surface-700: #ddd0be;
+  --color-surface-800: #efe7da;
   --color-surface-900: #faf5ed;
   --color-surface-950: #fdfbf7;
 }

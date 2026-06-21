@@ -43,18 +43,18 @@
   --color-accent-900: #811322;
   --color-accent-950: #47050e;
 
-  /* Surface — Warm glowing sunrise (Light mode) */
-  --color-surface-50: #fffcf8;
-  --color-surface-100: #fff4e5;
-  --color-surface-200: #ffebc9;
-  --color-surface-300: #ffd89c;
-  --color-surface-400: #ffc272;
-  --color-surface-500: #f7a040;
-  --color-surface-600: #e38221;
-  --color-surface-700: #be6114;
-  --color-surface-800: #9a4d15;
-  --color-surface-900: #7d4015;
-  --color-surface-950: #461f08;
+  /* Surface — Warm parchment with slate undertones for readable UI chrome */
+  --color-surface-50: #fffaf3;
+  --color-surface-100: #f7efe4;
+  --color-surface-200: #e7ddd0;
+  --color-surface-300: #d2c1b4;
+  --color-surface-400: #a89183;
+  --color-surface-500: #7f6d60;
+  --color-surface-600: #64574d;
+  --color-surface-700: #4a413a;
+  --color-surface-800: #342f2d;
+  --color-surface-900: #241f21;
+  --color-surface-950: #141216;
 
   --font-sans: 'Rubik', ui-sans-serif, system-ui, sans-serif;
 
@@ -75,18 +75,18 @@
 
 /* ─── Dark Mode — Soft Deep Slate & Twilight ─── */
 :root.theme-febin.dark {
-  /* Surfaces — Soft, muted dark slate/navy */
-  --color-surface-50: #eef2f6; /* Light muted slate */
-  --color-surface-100: #dadde6;
-  --color-surface-200: #b9c3d4;
-  --color-surface-300: #93a5be;
-  --color-surface-400: #6f87a6;
-  --color-surface-500: #516b8c;
-  --color-surface-600: #3f5470;
-  --color-surface-700: #314259;
-  --color-surface-800: #243245;
-  --color-surface-900: #182231;
-  --color-surface-950: #0d131f; /* Darkest muted navy/slate */
+  /* Surfaces — Twilight slate with clearer text/border separation */
+  --color-surface-50: #f5f3f7;
+  --color-surface-100: #e4dee7;
+  --color-surface-200: #cac2d0;
+  --color-surface-300: #aba0b4;
+  --color-surface-400: #8a7f95;
+  --color-surface-500: #6b6176;
+  --color-surface-600: #554d60;
+  --color-surface-700: #403948;
+  --color-surface-800: #2f2935;
+  --color-surface-900: #211d26;
+  --color-surface-950: #141218;
 
   --shadow-soft: 0 4px 14px -2px rgb(0 0 0 / 0.5);
   --shadow-elevated: 0 12px 32px -5px rgb(0 0 0 / 0.6), 0 4px 10px -2px rgb(0 0 0 / 0.5);
@@ -125,10 +125,10 @@
 
 /* Softened base text contrast */
 :root.theme-febin {
-  color: #182233; /* Soft rich dark slate text */
+  color: var(--color-surface-900);
 }
 :root.theme-febin.dark {
-  color: #eef2f6; /* Soft mist text for dark mode */
+  color: var(--color-surface-50);
 }
 
 /* Enhanced Glassmorphism letting the soft colors shine through */
@@ -136,53 +136,53 @@
 :root.theme-febin [data-ui='card'],
 :root.theme-febin section.bg-surface-50,
 :root.theme-febin section.bg-white {
-  background: rgba(255, 255, 255, 0.55) !important;
+  background: rgba(255, 250, 243, 0.82) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(100, 87, 77, 0.14);
 }
 
 :root.theme-febin.dark .card,
 :root.theme-febin.dark [data-ui='card'],
 :root.theme-febin.dark section.dark\:bg-surface-950,
 :root.theme-febin.dark section.dark\:bg-surface-900 {
-  background: rgba(24, 34, 49, 0.45) !important; /* Soft dark slate alpha */
+  background: rgba(33, 29, 38, 0.82) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(147, 165, 190, 0.15) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(228, 222, 231, 0.12) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Soft-vibrant glow buttons */
-:root.theme-febin button.bg-primary-500,
-:root.theme-febin button.bg-primary-600 {
-  background: linear-gradient(135deg, #dd7c55, #c2613d) !important;
+:root.theme-febin button.bg-primary-700,
+:root.theme-febin button.bg-primary-800 {
+  background: linear-gradient(135deg, #a34c2d, #823c23) !important;
   border-color: transparent !important;
   color: white !important;
-  box-shadow: 0 4px 16px rgba(221, 124, 85, 0.45);
+  box-shadow: 0 4px 16px rgba(163, 76, 45, 0.42);
 }
 
-:root.theme-febin button:hover.bg-primary-500,
-:root.theme-febin button:hover.bg-primary-600 {
-  background: linear-gradient(135deg, #e79b7a, #dd7c55) !important;
-  box-shadow: 0 6px 24px rgba(221, 124, 85, 0.6);
+:root.theme-febin button:hover.bg-primary-700,
+:root.theme-febin button:hover.bg-primary-800 {
+  background: linear-gradient(135deg, #823c23, #66311e) !important;
+  box-shadow: 0 6px 24px rgba(130, 60, 35, 0.56);
   transform: translateY(-1px);
 }
 
 :root.theme-febin header,
 :root.theme-febin aside {
-  background: rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 250, 243, 0.9) !important;
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border-color: rgba(255, 255, 255, 0.5) !important;
+  border-color: rgba(100, 87, 77, 0.12) !important;
 }
 
 :root.theme-febin.dark header,
 :root.theme-febin.dark aside {
-  background: rgba(13, 19, 31, 0.5) !important; /* Deep slate alpha */
+  background: rgba(20, 18, 24, 0.92) !important;
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border-color: rgba(118, 149, 192, 0.15) !important;
+  border-color: rgba(228, 222, 231, 0.1) !important;
 }
 
 /* Fix selection color */

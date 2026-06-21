@@ -2,7 +2,7 @@
 import { useBaseOption } from '@/components/ui/base'
 
 const props = defineProps<{
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   label: string
   value: string | number
   disabled?: boolean

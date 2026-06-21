@@ -22,7 +22,7 @@ onMounted(() => {
     <div
       :class="[
         'flex min-h-screen flex-col transition-all duration-300',
-        appStore.sidebarCollapsed ? 'lg:ms-16' : 'lg:ms-64',
+        appStore.sidebarCollapsed ? 'lg:ms-20' : 'lg:ms-72',
       ]"
     >
       <AppHeader :show-brand="false" />

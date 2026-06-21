@@ -4,7 +4,7 @@ import type { Component } from 'vue'
 import type { TabItem } from '~/types'
 
 export interface BaseTabsProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   tabs: TabItem[]
   defaultValue?: string
   modelValue?: string

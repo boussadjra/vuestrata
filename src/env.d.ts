@@ -5,10 +5,8 @@ interface ImportMetaEnv {
   readonly VUESTRATA_API_URL: string
   readonly VUESTRATA_USE_MOCKS: string
   readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'mock'
-  readonly VUESTRATA_UI_PROVIDER: 'reka' | 'vuetify0'
   readonly VUESTRATA_ICON_PROVIDER: 'solar' | 'lucide' | 'phosphor'
   readonly VUESTRATA_THEME: string
-  readonly VUESTRATA_VALIDATION_ADAPTER: 'zod' | 'valibot' | 'yup' | 'arktype'
   readonly VITE_VUESTRATA_DEMO_AUTH_RETENTION_HOURS: string
 }
 

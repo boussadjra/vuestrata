@@ -1,6 +1,6 @@
 import { useShapeState } from '@/state/shape'
 
-export type ShapeRadius = 'none' | 'small' | 'medium' | 'large' | 'full'
+export type ShapeRadius = 'none' | 'small' | 'medium' | 'large'
 export type ShapeBorder = 'none' | 'thin' | 'medium' | 'bold'
 export type ShapeShadow = 'none' | 'subtle' | 'medium' | 'elevated'
 

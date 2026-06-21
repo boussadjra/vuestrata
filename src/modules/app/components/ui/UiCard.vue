@@ -1,13 +1,27 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseCard from '@/components/ui/base/BaseCard.vue'
 
-const UiCard = resolveUiComponent('Card')
+export interface CardProps {
+  title?: string
+  subtitle?: string
+  padding?: boolean
+  hoverable?: boolean
+}
+
+withDefaults(defineProps<CardProps>(), {
+  padding: true,
+  hoverable: false,
+})
 </script>
 
 <template>
-  <component :is="UiCard" v-bind="$props">
-    <template v-if="$slots.header" #header><slot name="header" /></template>
+  <BaseCard v-bind="$props" provider="reka">
+    <template v-if="$slots.header" #header>
+      <slot name="header" />
+    </template>
     <slot />
-    <template v-if="$slots.footer" #footer><slot name="footer" /></template>
-  </component>
+    <template v-if="$slots.footer" #footer>
+      <slot name="footer" />
+    </template>
+  </BaseCard>
 </template>

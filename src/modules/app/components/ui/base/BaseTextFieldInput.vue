@@ -7,7 +7,7 @@ import {
   invalidTextInputClass,
 } from './validationPresentation'
 
-const props = withDefaults(defineProps<TextFieldProps & { provider: 'reka' | 'vuetify0' }>(), {
+const props = withDefaults(defineProps<TextFieldProps & { provider: 'reka' }>(), {
   type: 'text',
   size: 'md',
 })
@@ -30,7 +30,7 @@ const sizeClasses: Record<string, string> = {
 }
 
 const inputClasses = computed(() => [
-  'w-full rounded-lg border bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200 transition-colors',
+  'shaped-border shaped-radius-sm w-full border bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200 transition-colors',
   'placeholder:text-surface-400 dark:placeholder:text-surface-500',
   'focus:outline-none focus:ring-2 focus:ring-offset-0',
   displayError.value

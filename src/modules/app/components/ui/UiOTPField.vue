@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { OTPFieldProps } from '@/components/ui/base'
+import BaseOTPFieldInput from '@/components/ui/base/BaseOTPFieldInput.vue'
 
-const UiOTPField = resolveUiComponent('OTPField')
+defineProps<OTPFieldProps>()
 </script>
 
 <template>
-  <component :is="UiOTPField" v-bind="$props">
-    <slot />
-  </component>
+  <BaseOTPFieldInput v-bind="$props" provider="reka" />
 </template>

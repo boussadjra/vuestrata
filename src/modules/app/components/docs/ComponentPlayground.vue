@@ -5,7 +5,7 @@ export interface PropDef {
   name: string
   type: 'boolean' | 'string' | 'number' | 'select'
   default?: unknown
-  options?: { label: string; value: unknown }[]
+  options?: { label: string; value: string | number }[]
 }
 
 export interface SlotDef {
@@ -123,8 +123,9 @@ function reset() {
 
           <UiSelect
             v-else-if="def.type === 'select'"
-            v-model="values[def.name]"
-            :options="def.options"
+            :model-value="getStringValue(def.name)"
+            :options="def.options ?? []"
+            @update:model-value="setStringValue(def.name, $event)"
             size="sm"
             class="w-full max-w-48"
           />

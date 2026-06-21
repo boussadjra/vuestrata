@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { FileUploadProps } from '@/components/ui/base'
+import BaseFileUploadField from '@/components/ui/base/BaseFileUploadField.vue'
 
-const UiFileUpload = resolveUiComponent('FileUpload')
+const props = withDefaults(defineProps<FileUploadProps>(), {
+  multiple: false,
+})
+
+const emit = defineEmits<{ 'update:modelValue': [value: File[]] }>()
 </script>
 
 <template>
-  <component :is="UiFileUpload" v-bind="$props">
-    <slot />
-  </component>
+  <BaseFileUploadField
+    v-bind="props"
+    provider="reka"
+    @update:modelValue="emit('update:modelValue', $event)"
+  />
 </template>

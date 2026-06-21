@@ -133,20 +133,16 @@ vi.mock('@formwerk/core', () => ({
   })),
 }))
 
-import RekaComboBox from '@/components/ui/provider/reka/RekaComboBox.vue'
-import RekaFileUpload from '@/components/ui/provider/reka/RekaFileUpload.vue'
-import RekaOTPField from '@/components/ui/provider/reka/RekaOTPField.vue'
-import RekaSelect from '@/components/ui/provider/reka/RekaSelect.vue'
-import RekaTagsField from '@/components/ui/provider/reka/RekaTagsField.vue'
+import { UiComboBox, UiFileUpload, UiOTPField, UiSelect, UiTagsField } from '@/components/ui'
 
 describe('Formwerk Selection & Compound Fields', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  describe('RekaSelect', () => {
+  describe('UiSelect', () => {
     it('renders with label and options', () => {
-      const wrapper = mount(RekaSelect, {
+      const wrapper = mount(UiSelect, {
         props: {
           label: 'Country',
           name: 'country',
@@ -161,7 +157,7 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaSelect, {
+      const wrapper = mount(UiSelect, {
         props: {
           label: 'Country',
           name: 'country',
@@ -173,9 +169,9 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
   })
 
-  describe('RekaComboBox', () => {
+  describe('UiComboBox', () => {
     it('renders with label and input', () => {
-      const wrapper = mount(RekaComboBox, {
+      const wrapper = mount(UiComboBox, {
         props: {
           label: 'Search',
           name: 'search',
@@ -190,7 +186,7 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
 
     it('renders options in listbox', () => {
-      const wrapper = mount(RekaComboBox, {
+      const wrapper = mount(UiComboBox, {
         props: {
           label: 'Search',
           name: 'search',
@@ -205,9 +201,9 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
   })
 
-  describe('RekaFileUpload', () => {
+  describe('UiFileUpload', () => {
     it('renders with label and drop zone', () => {
-      const wrapper = mount(RekaFileUpload, {
+      const wrapper = mount(UiFileUpload, {
         props: {
           label: 'Upload',
           name: 'file',
@@ -218,7 +214,7 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaFileUpload, {
+      const wrapper = mount(UiFileUpload, {
         props: {
           label: 'Upload',
           name: 'file',
@@ -229,9 +225,9 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
   })
 
-  describe('RekaOTPField', () => {
+  describe('UiOTPField', () => {
     it('renders OTP slots', () => {
-      const wrapper = mount(RekaOTPField, {
+      const wrapper = mount(UiOTPField, {
         props: {
           label: 'Verification Code',
           name: 'otp',
@@ -243,7 +239,7 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaOTPField, {
+      const wrapper = mount(UiOTPField, {
         props: {
           label: 'Code',
           name: 'otp',
@@ -254,9 +250,9 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
   })
 
-  describe('RekaTagsField', () => {
+  describe('UiTagsField', () => {
     it('renders with label', () => {
-      const wrapper = mount(RekaTagsField, {
+      const wrapper = mount(UiTagsField, {
         props: {
           label: 'Tags',
           name: 'tags',
@@ -267,7 +263,7 @@ describe('Formwerk Selection & Compound Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaTagsField, {
+      const wrapper = mount(UiTagsField, {
         props: {
           label: 'Tags',
           name: 'tags',

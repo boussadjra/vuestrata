@@ -47,7 +47,7 @@ function spanClass(span?: number) {
       <button
         type="submit"
         :disabled="submitting"
-        class="bg-primary-600 hover:bg-primary-500 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white shadow-md transition-all disabled:opacity-60"
+        class="bg-primary-700 hover:bg-primary-800 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white shadow-md transition-all disabled:opacity-60"
       >
         <span v-if="submitting" :class="[resolveIcon('spinner'), 'h-4 w-4 animate-spin']" />
         {{ submitLabel }}

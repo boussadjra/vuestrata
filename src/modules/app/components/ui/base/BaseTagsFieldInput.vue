@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useBaseTagsField, type TagsFieldProps } from '@/components/ui/base'
 
-const props = withDefaults(defineProps<TagsFieldProps & { provider: 'reka' | 'vuetify0' }>(), {
+const props = withDefaults(defineProps<TagsFieldProps & { provider: 'reka' }>(), {
   placeholder: 'Add tag...',
   size: 'md',
 })
@@ -46,7 +46,7 @@ function onKeydown(e: KeyboardEvent) {
 
     <div
       :class="[
-        'flex min-h-[38px] flex-wrap items-center gap-1 rounded-lg border px-2 py-1.5',
+        'shaped-border shaped-radius-sm flex min-h-[38px] flex-wrap items-center gap-1 border px-2 py-1.5',
         'dark:bg-surface-800 bg-white',
         displayError
           ? 'border-red-400 dark:border-red-500'

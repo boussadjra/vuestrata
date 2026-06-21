@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseToastButton from '@/components/ui/base/BaseToastButton.vue'
 
-const UiToast = resolveUiComponent('Toast')
+export interface ToastProps {
+  title?: string
+  message: string
+  variant?: 'info' | 'success' | 'warning' | 'error'
+  duration?: number
+  triggerLabel?: string
+}
+
+defineProps<ToastProps>()
 </script>
 
 <template>
-  <component :is="UiToast" v-bind="$props">
-    <slot />
-  </component>
+  <BaseToastButton v-bind="$props" provider="reka" />
 </template>

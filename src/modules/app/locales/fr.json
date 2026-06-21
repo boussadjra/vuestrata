@@ -62,13 +62,13 @@
 
   "hero_title": "Vuestrata",
   "hero_cta": "Démarrer",
-  "hero_desc": "Un starter Vue 3 avec des adaptateurs de fournisseurs, des jetons de thème, des contrats d'API typés, une base d'authentification et des tests déjà branchés.",
+  "hero_desc": "Un starter Vue 3 avec des composants Reka UI, des jetons de thème, des contrats d'API typés, une base d'authentification et des tests déjà branchés.",
   "hero_github": "GitHub",
   "hero_subtitle": "Template professionnel pour Vue 3",
   "hero_explore": "Explorer les composants",
   "hero_dashboard": "Tableau de bord",
   "hero_feature_themes": "Système multi-thèmes avec mode sombre",
-  "hero_feature_adapter": "Composants UI à adaptateurs (reka-ui + vuetify0)",
+  "hero_feature_adapter": "Bibliothèque de composants Reka UI",
   "hero_feature_typed": "TypeScript strict d'un bout à l'autre",
   "hero_feature_testing": "Tests unitaires, intégration et E2E",
   "hero_feature_ci": "CI/CD avec GitHub Actions et Docker",
@@ -104,7 +104,6 @@
   "settings_appearance": "Apparence",
   "settings_theme": "Thème",
   "settings_language": "Langue",
-  "settings_ui_provider": "Fournisseur UI",
   "settings_dark_mode": "Mode sombre",
 
   "theme_default": "Par défaut",
@@ -184,6 +183,18 @@
   "audit_filter_group": "Filtrer par action",
   "audit_loading": "Chargement du journal d'audit...",
   "audit_empty": "Aucun événement trouvé.",
+  "audit_action_user_login": "Connexion",
+  "audit_action_user_logout": "Déconnexion",
+  "audit_action_user_register": "Utilisateur inscrit",
+  "audit_action_user_invite": "Utilisateur invité",
+  "audit_action_user_update_role": "Rôle mis à jour",
+  "audit_action_role_update": "Rôle mis à jour",
+  "audit_action_report_create": "Rapport créé",
+  "audit_action_report_export": "Rapport exporté",
+  "audit_action_billing_subscribe": "Abonnement démarré",
+  "audit_action_billing_cancel": "Abonnement annulé",
+  "audit_action_billing_update_plan": "Forfait mis à jour",
+  "audit_action_settings_update": "Paramètres mis à jour",
 
   "billing_title": "Facturation et abonnement",
   "billing_subtitle": "Gérez votre offre, vos moyens de paiement et vos factures",
@@ -416,8 +427,8 @@
 
   "cta_section_label": "Partez de l'atelier",
   "cta_section_title": "Clonez une app Vue qui connaît déjà ses limites.",
-  "cta_section_desc": "Adaptateurs de fournisseurs, jetons de thème, base d'authentification, clés de requête, documentation et tests sont déjà en place avant même votre premier écran produit.",
-  "cta_feature_1": "Changement de fournisseur UI à l'exécution",
+  "cta_section_desc": "Les wrappers Reka UI, les jetons de thème, la base d'authentification, les clés de requête, la documentation et les tests sont déjà en place avant même votre premier écran produit.",
+  "cta_feature_1": "Wrappers Reka UI déjà câblés",
   "cta_feature_2": "Dix thèmes en clair et en sombre",
   "cta_feature_3": "Couverture unitaire, intégration et Playwright",
   "cta_install_button": "Installer Vuestrata",
@@ -425,5 +436,5 @@
 
   "stack_section_label": "Contrat de stack",
   "stack_section_title": "Un starter, une seule chaîne d'outils, des couches interchangeables.",
-  "stack_section_desc": "Les mêmes jetons et conventions se retrouvent du changement de thème aux adaptateurs de fournisseurs, aux requêtes typées et à l'infrastructure de test."
+  "stack_section_desc": "Les mêmes jetons et conventions se retrouvent du changement de thème aux requêtes typées et à l'infrastructure de test."
 }

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import BaseBreadcrumbField from '@/components/ui/base/BaseBreadcrumbField.vue'
+import type { BreadcrumbItem } from '~/types'
 
-const UiBreadcrumb = resolveUiComponent('Breadcrumb')
+export type { BreadcrumbItem }
+
+defineProps<{
+  items: BreadcrumbItem[]
+}>()
 </script>
 
 <template>
-  <component :is="UiBreadcrumb" v-bind="$props" />
+  <BaseBreadcrumbField v-bind="$props" provider="reka" />
 </template>

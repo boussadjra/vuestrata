@@ -2,7 +2,7 @@
 
 > **Note:** Vuestrata supersedes _Vueye_, a simpler Vue 3 starter template.
 
-A modern, production-ready Vue 3 template with multi-theme support, adapter-based UI architecture, and enterprise-grade tooling.
+A modern, production-ready Vue 3 template with multi-theme support, Reka UI wrappers, and enterprise-grade tooling.
 
 ## Features
 
@@ -10,7 +10,7 @@ A modern, production-ready Vue 3 template with multi-theme support, adapter-base
 - **TypeScript 6.0+** in strict mode
 - **Tailwind CSS v4** with CSS-first configuration
 - **Multi-theme system** — 10 built-in themes (Default, Blueprint, Brutalist, Febin, Forest, Ghibli, Ocean, Rose, Sunset, Terminal) + dark mode
-- **Adapter-based UI architecture** — Swap between Reka UI and Vuetify 0 at runtime
+- **Reka UI component layer** — `Ui*` wrappers backed by shared base composables
 - **File-based routing** via Vue Router 5
 - **Auto-imports** — composables, Vue APIs, and components
 - **Pinia** stores with composition API
@@ -72,14 +72,11 @@ src/
 │   │   ├── assets/         # Static assets (fonts, images)
 │   │   ├── components/
 │   │   │   ├── layout/     # AppHeader, AppSidebar, AppFooter
-│   │   │   └── ui/         # Adapter-driven UI components
-│   │   │       ├── Ui*.vue # Consumer-facing adapter wrappers
-│   │   │       ├── base/   # Shared base composables (Formwerk integration)
-│   │   │       └── provider/
-│   │   │           ├── reka/    # Reka UI implementations (default)
-│   │   │           └── vuetify0/# Vuetify 0 implementations
+│   │   │   └── ui/         # Reka-backed Ui wrappers and shared base composables
+│   │   │       ├── Ui*.vue # Consumer-facing UI wrappers
+│   │   │       └── base/   # Shared base composables (Formwerk integration)
 │   │   ├── composables/    # useTheme, useBilling, useDataTable
-│   │   ├── config/         # app.config, ui-provider adapter resolver
+│   │   ├── config/         # app.config, icon provider, theme config
 │   │   ├── layouts/        # default, auth, dashboard, blank
 │   │   ├── mocks/          # MSW handlers and browser worker
 │   │   ├── pages/          # Vue Router file-based routes
@@ -96,7 +93,7 @@ src/
 │   │       ├── events.ts   # Typed event bus
 │   │       ├── logger/     # Scoped logging (consola)
 │   │       ├── rbac/       # RBAC engine
-│   │       └── validation/ # Multi-adapter validation (Zod, Valibot, Yup, ArkType)
+│   │       └── validation/ # Zod validation utilities
 │   ├── billing/            # Billing module (TanStack Query pattern)
 │   ├── showcase/           # Forms and data-table demo module
 │   ├── users/              # Users module (TanStack Query pattern)
@@ -113,22 +110,14 @@ Vuestrata ships with 10 built-in themes plus dark mode:
 
 Themes are registered in `src/modules/app/config/theme.config.ts`, applied as `theme-*` classes on `<html>`, and managed through `useTheme()` with first-paint syncing handled by `bootstrapTheme()`.
 
-## Adapter UI System
+## UI Component System
 
-Components are provider-agnostic. Import from `@/components/ui`:
+Components are exposed through stable `Ui*` wrappers backed by Reka UI and shared base primitives. Import from `@/components/ui`:
 
 ```vue
 <script setup>
 import { UiButton, UiCard } from '@/components/ui'
 </script>
-```
-
-Switch providers at runtime in Settings, or programmatically:
-
-```ts
-import { useUiProvider } from '@/config/ui-provider'
-const { setProvider } = useUiProvider()
-setProvider('vuetify0')
 ```
 
 ## Auth System

@@ -13,7 +13,7 @@ interface BasePopoverComponents {
 }
 
 export interface BasePopoverProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   components: BasePopoverComponents
   side?: 'top' | 'right' | 'bottom' | 'left'
   align?: 'start' | 'center' | 'end'
@@ -50,15 +50,15 @@ function onCloseClick(event: MouseEvent) {
         :side="props.side"
         :align="props.align"
         :side-offset="8"
-        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated animate-scale-in z-50 w-72 rounded-xl border bg-white p-4 outline-none"
+        class="shaped-border shaped-radius-lg shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 animate-scale-in z-50 w-72 border bg-white p-4 outline-none"
         data-ui="popover"
-        :data-provider="provider"
+        data-provider="reka"
       >
         <slot />
         <component
           :is="components.close"
           v-if="components.close"
-          class="hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-2 right-2 rounded-md p-1 transition-colors"
+          class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-2 right-2 p-1 transition-colors"
           aria-label="Close"
         >
           <span :class="[resolveIcon('close'), 'h-3.5 w-3.5']" />
@@ -78,13 +78,13 @@ function onCloseClick(event: MouseEvent) {
       v-else
       :position-area="positionAreaMap[props.side!]"
       position-try="most-width bottom"
-      class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated animate-scale-in z-50 w-72 rounded-xl border bg-white p-4 outline-none"
+      class="shaped-border shaped-radius-lg shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 animate-scale-in z-50 w-72 border bg-white p-4 outline-none"
       data-ui="popover"
-      :data-provider="provider"
+      data-provider="reka"
     >
       <slot />
       <button
-        class="hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-2 right-2 rounded-md p-1 transition-colors"
+        class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-2 right-2 p-1 transition-colors"
         aria-label="Close"
         @click="onCloseClick"
       >

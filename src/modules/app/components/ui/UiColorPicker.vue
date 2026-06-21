@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { resolveUiComponent } from '@/config/ui-provider'
+import type { ColorPickerProps } from '@/components/ui/base'
+import BaseColorPickerField from '@/components/ui/base/BaseColorPickerField.vue'
 
-const UiColorPicker = resolveUiComponent('ColorPicker')
+const props = withDefaults(defineProps<ColorPickerProps>(), {
+  size: 'md',
+  format: 'hex',
+})
+
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <template>
-  <component :is="UiColorPicker" v-bind="$props">
-    <slot />
-  </component>
+  <BaseColorPickerField
+    v-bind="props"
+    provider="reka"
+    @update:modelValue="emit('update:modelValue', $event)"
+  />
 </template>

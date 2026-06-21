@@ -15,7 +15,7 @@ interface BaseDialogComponents {
 }
 
 export interface BaseDialogProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
   components: BaseDialogComponents
   open?: boolean
   title?: string
@@ -33,22 +33,13 @@ const slots = useSlots()
 
 const hasPortal = computed(() => Boolean(props.components.portal))
 
-const contentProvider = computed(() => (props.provider === 'vuetify0' ? props.provider : undefined))
-const overlayProvider = computed(() => (props.provider === 'reka' ? props.provider : undefined))
-
 function onOpenUpdate(value: boolean) {
   emit('update:open', value)
 }
 </script>
 
 <template>
-  <component
-    :is="components.root"
-    :open="provider === 'reka' ? props.open : undefined"
-    :model-value="provider === 'vuetify0' ? props.open : undefined"
-    @update:open="onOpenUpdate"
-    @update:model-value="onOpenUpdate"
-  >
+  <component :is="components.root" :open="props.open" @update:open="onOpenUpdate">
     <component :is="components.trigger" v-if="slots.trigger" as-child>
       <slot name="trigger" />
     </component>
@@ -59,16 +50,16 @@ function onOpenUpdate(value: boolean) {
         v-if="components.overlay"
         class="animate-fade-in fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
         data-ui="dialog-overlay"
-        :data-provider="overlayProvider"
+        data-provider="reka"
       />
       <component
         :is="components.content"
         :class="[
-          'dark:bg-surface-800 shadow-elevated animate-scale-in fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-6 focus:outline-none',
+          'shaped-border shaped-radius-lg shaped-shadow dark:bg-surface-800 animate-scale-in fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 border bg-white p-6 focus:outline-none',
           props.contentClass,
         ]"
         data-ui="dialog"
-        :data-provider="contentProvider"
+        data-provider="reka"
       >
         <component :is="components.title" v-if="props.title" class="mb-1 text-lg font-semibold">
           {{ props.title }}
@@ -85,7 +76,7 @@ function onOpenUpdate(value: boolean) {
 
         <component
           :is="components.close"
-          class="hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-4 right-4 rounded-md p-1 transition-colors"
+          class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-4 right-4 p-1 transition-colors"
           aria-label="Close"
         >
           <span :class="[resolveIcon('close'), 'h-4 w-4']" />
@@ -97,11 +88,11 @@ function onOpenUpdate(value: boolean) {
       :is="components.content"
       v-else
       :class="[
-        'dark:bg-surface-800 shadow-elevated animate-scale-in fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-6 focus:outline-none',
+        'shaped-border shaped-radius-lg shaped-shadow dark:bg-surface-800 animate-scale-in fixed top-1/2 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 border bg-white p-6 focus:outline-none',
         props.contentClass,
       ]"
       data-ui="dialog"
-      :data-provider="contentProvider"
+      data-provider="reka"
     >
       <div
         class="animate-fade-in fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
@@ -122,7 +113,7 @@ function onOpenUpdate(value: boolean) {
 
       <component
         :is="components.close"
-        class="hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-4 right-4 rounded-md p-1 transition-colors"
+        class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-4 right-4 p-1 transition-colors"
         aria-label="Close"
       >
         <span :class="[resolveIcon('close'), 'h-4 w-4']" />

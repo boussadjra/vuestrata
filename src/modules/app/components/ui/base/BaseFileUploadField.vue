@@ -2,7 +2,7 @@
 import { useBaseFileUpload, type FileUploadProps } from '@/components/ui/base'
 
 export interface BaseFileUploadFieldProps extends FileUploadProps {
-  provider: 'reka' | 'vuetify0'
+  provider: 'reka'
 }
 
 const props = withDefaults(defineProps<BaseFileUploadFieldProps>(), {

@@ -157,19 +157,16 @@ vi.mock('@formwerk/core', () => ({
   },
 }))
 
-import RekaCalendar from '@/components/ui/provider/reka/RekaCalendar.vue'
-import RekaDateField from '@/components/ui/provider/reka/RekaDateField.vue'
-import RekaDatePicker from '@/components/ui/provider/reka/RekaDatePicker.vue'
-import RekaTimeField from '@/components/ui/provider/reka/RekaTimeField.vue'
+import { UiCalendar, UiDateField, UiDatePicker, UiTimeField } from '@/components/ui'
 
 describe('Formwerk Date, Time & Calendar Fields', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  describe('RekaDateField', () => {
+  describe('UiDateField', () => {
     it('renders with label and segments', () => {
-      const wrapper = mount(RekaDateField, {
+      const wrapper = mount(UiDateField, {
         props: {
           label: 'Birthday',
           name: 'birthday',
@@ -180,7 +177,7 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaDateField, {
+      const wrapper = mount(UiDateField, {
         props: {
           label: 'Birthday',
           name: 'birthday',
@@ -191,7 +188,7 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
 
     it('shows hint text', () => {
-      const wrapper = mount(RekaDateField, {
+      const wrapper = mount(UiDateField, {
         props: {
           label: 'Birthday',
           name: 'birthday',
@@ -202,9 +199,9 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
   })
 
-  describe('RekaTimeField', () => {
+  describe('UiTimeField', () => {
     it('renders with label and segments', () => {
-      const wrapper = mount(RekaTimeField, {
+      const wrapper = mount(UiTimeField, {
         props: {
           label: 'Start Time',
           name: 'startTime',
@@ -215,7 +212,7 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaTimeField, {
+      const wrapper = mount(UiTimeField, {
         props: {
           label: 'Time',
           name: 'time',
@@ -226,9 +223,9 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
   })
 
-  describe('RekaCalendar', () => {
+  describe('UiCalendar', () => {
     it('renders calendar with grid label', () => {
-      const wrapper = mount(RekaCalendar, {
+      const wrapper = mount(UiCalendar, {
         props: {
           label: 'Date',
         },
@@ -238,7 +235,7 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
 
     it('renders week day headers', () => {
-      const wrapper = mount(RekaCalendar, {
+      const wrapper = mount(UiCalendar, {
         props: {
           label: 'Date',
         },
@@ -251,7 +248,7 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
 
     it('renders day cells', () => {
-      const wrapper = mount(RekaCalendar, {
+      const wrapper = mount(UiCalendar, {
         props: {
           label: 'Date',
         },
@@ -261,7 +258,7 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
 
     it('renders navigation buttons', () => {
-      const wrapper = mount(RekaCalendar, {
+      const wrapper = mount(UiCalendar, {
         props: {
           label: 'Date',
         },
@@ -271,9 +268,9 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
   })
 
-  describe('RekaDatePicker', () => {
+  describe('UiDatePicker', () => {
     it('renders with label and trigger button', () => {
-      const wrapper = mount(RekaDatePicker, {
+      const wrapper = mount(UiDatePicker, {
         props: {
           label: 'Due Date',
           name: 'dueDate',
@@ -284,7 +281,7 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
     })
 
     it('displays error message', () => {
-      const wrapper = mount(RekaDatePicker, {
+      const wrapper = mount(UiDatePicker, {
         props: {
           label: 'Due Date',
           name: 'dueDate',

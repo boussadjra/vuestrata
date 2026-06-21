@@ -2,7 +2,7 @@
 import { useBaseNumberField, type NumberFieldProps } from '@/components/ui/base'
 import { resolveIcon } from '~/config/icon-provider'
 
-const props = withDefaults(defineProps<NumberFieldProps & { provider: 'reka' | 'vuetify0' }>(), {
+const props = withDefaults(defineProps<NumberFieldProps & { provider: 'reka' }>(), {
   size: 'md',
   step: 1,
 })
