@@ -9,7 +9,7 @@ export interface FileUploadProps extends FieldProps {
   maxSize?: number
 }
 
-export function useBaseFileUpload(props: FileUploadProps) {
+export function useUiFileUpload(props: FileUploadProps) {
   const formwerk = useFileField({
     name: () => props.name,
     label: () => props.label ?? '',

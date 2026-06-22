@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { DateTimeSegment, usePicker } from '@formwerk/core'
+import {
+  SelectContent,
+  SelectIcon,
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  SelectPortal,
+  SelectRoot,
+  SelectTrigger,
+  SelectViewport,
+} from 'reka-ui'
+import { useI18n } from 'vue-i18n'
 
 import { useUiDateField, type DateFieldProps } from '@/composables/forms'
 
@@ -8,23 +19,58 @@ const props = withDefaults(defineProps<DateFieldProps>(), {
   formatOptions: () => ({ year: 'numeric', month: 'long' }),
 })
 
-defineEmits<{ 'update:modelValue': [value: Date] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: Date] }>()
 
-const {
-  controlProps,
-  segments,
-  labelProps,
-  errorMessageProps,
-  descriptionProps,
-  displayError,
-  direction,
-} = useUiDateField(props)
-const { isOpen, pickerProps, pickerTriggerProps } = usePicker({
-  label: () => props.label ?? 'Pick month',
-  disabled: () => props.disabled,
+const { t } = useI18n()
+
+const { fieldValue, setValue, labelProps, errorMessageProps, descriptionProps, displayError } =
+  useUiDateField(props)
+
+const currentDate = computed(() => {
+  const value = fieldValue.value instanceof Date ? fieldValue.value : props.modelValue
+  return value instanceof Date && !Number.isNaN(value.getTime()) ? value : new Date()
 })
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const monthOptions = computed(() => {
+  const formatter = new Intl.DateTimeFormat(props.locale || undefined, { month: 'long' })
+
+  return Array.from({ length: 12 }, (_, index) => ({
+    value: String(index),
+    label: formatter.format(new Date(2026, index, 1)),
+  }))
+})
+
+const selectedMonthValue = computed(() => String(currentDate.value.getMonth()))
+const selectedMonthLabel = computed(
+  () =>
+    monthOptions.value.find((option) => option.value === selectedMonthValue.value)?.label ??
+    t('common_select'),
+)
+
+function onValueChange(value: string | number | Array<string | number>) {
+  const monthValue = Array.isArray(value) ? value[0] : value
+  const monthIndex = Number(monthValue)
+
+  if (Number.isNaN(monthIndex)) return
+
+  const nextDate = new Date(currentDate.value)
+  nextDate.setMonth(monthIndex)
+  setValue(nextDate)
+  emit('update:modelValue', nextDate)
+}
+
+const triggerClasses = computed(() => [
+  'shaped-border shaped-radius-sm inline-flex w-full items-center justify-between border px-3 py-2 text-sm',
+  'bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200',
+  displayError.value
+    ? 'border-red-400 dark:border-red-500 focus:ring-red-300'
+    : 'border-surface-300 dark:border-surface-600 focus:ring-primary-300',
+  'focus:ring-2 focus:outline-none',
+  props.disabled ? 'cursor-not-allowed opacity-50' : '',
+])
+
+const optionClasses =
+  'relative flex cursor-pointer items-center rounded-md px-8 py-2 text-sm text-surface-700 outline-none select-none dark:text-surface-200 data-highlighted:bg-primary-50 data-highlighted:text-primary-600 dark:data-highlighted:bg-primary-900/30 dark:data-highlighted:text-primary-400 data-disabled:pointer-events-none data-disabled:opacity-40'
 </script>
 
 <template>
@@ -38,49 +84,38 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
 
-    <div class="relative">
-      <div class="flex items-center gap-1">
-        <div
-          v-bind="controlProps"
-          :dir="direction"
-          :class="[
-            'inline-flex flex-1 items-center gap-0.5 rounded-lg border px-3 py-2 text-sm',
-            'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
-            displayError
-              ? 'border-red-400 dark:border-red-500'
-              : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300 focus-within:ring-2',
-          ]"
-          data-ui="month-picker"
-          data-provider="reka"
-        >
-          <DateTimeSegment v-for="(segment, index) in segments" :key="index" v-bind="segment" />
-        </div>
-        <button
-          v-bind="pickerTriggerProps"
-          type="button"
-          class="border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 rounded-lg border p-2"
-        >
-          📅
-        </button>
-      </div>
+    <SelectRoot
+      :model-value="selectedMonthValue"
+      :disabled="disabled"
+      @update:model-value="onValueChange"
+    >
+      <SelectTrigger :class="triggerClasses" data-ui="month-picker" data-provider="reka">
+        <span class="truncate">{{ selectedMonthLabel }}</span>
+        <SelectIcon class="text-surface-400 ml-2 text-xs">▼</SelectIcon>
+      </SelectTrigger>
 
-      <div
-        v-if="isOpen"
-        v-bind="pickerProps"
-        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shadow-elevated absolute z-50 mt-1 rounded-lg border bg-white p-3"
-      >
-        <div class="grid grid-cols-3 gap-1">
-          <button
-            v-for="month in months"
-            :key="month"
-            type="button"
-            class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-md px-3 py-2 text-sm"
-          >
-            {{ month }}
-          </button>
-        </div>
-      </div>
-    </div>
+      <SelectPortal>
+        <SelectContent
+          class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 z-50 min-w-45 overflow-hidden border bg-white p-1"
+          position="popper"
+          :side-offset="4"
+        >
+          <SelectViewport>
+            <SelectItem
+              v-for="month in monthOptions"
+              :key="month.value"
+              :value="month.value"
+              :class="optionClasses"
+            >
+              <SelectItemIndicator class="text-primary-500 absolute left-2 flex items-center"
+                >✓</SelectItemIndicator
+              >
+              <SelectItemText>{{ month.label }}</SelectItemText>
+            </SelectItem>
+          </SelectViewport>
+        </SelectContent>
+      </SelectPortal>
+    </SelectRoot>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

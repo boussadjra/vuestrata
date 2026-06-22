@@ -11,7 +11,7 @@ export interface CheckboxProps extends Omit<FieldProps, 'size'> {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export function useBaseCheckbox(props: CheckboxProps) {
+export function useUiCheckbox(props: CheckboxProps) {
   const externalValue = computed(() => props.modelValue ?? props.checked)
 
   const baseOptions = {

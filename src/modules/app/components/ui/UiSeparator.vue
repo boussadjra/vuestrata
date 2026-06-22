@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Separator } from 'reka-ui'
+
 export interface SeparatorProps {
   provider?: 'reka'
   orientation?: 'horizontal' | 'vertical'
@@ -13,14 +15,13 @@ withDefaults(defineProps<SeparatorProps>(), {
 </script>
 
 <template>
-  <div
+  <Separator
     :class="[
       'bg-surface-200 dark:bg-surface-700 shrink-0',
       orientation === 'vertical' ? 'h-full w-px' : 'h-px w-full',
     ]"
-    role="separator"
-    :aria-orientation="orientation"
-    :aria-hidden="decorative"
+    :orientation="orientation"
+    :decorative="decorative"
     data-ui="separator"
     :data-provider="provider"
   />

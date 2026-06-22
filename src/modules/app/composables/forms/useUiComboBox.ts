@@ -1,28 +1,30 @@
-import { useTextField } from '@formwerk/core'
+import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
-export interface TextareaProps extends FieldProps {
-  modelValue?: string
-  placeholder?: string
-  hint?: string
-  rows?: number
-  maxlength?: number
-  resize?: 'none' | 'vertical' | 'both'
+export interface ComboBoxOption {
+  label: string
+  value: string
+  disabled?: boolean
 }
 
-export function useBaseTextarea(props: TextareaProps) {
-  const formwerk = useTextField({
+export interface ComboBoxProps extends FieldProps {
+  modelValue?: string | string[]
+  options: ComboBoxOption[]
+  placeholder?: string
+  hint?: string
+  openOnFocus?: boolean
+}
+
+export function useUiComboBox(props: ComboBoxProps) {
+  const formwerk = useCustomField<string | string[]>({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
-    modelValue: () => props.modelValue,
+    modelValue: () => props.modelValue ?? '',
     disabled: () => props.disabled,
-    readonly: () => props.readonly,
     required: () => props.required,
     schema: props.schema as undefined,
-    placeholder: () => props.placeholder,
-    maxLength: () => props.maxlength,
   })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)

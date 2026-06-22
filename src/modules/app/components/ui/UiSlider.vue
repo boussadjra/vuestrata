@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSliderThumb } from '@formwerk/core'
+import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'reka-ui'
 
 import { useUiSlider, type SliderProps } from '@/composables/forms'
 
@@ -11,26 +11,37 @@ const props = withDefaults(defineProps<SliderProps & { provider?: 'reka' }>(), {
   step: 1,
 })
 
-defineEmits<{ 'update:modelValue': [value: number] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: number] }>()
 
 const {
-  groupProps,
-  trackProps,
-  trackEl,
+  fieldValue,
+  setValue,
   outputProps,
-  useThumbMetadata,
   displayError,
   labelProps,
   errorMessageProps,
   descriptionProps,
 } = useUiSlider(props)
 
-const thumbEl = ref<HTMLElement>(null!)
-const { thumbProps, currentValue, currentText, isDragging } = useSliderThumb(
-  { label: props.label ?? '' },
-  thumbEl,
+const isVertical = computed(() => props.orientation === 'vertical')
+
+const fallbackValue = computed(
+  () => props.modelValue ?? Math.round(((props.min ?? 0) + (props.max ?? 100)) / 2),
 )
-const thumbMeta = useThumbMetadata(0)
+
+const sliderValue = computed(() =>
+  typeof fieldValue.value === 'number' && Number.isFinite(fieldValue.value)
+    ? fieldValue.value
+    : fallbackValue.value,
+)
+
+const sliderValues = computed(() => [sliderValue.value])
+
+function onValueChange(values: number[] | undefined) {
+  const nextValue = values?.[0] ?? fallbackValue.value
+  setValue(nextValue)
+  emit('update:modelValue', nextValue)
+}
 </script>
 
 <template>
@@ -44,28 +55,39 @@ const thumbMeta = useThumbMetadata(0)
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
 
-    <div v-bind="groupProps" class="relative py-3" :data-provider="provider" data-ui="slider">
-      <div
-        ref="trackEl"
-        v-bind="trackProps"
-        class="bg-surface-200 dark:bg-surface-700 relative h-1.5 cursor-pointer rounded-full"
+    <SliderRoot
+      :model-value="sliderValues"
+      :name="name"
+      :disabled="disabled"
+      :required="required"
+      :min="min"
+      :max="max"
+      :step="step"
+      :orientation="orientation"
+      class="relative flex touch-none select-none"
+      :class="isVertical ? 'h-40 flex-col items-center py-1' : 'w-full items-center py-3'"
+      :data-provider="provider"
+      data-ui="slider"
+      @update:model-value="onValueChange"
+    >
+      <SliderTrack
+        class="bg-surface-200 dark:bg-surface-700 relative grow rounded-full"
+        :class="isVertical ? 'h-full w-1.5' : 'h-1.5 w-full'"
       >
-        <div
-          class="bg-primary-500 absolute h-full rounded-full"
-          :style="{ width: `${thumbMeta?.percent ?? 0}%` }"
+        <SliderRange
+          class="bg-primary-500 absolute rounded-full"
+          :class="isVertical ? 'w-full' : 'h-full'"
         />
-        <div
-          ref="thumbEl"
-          v-bind="thumbProps"
-          class="bg-primary-500 focus:ring-primary-300 absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-2 border-white shadow focus:ring-2"
-          :class="{ 'cursor-grabbing': isDragging, 'cursor-not-allowed opacity-50': disabled }"
-          :style="{ left: `${thumbMeta?.percent ?? 0}%` }"
-        />
-      </div>
-    </div>
+      </SliderTrack>
+
+      <SliderThumb
+        class="bg-primary-500 focus:ring-primary-300 block h-4 w-4 rounded-full border-2 border-white shadow transition focus:ring-2 focus:outline-none"
+        :class="{ 'cursor-not-allowed opacity-50': disabled }"
+      />
+    </SliderRoot>
 
     <output v-bind="outputProps as Record<string, unknown>" class="text-surface-500 text-xs">
-      {{ currentText || currentValue }}
+      {{ sliderValue }}
     </output>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">

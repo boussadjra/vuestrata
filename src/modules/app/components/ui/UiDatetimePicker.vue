@@ -1,10 +1,35 @@
 <script setup lang="ts">
-import { DateTimeSegment, usePicker } from '@formwerk/core'
+import {
+  DatePickerCalendar,
+  DatePickerCell,
+  DatePickerCellTrigger,
+  DatePickerContent,
+  DatePickerField,
+  DatePickerGrid,
+  DatePickerGridBody,
+  DatePickerGridHead,
+  DatePickerGridRow,
+  DatePickerHeadCell,
+  DatePickerHeader,
+  DatePickerHeading,
+  DatePickerInput,
+  DatePickerNext,
+  DatePickerPrev,
+  DatePickerRoot,
+  DatePickerTrigger,
+} from 'reka-ui'
+import type { DateValue } from 'reka-ui/date'
 import { useI18n } from 'vue-i18n'
 
 import { useUiDateField, type DateFieldProps } from '@/composables/forms'
 
-import UiCalendar from './UiCalendar.vue'
+import {
+  fromDateValue,
+  inferDateGranularity,
+  inferHourCycle,
+  toDatePlaceholder,
+  toDateValue,
+} from './dateValue'
 
 export interface DatetimePickerProps extends DateFieldProps {
   hour12?: boolean
@@ -24,31 +49,36 @@ const props = withDefaults(defineProps<DatetimePickerProps>(), {
 const emit = defineEmits<{ 'update:modelValue': [value: Date] }>()
 const { t } = useI18n()
 
-const {
-  controlProps,
-  segments,
-  labelProps,
-  errorMessageProps,
-  descriptionProps,
-  displayError,
-  direction,
-  calendarProps,
-  fieldValue,
-} = useUiDateField(props)
+const { labelProps, errorMessageProps, descriptionProps, displayError, fieldValue, setValue } =
+  useUiDateField(props)
 
-const { isOpen, pickerProps, pickerTriggerProps } = usePicker({
-  label: () => props.label ?? t('common_pick_datetime'),
-  disabled: () => props.disabled,
-})
+const granularity = computed(() => inferDateGranularity(props.formatOptions))
+const includeTime = computed(() => granularity.value !== 'day')
+const hourCycle = computed(() => inferHourCycle(props.formatOptions))
 
-watch(
-  () => fieldValue.value,
-  (newValue) => {
-    if (newValue !== undefined && newValue !== props.modelValue) {
-      emit('update:modelValue', newValue)
-    }
-  },
+const modelValue = computed(
+  () =>
+    toDateValue(fieldValue.value, { includeTime: includeTime.value, timeZone: props.timeZone }) ??
+    toDateValue(props.modelValue, { includeTime: includeTime.value, timeZone: props.timeZone }),
 )
+
+const placeholderValue = computed(
+  () =>
+    modelValue.value ??
+    toDatePlaceholder(props.modelValue, {
+      includeTime: includeTime.value,
+      timeZone: props.timeZone,
+    }),
+)
+
+function onValueChange(value: DateValue | undefined) {
+  const nextValue = fromDateValue(value, props.timeZone)
+
+  if (!nextValue) return
+
+  setValue(nextValue)
+  emit('update:modelValue', nextValue)
+}
 
 const controlClasses = computed(() => [
   'shaped-border shaped-radius-sm inline-flex flex-1 flex-wrap items-center gap-0.5 border px-3 py-2 text-sm',
@@ -58,6 +88,9 @@ const controlClasses = computed(() => [
     : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300 focus-within:ring-2',
   props.disabled ? 'cursor-not-allowed opacity-50' : '',
 ])
+
+const segmentClasses =
+  'rounded-sm px-0.5 outline-none data-placeholder:text-surface-400 data-disabled:opacity-50'
 </script>
 
 <template>
@@ -71,30 +104,102 @@ const controlClasses = computed(() => [
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
 
-    <div class="relative">
-      <div class="flex items-center gap-1">
-        <div
-          v-bind="controlProps"
-          :dir="direction"
-          :class="controlClasses"
-          data-ui="datetime-picker"
-          data-provider="reka"
-        >
-          <DateTimeSegment v-for="(segment, index) in segments" :key="index" v-bind="segment" />
+    <DatePickerRoot
+      :model-value="modelValue"
+      :placeholder="placeholderValue"
+      :locale="locale"
+      :disabled="disabled"
+      :readonly="readonly"
+      :required="required"
+      :granularity="granularity"
+      :hour-cycle="hourCycle"
+      close-on-select
+      prevent-deselect
+      @update:model-value="onValueChange"
+    >
+      <DatePickerField v-slot="{ segments }" class="flex items-center gap-1">
+        <div :class="controlClasses" data-ui="datetime-picker" data-provider="reka">
+          <DatePickerInput
+            v-for="(segment, index) in segments"
+            :key="`${segment.part}-${index}`"
+            :part="segment.part"
+            :class="segmentClasses"
+          >
+            {{ segment.value }}
+          </DatePickerInput>
         </div>
-        <button
-          v-bind="pickerTriggerProps"
-          type="button"
+        <DatePickerTrigger
           class="shaped-border shaped-radius-sm border-surface-300 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 border p-2"
+          :aria-label="props.label ?? t('common_pick_datetime')"
         >
           📅
-        </button>
-      </div>
+        </DatePickerTrigger>
+      </DatePickerField>
 
-      <div v-if="isOpen" v-bind="pickerProps" class="absolute z-50 mt-1">
-        <UiCalendar v-bind="calendarProps as Record<string, unknown>" />
-      </div>
-    </div>
+      <DatePickerContent
+        class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 shaped-radius shaped-shadow z-50 mt-1 rounded-lg border bg-white p-3"
+        :side-offset="6"
+      >
+        <DatePickerCalendar v-slot="{ weekDays, grid }">
+          <DatePickerHeader class="mb-2 flex items-center justify-between gap-3">
+            <DatePickerPrev
+              class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+            >
+              ←
+            </DatePickerPrev>
+            <DatePickerHeading class="text-surface-700 dark:text-surface-300 text-sm font-medium" />
+            <DatePickerNext
+              class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+            >
+              →
+            </DatePickerNext>
+          </DatePickerHeader>
+
+          <div class="flex flex-col gap-4">
+            <DatePickerGrid
+              v-for="month in grid"
+              :key="month.value.toString()"
+              class="w-full border-collapse"
+            >
+              <DatePickerGridHead>
+                <DatePickerGridRow>
+                  <DatePickerHeadCell
+                    v-for="weekDay in weekDays"
+                    :key="weekDay"
+                    class="text-surface-400 px-1 py-1 text-center text-xs font-medium"
+                  >
+                    {{ weekDay }}
+                  </DatePickerHeadCell>
+                </DatePickerGridRow>
+              </DatePickerGridHead>
+
+              <DatePickerGridBody>
+                <DatePickerGridRow
+                  v-for="(week, weekIndex) in month.rows"
+                  :key="`${month.value}-${weekIndex}`"
+                >
+                  <DatePickerCell
+                    v-for="date in week"
+                    :key="date.toString()"
+                    :date="date"
+                    class="p-0.5"
+                  >
+                    <DatePickerCellTrigger
+                      v-slot="{ dayValue }"
+                      :day="date"
+                      :month="month.value"
+                      class="data-selected:bg-primary-700 data-today:border-primary-500 data-today:text-primary-700 dark:data-today:text-primary-300 data-outside-view:text-surface-300 dark:data-outside-view:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 inline-flex h-8 w-8 items-center justify-center rounded-full text-sm outline-none data-disabled:cursor-not-allowed data-disabled:opacity-40 data-selected:text-white data-today:border"
+                    >
+                      {{ dayValue }}
+                    </DatePickerCellTrigger>
+                  </DatePickerCell>
+                </DatePickerGridRow>
+              </DatePickerGridBody>
+            </DatePickerGrid>
+          </div>
+        </DatePickerCalendar>
+      </DatePickerContent>
+    </DatePickerRoot>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

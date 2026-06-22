@@ -6,7 +6,7 @@ export interface SteppedFormProps {
   previousLabel?: string
 }
 
-export function useBaseSteppedForm<T extends FormObject = FormObject>(props?: SteppedFormProps) {
+export function useUiSteppedForm<T extends FormObject = FormObject>(props?: SteppedFormProps) {
   const flow = useStepFormFlow<T>({
     nextLabel: props?.nextLabel,
     previousLabel: props?.previousLabel,

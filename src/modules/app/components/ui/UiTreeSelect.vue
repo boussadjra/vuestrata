@@ -1,9 +1,8 @@
 <script setup lang="ts">
+import { PopoverContent, PopoverRoot, PopoverTrigger, TreeItem, TreeRoot } from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
 import { useUiTreeSelect, type TreeSelectProps } from '@/composables/forms'
-
-import UiTreeNode from './UiTreeNode.vue'
 
 const props = withDefaults(defineProps<TreeSelectProps>(), {
   size: 'md',
@@ -12,39 +11,91 @@ const props = withDefaults(defineProps<TreeSelectProps>(), {
 const emit = defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
 const { t } = useI18n()
 
-const {
-  labelProps,
-  errorMessageProps,
-  descriptionProps,
-  displayError,
-  toggleExpand,
-  isExpanded,
-  selectNode,
-  isSelected,
-  fieldValue,
-} = useUiTreeSelect(props)
+const { labelProps, errorMessageProps, descriptionProps, displayError, fieldValue, setValue } =
+  useUiTreeSelect(props)
 
 const isOpen = ref(false)
 const placeholderText = computed(() => props.placeholder ?? t('common_select'))
 
-watch(
-  () => fieldValue.value,
-  (newValue) => {
-    if (newValue !== undefined && newValue !== props.modelValue) {
-      emit('update:modelValue', newValue)
-    }
-  },
-)
+const expanded = ref<string[]>([])
 
-function findLabel(value: string, nodes: typeof props.nodes): string | undefined {
+function findNode(
+  value: string,
+  nodes: typeof props.nodes,
+): (typeof props.nodes)[number] | undefined {
   for (const node of nodes) {
-    if (node.value === value) return node.label
+    if (node.value === value) return node
+
     if (node.children) {
-      const found = findLabel(value, node.children)
-      if (found) return found
+      const nestedNode = findNode(value, node.children)
+      if (nestedNode) return nestedNode
     }
   }
+
   return undefined
+}
+
+const selectedValue = computed(() => {
+  if (props.multiple) {
+    const values = Array.isArray(fieldValue.value)
+      ? fieldValue.value
+      : Array.isArray(props.modelValue)
+        ? props.modelValue
+        : []
+
+    return values
+      .map((value) => findNode(value, props.nodes))
+      .filter((node): node is NonNullable<typeof node> => Boolean(node))
+  }
+
+  const value = Array.isArray(fieldValue.value)
+    ? fieldValue.value[0]
+    : typeof fieldValue.value === 'string'
+      ? fieldValue.value
+      : typeof props.modelValue === 'string'
+        ? props.modelValue
+        : undefined
+
+  return value ? findNode(value, props.nodes) : undefined
+})
+
+const selectedLabels = computed(() => {
+  if (Array.isArray(selectedValue.value)) return selectedValue.value.map((node) => node.label)
+
+  return selectedValue.value ? [selectedValue.value.label] : []
+})
+
+function onTreeValueChange(
+  value: (typeof props.nodes)[number] | (typeof props.nodes)[number][] | undefined,
+) {
+  if (Array.isArray(value)) {
+    const nextValue = value.map((node) => node.value)
+    setValue(nextValue)
+    emit('update:modelValue', nextValue)
+    return
+  }
+
+  if (!value) return
+
+  setValue(value.value)
+  emit('update:modelValue', value.value)
+  isOpen.value = false
+}
+
+function handleTreeSelect(event: Event & { detail?: { originalEvent?: Event } }) {
+  const originalEvent = event.detail?.originalEvent
+
+  if (originalEvent?.type === 'click') {
+    event.preventDefault()
+  }
+}
+
+function handleTreeToggle(event: Event & { detail?: { originalEvent?: Event } }) {
+  const originalEvent = event.detail?.originalEvent
+
+  if (originalEvent?.type === 'click') {
+    event.preventDefault()
+  }
 }
 </script>
 
@@ -59,50 +110,84 @@ function findLabel(value: string, nodes: typeof props.nodes): string | undefined
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
 
-    <div class="relative">
-      <button
-        type="button"
-        :class="[
-          'shaped-border shaped-radius-sm inline-flex w-full items-center justify-between border px-3 py-2 text-sm',
-          'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
-          displayError
-            ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
-            : 'border-surface-300 dark:border-surface-600',
-          'focus:ring-primary-300 focus:ring-2 focus:outline-none',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          'min-w-45',
-        ]"
-        data-ui="tree-select"
-        data-provider="reka"
-        @click="isOpen = !isOpen"
-      >
-        <span v-if="fieldValue && !Array.isArray(fieldValue)" class="truncate">
-          {{ findLabel(fieldValue as string, nodes) ?? fieldValue }}
-        </span>
-        <span v-else-if="Array.isArray(fieldValue) && fieldValue.length" class="truncate">
-          {{ fieldValue.length }} {{ t('common_selected') }}
-        </span>
-        <span v-else class="text-surface-400 truncate">{{ placeholderText }}</span>
-        <span class="text-surface-400 ml-2 text-xs">▼</span>
-      </button>
+    <PopoverRoot v-model:open="isOpen">
+      <PopoverTrigger as-child>
+        <button
+          type="button"
+          :class="[
+            'shaped-border shaped-radius-sm inline-flex w-full items-center justify-between border px-3 py-2 text-sm',
+            'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
+            displayError
+              ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
+              : 'border-surface-300 dark:border-surface-600',
+            'focus:ring-primary-300 focus:ring-2 focus:outline-none',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            'min-w-45',
+          ]"
+          data-ui="tree-select"
+          data-provider="reka"
+        >
+          <span v-if="!props.multiple && selectedLabels.length" class="truncate">
+            {{ selectedLabels[0] }}
+          </span>
+          <span v-else-if="props.multiple && selectedLabels.length" class="truncate">
+            {{ selectedLabels.length }} {{ t('common_selected') }}
+          </span>
+          <span v-else class="text-surface-400 truncate">{{ placeholderText }}</span>
+          <span class="text-surface-400 ml-2 text-xs">▼</span>
+        </button>
+      </PopoverTrigger>
 
-      <div
-        v-show="isOpen"
-        class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 absolute z-50 mt-1 max-h-60 w-full overflow-auto border bg-white py-1"
-        role="tree"
+      <PopoverContent
+        class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 z-50 max-h-60 w-[var(--reka-popover-trigger-width)] overflow-auto border bg-white py-1"
+        align="start"
+        :side-offset="6"
       >
-        <UiTreeNode
-          v-for="node in nodes"
-          :key="node.value"
-          :node="node"
-          :level="0"
-          :is-expanded="isExpanded"
-          :is-selected="isSelected"
-          :toggle-expand="toggleExpand"
-          :select-node="selectNode"
-        />
-      </div>
-    </div>
+        <TreeRoot
+          v-slot="{ flattenItems }"
+          :items="nodes"
+          :model-value="selectedValue"
+          :expanded="expanded"
+          :multiple="multiple"
+          :disabled="disabled"
+          :get-key="(node) => node.value"
+          @update:model-value="onTreeValueChange"
+          @update:expanded="expanded = $event"
+        >
+          <TreeItem
+            v-for="item in flattenItems"
+            :key="item._id"
+            v-bind="item.bind"
+            v-slot="{ handleSelect, handleToggle, isExpanded, isSelected }"
+            @select="handleTreeSelect"
+            @toggle="handleTreeToggle"
+          >
+            <div
+              class="hover:bg-surface-100 dark:hover:bg-surface-700 flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm select-none"
+              :class="{
+                'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400':
+                  isSelected,
+                'text-surface-700 dark:text-surface-200': !isSelected,
+                'pointer-events-none opacity-40': item.value.disabled,
+              }"
+              :style="{ paddingLeft: `${(item.level - 1) * 16 + 8}px` }"
+              @click.stop="handleSelect()"
+            >
+              <button
+                v-if="item.hasChildren"
+                type="button"
+                class="text-surface-400 flex h-4 w-4 flex-shrink-0 items-center justify-center text-xs"
+                @click.stop="handleToggle()"
+              >
+                {{ isExpanded ? '▼' : '▶' }}
+              </button>
+              <span v-else class="w-4" />
+              <span class="truncate">{{ item.value.label }}</span>
+            </div>
+          </TreeItem>
+        </TreeRoot>
+      </PopoverContent>
+    </PopoverRoot>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

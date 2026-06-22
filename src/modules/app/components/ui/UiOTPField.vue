@@ -1,16 +1,26 @@
 <script setup lang="ts">
+import { PinInputInput, PinInputRoot } from 'reka-ui'
+
 import { useUiOtpField, type OTPFieldProps } from '@/composables/forms'
 
-const props = withDefaults(defineProps<OTPFieldProps & { provider?: 'reka' }>(), {
-  provider: 'reka',
-  length: 6,
-  accept: 'numeric',
-})
+const props = withDefaults(
+  defineProps<OTPFieldProps & { provider?: 'reka'; modelValue?: string }>(),
+  {
+    provider: 'reka',
+    length: 6,
+    accept: 'numeric',
+  },
+)
 
-defineEmits<{ 'update:modelValue': [value: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const { slots, labelProps, errorMessageProps, descriptionProps, displayError } =
-  useUiOtpField(props)
+const { labelProps, errorMessageProps, descriptionProps, displayError } = useUiOtpField(props)
+
+const pinValue = computed(() => (props.modelValue ? props.modelValue.split('') : []))
+
+function onPinUpdate(value: string[]) {
+  emit('update:modelValue', value.join(''))
+}
 </script>
 
 <template>
@@ -24,10 +34,21 @@ const { slots, labelProps, errorMessageProps, descriptionProps, displayError } =
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
 
-    <div class="flex gap-2" :data-provider="provider" data-ui="otp-field">
-      <template v-for="(slot, index) in slots" :key="index">
-        <input
-          v-bind="slot"
+    <PinInputRoot
+      :model-value="pinValue"
+      :name="name"
+      :disabled="disabled"
+      :required="required"
+      :otp="accept === 'numeric'"
+      :type="accept === 'numeric' ? 'number' : 'text'"
+      class="flex gap-2"
+      :data-provider="provider"
+      data-ui="otp-field"
+      @update:model-value="onPinUpdate"
+    >
+      <template v-for="index in length" :key="index">
+        <PinInputInput
+          :index="index - 1"
           :class="[
             'h-12 w-10 rounded-lg border text-center font-mono text-lg transition-colors',
             'dark:bg-surface-800 text-surface-700 dark:text-surface-200 bg-white',
@@ -39,7 +60,7 @@ const { slots, labelProps, errorMessageProps, descriptionProps, displayError } =
           ]"
         />
       </template>
-    </div>
+    </PinInputRoot>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

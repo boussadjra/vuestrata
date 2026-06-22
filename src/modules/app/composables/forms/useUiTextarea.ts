@@ -1,21 +1,18 @@
-import { useDateField } from '@formwerk/core'
+import { useTextField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
-export interface DateFieldProps extends FieldProps {
-  modelValue?: Date
-  hint?: string
-  locale?: string
-  calendar?: string
-  timeZone?: string
-  formatOptions?: Intl.DateTimeFormatOptions
+export interface TextareaProps extends FieldProps {
+  modelValue?: string
   placeholder?: string
-  min?: string
-  max?: string
+  hint?: string
+  rows?: number
+  maxlength?: number
+  resize?: 'none' | 'vertical' | 'both'
 }
 
-export function useBaseDateField(props: DateFieldProps) {
-  const formwerk = useDateField({
+export function useUiTextarea(props: TextareaProps) {
+  const formwerk = useTextField({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
@@ -24,11 +21,8 @@ export function useBaseDateField(props: DateFieldProps) {
     readonly: () => props.readonly,
     required: () => props.required,
     schema: props.schema as undefined,
-    locale: () => props.locale,
-    calendar: () => props.calendar as undefined,
-    timeZone: () => props.timeZone,
-    formatOptions: () => props.formatOptions,
     placeholder: () => props.placeholder,
+    maxLength: () => props.maxlength,
   })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)

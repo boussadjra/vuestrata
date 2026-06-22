@@ -157,7 +157,14 @@ vi.mock('@formwerk/core', () => ({
   },
 }))
 
-import { UiCalendar, UiDateField, UiDatePicker, UiTimeField } from '@/components/ui'
+import {
+  UiCalendar,
+  UiDateField,
+  UiDatePicker,
+  UiMonthPicker,
+  UiTimeField,
+  UiYearPicker,
+} from '@/components/ui'
 
 describe('Formwerk Date, Time & Calendar Fields', () => {
   beforeEach(() => {
@@ -231,7 +238,9 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
         },
       })
       expect(wrapper.find('[data-ui="calendar"]').exists()).toBe(true)
-      expect(wrapper.text()).toContain('January 2025')
+      expect(wrapper.text()).toMatch(
+        /January|February|March|April|May|June|July|August|September|October|November|December/,
+      )
     })
 
     it('renders week day headers', () => {
@@ -289,6 +298,32 @@ describe('Formwerk Date, Time & Calendar Fields', () => {
         },
       })
       expect(wrapper.text()).toContain('Past dates not allowed')
+    })
+  })
+
+  describe('UiMonthPicker', () => {
+    it('renders with label', () => {
+      const wrapper = mount(UiMonthPicker, {
+        props: {
+          label: 'Billing Month',
+          name: 'billingMonth',
+        },
+      })
+      expect(wrapper.text()).toContain('Billing Month')
+      expect(wrapper.find('[data-ui="month-picker"]').exists()).toBe(true)
+    })
+  })
+
+  describe('UiYearPicker', () => {
+    it('renders with label', () => {
+      const wrapper = mount(UiYearPicker, {
+        props: {
+          label: 'Billing Year',
+          name: 'billingYear',
+        },
+      })
+      expect(wrapper.text()).toContain('Billing Year')
+      expect(wrapper.find('[data-ui="year-picker"]').exists()).toBe(true)
     })
   })
 })

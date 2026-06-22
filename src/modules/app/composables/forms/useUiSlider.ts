@@ -11,7 +11,7 @@ export interface SliderProps extends FieldProps {
   hint?: string
 }
 
-export function useBaseSlider(props: SliderProps) {
+export function useUiSlider(props: SliderProps) {
   const formwerk = useSlider({
     name: () => props.name,
     label: () => props.label ?? '',

@@ -13,7 +13,7 @@ export interface ToggleGroupProps extends Omit<FieldProps, 'size'> {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export function useBaseToggleGroup(
+export function useUiToggleGroup(
   props: ToggleGroupProps,
   emit: (event: 'update:modelValue', value: string | string[]) => void,
 ) {

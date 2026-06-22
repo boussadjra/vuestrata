@@ -1,18 +1,21 @@
-import { useTimeField } from '@formwerk/core'
+import { useDateField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
-export interface TimeFieldProps extends FieldProps {
-  modelValue?: string
+export interface DateFieldProps extends FieldProps {
+  modelValue?: Date
   hint?: string
   locale?: string
+  calendar?: string
+  timeZone?: string
   formatOptions?: Intl.DateTimeFormatOptions
   placeholder?: string
-  hour12?: boolean
+  min?: string
+  max?: string
 }
 
-export function useBaseTimeField(props: TimeFieldProps) {
-  const formwerk = useTimeField({
+export function useUiDateField(props: DateFieldProps) {
+  const formwerk = useDateField({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
@@ -22,6 +25,8 @@ export function useBaseTimeField(props: TimeFieldProps) {
     required: () => props.required,
     schema: props.schema as undefined,
     locale: () => props.locale,
+    calendar: () => props.calendar as undefined,
+    timeZone: () => props.timeZone,
     formatOptions: () => props.formatOptions,
     placeholder: () => props.placeholder,
   })

@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import type { Component } from 'vue'
+import {
+  SelectContent,
+  SelectIcon,
+  SelectPortal,
+  SelectRoot,
+  SelectTrigger,
+  SelectViewport,
+} from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
 import { useUiSelect, type SelectProps } from '@/composables/forms'
@@ -26,16 +33,8 @@ const attrs = useAttrs()
 const { t } = useI18n()
 const formwerk = useUiSelect(props)
 
-const {
-  triggerProps,
-  listBoxProps,
-  labelProps,
-  errorMessageProps,
-  descriptionProps,
-  displayError,
-  isOpen,
-  selectedOption,
-} = formwerk
+const { labelProps, errorMessageProps, descriptionProps, displayError, fieldValue, setValue } =
+  formwerk
 
 const placeholderText = computed(() => props.placeholder ?? t('common_select'))
 const controlId = computed(() => props.id ?? formwerk.controlId)
@@ -54,8 +53,7 @@ const enhancedDescriptionProps = computed(() => {
   return { ...descriptionProps.value, id: descriptionId.value }
 })
 
-const enhancedTriggerProps = computed(() => ({
-  ...triggerProps.value,
+const triggerAttrs = computed(() => ({
   ...Object.fromEntries(
     Object.entries(attrs).filter(([key]) => key !== 'class' && key !== 'style'),
   ),
@@ -64,15 +62,6 @@ const enhancedTriggerProps = computed(() => ({
   'aria-describedby':
     !displayError.value && (props.hint || props.description) ? descriptionId.value : undefined,
 }))
-
-watch(
-  () => formwerk.fieldValue.value,
-  (newValue) => {
-    if (newValue !== undefined && newValue !== props.modelValue) {
-      emit('update:modelValue', newValue as string | number | Array<string | number>)
-    }
-  },
-)
 
 function isGroup(
   opt: (typeof props.options)[number],
@@ -84,6 +73,65 @@ function isSingleOption(
   opt: (typeof props.options)[number],
 ): opt is { label: string; value: string | number; disabled?: boolean } {
   return 'value' in opt
+}
+
+const currentValue = computed(() => {
+  if (props.multiple) {
+    if (Array.isArray(fieldValue.value)) return fieldValue.value
+    if (Array.isArray(props.modelValue)) return props.modelValue
+    return []
+  }
+
+  if (Array.isArray(fieldValue.value)) return fieldValue.value[0]
+
+  return fieldValue.value ?? props.modelValue
+})
+
+const optionLabels = computed(() => {
+  const labels = new Map<string | number, string>()
+
+  for (const option of props.options) {
+    if (isGroup(option)) {
+      for (const child of option.options) {
+        labels.set(child.value, child.label)
+      }
+      continue
+    }
+
+    if (isSingleOption(option)) {
+      labels.set(option.value, option.label)
+    }
+  }
+
+  return labels
+})
+
+const selectedLabel = computed(() => {
+  if (props.multiple) {
+    const values = Array.isArray(currentValue.value) ? currentValue.value : []
+    return values.map((value) => optionLabels.value.get(value) ?? String(value)).join(', ')
+  }
+
+  if (
+    currentValue.value === undefined ||
+    currentValue.value === null ||
+    currentValue.value === ''
+  ) {
+    return ''
+  }
+
+  return optionLabels.value.get(currentValue.value as string | number) ?? String(currentValue.value)
+})
+
+const hasSelection = computed(() =>
+  props.multiple
+    ? Array.isArray(currentValue.value) && currentValue.value.length > 0
+    : currentValue.value !== undefined && currentValue.value !== null && currentValue.value !== '',
+)
+
+function onValueChange(value: string | number | Array<string | number>) {
+  setValue(value)
+  emit('update:modelValue', value)
 }
 
 const triggerClasses = computed(() => [
@@ -108,43 +156,56 @@ const triggerClasses = computed(() => [
       <span v-if="required" :class="fieldRequiredIndicatorClass">*</span>
     </label>
 
-    <div class="relative">
-      <button
-        v-bind="enhancedTriggerProps"
-        type="button"
+    <SelectRoot
+      :model-value="currentValue"
+      :multiple="multiple"
+      :disabled="disabled"
+      :required="required"
+      :name="name"
+      @update:model-value="onValueChange"
+    >
+      <SelectTrigger
+        v-bind="triggerAttrs"
         :class="triggerClasses"
         data-provider="reka"
         data-ui="select"
       >
-        <span v-if="selectedOption" class="truncate">{{ selectedOption.label }}</span>
+        <span v-if="hasSelection" class="truncate">{{ selectedLabel }}</span>
         <span v-else class="text-surface-400 truncate">{{ placeholderText }}</span>
-        <span class="text-surface-400 ml-2 text-xs">▼</span>
-      </button>
+        <SelectIcon class="text-surface-400 ml-2 text-xs">▼</SelectIcon>
+      </SelectTrigger>
 
-      <div
-        v-show="isOpen"
-        v-bind="listBoxProps"
-        class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 absolute z-50 mt-1 w-auto min-w-45 overflow-hidden border bg-white p-1"
-      >
-        <template v-for="option in options" :key="'value' in option ? option.value : option.label">
-          <UiOptionGroup v-if="isGroup(option)" :label="option.label">
-            <UiOption
-              v-for="child in option.options"
-              :key="child.value"
-              :label="child.label"
-              :value="child.value"
-              :disabled="child.disabled"
-            />
-          </UiOptionGroup>
-          <UiOption
-            v-else-if="isSingleOption(option)"
-            :label="option.label"
-            :value="option.value"
-            :disabled="option.disabled"
-          />
-        </template>
-      </div>
-    </div>
+      <SelectPortal>
+        <SelectContent
+          class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 z-50 w-auto min-w-45 overflow-hidden border bg-white p-1"
+          position="popper"
+          :side-offset="4"
+        >
+          <SelectViewport>
+            <template
+              v-for="option in options"
+              :key="'value' in option ? option.value : option.label"
+            >
+              <UiOptionGroup v-if="isGroup(option)" :label="option.label">
+                <UiOption
+                  v-for="child in option.options"
+                  :key="child.value"
+                  :label="child.label"
+                  :value="child.value"
+                  :disabled="child.disabled"
+                />
+              </UiOptionGroup>
+              <UiOption
+                v-else-if="isSingleOption(option)"
+                :label="option.label"
+                :value="option.value"
+                :disabled="option.disabled"
+              />
+            </template>
+          </SelectViewport>
+        </SelectContent>
+      </SelectPortal>
+    </SelectRoot>
 
     <p
       v-if="displayError"

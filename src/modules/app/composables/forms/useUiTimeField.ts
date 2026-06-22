@@ -1,23 +1,18 @@
-import { useRadioGroup } from '@formwerk/core'
+import { useTimeField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
-export interface RadioOption {
-  label: string
-  value: string
-  disabled?: boolean
-  description?: string
-}
-
-export interface RadioGroupProps extends FieldProps {
+export interface TimeFieldProps extends FieldProps {
   modelValue?: string
-  options: RadioOption[]
   hint?: string
-  orientation?: 'vertical' | 'horizontal'
+  locale?: string
+  formatOptions?: Intl.DateTimeFormatOptions
+  placeholder?: string
+  hour12?: boolean
 }
 
-export function useBaseRadioGroup(props: RadioGroupProps) {
-  const formwerk = useRadioGroup({
+export function useUiTimeField(props: TimeFieldProps) {
+  const formwerk = useTimeField({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
@@ -25,8 +20,10 @@ export function useBaseRadioGroup(props: RadioGroupProps) {
     disabled: () => props.disabled,
     readonly: () => props.readonly,
     required: () => props.required,
-    orientation: () => props.orientation,
     schema: props.schema as undefined,
+    locale: () => props.locale,
+    formatOptions: () => props.formatOptions,
+    placeholder: () => props.placeholder,
   })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)

@@ -8,7 +8,7 @@ export interface OTPFieldProps extends Omit<FieldProps, 'size'> {
   accept?: 'numeric' | 'alphanumeric' | 'all'
 }
 
-export function useBaseOTPField(props: OTPFieldProps) {
+export function useUiOtpField(props: OTPFieldProps) {
   const formwerk = useOtpField({
     name: () => props.name,
     label: () => props.label ?? '',

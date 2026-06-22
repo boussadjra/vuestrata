@@ -7,7 +7,7 @@ export interface ToggleProps extends Omit<FieldProps, 'size'> {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export function useBaseToggle(props: ToggleProps) {
+export function useUiToggle(props: ToggleProps) {
   return useCheckbox({
     name: () => props.name,
     label: () => props.label ?? '',

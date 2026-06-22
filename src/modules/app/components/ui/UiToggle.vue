@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Toggle } from 'reka-ui'
+
 import { useUiToggle, type ToggleProps } from '@/composables/forms'
 
 const props = withDefaults(
@@ -13,9 +15,9 @@ const props = withDefaults(
   },
 )
 
-defineEmits<{ 'update:modelValue': [value: boolean] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-const { inputProps, labelProps, isChecked, toggle } = useUiToggle(props)
+const { inputProps, labelProps, isChecked, toggle, fieldValue } = useUiToggle(props)
 
 const sizeClasses: Record<string, string> = {
   sm: 'px-2 py-1 text-xs',
@@ -35,13 +37,20 @@ const toggleClasses = computed(() => [
       : 'bg-white border-surface-300 text-surface-700 hover:bg-surface-50',
   sizeClasses[props.size],
 ])
+
+watch(
+  () => fieldValue.value,
+  (newValue) => {
+    if (typeof newValue === 'boolean' && newValue !== props.modelValue) {
+      emit('update:modelValue', newValue)
+    }
+  },
+)
 </script>
 
 <template>
-  <span
+  <Toggle
     v-bind="inputProps"
-    role="checkbox"
-    tabindex="0"
     :class="toggleClasses"
     data-ui="toggle"
     :data-provider="provider"
@@ -52,5 +61,5 @@ const toggleClasses = computed(() => [
       {{ label }}
     </label>
     <slot v-else />
-  </span>
+  </Toggle>
 </template>

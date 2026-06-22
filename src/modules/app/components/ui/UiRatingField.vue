@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {
   useUiRatingField,
-  type RatingFieldProps as BaseRatingFieldProps,
+  type RatingFieldProps as FormRatingFieldProps,
 } from '@/composables/forms'
 
-export interface RatingFieldProps extends BaseRatingFieldProps {
+export interface RatingFieldProps extends FormRatingFieldProps {
   provider?: 'reka'
 }
 
@@ -28,11 +28,11 @@ const {
 
 const hoveredStar = ref(0)
 
-const descriptionClass = computed(() => {
-  return props.provider === 'reka'
+const descriptionClass = computed(() =>
+  props.provider === 'reka'
     ? 'text-surface-500 dark:text-surface-400 text-xs'
-    : 'text-surface-500 text-xs'
-})
+    : 'text-surface-500 text-xs',
+)
 
 function onStarClick(star: number) {
   setRating(star)

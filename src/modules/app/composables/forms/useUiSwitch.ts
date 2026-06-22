@@ -7,7 +7,7 @@ export interface SwitchProps extends Omit<FieldProps, 'size'> {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export function useBaseSwitch(props: SwitchProps) {
+export function useUiSwitch(props: SwitchProps) {
   const formwerk = useSwitch({
     name: () => props.name,
     label: () => props.label ?? '',

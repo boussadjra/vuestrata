@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
+
 import { useUiCheckbox, type CheckboxProps } from '@/composables/forms'
 import { resolveIcon } from '~/config/icon-provider'
 
@@ -72,24 +74,22 @@ const checkboxClasses = computed(() => [
 <template>
   <div class="flex flex-col gap-1">
     <div class="inline-flex items-center gap-2">
-      <span
+      <CheckboxRoot
         v-bind="inputProps"
-        role="checkbox"
-        tabindex="0"
         :class="checkboxClasses"
         data-ui="checkbox"
         :data-provider="provider"
         @click="emitToggle"
         @keydown.space.prevent="emitToggle"
       >
-        <span v-if="isChecked" class="flex items-center justify-center text-white">
+        <CheckboxIndicator class="flex items-center justify-center text-white">
           <span
             v-if="isIndeterminate"
             :class="[resolveIcon('minus-circle'), indicatorSizeMap[size]]"
           />
           <span v-else :class="[resolveIcon('check'), indicatorSizeMap[size]]" />
-        </span>
-      </span>
+        </CheckboxIndicator>
+      </CheckboxRoot>
       <span
         v-if="label"
         v-bind="labelProps"

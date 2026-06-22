@@ -22,6 +22,16 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
+class ResizeObserverMock {
+  observe = vi.fn()
+  unobserve = vi.fn()
+  disconnect = vi.fn()
+}
+
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver
+}
+
 // Reset Pinia + core/lib runtime backends + createGlobalState containers
 // before every test so cross-suite leakage of mutable state cannot occur.
 beforeEach(async () => {

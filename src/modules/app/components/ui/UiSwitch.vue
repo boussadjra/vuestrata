@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { SwitchRoot, SwitchThumb } from 'reka-ui'
+
 import { useUiSwitch, type SwitchProps } from '@/composables/forms'
 import { useAppStore } from '@/stores/app'
 
@@ -44,17 +46,15 @@ function emitToggle() {
 <template>
   <div class="flex flex-col gap-1">
     <div class="inline-flex items-center gap-2">
-      <span
+      <SwitchRoot
         v-bind="inputProps"
-        role="switch"
-        tabindex="0"
         :class="trackClasses"
         data-ui="switch"
         data-provider="reka"
         @click="emitToggle"
         @keydown.space.prevent="emitToggle"
       >
-        <span
+        <SwitchThumb
           :class="[
             'block rounded-full bg-white shadow-sm transition-transform',
             thumbPositionClass,
@@ -62,7 +62,7 @@ function emitToggle() {
           ]"
           style="margin-top: auto; margin-bottom: auto"
         />
-      </span>
+      </SwitchRoot>
       <label
         v-if="label"
         v-bind="labelProps"

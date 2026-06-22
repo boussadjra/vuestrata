@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui'
+
 import { useUiRadioGroup, type RadioGroupProps } from '@/composables/forms'
 
 const props = withDefaults(
@@ -13,12 +15,21 @@ const props = withDefaults(
   },
 )
 
-defineEmits<{ 'update:modelValue': [value: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const { groupProps, labelProps, errorMessageProps, descriptionProps, displayError } =
+const { groupProps, labelProps, errorMessageProps, descriptionProps, displayError, fieldValue } =
   useUiRadioGroup(props)
 
 const labelClass = 'text-surface-700 dark:text-surface-300 text-sm font-medium'
+
+watch(
+  () => fieldValue.value,
+  (newValue) => {
+    if (typeof newValue === 'string' && newValue !== props.modelValue) {
+      emit('update:modelValue', newValue)
+    }
+  },
+)
 </script>
 
 <template>
@@ -27,20 +38,35 @@ const labelClass = 'text-surface-700 dark:text-surface-300 text-sm font-medium'
       {{ label }}
     </div>
 
-    <div
+    <RadioGroupRoot
       v-bind="groupProps"
       :class="orientation === 'horizontal' ? 'flex flex-wrap gap-3' : 'space-y-2'"
     >
-      <BaseRadioOption
+      <label
         v-for="option in options"
         :key="option.value"
-        :value="option.value"
-        :label="option.label"
-        :disabled="option.disabled || disabled"
-        :description="option.description"
-        :model-value="modelValue"
-      />
-    </div>
+        class="inline-flex items-start gap-2 rounded-lg border px-3 py-2 transition-colors"
+        :class="
+          modelValue === option.value
+            ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-900/25'
+            : 'border-surface-200 dark:border-surface-700'
+        "
+      >
+        <RadioGroupItem
+          :value="option.value"
+          :disabled="option.disabled || disabled"
+          class="border-surface-400 text-primary-700 data-[state=checked]:border-primary-700 data-[state=checked]:bg-primary-700 dark:border-surface-500 dark:data-[state=checked]:border-primary-500 dark:data-[state=checked]:bg-primary-500 mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border outline-none dark:text-white"
+        >
+          <RadioGroupIndicator class="block h-2 w-2 rounded-full bg-white" />
+        </RadioGroupItem>
+        <span class="flex min-w-0 flex-col">
+          <span class="text-surface-700 dark:text-surface-300 text-sm">{{ option.label }}</span>
+          <span v-if="option.description" class="text-surface-500 dark:text-surface-400 text-xs">
+            {{ option.description }}
+          </span>
+        </span>
+      </label>
+    </RadioGroupRoot>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}
@@ -50,61 +76,3 @@ const labelClass = 'text-surface-700 dark:text-surface-300 text-sm font-medium'
     </p>
   </div>
 </template>
-
-<script lang="ts">
-import { useRadio as useFormwerkRadio } from '@formwerk/core'
-import { defineComponent, h } from 'vue'
-
-const BaseRadioOption = defineComponent({
-  name: 'BaseRadioOption',
-  props: {
-    value: { type: String, required: true },
-    label: { type: String, required: true },
-    disabled: { type: Boolean, default: false },
-    description: { type: String, default: undefined },
-    modelValue: { type: String, default: undefined },
-  },
-  setup(props) {
-    const { inputProps, labelProps, isChecked, isDisabled } = useFormwerkRadio({
-      value: () => props.value,
-      label: () => props.label,
-      disabled: () => props.disabled,
-    })
-
-    return { inputProps, labelProps, isChecked, isDisabled }
-  },
-  render() {
-    const className = [
-      'inline-flex items-start gap-2 rounded-lg border px-3 py-2 transition-colors',
-      this.isChecked
-        ? 'border-primary-400 bg-primary-50 dark:border-primary-600 dark:bg-primary-900/25'
-        : 'border-surface-200 dark:border-surface-700',
-      this.isDisabled
-        ? 'opacity-50 cursor-not-allowed'
-        : 'cursor-pointer hover:border-surface-300 dark:hover:border-surface-600',
-    ]
-
-    const textClass = 'text-sm text-surface-700 dark:text-surface-300'
-
-    return h(
-      'label',
-      {
-        class: className,
-        ...this.labelProps,
-      },
-      [
-        h('input', {
-          ...this.inputProps,
-          class: 'mt-0.5 h-4 w-4 accent-primary-500',
-        }),
-        h('span', { class: 'flex flex-col' }, [
-          h('span', { class: textClass }, this.label),
-          this.description
-            ? h('span', { class: 'text-xs text-surface-500' }, this.description)
-            : null,
-        ]),
-      ],
-    )
-  },
-})
-</script>

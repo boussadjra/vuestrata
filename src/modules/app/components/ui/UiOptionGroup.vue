@@ -1,21 +1,18 @@
 <script setup lang="ts">
-import { useUiOptionGroup } from '@/composables/forms'
+import { SelectGroup, SelectLabel } from 'reka-ui'
 
 const props = defineProps<{
   label: string
 }>()
-
-const { groupProps, labelProps } = useUiOptionGroup(props)
 </script>
 
 <template>
-  <div v-bind="groupProps" data-provider="reka" class="py-1">
-    <div
-      v-bind="labelProps"
+  <SelectGroup data-provider="reka" class="py-1">
+    <SelectLabel
       class="text-surface-400 dark:text-surface-500 px-3 py-1.5 text-xs font-semibold tracking-wide uppercase"
     >
       {{ label }}
-    </div>
+    </SelectLabel>
     <slot />
-  </div>
+  </SelectGroup>
 </template>

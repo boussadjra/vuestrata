@@ -2,35 +2,24 @@ import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
-export interface EditableProps extends FieldProps {
+export interface ColorPickerProps extends FieldProps {
   modelValue?: string
-  placeholder?: string
   hint?: string
+  swatches?: string[]
+  format?: 'hex' | 'rgb' | 'hsl'
 }
 
-export function useBaseEditable(props: EditableProps) {
+export function useUiColorPicker(props: ColorPickerProps) {
   const formwerk = useCustomField<string>({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
-    modelValue: () => props.modelValue ?? '',
+    modelValue: () => props.modelValue ?? '#000000',
     disabled: () => props.disabled,
     schema: props.schema as undefined,
   })
 
-  const isEditing = ref(false)
-
-  function startEditing() {
-    if (!props.disabled && !props.readonly) {
-      isEditing.value = true
-    }
-  }
-
-  function stopEditing() {
-    isEditing.value = false
-  }
-
   const displayError = computed(() => props.error ?? formwerk.errorMessage?.value)
 
-  return { ...formwerk, displayError, isEditing, startEditing, stopEditing }
+  return { ...formwerk, displayError }
 }

@@ -234,7 +234,9 @@ describe('Formwerk Selection & Compound Fields', () => {
         },
       })
       expect(wrapper.text()).toContain('Verification Code')
-      const inputs = wrapper.findAll('input')
+      const inputs = wrapper
+        .findAll('input')
+        .filter((input) => input.attributes('aria-label')?.startsWith('pin input '))
       expect(inputs.length).toBe(6)
     })
 

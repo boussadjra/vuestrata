@@ -16,7 +16,7 @@ export interface MentionItem {
   avatar?: string
 }
 
-export function useBaseMentionsField(props: MentionsFieldProps) {
+export function useUiMentionsField(props: MentionsFieldProps) {
   const formwerk = useCustomField<string>({
     name: () => props.name,
     label: () => props.label ?? '',

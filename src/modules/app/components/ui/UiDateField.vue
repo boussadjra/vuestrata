@@ -1,23 +1,56 @@
 <script setup lang="ts">
-import { DateTimeSegment } from '@formwerk/core'
+import { DateFieldInput, DateFieldRoot } from 'reka-ui'
+import type { DateValue } from 'reka-ui/date'
 
 import { useUiDateField, type DateFieldProps } from '@/composables/forms'
+
+import {
+  fromDateValue,
+  inferDateGranularity,
+  inferHourCycle,
+  toDatePlaceholder,
+  toDateValue,
+} from './dateValue'
 
 const props = withDefaults(defineProps<DateFieldProps>(), {
   size: 'md',
 })
 
-defineEmits<{ 'update:modelValue': [value: Date] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: Date] }>()
 
-const {
-  controlProps,
-  segments,
-  labelProps,
-  errorMessageProps,
-  descriptionProps,
-  displayError,
-  direction,
-} = useUiDateField(props)
+const { fieldValue, setValue, labelProps, errorMessageProps, descriptionProps, displayError } =
+  useUiDateField(props)
+
+const granularity = computed(() => inferDateGranularity(props.formatOptions))
+const includeTime = computed(() => granularity.value !== 'day')
+const hourCycle = computed(() => inferHourCycle(props.formatOptions))
+
+const modelValue = computed(
+  () =>
+    toDateValue(fieldValue.value, { includeTime: includeTime.value, timeZone: props.timeZone }) ??
+    toDateValue(props.modelValue, { includeTime: includeTime.value, timeZone: props.timeZone }),
+)
+
+const placeholderValue = computed(
+  () =>
+    modelValue.value ??
+    toDatePlaceholder(props.modelValue, {
+      includeTime: includeTime.value,
+      timeZone: props.timeZone,
+    }),
+)
+
+function onValueChange(value: DateValue | undefined) {
+  const nextValue = fromDateValue(value, props.timeZone)
+
+  if (!nextValue) return
+
+  setValue(nextValue)
+  emit('update:modelValue', nextValue)
+}
+
+const segmentClasses =
+  'rounded-sm px-0.5 outline-none data-placeholder:text-surface-400 data-disabled:opacity-50'
 </script>
 
 <template>
@@ -31,22 +64,41 @@ const {
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
 
-    <div
-      v-bind="controlProps"
-      :dir="direction"
-      :class="[
-        'inline-flex items-center gap-0.5 rounded-lg border px-3 py-2 text-sm',
-        'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
-        displayError
-          ? 'border-red-400 dark:border-red-500'
-          : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300 focus-within:ring-2',
-        disabled ? 'cursor-not-allowed opacity-50' : '',
-      ]"
-      data-ui="date-field"
-      data-provider="reka"
+    <DateFieldRoot
+      v-slot="{ segments }"
+      :model-value="modelValue"
+      :placeholder="placeholderValue"
+      :locale="locale"
+      :disabled="disabled"
+      :readonly="readonly"
+      :required="required"
+      :granularity="granularity"
+      :hour-cycle="hourCycle"
+      prevent-deselect
+      @update:model-value="onValueChange"
     >
-      <DateTimeSegment v-for="(segment, index) in segments" :key="index" v-bind="segment" />
-    </div>
+      <div
+        :class="[
+          'inline-flex items-center gap-0.5 rounded-lg border px-3 py-2 text-sm',
+          'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
+          displayError
+            ? 'border-red-400 dark:border-red-500'
+            : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300 focus-within:ring-2',
+          disabled ? 'cursor-not-allowed opacity-50' : '',
+        ]"
+        data-ui="date-field"
+        data-provider="reka"
+      >
+        <DateFieldInput
+          v-for="(segment, index) in segments"
+          :key="`${segment.part}-${index}`"
+          :part="segment.part"
+          :class="segmentClasses"
+        >
+          {{ segment.value }}
+        </DateFieldInput>
+      </div>
+    </DateFieldRoot>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

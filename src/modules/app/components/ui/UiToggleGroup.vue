@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
+
 import {
   useUiToggleGroup,
   type ToggleGroupOption,
@@ -54,18 +56,24 @@ function itemClasses(option: ToggleGroupOption) {
       :data-provider="provider"
       data-ui="togglegroup"
     >
-      <button
-        v-for="option in options"
-        :key="option.value"
-        type="button"
-        class="flex-1"
-        :class="itemClasses(option)"
-        :disabled="option.disabled || disabled"
-        :aria-pressed="isSelected(option.value)"
-        @click="toggleValue(option.value)"
+      <ToggleGroupRoot
+        :model-value="modelValue"
+        :type="multiple ? 'multiple' : 'single'"
+        class="contents"
+        @update:model-value="emit('update:modelValue', $event as string | string[])"
       >
-        {{ option.label }}
-      </button>
+        <ToggleGroupItem
+          v-for="option in options"
+          :key="option.value"
+          class="flex-1"
+          :class="itemClasses(option)"
+          :value="option.value"
+          :disabled="option.disabled || disabled"
+          @click="toggleValue(option.value)"
+        >
+          {{ option.label }}
+        </ToggleGroupItem>
+      </ToggleGroupRoot>
     </div>
     <p v-if="error" class="text-xs text-red-500" role="alert">
       {{ error }}

@@ -10,7 +10,7 @@ export interface TagsFieldProps extends FieldProps {
   allowDuplicates?: boolean
 }
 
-export function useBaseTagsField(props: TagsFieldProps) {
+export function useUiTagsField(props: TagsFieldProps) {
   const formwerk = useCustomField<string[]>({
     name: () => props.name,
     label: () => props.label ?? '',

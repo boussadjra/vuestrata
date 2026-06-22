@@ -1,16 +1,23 @@
-import { useSearchField } from '@formwerk/core'
+import { useRadioGroup } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
-export interface SearchFieldProps extends FieldProps {
-  modelValue?: string
-  placeholder?: string
-  hint?: string
-  clearButtonLabel?: string
+export interface RadioOption {
+  label: string
+  value: string
+  disabled?: boolean
+  description?: string
 }
 
-export function useBaseSearchField(props: SearchFieldProps, onSearch: (value: string) => void) {
-  const formwerk = useSearchField({
+export interface RadioGroupProps extends FieldProps {
+  modelValue?: string
+  options: RadioOption[]
+  hint?: string
+  orientation?: 'vertical' | 'horizontal'
+}
+
+export function useUiRadioGroup(props: RadioGroupProps) {
+  const formwerk = useRadioGroup({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
@@ -18,10 +25,8 @@ export function useBaseSearchField(props: SearchFieldProps, onSearch: (value: st
     disabled: () => props.disabled,
     readonly: () => props.readonly,
     required: () => props.required,
+    orientation: () => props.orientation,
     schema: props.schema as undefined,
-    placeholder: () => props.placeholder,
-    clearButtonLabel: () => props.clearButtonLabel,
-    onSubmit: onSearch,
   })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)

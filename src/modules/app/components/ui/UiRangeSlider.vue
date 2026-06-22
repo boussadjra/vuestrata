@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSliderThumb } from '@formwerk/core'
+import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from 'reka-ui'
 
 import { useUiSlider, type SliderProps } from '@/composables/forms'
 
@@ -15,40 +15,28 @@ const props = withDefaults(defineProps<RangeSliderProps>(), {
   step: 1,
 })
 
-defineEmits<{
+const emit = defineEmits<{
   'update:start': [value: number]
   'update:end': [value: number]
 }>()
 
-const {
-  groupProps,
-  trackProps,
-  trackEl,
-  useThumbMetadata,
-  displayError,
-  labelProps,
-  errorMessageProps,
-  descriptionProps,
-} = useUiSlider({
+const { setValue, displayError, labelProps, errorMessageProps, descriptionProps } = useUiSlider({
   ...props,
   modelValue: props.start,
 })
 
-const thumbStartEl = ref<HTMLElement>(null!)
-const thumbEndEl = ref<HTMLElement>(null!)
-const {
-  thumbProps: thumbStartProps,
-  currentValue: startValue,
-  isDragging: isDraggingStart,
-} = useSliderThumb({ label: 'Start', modelValue: () => props.start }, thumbStartEl)
-const {
-  thumbProps: thumbEndProps,
-  currentValue: endValue,
-  isDragging: isDraggingEnd,
-} = useSliderThumb({ label: 'End', modelValue: () => props.end }, thumbEndEl)
+const isVertical = computed(() => props.orientation === 'vertical')
 
-const startMeta = useThumbMetadata(0)
-const endMeta = useThumbMetadata(1)
+const sliderValues = computed(() => [props.start ?? props.min ?? 0, props.end ?? props.max ?? 100])
+
+function onValueChange(values: number[] | undefined) {
+  const nextStart = values?.[0] ?? props.min ?? 0
+  const nextEnd = values?.[1] ?? props.max ?? 100
+
+  setValue(nextStart)
+  emit('update:start', nextStart)
+  emit('update:end', nextEnd)
+}
 </script>
 
 <template>
@@ -62,35 +50,38 @@ const endMeta = useThumbMetadata(1)
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
 
-    <div v-bind="groupProps" class="relative py-3" data-provider="reka" data-ui="range-slider">
-      <div
-        ref="trackEl"
-        v-bind="trackProps"
-        class="bg-surface-200 dark:bg-surface-700 relative h-1.5 cursor-pointer rounded-full"
+    <SliderRoot
+      :model-value="sliderValues"
+      :name="name"
+      :disabled="disabled"
+      :required="required"
+      :min="min"
+      :max="max"
+      :step="step"
+      :orientation="orientation"
+      class="relative flex touch-none select-none"
+      :class="isVertical ? 'h-40 flex-col items-center py-1' : 'w-full items-center py-3'"
+      data-provider="reka"
+      data-ui="range-slider"
+      @update:model-value="onValueChange"
+    >
+      <SliderTrack
+        class="bg-surface-200 dark:bg-surface-700 relative grow rounded-full"
+        :class="isVertical ? 'h-full w-1.5' : 'h-1.5 w-full'"
       >
-        <div
-          class="bg-primary-500 absolute h-full"
-          :style="{
-            left: `${startMeta?.percent ?? 0}%`,
-            width: `${(endMeta?.percent ?? 100) - (startMeta?.percent ?? 0)}%`,
-          }"
+        <SliderRange
+          class="bg-primary-500 absolute rounded-full"
+          :class="isVertical ? 'w-full' : 'h-full'"
         />
-        <div
-          ref="thumbStartEl"
-          v-bind="thumbStartProps"
-          class="bg-primary-500 focus:ring-primary-300 absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-2 border-white shadow focus:ring-2"
-          :class="{ 'cursor-grabbing': isDraggingStart }"
-          :style="{ left: `${startMeta?.percent ?? 0}%` }"
-        />
-        <div
-          ref="thumbEndEl"
-          v-bind="thumbEndProps"
-          class="bg-primary-500 focus:ring-primary-300 absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-2 border-white shadow focus:ring-2"
-          :class="{ 'cursor-grabbing': isDraggingEnd }"
-          :style="{ left: `${endMeta?.percent ?? 100}%` }"
-        />
-      </div>
-    </div>
+      </SliderTrack>
+
+      <SliderThumb
+        class="bg-primary-500 focus:ring-primary-300 block h-4 w-4 rounded-full border-2 border-white shadow transition focus:ring-2 focus:outline-none"
+      />
+      <SliderThumb
+        class="bg-primary-500 focus:ring-primary-300 block h-4 w-4 rounded-full border-2 border-white shadow transition focus:ring-2 focus:outline-none"
+      />
+    </SliderRoot>
 
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

@@ -12,7 +12,7 @@ export interface TextFieldProps extends FieldProps {
   maxLength?: number | `${number}`
 }
 
-export function useBaseTextField(props: TextFieldProps) {
+export function useUiTextField(props: TextFieldProps) {
   const formwerk = useTextField({
     name: () => props.name,
     label: () => props.label ?? '',

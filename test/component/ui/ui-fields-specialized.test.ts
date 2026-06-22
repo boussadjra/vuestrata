@@ -175,7 +175,7 @@ describe('Formwerk Specialized Fields', () => {
           name: 'color',
         },
       })
-      expect(wrapper.find('input[type="color"]').exists()).toBe(true)
+      expect(wrapper.find('input[type="text"]').exists()).toBe(true)
     })
 
     it('displays error message', () => {

@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import {
+  NumberFieldDecrement,
+  NumberFieldIncrement,
+  NumberFieldInput,
+  NumberFieldRoot,
+} from 'reka-ui'
+
 import { useUiNumberField, type NumberFieldProps } from '@/composables/forms'
 import { resolveIcon } from '~/config/icon-provider'
 
@@ -8,19 +15,9 @@ const props = withDefaults(defineProps<NumberFieldProps & { provider?: 'reka' }>
   step: 1,
 })
 
-defineEmits<{ 'update:modelValue': [value: number] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: number] }>()
 
-const {
-  inputProps,
-  labelProps,
-  errorMessageProps,
-  descriptionProps,
-  incrementButtonProps,
-  decrementButtonProps,
-  increment,
-  decrement,
-  displayError,
-} = useUiNumberField(props)
+const { labelProps, errorMessageProps, descriptionProps, displayError } = useUiNumberField(props)
 
 const sizeClasses: Record<string, string> = {
   xs: 'px-2 py-1 text-xs',
@@ -56,18 +53,30 @@ const buttonClasses =
       <span v-if="required" class="ml-0.5 text-red-500">*</span>
     </label>
     <div class="relative">
-      <button v-bind="decrementButtonProps" :class="[buttonClasses, 'left-1']" @click="decrement">
-        <span :class="[resolveIcon('minus-circle'), 'h-4 w-4']" />
-      </button>
-      <input
-        v-bind="inputProps"
-        :class="inputClasses"
+      <NumberFieldRoot
+        :model-value="modelValue"
+        :name="name"
+        :disabled="disabled"
+        :readonly="readonly"
+        :required="required"
+        :min="min"
+        :max="max"
+        :step="step"
+        :locale="locale"
+        :format-options="formatOptions"
+        class="relative"
         :data-provider="provider"
         data-ui="numberfield"
-      />
-      <button v-bind="incrementButtonProps" :class="[buttonClasses, 'right-1']" @click="increment">
-        <span :class="[resolveIcon('arrow-up'), 'h-4 w-4']" />
-      </button>
+        @update:model-value="emit('update:modelValue', $event)"
+      >
+        <NumberFieldDecrement :class="[buttonClasses, 'left-1']">
+          <span :class="[resolveIcon('minus-circle'), 'h-4 w-4']" />
+        </NumberFieldDecrement>
+        <NumberFieldInput :class="inputClasses" />
+        <NumberFieldIncrement :class="[buttonClasses, 'right-1']">
+          <span :class="[resolveIcon('arrow-up'), 'h-4 w-4']" />
+        </NumberFieldIncrement>
+      </NumberFieldRoot>
     </div>
     <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
       {{ displayError }}

@@ -1,124 +1,132 @@
 <script setup lang="ts">
-import { useUiCalendar, type CalendarProps } from '@/composables/forms'
+import {
+  CalendarCell,
+  CalendarCellTrigger,
+  CalendarGrid,
+  CalendarGridBody,
+  CalendarGridHead,
+  CalendarGridRow,
+  CalendarHeader,
+  CalendarHeadCell,
+  CalendarHeading,
+  CalendarNext,
+  CalendarPrev,
+  CalendarRoot,
+} from 'reka-ui'
+import type { DateValue } from 'reka-ui/date'
+
+import type { FieldProps } from '@/types'
+
+import { fromDateValue, toDatePlaceholder, toDateValue } from './dateValue'
+
+export interface CalendarProps extends Omit<FieldProps, 'size'> {
+  modelValue?: Date
+  locale?: string
+  calendar?: string
+  timeZone?: string
+  min?: string
+  max?: string
+}
 
 const props = defineProps<CalendarProps>()
-defineEmits<{ 'update:modelValue': [value: Date] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: Date] }>()
 
-const {
-  calendarProps,
-  gridProps,
-  currentView,
-  setView,
-  gridLabelProps,
-  gridLabel,
-  nextButtonProps,
-  previousButtonProps,
-} = useUiCalendar(props)
-
-const weekDays = computed(() =>
-  currentView.value.type === 'weeks' ? currentView.value.weekDays : [],
+const modelValue = computed(() => toDateValue(props.modelValue, { timeZone: props.timeZone }))
+const placeholderValue = computed(
+  () => modelValue.value ?? toDatePlaceholder(props.modelValue, { timeZone: props.timeZone }),
 )
-const days = computed(() => (currentView.value.type === 'weeks' ? currentView.value.days : []))
-const months = computed(() => (currentView.value.type === 'months' ? currentView.value.months : []))
-const years = computed(() => (currentView.value.type === 'years' ? currentView.value.years : []))
+
+const minValue = computed(() => {
+  if (!props.min) return undefined
+
+  const parsed = new Date(props.min)
+  return toDateValue(parsed, { timeZone: props.timeZone })
+})
+
+const maxValue = computed(() => {
+  if (!props.max) return undefined
+
+  const parsed = new Date(props.max)
+  return toDateValue(parsed, { timeZone: props.timeZone })
+})
+
+function onValueChange(value: DateValue | DateValue[] | undefined) {
+  const selected = Array.isArray(value) ? value[0] : value
+  const nextValue = fromDateValue(selected, props.timeZone)
+
+  if (nextValue) emit('update:modelValue', nextValue)
+}
 </script>
 
 <template>
-  <div
-    v-bind="calendarProps"
-    class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 inline-block rounded-lg border bg-white p-3"
-    data-ui="calendar"
-    data-provider="reka"
+  <CalendarRoot
+    v-slot="{ grid, weekDays }"
+    :model-value="modelValue"
+    :placeholder="placeholderValue"
+    :locale="locale"
+    :disabled="disabled"
+    :readonly="readonly"
+    :min-value="minValue"
+    :max-value="maxValue"
+    prevent-deselect
+    @update:model-value="onValueChange"
   >
-    <div class="mb-2 flex items-center justify-between">
-      <button
-        v-bind="previousButtonProps"
-        class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
-      >
-        ←
-      </button>
-      <span
-        v-bind="gridLabelProps"
-        class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-      >
-        {{ gridLabel }}
-      </span>
-      <button
-        v-bind="nextButtonProps"
-        class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
-      >
-        →
-      </button>
+    <div
+      class="border-surface-200 dark:border-surface-700 dark:bg-surface-800 inline-block rounded-lg border bg-white p-3"
+      data-ui="calendar"
+      data-provider="reka"
+    >
+      <CalendarHeader class="mb-2 flex items-center justify-between gap-3">
+        <CalendarPrev
+          class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+        >
+          ←
+        </CalendarPrev>
+        <CalendarHeading class="text-surface-700 dark:text-surface-300 text-sm font-medium" />
+        <CalendarNext
+          class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+        >
+          →
+        </CalendarNext>
+      </CalendarHeader>
+
+      <div class="flex flex-col gap-4">
+        <CalendarGrid
+          v-for="month in grid"
+          :key="month.value.toString()"
+          class="w-full border-collapse"
+        >
+          <CalendarGridHead>
+            <CalendarGridRow>
+              <CalendarHeadCell
+                v-for="weekDay in weekDays"
+                :key="weekDay"
+                class="text-surface-400 px-1 py-1 text-center text-xs font-medium"
+              >
+                {{ weekDay }}
+              </CalendarHeadCell>
+            </CalendarGridRow>
+          </CalendarGridHead>
+
+          <CalendarGridBody>
+            <CalendarGridRow
+              v-for="(week, weekIndex) in month.rows"
+              :key="`${month.value}-${weekIndex}`"
+            >
+              <CalendarCell v-for="date in week" :key="date.toString()" :date="date" class="p-0.5">
+                <CalendarCellTrigger
+                  v-slot="{ dayValue }"
+                  :day="date"
+                  :month="month.value"
+                  class="data-selected:bg-primary-700 data-today:border-primary-500 data-today:text-primary-700 dark:data-today:text-primary-300 data-outside-view:text-surface-300 dark:data-outside-view:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 inline-flex h-8 w-8 items-center justify-center rounded-full text-sm outline-none data-disabled:cursor-not-allowed data-disabled:opacity-40 data-selected:text-white data-today:border"
+                >
+                  {{ dayValue }}
+                </CalendarCellTrigger>
+              </CalendarCell>
+            </CalendarGridRow>
+          </CalendarGridBody>
+        </CalendarGrid>
+      </div>
     </div>
-
-    <!-- Weeks view -->
-    <template v-if="currentView.type === 'weeks'">
-      <div v-bind="gridProps" class="grid grid-cols-7 gap-0.5">
-        <div
-          v-for="wd in weekDays"
-          :key="wd"
-          class="text-surface-400 py-1 text-center text-xs font-medium"
-        >
-          {{ wd }}
-        </div>
-        <button
-          v-for="day in days"
-          :key="day.label"
-          type="button"
-          class="h-8 w-8 rounded-full text-sm"
-          :class="{
-            'bg-primary-700 text-white': day.selected,
-            'border-primary-500 text-primary-700 dark:text-primary-300 border':
-              day.isToday && !day.selected,
-            'text-surface-300 dark:text-surface-600': day.isOutsideMonth,
-            'cursor-not-allowed opacity-40': day.disabled,
-            'hover:bg-surface-100 dark:hover:bg-surface-700': !day.selected && !day.disabled,
-          }"
-          :disabled="day.disabled"
-        >
-          {{ day.dayOfMonth }}
-        </button>
-      </div>
-    </template>
-
-    <!-- Months view -->
-    <template v-else-if="currentView.type === 'months'">
-      <div v-bind="gridProps" class="grid grid-cols-3 gap-1">
-        <button
-          v-for="month in months"
-          :key="month.label"
-          type="button"
-          class="rounded px-2 py-2 text-sm"
-          :class="{
-            'bg-primary-700 text-white': month.selected,
-            'hover:bg-surface-100 dark:hover:bg-surface-700': !month.selected,
-            'cursor-not-allowed opacity-40': month.disabled,
-          }"
-          :disabled="month.disabled"
-        >
-          {{ month.label }}
-        </button>
-      </div>
-    </template>
-
-    <!-- Years view -->
-    <template v-else-if="currentView.type === 'years'">
-      <div v-bind="gridProps" class="grid grid-cols-3 gap-1">
-        <button
-          v-for="yr in years"
-          :key="yr.label"
-          type="button"
-          class="rounded px-2 py-2 text-sm"
-          :class="{
-            'bg-primary-700 text-white': yr.selected,
-            'hover:bg-surface-100 dark:hover:bg-surface-700': !yr.selected,
-            'cursor-not-allowed opacity-40': yr.disabled,
-          }"
-          :disabled="yr.disabled"
-        >
-          {{ yr.label }}
-        </button>
-      </div>
-    </template>
-  </div>
+  </CalendarRoot>
 </template>

@@ -9,7 +9,7 @@ export interface RatingFieldProps extends FieldProps {
   allowHalf?: boolean
 }
 
-export function useBaseRatingField(props: RatingFieldProps) {
+export function useUiRatingField(props: RatingFieldProps) {
   const formwerk = useCustomField<number>({
     name: () => props.name,
     label: () => props.label ?? '',

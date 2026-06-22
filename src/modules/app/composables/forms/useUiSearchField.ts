@@ -1,20 +1,16 @@
-import { useNumberField } from '@formwerk/core'
+import { useSearchField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
-export interface NumberFieldProps extends FieldProps {
-  modelValue?: number
+export interface SearchFieldProps extends FieldProps {
+  modelValue?: string
   placeholder?: string
   hint?: string
-  min?: number
-  max?: number
-  step?: number
-  locale?: string
-  formatOptions?: Intl.NumberFormatOptions
+  clearButtonLabel?: string
 }
 
-export function useBaseNumberField(props: NumberFieldProps) {
-  const formwerk = useNumberField({
+export function useUiSearchField(props: SearchFieldProps, onSearch: (value: string) => void) {
+  const formwerk = useSearchField({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
@@ -24,11 +20,8 @@ export function useBaseNumberField(props: NumberFieldProps) {
     required: () => props.required,
     schema: props.schema as undefined,
     placeholder: () => props.placeholder,
-    min: () => props.min,
-    max: () => props.max,
-    step: () => props.step,
-    locale: () => props.locale,
-    formatOptions: () => props.formatOptions,
+    clearButtonLabel: () => props.clearButtonLabel,
+    onSubmit: onSearch,
   })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)

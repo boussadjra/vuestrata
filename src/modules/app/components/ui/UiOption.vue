@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useUiOption } from '@/composables/forms'
+import { SelectItem, SelectItemIndicator, SelectItemText } from 'reka-ui'
 
 const props = defineProps<{
   label: string
@@ -7,19 +7,19 @@ const props = defineProps<{
   disabled?: boolean
 }>()
 
-const { optionProps, isSelected } = useUiOption(props)
-
 const optionClasses = computed(() => [
   'relative flex cursor-pointer items-center rounded-md px-8 py-2 text-sm text-surface-700 outline-none select-none dark:text-surface-200',
-  'data-[highlighted]:bg-primary-50 data-[highlighted]:text-primary-600',
-  'dark:data-[highlighted]:bg-primary-900/30 dark:data-[highlighted]:text-primary-400',
-  'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
+  'data-highlighted:bg-primary-50 data-highlighted:text-primary-600',
+  'dark:data-highlighted:bg-primary-900/30 dark:data-highlighted:text-primary-400',
+  'data-disabled:pointer-events-none data-disabled:opacity-40',
 ])
 </script>
 
 <template>
-  <div v-bind="optionProps" data-provider="reka" :class="optionClasses">
-    <span v-if="isSelected" class="text-primary-500 absolute left-2 flex items-center"> ✓ </span>
-    <span>{{ label }}</span>
-  </div>
+  <SelectItem :value="value" :disabled="disabled" data-provider="reka" :class="optionClasses">
+    <SelectItemIndicator class="text-primary-500 absolute left-2 flex items-center"
+      >✓</SelectItemIndicator
+    >
+    <SelectItemText>{{ label }}</SelectItemText>
+  </SelectItem>
 </template>
