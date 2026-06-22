@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DateTimeSegment, usePicker } from '@formwerk/core'
 
-import { useBaseDateField, type DateFieldProps } from '@/components/ui/base'
+import { useUiDateField, type DateFieldProps } from '@/composables/forms'
 
 const props = withDefaults(defineProps<DateFieldProps>(), {
   size: 'md',
@@ -18,7 +18,7 @@ const {
   descriptionProps,
   displayError,
   direction,
-} = useBaseDateField(props)
+} = useUiDateField(props)
 const { isOpen, pickerProps, pickerTriggerProps } = usePicker({
   label: () => props.label ?? 'Pick month',
   disabled: () => props.disabled,

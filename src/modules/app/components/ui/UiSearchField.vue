@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBaseSearchField, type SearchFieldProps } from '@/components/ui/base'
+import { useUiSearchField, type SearchFieldProps } from '@/composables/forms'
 import { resolveIcon } from '~/config/icon-provider'
 
 const props = withDefaults(defineProps<SearchFieldProps>(), {
@@ -21,7 +21,7 @@ const {
   descriptionProps,
   model,
   displayError,
-} = useBaseSearchField(props, (value) => emit('search', value))
+} = useUiSearchField(props, (value) => emit('search', value))
 
 const sizeClasses: Record<string, string> = {
   xs: 'px-2 py-1 text-xs',

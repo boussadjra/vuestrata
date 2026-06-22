@@ -1,8 +1,8 @@
 import { useCustomField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface RatingFieldProps extends BaseFieldProps {
+export interface RatingFieldProps extends FieldProps {
   modelValue?: number
   max?: number
   hint?: string

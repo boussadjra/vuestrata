@@ -1,8 +1,8 @@
 import { useCheckbox } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface CheckboxProps extends Omit<BaseFieldProps, 'size'> {
+export interface CheckboxProps extends Omit<FieldProps, 'size'> {
   modelValue?: boolean | 'indeterminate'
   checked?: boolean
   trueValue?: boolean

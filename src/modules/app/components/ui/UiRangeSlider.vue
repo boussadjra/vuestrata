@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useSliderThumb } from '@formwerk/core'
 
-import { useBaseSlider, type SliderProps } from '@/components/ui/base'
+import { useUiSlider, type SliderProps } from '@/composables/forms'
 
 export interface RangeSliderProps extends Omit<SliderProps, 'modelValue'> {
   start?: number
@@ -29,7 +29,7 @@ const {
   labelProps,
   errorMessageProps,
   descriptionProps,
-} = useBaseSlider({
+} = useUiSlider({
   ...props,
   modelValue: props.start,
 })

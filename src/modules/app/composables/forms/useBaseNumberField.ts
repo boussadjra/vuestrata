@@ -1,8 +1,8 @@
 import { useNumberField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface NumberFieldProps extends BaseFieldProps {
+export interface NumberFieldProps extends FieldProps {
   modelValue?: number
   placeholder?: string
   hint?: string

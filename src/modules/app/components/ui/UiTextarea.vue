@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { useBaseTextarea, type TextareaProps } from '@/components/ui/base'
+import { useUiTextarea, type TextareaProps } from '@/composables/forms'
+
 import {
   fieldErrorMessageClass,
   fieldRequiredIndicatorClass,
   invalidTextInputClass,
-} from '@/components/ui/base/validationPresentation'
+} from './validationPresentation'
 
 const props = withDefaults(defineProps<TextareaProps>(), {
   rows: 4,
@@ -15,7 +16,7 @@ const props = withDefaults(defineProps<TextareaProps>(), {
 defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const { inputProps, labelProps, errorMessageProps, descriptionProps, displayError } =
-  useBaseTextarea(props)
+  useUiTextarea(props)
 
 const resizeClasses: Record<string, string> = {
   none: 'resize-none',

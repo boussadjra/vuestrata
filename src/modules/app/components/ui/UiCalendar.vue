@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBaseCalendar, type CalendarProps } from '@/components/ui/base'
+import { useUiCalendar, type CalendarProps } from '@/composables/forms'
 
 const props = defineProps<CalendarProps>()
 defineEmits<{ 'update:modelValue': [value: Date] }>()
@@ -13,7 +13,7 @@ const {
   gridLabel,
   nextButtonProps,
   previousButtonProps,
-} = useBaseCalendar(props)
+} = useUiCalendar(props)
 
 const weekDays = computed(() =>
   currentView.value.type === 'weeks' ? currentView.value.weekDays : [],

@@ -1,17 +1,85 @@
 <script setup lang="ts">
-import BaseProgressField from '@/components/ui/base/BaseProgressField.vue'
+import type { Component } from 'vue'
 
 export interface ProgressProps {
+  provider?: 'reka'
   value?: number
   max?: number
   label?: string
   showValue?: boolean
   size?: 'sm' | 'md' | 'lg'
+  rootComponent?: Component
+  trackComponent?: Component
+  fillComponent?: Component
 }
 
-defineProps<ProgressProps>()
+const props = withDefaults(defineProps<ProgressProps>(), {
+  provider: 'reka',
+  value: 0,
+  max: 100,
+  showValue: false,
+  size: 'md',
+  rootComponent: undefined,
+  trackComponent: undefined,
+  fillComponent: undefined,
+})
+
+const safeMax = computed(() => (props.max > 0 ? props.max : 100))
+const clampedValue = computed(() => Math.max(0, Math.min(props.value, safeMax.value)))
+const percentage = computed(() => Math.round((clampedValue.value / safeMax.value) * 100))
+const useProviderProgress = computed(() =>
+  Boolean(props.rootComponent && props.trackComponent && props.fillComponent),
+)
+
+const sizeClasses: Record<string, string> = {
+  sm: 'h-1.5',
+  md: 'h-2.5',
+  lg: 'h-3.5',
+}
 </script>
 
 <template>
-  <BaseProgressField v-bind="$props" provider="reka" />
+  <div class="flex flex-col gap-1.5" :data-provider="provider" data-ui="progress">
+    <div
+      v-if="label || showValue"
+      class="text-surface-500 dark:text-surface-400 flex items-center justify-between text-xs"
+    >
+      <span v-if="label">{{ label }}</span>
+      <span v-if="showValue">{{ percentage }}%</span>
+    </div>
+
+    <component
+      :is="rootComponent"
+      v-if="useProviderProgress"
+      :model-value="clampedValue"
+      :max="safeMax"
+      :aria-label="label || 'Progress'"
+      class="bg-surface-200 dark:bg-surface-700 w-full overflow-hidden rounded-full"
+      :class="sizeClasses[size]"
+    >
+      <component :is="trackComponent">
+        <component
+          :is="fillComponent"
+          class="from-primary-500 to-accent-500 h-full rounded-full bg-linear-to-r transition-all duration-300"
+          :style="{ width: `${percentage}%` }"
+        />
+      </component>
+    </component>
+
+    <div
+      v-else
+      class="bg-surface-200 dark:bg-surface-700 w-full overflow-hidden rounded-full"
+      :class="sizeClasses[size]"
+      role="progressbar"
+      :aria-label="label || 'Progress'"
+      :aria-valuemin="0"
+      :aria-valuemax="safeMax"
+      :aria-valuenow="clampedValue"
+    >
+      <div
+        class="from-primary-500 to-accent-500 h-full rounded-full bg-linear-to-r transition-all duration-300"
+        :style="{ width: `${percentage}%` }"
+      />
+    </div>
+  </div>
 </template>

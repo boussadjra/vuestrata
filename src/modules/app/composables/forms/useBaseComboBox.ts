@@ -1,6 +1,6 @@
 import { useComboBox, useDefaultFilter } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
 export interface ComboBoxOption {
   label: string
@@ -8,7 +8,7 @@ export interface ComboBoxOption {
   disabled?: boolean
 }
 
-export interface ComboBoxProps extends BaseFieldProps {
+export interface ComboBoxProps extends FieldProps {
   modelValue?: string | string[]
   options: ComboBoxOption[]
   placeholder?: string

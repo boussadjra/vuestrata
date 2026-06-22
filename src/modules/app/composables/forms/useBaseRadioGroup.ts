@@ -1,6 +1,6 @@
 import { useRadioGroup } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
 export interface RadioOption {
   label: string
@@ -9,7 +9,7 @@ export interface RadioOption {
   description?: string
 }
 
-export interface RadioGroupProps extends BaseFieldProps {
+export interface RadioGroupProps extends FieldProps {
   modelValue?: string
   options: RadioOption[]
   hint?: string

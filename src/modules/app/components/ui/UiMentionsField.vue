@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBaseMentionsField, type MentionsFieldProps } from '@/components/ui/base'
+import { useUiMentionsField, type MentionsFieldProps } from '@/composables/forms'
 
 const props = withDefaults(defineProps<MentionsFieldProps>(), {
   size: 'md',
@@ -20,7 +20,7 @@ const {
   errorMessageProps,
   descriptionProps,
   displayError,
-} = useBaseMentionsField(props)
+} = useUiMentionsField(props)
 
 function onInput(e: Event) {
   const target = e.target as HTMLTextAreaElement

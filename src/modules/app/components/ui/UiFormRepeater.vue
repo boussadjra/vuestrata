@@ -1,38 +1,53 @@
 <script setup lang="ts">
+import { useFormRepeater } from '@formwerk/core'
+import { useI18n } from 'vue-i18n'
+
 import type { FormRepeaterProps } from '~/types/forms'
 
-import BaseFormRepeater from './base/BaseFormRepeater.vue'
+const props = defineProps<FormRepeaterProps>()
+const { t } = useI18n()
 
-const props = withDefaults(defineProps<FormRepeaterProps>(), {
-  addButtonLabel: 'Add item',
-  removeButtonLabel: 'Remove',
+const addButtonLabel = computed(() => props.addButtonLabel ?? t('common_add_item'))
+const removeButtonLabel = computed(() => props.removeButtonLabel ?? t('common_remove'))
+
+const { items, add, addButtonProps, Iteration } = useFormRepeater({
+  name: () => props.name,
+  min: () => props.min,
+  max: () => props.max,
+  addButtonLabel: () => addButtonLabel.value,
+  removeButtonLabel: () => removeButtonLabel.value,
 })
 </script>
 
 <template>
-  <BaseFormRepeater v-bind="$props" data-provider="reka" class="flex flex-col gap-3">
-    <template #default="{ index, key, removeButtonProps, moveUpButtonProps, moveDownButtonProps }">
-      <div class="flex items-start gap-2">
-        <div class="flex-1">
-          <slot
-            :index="index"
-            :key="key"
-            :remove="removeButtonProps.onClick"
-            :move-up="moveUpButtonProps.onClick"
-            :move-down="moveDownButtonProps.onClick"
-          />
+  <div class="flex flex-col gap-3" data-provider="reka">
+    <component :is="Iteration" v-for="(key, index) in items" :key="key" :index="index">
+      <template #default="{ removeButtonProps, moveUpButtonProps, moveDownButtonProps }">
+        <div class="flex items-start gap-2">
+          <div class="flex-1">
+            <slot
+              :index="index"
+              :key="key"
+              :remove="removeButtonProps.onClick"
+              :move-up="moveUpButtonProps.onClick"
+              :move-down="moveDownButtonProps.onClick"
+              :remove-button-props="removeButtonProps"
+              :move-up-button-props="moveUpButtonProps"
+              :move-down-button-props="moveDownButtonProps"
+            />
+          </div>
+          <button
+            v-bind="removeButtonProps"
+            type="button"
+            class="mt-1 rounded-md px-2 py-1 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            {{ removeButtonLabel }}
+          </button>
         </div>
-        <button
-          v-bind="removeButtonProps"
-          type="button"
-          class="mt-1 rounded-md px-2 py-1 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-        >
-          {{ removeButtonLabel }}
-        </button>
-      </div>
-    </template>
+      </template>
+    </component>
 
-    <template #add="{ add, addButtonProps }">
+    <slot name="add" :add="() => add()" :add-button-props="addButtonProps">
       <button
         v-bind="addButtonProps"
         type="button"
@@ -41,6 +56,6 @@ const props = withDefaults(defineProps<FormRepeaterProps>(), {
       >
         {{ addButtonLabel }}
       </button>
-    </template>
-  </BaseFormRepeater>
+    </slot>
+  </div>
 </template>

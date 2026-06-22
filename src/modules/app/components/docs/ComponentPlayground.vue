@@ -125,7 +125,9 @@ function reset() {
             v-else-if="def.type === 'select'"
             :model-value="getStringValue(def.name)"
             :options="def.options ?? []"
-            @update:model-value="setStringValue(def.name, $event)"
+            @update:model-value="
+              setStringValue(def.name, String(Array.isArray($event) ? ($event[0] ?? '') : $event))
+            "
             size="sm"
             class="w-full max-w-48"
           />

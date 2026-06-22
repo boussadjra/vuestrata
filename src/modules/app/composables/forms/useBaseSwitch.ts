@@ -1,8 +1,8 @@
 import { useSwitch } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface SwitchProps extends Omit<BaseFieldProps, 'size'> {
+export interface SwitchProps extends Omit<FieldProps, 'size'> {
   modelValue?: boolean
   size?: 'sm' | 'md' | 'lg'
 }

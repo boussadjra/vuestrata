@@ -1,8 +1,8 @@
 import { useFileField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface FileUploadProps extends BaseFieldProps {
+export interface FileUploadProps extends FieldProps {
   hint?: string
   accept?: string
   multiple?: boolean

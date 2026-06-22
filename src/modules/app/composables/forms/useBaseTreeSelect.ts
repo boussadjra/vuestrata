@@ -1,6 +1,6 @@
 import { useCustomField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
 export interface TreeNode {
   label: string
@@ -9,7 +9,7 @@ export interface TreeNode {
   disabled?: boolean
 }
 
-export interface TreeSelectProps extends BaseFieldProps {
+export interface TreeSelectProps extends FieldProps {
   modelValue?: string | string[]
   nodes: TreeNode[]
   hint?: string

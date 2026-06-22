@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { useBaseDateField, type DateFieldProps } from '@/components/ui/base'
+import { useI18n } from 'vue-i18n'
+
+import { useUiDateField, type DateFieldProps } from '@/composables/forms'
 
 export interface YearPickerProps extends DateFieldProps {}
 
@@ -9,7 +11,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: Date]
 }>()
 
-const { controlProps, displayError } = useBaseDateField({
+const { controlProps, displayError } = useUiDateField({
   label: props.label,
   name: props.name,
   disabled: props.disabled,
@@ -20,6 +22,7 @@ const { controlProps, displayError } = useBaseDateField({
 })
 
 const isOpen = ref(false)
+const { t } = useI18n()
 
 const currentDecadeStart = computed(() => {
   const y = props.modelValue?.getFullYear() ?? new Date().getFullYear()
@@ -52,7 +55,7 @@ const shownError = computed(() => displayError.value || props.error)
         :disabled="disabled"
         @click="isOpen = !isOpen"
       >
-        {{ modelValue ? modelValue.getFullYear() : 'Select year' }}
+        {{ modelValue ? modelValue.getFullYear() : t('common_select_year') }}
       </button>
 
       <div

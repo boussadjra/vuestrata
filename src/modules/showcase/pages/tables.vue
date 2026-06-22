@@ -318,6 +318,14 @@ function setStatusFilter(status: string) {
   col?.setFilterValue(status || undefined)
 }
 
+function onCategoryFilterChange(value: string | number | Array<string | number>) {
+  setCategoryFilter(String(Array.isArray(value) ? (value[0] ?? '') : value))
+}
+
+function onStatusFilterChange(value: string | number | Array<string | number>) {
+  setStatusFilter(String(Array.isArray(value) ? (value[0] ?? '') : value))
+}
+
 const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   draft: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -466,7 +474,7 @@ function onPageSizeChange(event: Event) {
               { value: 'Furniture', label: t('tables_furniture') },
             ]"
             size="sm"
-            @update:model-value="setCategoryFilter"
+            @update:model-value="onCategoryFilterChange"
           />
           <UiSelect
             :options="[
@@ -476,7 +484,7 @@ function onPageSizeChange(event: Event) {
               { value: 'archived', label: t('tables_archived') },
             ]"
             size="sm"
-            @update:model-value="setStatusFilter"
+            @update:model-value="onStatusFilterChange"
           />
         </div>
         <div class="flex items-center gap-3">

@@ -1,8 +1,8 @@
 import { useSearchField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface SearchFieldProps extends BaseFieldProps {
+export interface SearchFieldProps extends FieldProps {
   modelValue?: string
   placeholder?: string
   hint?: string

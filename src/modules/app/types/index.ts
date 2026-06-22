@@ -153,7 +153,7 @@ export interface ValidationAdapter {
 // ─── Form Builder ────────────────────────────────────────
 export type {
   FormFieldType,
-  BaseFieldProps,
+  FieldProps,
   SelectFieldOptions,
   DateFieldOptions,
   NumberFieldOptions,

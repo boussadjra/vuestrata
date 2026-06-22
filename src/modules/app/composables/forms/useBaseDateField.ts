@@ -1,8 +1,8 @@
 import { useDateField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface DateFieldProps extends BaseFieldProps {
+export interface DateFieldProps extends FieldProps {
   modelValue?: Date
   hint?: string
   locale?: string

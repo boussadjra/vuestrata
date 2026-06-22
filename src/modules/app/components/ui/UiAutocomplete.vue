@@ -1,17 +1,105 @@
 <script setup lang="ts">
-import type { ComboBoxProps } from '@/components/ui/base'
-import BaseComboBoxField from '@/components/ui/base/BaseComboBoxField.vue'
+import { useI18n } from 'vue-i18n'
 
-import RekaOption from './UiOption.vue'
+import { useUiComboBox, type ComboBoxProps } from '@/composables/forms'
+
+import UiOption from './UiOption.vue'
 
 const props = withDefaults(defineProps<ComboBoxProps>(), {
-  placeholder: 'Search...',
   size: 'md',
 })
 
-defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
+const { t } = useI18n()
+
+const {
+  inputProps,
+  triggerProps,
+  listBoxProps,
+  labelProps,
+  errorMessageProps,
+  descriptionProps,
+  displayError,
+  isOpen,
+  fieldValue,
+} = useUiComboBox(props)
+
+const placeholderText = computed(() => props.placeholder ?? t('common_search'))
+
+watch(
+  () => fieldValue.value,
+  (newValue) => {
+    if (newValue !== undefined && newValue !== props.modelValue) {
+      emit('update:modelValue', newValue)
+    }
+  },
+)
+
+const inputClasses = computed(() => [
+  'shaped-border shaped-radius-sm w-full border bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200 transition-colors',
+  'placeholder:text-surface-400 dark:placeholder:text-surface-500',
+  'focus:outline-none focus:ring-2 focus:ring-offset-0',
+  displayError.value
+    ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
+    : 'border-surface-300 dark:border-surface-600 focus:ring-primary-300 focus:border-primary-400',
+  'disabled:opacity-50 disabled:cursor-not-allowed',
+  'px-3 py-2 text-sm',
+])
 </script>
 
 <template>
-  <BaseComboBoxField v-bind="props" provider="reka" :option-component="RekaOption" />
+  <div class="flex flex-col gap-1">
+    <label
+      v-if="label"
+      v-bind="labelProps"
+      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
+    >
+      {{ label }}
+      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+    </label>
+
+    <div class="relative">
+      <div class="flex">
+        <input
+          v-bind="inputProps"
+          :placeholder="placeholderText"
+          :class="inputClasses"
+          data-ui="combobox"
+          data-provider="reka"
+        />
+        <button
+          v-bind="triggerProps"
+          type="button"
+          class="text-surface-400 absolute top-1/2 right-2 -translate-y-1/2 text-xs"
+        >
+          ▼
+        </button>
+      </div>
+
+      <div
+        v-show="isOpen"
+        v-bind="listBoxProps"
+        class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 absolute z-50 mt-1 max-h-60 w-full overflow-auto border bg-white p-1"
+      >
+        <UiOption
+          v-for="option in options"
+          :key="option.value"
+          :label="option.label"
+          :value="option.value"
+          :disabled="option.disabled"
+        />
+      </div>
+    </div>
+
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+      {{ displayError }}
+    </p>
+    <p
+      v-else-if="hint || description"
+      v-bind="descriptionProps"
+      class="text-surface-500 dark:text-surface-400 text-xs"
+    >
+      {{ hint || description }}
+    </p>
+  </div>
 </template>

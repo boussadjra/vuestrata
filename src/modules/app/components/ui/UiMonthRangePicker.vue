@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type DateFieldProps } from '@/components/ui/base'
+import { type DateFieldProps } from '@/composables/forms'
 
 import RekaMonthPicker from './UiMonthPicker.vue'
 

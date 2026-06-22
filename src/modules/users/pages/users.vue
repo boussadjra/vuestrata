@@ -160,6 +160,10 @@ function setPageSize(value: number | string) {
     pageIndex: 0,
   }
 }
+
+function onPageSizeChange(value: string | number | Array<string | number>) {
+  setPageSize(Array.isArray(value) ? (value[0] ?? pagination.value.pageSize) : value)
+}
 </script>
 
 <template>
@@ -358,7 +362,7 @@ function setPageSize(value: number | string) {
             :model-value="pagination.pageSize"
             :options="[5, 10, 20, 50].map((s) => ({ value: s, label: String(s) }))"
             size="sm"
-            @update:model-value="setPageSize"
+            @update:model-value="onPageSizeChange"
           />
         </div>
         <div class="flex items-center gap-2">

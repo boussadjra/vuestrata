@@ -1,8 +1,8 @@
 import { useCalendar } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface CalendarProps extends Omit<BaseFieldProps, 'size'> {
+export interface CalendarProps extends Omit<FieldProps, 'size'> {
   modelValue?: Date
   locale?: string
   calendar?: string

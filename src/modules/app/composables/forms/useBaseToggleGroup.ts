@@ -1,4 +1,4 @@
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
 export interface ToggleGroupOption {
   label: string
@@ -6,7 +6,7 @@ export interface ToggleGroupOption {
   disabled?: boolean
 }
 
-export interface ToggleGroupProps extends Omit<BaseFieldProps, 'size'> {
+export interface ToggleGroupProps extends Omit<FieldProps, 'size'> {
   modelValue?: string | string[]
   options: ToggleGroupOption[]
   multiple?: boolean

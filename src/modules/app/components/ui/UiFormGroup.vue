@@ -1,20 +1,37 @@
 <script setup lang="ts">
+import { useFormGroup } from '@formwerk/core'
+
 import type { FormGroupProps } from '~/types/forms'
 
-import BaseFormGroup from './base/BaseFormGroup.vue'
+const props = withDefaults(defineProps<FormGroupProps>(), {
+  disabled: false,
+})
 
-defineProps<FormGroupProps>()
+const { groupProps, labelProps, isDirty, isValid, isTouched, isDisabled, getErrors } = useFormGroup(
+  {
+    name: () => props.name,
+    label: () => props.label,
+    schema: props.schema as never,
+    disabled: () => props.disabled,
+  },
+)
 </script>
 
 <template>
-  <BaseFormGroup
-    data-provider="reka"
-    v-bind="$props"
-    class="flex flex-col gap-3"
-    legend-class="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-1"
-  >
-    <template #default="slotProps">
-      <slot v-bind="slotProps" />
-    </template>
-  </BaseFormGroup>
+  <fieldset v-bind="groupProps" class="flex flex-col gap-3">
+    <legend
+      v-if="label"
+      v-bind="labelProps"
+      class="text-surface-700 dark:text-surface-300 mb-1 text-sm font-semibold"
+    >
+      {{ label }}
+    </legend>
+    <slot
+      :is-dirty="isDirty"
+      :is-valid="isValid"
+      :is-touched="isTouched"
+      :is-disabled="isDisabled"
+      :errors="getErrors()"
+    />
+  </fieldset>
 </template>

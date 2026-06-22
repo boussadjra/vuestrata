@@ -1,8 +1,8 @@
 import { useTextField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface TextareaProps extends BaseFieldProps {
+export interface TextareaProps extends FieldProps {
   modelValue?: string
   placeholder?: string
   hint?: string

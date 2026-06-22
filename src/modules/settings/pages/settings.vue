@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import { UiButton } from '@/components/ui'
+import { UiButton, UiSwitch } from '@/components/ui'
 import { useShape } from '@/composables/useShape'
 import type { ShapeRadius, ShapeBorder, ShapeShadow } from '@/composables/useShape'
 import { useTheme } from '@/composables/useTheme'
@@ -29,31 +29,40 @@ const iconProviderOptions: { value: string; label: string }[] = getIconProviders
 }))
 
 const locales = [
-  { code: 'en', label: 'English', flag: '🇺🇸' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-  { code: 'ar', label: 'العربية', flag: '🇸🇦' },
+  { code: 'en', labelKey: 'settings_locale_english', flag: '🇺🇸' },
+  { code: 'fr', labelKey: 'settings_locale_french', flag: '🇫🇷' },
+  { code: 'ar', labelKey: 'settings_locale_arabic', flag: '🇸🇦' },
 ]
 
-const radiusOptions: { value: ShapeRadius; label: string; preview: string }[] = [
-  { value: 'none', label: 'Sharp', preview: 'rounded-none' },
-  { value: 'small', label: 'Subtle', preview: 'rounded' },
-  { value: 'medium', label: 'Rounded', preview: 'rounded-xl' },
-  { value: 'large', label: 'Soft', preview: 'rounded-2xl' },
+const radiusOptions: { value: ShapeRadius; labelKey: string; preview: string }[] = [
+  { value: 'none', labelKey: 'settings_radius_sharp', preview: 'rounded-none' },
+  { value: 'small', labelKey: 'settings_radius_subtle', preview: 'rounded' },
+  { value: 'medium', labelKey: 'settings_radius_rounded', preview: 'rounded-xl' },
+  { value: 'large', labelKey: 'settings_radius_soft', preview: 'rounded-2xl' },
 ]
 
-const borderOptions: { value: ShapeBorder; label: string; preview: string }[] = [
-  { value: 'none', label: 'None', preview: 'border-0' },
-  { value: 'thin', label: 'Thin', preview: 'border' },
-  { value: 'medium', label: 'Medium', preview: 'border-2' },
-  { value: 'bold', label: 'Bold', preview: 'border-3' },
+const borderOptions: { value: ShapeBorder; labelKey: string; preview: string }[] = [
+  { value: 'none', labelKey: 'settings_border_none', preview: 'border-0' },
+  { value: 'thin', labelKey: 'settings_border_thin', preview: 'border' },
+  { value: 'medium', labelKey: 'settings_border_medium', preview: 'border-2' },
+  { value: 'bold', labelKey: 'settings_border_bold', preview: 'border-3' },
 ]
 
-const shadowOptions: { value: ShapeShadow; label: string; preview: string }[] = [
-  { value: 'none', label: 'Flat', preview: 'shadow-none' },
-  { value: 'subtle', label: 'Subtle', preview: 'shadow-sm' },
-  { value: 'medium', label: 'Medium', preview: 'shadow-md' },
-  { value: 'elevated', label: 'Elevated', preview: 'shadow-xl' },
+const shadowOptions: { value: ShapeShadow; labelKey: string; preview: string }[] = [
+  { value: 'none', labelKey: 'settings_shadow_flat', preview: 'shadow-none' },
+  { value: 'subtle', labelKey: 'settings_shadow_subtle', preview: 'shadow-sm' },
+  { value: 'medium', labelKey: 'settings_shadow_medium', preview: 'shadow-md' },
+  { value: 'elevated', labelKey: 'settings_shadow_elevated', preview: 'shadow-xl' },
 ]
+
+const darkModeModel = computed({
+  get: () => isDark.value,
+  set: (value: boolean) => {
+    if (value !== isDark.value) {
+      toggleDark()
+    }
+  },
+})
 
 function switchLocale(code: string) {
   appStore.setLocale(code)
@@ -71,7 +80,7 @@ function switchIconProvider(p: IconProvider) {
 <template>
   <div class="animate-fade-in mx-auto max-w-3xl px-4 py-10">
     <h1 class="mb-2 text-3xl font-bold">{{ t('settings_title') }}</h1>
-    <p class="text-surface-500 dark:text-surface-400 mb-10">Customize your experience</p>
+    <p class="text-surface-500 dark:text-surface-400 mb-10">{{ t('settings_subtitle') }}</p>
 
     <div class="space-y-8">
       <!-- Appearance -->
@@ -80,7 +89,7 @@ function switchIconProvider(p: IconProvider) {
       >
         <h2 class="mb-2 text-lg font-bold">{{ t('settings_appearance') }}</h2>
         <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
-          Toggle between light and dark mode
+          {{ t('settings_appearance_desc') }}
         </p>
 
         <div
@@ -95,27 +104,12 @@ function switchIconProvider(p: IconProvider) {
             </div>
             <div>
               <span class="block text-sm font-semibold">{{ t('settings_dark_mode') }}</span>
-              <span class="text-surface-500 text-xs">{{
-                isDark ? 'Dark mode active' : 'Light mode active'
-              }}</span>
+              <span class="text-surface-500 text-xs">
+                {{ isDark ? t('settings_dark_mode_active') : t('settings_light_mode_active') }}
+              </span>
             </div>
           </div>
-          <button
-            :class="[
-              'relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200',
-              isDark ? 'bg-primary-500' : 'bg-surface-300',
-            ]"
-            role="switch"
-            :aria-checked="isDark"
-            @click="toggleDark()"
-          >
-            <span
-              :class="[
-                'inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200',
-                isDark ? 'translate-x-6' : 'translate-x-1',
-              ]"
-            />
-          </button>
+          <UiSwitch v-model="darkModeModel" :aria-label="t('settings_dark_mode')" />
         </div>
       </section>
 
@@ -123,15 +117,15 @@ function switchIconProvider(p: IconProvider) {
       <section
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
-        <h2 class="mb-2 text-lg font-bold">Shapes</h2>
+        <h2 class="mb-2 text-lg font-bold">{{ t('settings_shapes_title') }}</h2>
         <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
-          Customize border radius, borders, and shadows
+          {{ t('settings_shapes_desc') }}
         </p>
 
         <!-- Border Radius -->
         <div class="mb-6">
           <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">
-            Border Radius
+            {{ t('settings_border_radius') }}
           </h3>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <button
@@ -148,14 +142,16 @@ function switchIconProvider(p: IconProvider) {
               <div
                 :class="['bg-primary-500/20 border-primary-500 h-8 w-8 border-2', opt.preview]"
               />
-              {{ opt.label }}
+              {{ t(opt.labelKey) }}
             </button>
           </div>
         </div>
 
         <!-- Borders -->
         <div class="mb-6">
-          <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">Borders</h3>
+          <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">
+            {{ t('settings_borders') }}
+          </h3>
           <div class="grid grid-cols-4 gap-3">
             <button
               v-for="opt in borderOptions"
@@ -174,14 +170,16 @@ function switchIconProvider(p: IconProvider) {
                   opt.preview,
                 ]"
               />
-              {{ opt.label }}
+              {{ t(opt.labelKey) }}
             </button>
           </div>
         </div>
 
         <!-- Shadows -->
         <div>
-          <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">Shadows</h3>
+          <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">
+            {{ t('settings_shadows') }}
+          </h3>
           <div class="grid grid-cols-4 gap-3">
             <button
               v-for="opt in shadowOptions"
@@ -200,7 +198,7 @@ function switchIconProvider(p: IconProvider) {
                   opt.preview,
                 ]"
               />
-              {{ opt.label }}
+              {{ t(opt.labelKey) }}
             </button>
           </div>
         </div>
@@ -212,7 +210,7 @@ function switchIconProvider(p: IconProvider) {
       >
         <h2 class="mb-2 text-lg font-bold">{{ t('settings_language') }}</h2>
         <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
-          Select your preferred language
+          {{ t('settings_language_desc') }}
         </p>
         <div class="grid grid-cols-3 gap-3">
           <button
@@ -227,7 +225,7 @@ function switchIconProvider(p: IconProvider) {
             @click="switchLocale(loc.code)"
           >
             <span class="text-lg">{{ loc.flag }}</span>
-            {{ loc.label }}
+            {{ t(loc.labelKey) }}
           </button>
         </div>
       </section>
@@ -236,9 +234,9 @@ function switchIconProvider(p: IconProvider) {
       <section
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
-        <h2 class="mb-2 text-lg font-bold">Theme</h2>
+        <h2 class="mb-2 text-lg font-bold">{{ t('settings_theme') }}</h2>
         <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
-          Switch the visual theme of the application
+          {{ t('settings_theme_desc') }}
         </p>
         <div class="grid grid-cols-3 gap-3">
           <button
@@ -262,9 +260,9 @@ function switchIconProvider(p: IconProvider) {
       <section
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
-        <h2 class="mb-2 text-lg font-bold">Icon Provider</h2>
+        <h2 class="mb-2 text-lg font-bold">{{ t('settings_icon_provider') }}</h2>
         <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
-          Choose the icon set used throughout the app
+          {{ t('settings_icon_provider_desc') }}
         </p>
         <div class="grid grid-cols-3 gap-3">
           <button

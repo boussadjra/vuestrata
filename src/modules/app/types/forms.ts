@@ -39,7 +39,7 @@ export type FormFieldType =
   | 'hidden'
 
 // ─── Base Field Contract ─────────────────────────────────
-export interface BaseFieldProps {
+export interface FieldProps {
   id?: string
   name?: string
   label?: string
@@ -140,7 +140,7 @@ export type FormFieldConfig =
   | { type: 'rating'; ratingOptions?: RatingFieldOptions }
 
 // ─── Form Field Definition ───────────────────────────────
-export interface FormFieldDefinition extends BaseFieldProps {
+export interface FormFieldDefinition extends FieldProps {
   name: string
   type: FormFieldType
   placeholder?: string

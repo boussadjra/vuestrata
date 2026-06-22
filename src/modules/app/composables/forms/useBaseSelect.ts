@@ -1,6 +1,6 @@
 import { useSelect, useOption, useOptionGroup } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
 export interface SelectOption {
   label: string
@@ -13,7 +13,7 @@ export interface SelectOptionGroup {
   options: SelectOption[]
 }
 
-export interface SelectProps extends BaseFieldProps {
+export interface SelectProps extends FieldProps {
   modelValue?: string | number | Array<string | number>
   options: (SelectOption | SelectOptionGroup)[]
   placeholder?: string

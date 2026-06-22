@@ -1,8 +1,8 @@
 import { useOtpField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface OTPFieldProps extends Omit<BaseFieldProps, 'size'> {
+export interface OTPFieldProps extends Omit<FieldProps, 'size'> {
   hint?: string
   length?: number
   accept?: 'numeric' | 'alphanumeric' | 'all'

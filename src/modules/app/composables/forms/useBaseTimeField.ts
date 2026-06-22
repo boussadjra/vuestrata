@@ -1,8 +1,8 @@
 import { useTimeField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface TimeFieldProps extends BaseFieldProps {
+export interface TimeFieldProps extends FieldProps {
   modelValue?: string
   hint?: string
   locale?: string

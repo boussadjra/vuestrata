@@ -1,8 +1,8 @@
 import { useSlider } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface SliderProps extends BaseFieldProps {
+export interface SliderProps extends FieldProps {
   modelValue?: number
   min?: number
   max?: number

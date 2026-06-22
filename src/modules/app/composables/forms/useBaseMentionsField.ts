@@ -1,8 +1,8 @@
 import { useCustomField } from '@formwerk/core'
 
-import type { BaseFieldProps } from '@/types'
+import type { FieldProps } from '@/types'
 
-export interface MentionsFieldProps extends BaseFieldProps {
+export interface MentionsFieldProps extends FieldProps {
   modelValue?: string
   placeholder?: string
   hint?: string

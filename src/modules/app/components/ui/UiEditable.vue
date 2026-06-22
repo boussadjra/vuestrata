@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useBaseEditable, type EditableProps } from '@/components/ui/base'
+import { useUiEditable, type EditableProps } from '@/composables/forms'
 
 const props = withDefaults(defineProps<EditableProps>(), { size: 'md' })
 
@@ -15,7 +15,7 @@ const {
   errorMessageProps,
   descriptionProps,
   displayError,
-} = useBaseEditable(props)
+} = useUiEditable(props)
 
 function onInput(e: Event) {
   const target = e.target as HTMLInputElement

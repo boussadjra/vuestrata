@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type TimeFieldProps } from '@/components/ui/base'
+import { type TimeFieldProps } from '@/composables/forms'
 
 import RekaTimeField from './UiTimeField.vue'
 

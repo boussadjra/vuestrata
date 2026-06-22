@@ -1,27 +1,41 @@
 <script setup lang="ts">
-import BaseCard from '@/components/ui/base/BaseCard.vue'
-
 export interface CardProps {
+  provider?: 'reka'
   title?: string
   subtitle?: string
   padding?: boolean
   hoverable?: boolean
 }
 
-withDefaults(defineProps<CardProps>(), {
+const props = withDefaults(defineProps<CardProps>(), {
+  provider: 'reka',
   padding: true,
   hoverable: false,
 })
+
+const classes = computed(() => [
+  'card shaped-border border border-surface-200 dark:border-surface-700',
+  'bg-white dark:bg-surface-800 transition-all duration-200',
+  props.hoverable ? 'shaped-shadow-hover cursor-pointer' : 'shaped-shadow',
+])
 </script>
 
 <template>
-  <BaseCard v-bind="$props" provider="reka">
-    <template v-if="$slots.header" #header>
-      <slot name="header" />
-    </template>
-    <slot />
-    <template v-if="$slots.footer" #footer>
+  <div :class="classes" :data-provider="provider" data-ui="card">
+    <div
+      v-if="title || $slots.header"
+      class="border-surface-200 dark:border-surface-700 border-b px-6 py-4"
+    >
+      <slot name="header">
+        <h3 class="text-base font-semibold">{{ title }}</h3>
+        <p v-if="subtitle" class="text-surface-500 mt-0.5 text-sm">{{ subtitle }}</p>
+      </slot>
+    </div>
+    <div :class="padding ? 'p-6' : ''">
+      <slot />
+    </div>
+    <div v-if="$slots.footer" class="border-surface-200 dark:border-surface-700 border-t px-6 py-4">
       <slot name="footer" />
-    </template>
-  </BaseCard>
+    </div>
+  </div>
 </template>
