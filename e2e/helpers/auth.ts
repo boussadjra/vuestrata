@@ -1,7 +1,14 @@
 import { expect, type Page } from '@playwright/test'
 
-export const DEMO_ADMIN_EMAIL = 'demo@vuestrata.dev'
-export const DEMO_PASSWORD = 'password'
+// Relative import, not an alias: Playwright compiles this file outside Vite's
+// resolver. Importing the real constant is what keeps these tests honest —
+// the credentials used to be duplicated here, in the login page, in the MSW
+// handler, and in the docs, and all four disagreed.
+import { DEMO_ACCOUNT } from '../../src/modules/app/state/demo/account'
+import { resolveRolePermissions } from '../../src/modules/core/lib/rbac/inheritance'
+
+export const DEMO_ADMIN_EMAIL = DEMO_ACCOUNT.email
+export const DEMO_PASSWORD = DEMO_ACCOUNT.password
 
 type DemoRole = 'super_admin' | 'admin' | 'manager' | 'member' | 'viewer' | 'guest'
 type DemoProvider = 'credentials' | 'google' | 'github' | 'microsoft'
@@ -19,24 +26,17 @@ export type DemoUser = {
   lastLoginAt?: string
 }
 
-export const ALL_DEMO_PERMISSIONS = [
-  'users:read',
-  'users:create',
-  'users:update',
-  'users:delete',
-  'roles:read',
-  'roles:assign',
-  'billing:read',
-  'billing:manage',
-  'dashboard:read',
-  'dashboard:export',
-  'settings:read',
-  'settings:update',
-  'reports:read',
-  'reports:create',
-  'reports:export',
-  'audit:read',
-]
+/**
+ * Every permission a super admin holds, derived from the role hierarchy.
+ *
+ * This was the fourth hand-written copy of the permission list, and it went
+ * stale exactly the way the other three did: the eight domain modules added
+ * twelve permissions, the seeded demo user kept the old sixteen, and every
+ * sidebar section gated on a new permission silently vanished from the tests.
+ * Deriving it means a module that adds a permission cannot leave the e2e demo
+ * user behind.
+ */
+export const ALL_DEMO_PERMISSIONS: string[] = resolveRolePermissions('super_admin')
 
 export function createDemoUser(overrides: Partial<DemoUser> = {}): DemoUser {
   const now = new Date().toISOString()
@@ -66,13 +66,22 @@ export async function logInAsDemoAdmin(page: Page): Promise<void> {
   await waitForSignedInShell(page)
 }
 
+/**
+ * Wait until the signed-in shell has rendered.
+ *
+ * Keyed on the account-menu trigger, not on a "Sign out" button. Sign out moved
+ * inside that menu, so it is no longer in the DOM until the menu is opened —
+ * and a readiness check that waits for a control which only exists after an
+ * interaction waits forever.
+ */
 export async function waitForSignedInShell(page: Page): Promise<void> {
-  await expect(page.getByRole('button', { name: /sign out/i })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('button', { name: /account menu/i })).toBeVisible({ timeout: 30_000 })
 }
 
 export async function signOut(page: Page): Promise<void> {
   await waitForSignedInShell(page)
-  await page.getByRole('button', { name: /sign out/i }).click({ force: true })
+  await page.getByRole('button', { name: /account menu/i }).click()
+  await page.getByRole('menuitem', { name: /sign out/i }).click()
 }
 
 export async function expectLoggedOutTab(page: Page): Promise<void> {

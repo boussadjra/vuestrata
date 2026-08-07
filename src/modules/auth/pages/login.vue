@@ -6,12 +6,31 @@ import { UiButton, UiTextField, UiToggleGroup } from '@/components/ui'
 import { useNotificationStore } from '@/stores/notification'
 import { resolveIcon } from '~/config/icon-provider'
 import { useAuth } from '~/modules/auth'
+import { DEMO_ACCOUNT } from '~/state/demo/account'
 
 const { t } = useI18n()
-const { login, socialLogin, sendMagicLink, verifyMfaCode, mfaRequired, isLoading, error } =
-  useAuth()
+const {
+  login,
+  socialLogin,
+  sendMagicLink,
+  verifyMfaCode,
+  mfaRequired,
+  isLoading,
+  error,
+  capabilities,
+} = useAuth()
 const notifications = useNotificationStore()
-const isDev = import.meta.env.DEV
+
+/**
+ * Demo credential hint.
+ *
+ * Gated on `__VUESTRATA_DEMO__` rather than `import.meta.env.DEV`: the hosted
+ * demo IS a production build and needs the hint, while a real deployment must
+ * never render it. Because the constant is a literal, a production build
+ * evaluates this to `null` and rolldown drops the DEMO_ACCOUNT import with it —
+ * the address does not appear in the bundle at all.
+ */
+const demoAccount = __VUESTRATA_DEMO__ ? DEMO_ACCOUNT : null
 
 type LoginMode = 'credentials' | 'magic-link'
 const mode = ref<LoginMode>('credentials')
@@ -73,11 +92,14 @@ function onForgotPassword() {
   })
 }
 
+// Provider hover tints follow each vendor's brand colour, not the app theme,
+// so they are deliberately exempt from the semantic-token rule.
 const socialProviders = computed(() => [
   {
     id: 'google' as const,
     label: t('auth_provider_google'),
     icon: 'i-logos-google-icon',
+    // lint-allow-raw-palette
     bg: 'hover:bg-red-50 dark:hover:bg-red-950/20',
   },
   {
@@ -90,6 +112,7 @@ const socialProviders = computed(() => [
     id: 'microsoft' as const,
     label: t('auth_provider_microsoft'),
     icon: 'i-logos-microsoft-icon',
+    // lint-allow-raw-palette
     bg: 'hover:bg-blue-50 dark:hover:bg-blue-950/20',
   },
 ])
@@ -102,15 +125,13 @@ const socialProviders = computed(() => [
     >
       <div class="mb-8 flex items-start justify-between gap-4">
         <div class="min-w-0">
-          <p
-            class="text-surface-400 dark:text-surface-500 mb-2 text-xs font-semibold tracking-[0.28em] uppercase"
-          >
+          <p class="text-muted-foreground mb-2 text-xs font-semibold tracking-[0.28em] uppercase">
             Vuestrata
           </p>
-          <h1 class="text-surface-950 dark:text-surface-50 text-3xl font-bold tracking-tight">
+          <h1 class="text-foreground text-3xl font-bold tracking-tight">
             {{ t('auth_login') }}
           </h1>
-          <p class="text-surface-600 dark:text-surface-300 mt-2 text-sm leading-6">
+          <p class="text-muted-foreground mt-2 text-sm leading-6">
             {{ t('auth_login_subtitle') }}
           </p>
         </div>
@@ -120,7 +141,12 @@ const socialProviders = computed(() => [
         </span>
       </div>
 
-      <div class="mb-6 space-y-2">
+      <!--
+        Rendered only when the configured adapter can actually do this. The
+        `jwt` adapter has no social redirect and no magic-link endpoints, so
+        showing them would offer the user a control that fails on click.
+      -->
+      <div v-if="capabilities.social" class="mb-6 space-y-2">
         <UiButton
           v-for="provider in socialProviders"
           :key="provider.id"
@@ -136,18 +162,21 @@ const socialProviders = computed(() => [
         </UiButton>
       </div>
 
-      <div class="relative mb-6">
+      <!-- The divider only separates two things that are both present. -->
+      <div v-if="capabilities.social" class="relative mb-6">
         <div class="absolute inset-0 flex items-center">
           <div class="border-surface-200 dark:border-surface-700 w-full border-t" />
         </div>
         <div class="relative flex justify-center text-xs">
-          <span class="text-surface-400 bg-surface-50/95 dark:bg-surface-900/95 px-3">
+          <span class="text-muted-foreground bg-background px-3">
             {{ t('auth_or_continue_with') }}
           </span>
         </div>
       </div>
 
+      <!-- A two-option toggle with one option is just noise. -->
       <UiToggleGroup
+        v-if="capabilities.magicLink"
         :model-value="mode"
         :options="[
           { label: t('auth_mode_credentials'), value: 'credentials' },
@@ -160,20 +189,20 @@ const socialProviders = computed(() => [
 
       <div
         v-if="error"
-        class="mb-4 rounded-[var(--shape-radius-sm)] border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400"
+        class="border-danger-200 dark:border-danger-800 bg-destructive-subtle text-destructive mb-4 rounded-[var(--shape-radius-sm)] border p-3 text-sm"
       >
         {{ error }}
       </div>
 
       <div
         v-if="magicLinkSent"
-        class="mb-4 rounded-[var(--shape-radius-sm)] border border-green-200 bg-green-50 p-4 text-sm text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400"
+        class="border-success-200 dark:border-success-800 bg-success-subtle text-success-800 dark:text-success-200 mb-4 rounded-[var(--shape-radius-sm)] border p-4 text-sm"
       >
         <div class="mb-1 flex items-center gap-2 font-medium">
           <span :class="[resolveIcon('letter'), 'h-4 w-4']" />
           {{ t('auth_magic_link_sent_title') }}
         </div>
-        <p class="text-green-600 dark:text-green-400/80">
+        <p class="text-success-700 dark:text-success-300/80">
           {{ t('auth_magic_link_sent_body', { email: form.email }) }}
         </p>
       </div>
@@ -184,7 +213,7 @@ const socialProviders = computed(() => [
         @submit.prevent="onMfaSubmit"
       >
         <div
-          class="rounded-[var(--shape-radius-sm)] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400"
+          class="border-warning-200 dark:border-warning-800 bg-warning-subtle text-warning-800 dark:text-warning-200 rounded-[var(--shape-radius-sm)] border p-3 text-sm"
         >
           {{ t('auth_mfa_required') }}
         </div>
@@ -205,7 +234,7 @@ const socialProviders = computed(() => [
         <UiButton type="submit" variant="primary" block :disabled="isLoading">
           <span
             v-if="isLoading"
-            :class="[resolveIcon('spinner'), 'mr-2 inline-block h-4 w-4 animate-spin']"
+            :class="[resolveIcon('spinner'), 'me-2 inline-block h-4 w-4 animate-spin']"
           />
           {{ t('auth_mfa_verify_button') }}
         </UiButton>
@@ -227,7 +256,7 @@ const socialProviders = computed(() => [
             <label for="password" class="text-sm font-medium">{{ t('auth_password') }}</label>
             <a
               href="#"
-              class="text-primary-500 hover:text-primary-600 text-xs"
+              class="text-link hover:text-link-hover text-xs"
               @click.prevent="onForgotPassword"
               >{{ t('auth_forgot') }}</a
             >
@@ -245,7 +274,7 @@ const socialProviders = computed(() => [
         <UiButton type="submit" variant="primary" block :disabled="isLoading">
           <span
             v-if="isLoading"
-            :class="[resolveIcon('spinner'), 'mr-2 inline-block h-4 w-4 animate-spin']"
+            :class="[resolveIcon('spinner'), 'me-2 inline-block h-4 w-4 animate-spin']"
           />
           {{ t('auth_login') }}
         </UiButton>
@@ -270,11 +299,11 @@ const socialProviders = computed(() => [
       </form>
 
       <div
-        v-if="isDev"
+        v-if="demoAccount"
         class="border-surface-200/80 bg-surface-50/90 text-surface-500 dark:border-surface-700 dark:bg-surface-950/80 dark:text-surface-400 mt-6 rounded-[var(--shape-radius-sm)] border p-4 text-sm"
       >
-        <p class="text-surface-800 dark:text-surface-100 font-medium">{{ t('auth_demo_title') }}</p>
-        <p class="mt-1">demo@vuestrata.dev / password</p>
+        <p class="text-foreground font-medium">{{ t('auth_demo_title') }}</p>
+        <p class="mt-1">{{ demoAccount.email }} / {{ demoAccount.password }}</p>
         <p class="mt-2 text-xs leading-5">
           {{ t('auth_demo_body') }}
         </p>
@@ -283,7 +312,7 @@ const socialProviders = computed(() => [
 
     <p class="text-surface-500 mt-6 text-center text-sm">
       {{ t('auth_no_account') }}
-      <RouterLink to="/auth/register" class="text-primary-500 hover:text-primary-600 font-medium">
+      <RouterLink to="/auth/register" class="text-link hover:text-link-hover font-medium">
         {{ t('auth_register') }}
       </RouterLink>
     </p>

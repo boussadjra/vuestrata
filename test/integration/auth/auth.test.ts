@@ -27,16 +27,40 @@ describe('auth env contract', () => {
 })
 
 describe('mock auth adapter contract', () => {
-  it('should expose the full adapter surface', () => {
+  it('should declare its identity and transport', () => {
     const adapter = createAuthAdapter('mock')
-    expect(typeof adapter.login).toBe('function')
+    expect(adapter.name).toBe('mock')
+    // The mock mints an unsigned JWT, so the demo exercises the same
+    // Authorization-header path a real bearer backend would.
+    expect(adapter.transport).toBe('bearer')
+  })
+
+  it('should implement every method it advertises in capabilities', () => {
+    const adapter = createAuthAdapter('mock')
+
+    // The contract is capability-driven: an advertised capability must have a
+    // real method behind it, and an unadvertised one must not be silently
+    // present. Asserting the pairing is what stops an adapter claiming support
+    // it does not have — which is how the JWT adapter used to look complete
+    // while being an empty wrapper.
+    expect(adapter.capabilities.register).toBe(true)
     expect(typeof adapter.register).toBe('function')
-    expect(typeof adapter.logout).toBe('function')
-    expect(typeof adapter.getUser).toBe('function')
-    expect(typeof adapter.refreshToken).toBe('function')
+    expect(adapter.capabilities.social).toBe(true)
     expect(typeof adapter.socialLogin).toBe('function')
+    expect(adapter.capabilities.magicLink).toBe(true)
     expect(typeof adapter.sendMagicLink).toBe('function')
     expect(typeof adapter.verifyMagicLink).toBe('function')
+    expect(adapter.capabilities.mfa).toBe(true)
+    expect(typeof adapter.setupMfa).toBe('function')
+    expect(adapter.capabilities.refresh).toBe(true)
+    expect(typeof adapter.refreshToken).toBe('function')
+    expect(adapter.capabilities.codeExchange).toBe(true)
+    expect(typeof adapter.exchangeCode).toBe('function')
+
+    // Always-required members.
+    expect(typeof adapter.login).toBe('function')
+    expect(typeof adapter.logout).toBe('function')
+    expect(typeof adapter.getUser).toBe('function')
   })
 
   it('should use the mock adapter for credentials login, magic link request, and logout-capable flows', async () => {
@@ -78,7 +102,9 @@ describe('mock auth adapter contract', () => {
     expect(loginResult.user.email).toBe('demo@vuestrata.dev')
     expect(loginResult.refreshToken).toBe('mock-refresh-token')
 
-    const magicResult = await mockedAdapter.sendMagicLink({
+    // `sendMagicLink` is optional on the contract; the mock advertises it.
+    expect(mockedAdapter.capabilities.magicLink).toBe(true)
+    const magicResult = await mockedAdapter.sendMagicLink!({
       email: 'demo@vuestrata.dev',
     })
     expect(magicResult.message).toContain('demo@vuestrata.dev')

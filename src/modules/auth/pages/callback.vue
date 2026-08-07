@@ -57,19 +57,19 @@ onMounted(async () => {
         <div
           class="border-primary-200 border-t-primary-600 mx-auto mb-4 size-8 animate-spin rounded-full border-4"
         />
-        <p class="text-surface-600 dark:text-surface-400">{{ t('auth_callback_processing') }}</p>
+        <p class="text-muted-foreground">{{ t('auth_callback_processing') }}</p>
       </div>
 
       <div v-else-if="error" class="text-center">
         <div
-          class="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"
+          class="bg-destructive-subtle mx-auto mb-4 flex size-12 items-center justify-center rounded-full"
         >
-          <span class="text-xl text-red-600 dark:text-red-400">!</span>
+          <span class="text-destructive text-xl">!</span>
         </div>
         <h2 class="text-surface-900 mb-2 text-lg font-semibold dark:text-white">
           {{ t('auth_callback_failed') }}
         </h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">{{ error }}</p>
+        <p class="text-muted-foreground mb-6 text-sm">{{ error }}</p>
         <button
           class="bg-primary-600 hover:bg-primary-700 rounded-lg px-4 py-2 text-sm font-medium text-white"
           @click="router.push('/auth/login')"

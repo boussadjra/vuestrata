@@ -6,6 +6,7 @@ import { usersHandlers } from '@/mocks/handlers/users'
 import { createMockJwt } from '@/mocks/utils'
 import { authMockHandlers } from '@/modules/auth/mocks/auth.handlers'
 import { getDemoSession, getDemoUsers, setDemoUsers } from '@/state/demo-store'
+import { DEMO_ACCOUNT } from '@/state/demo/account'
 import type { Permission, User } from '@/types'
 
 import {
@@ -78,7 +79,7 @@ describe('auth MSW handlers', () => {
   it('POST /auth/login persists a demo session for existing users', async () => {
     const response = await jsonRequest('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: adminUser.email, password: 'password' }),
+      body: JSON.stringify({ email: adminUser.email, password: DEMO_ACCOUNT.password }),
     })
 
     expect(response.status).toBe(200)
@@ -89,6 +90,27 @@ describe('auth MSW handlers', () => {
 
     const session = await getDemoSession()
     expect(session?.user.email).toBe(adminUser.email)
+  })
+
+  it('POST /auth/login rejects a wrong password for the seeded demo account', async () => {
+    // The handler used to accept ANY non-empty password, so this path could
+    // not be exercised at all and the login form was not demonstrating a login.
+    const response = await jsonRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: adminUser.email, password: 'not-the-password' }),
+    })
+
+    expect(response.status).toBe(401)
+    await expect(getDemoSession()).resolves.toBeNull()
+  })
+
+  it('POST /auth/login rejects an empty password', async () => {
+    const response = await jsonRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: adminUser.email, password: '' }),
+    })
+
+    expect(response.status).toBe(401)
   })
 
   it('POST /auth/login rejects unknown users', async () => {

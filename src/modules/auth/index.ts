@@ -1,5 +1,4 @@
 import type { ModuleDefinition } from '../types'
-import { authMockHandlers } from './mocks/auth.handlers'
 
 /**
  * Auth Module
@@ -39,20 +38,67 @@ const authModule: ModuleDefinition = {
   // discovered by Vue Router file-based routing from `src/modules/auth/pages/` with the
   // `auth/` path prefix configured in vite.config.ts. They are NOT listed
   // here to avoid duplicate route registration.
+  //
+  // The account page is the exception: it belongs under `/dashboard`, not
+  // `/auth`, so it lives in `views/` (outside the file-routed folder) and is
+  // registered explicitly. Putting it in `pages/` would mount it at
+  // `/auth/account`, behind the auth layout, with no sidebar.
+  routes: [
+    {
+      path: '/dashboard/account',
+      name: '/dashboard/account',
+      component: () => import('./views/account.vue'),
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        module: 'auth',
+        title: 'account_nav',
+      },
+    },
+  ],
 
-  mockHandlers: () => authMockHandlers,
+  navItems: [
+    {
+      label: 'account_nav',
+      icon: 'shield-user',
+      to: '/dashboard/account',
+      group: 'account',
+      order: 10,
+    },
+  ],
+
+  // Two guards, both required:
+  //   1. The dynamic import() keeps `msw` out of this barrel's static module
+  //      graph, so importing the auth module does not pull in msw-vendor.
+  //   2. The `__VUESTRATA_DEMO__` ternary lets rolldown drop the import()
+  //      entirely from production builds. Without it the property is always
+  //      constructed, the bundler must assume it may be called, and the
+  //      msw-vendor chunk is emitted and referenced even though nothing in
+  //      production ever calls it.
+  // This is the pattern every module with mock handlers must follow.
+  ...(__VUESTRATA_DEMO__
+    ? {
+        mockHandlers: async () => (await import('./mocks/auth.handlers')).authMockHandlers,
+      }
+    : {}),
 }
 
 export default authModule
 
 // ─── Public API barrel ──────────────────────────────────
 // Cross-module consumers MUST import from here.
+export { useAuth, exchangeOAuthCode, getAuthAdapter } from './composables/useAuth'
 export {
-  useAuth,
   createAuthAdapter,
-  resolveAuthAdapterName,
-  exchangeOAuthCode,
+  isJwtExpired,
   OAuthRedirectError,
+  requireCapability,
+  resolveAuthAdapterName,
+  SUPPORTED_AUTH_ADAPTERS,
+  UnsupportedAuthCapabilityError,
   type AuthAdapter,
-} from './composables/useAuth'
+  type AuthCapabilities,
+  type AuthTransport,
+  type SupportedAuthAdapter,
+} from './adapters'
 export { generateCodeVerifier, generateCodeChallenge, generateState } from './lib/pkce'

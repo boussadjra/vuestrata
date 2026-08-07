@@ -5,10 +5,31 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import LoginPage from '@/modules/auth/pages/login.vue'
 
+/** Every capability on, matching the `mock` adapter these tests stand in for. */
+const ALL_CAPABILITIES = {
+  register: true,
+  social: true,
+  magicLink: true,
+  mfa: true,
+  refresh: true,
+  codeExchange: true,
+}
+
 const authRefs = vi.hoisted(() => ({
   mfaRequired: { __v_isRef: true, value: false },
   isLoading: { __v_isRef: true, value: false },
   error: { __v_isRef: true, value: null as string | null },
+  capabilities: {
+    __v_isRef: true,
+    value: {
+      register: true,
+      social: true,
+      magicLink: true,
+      mfa: true,
+      refresh: true,
+      codeExchange: true,
+    },
+  },
 }))
 
 const authMocks = vi.hoisted(() => ({
@@ -28,6 +49,10 @@ vi.mock('~/modules/auth', () => {
       mfaRequired: authRefs.mfaRequired,
       isLoading: authRefs.isLoading,
       error: authRefs.error,
+      // The page renders social buttons and the magic-link toggle only when
+      // the configured adapter supports them. Defaults to every capability on;
+      // the "adapter capabilities" block below varies it.
+      capabilities: authRefs.capabilities,
     }),
   }
 })
@@ -63,6 +88,7 @@ beforeEach(() => {
   authRefs.mfaRequired.value = false
   authRefs.isLoading.value = false
   authRefs.error.value = null
+  authRefs.capabilities.value = { ...ALL_CAPABILITIES }
   authMocks.login.mockReset()
   authMocks.socialLogin.mockReset()
   authMocks.sendMagicLink.mockReset()
@@ -136,5 +162,40 @@ describe('login page — MFA', () => {
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(authMocks.verifyMfaCode).toHaveBeenCalledWith('000000')
+  })
+})
+
+describe('login page — adapter capabilities', () => {
+  /**
+   * The page must offer only what the configured adapter can actually do.
+   * Rendering a magic-link toggle for the `jwt` adapter, or social buttons for
+   * an adapter with no social redirect, hands the user a control that fails on
+   * click — which is what the old always-required 11-method interface allowed.
+   */
+  it('hides social sign-in when the adapter does not support it', () => {
+    authRefs.capabilities.value = { ...ALL_CAPABILITIES, social: false }
+    const wrapper = mountLoginPage()
+
+    expect(wrapper.find('#google').exists()).toBe(false)
+    expect(wrapper.find('#github').exists()).toBe(false)
+    // The "or continue with" divider only separates two present things.
+    expect(wrapper.text()).not.toContain('Or continue with')
+  })
+
+  it('hides the magic-link toggle when the adapter does not support it', () => {
+    authRefs.capabilities.value = { ...ALL_CAPABILITIES, magicLink: false }
+    const wrapper = mountLoginPage()
+
+    expect(wrapper.text()).not.toContain('Magic Link')
+    // Credentials login must still be fully usable.
+    expect(wrapper.find('#email').exists()).toBe(true)
+    expect(wrapper.find('#password').exists()).toBe(true)
+  })
+
+  it('renders both when the adapter supports everything', () => {
+    const wrapper = mountLoginPage()
+
+    expect(wrapper.find('#google').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Magic Link')
   })
 })

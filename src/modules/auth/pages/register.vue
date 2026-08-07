@@ -72,15 +72,13 @@ async function onSubmit(values: Record<string, unknown>) {
     >
       <div class="mb-8 flex items-start justify-between gap-4">
         <div class="min-w-0">
-          <p
-            class="text-surface-400 dark:text-surface-500 mb-2 text-xs font-semibold tracking-[0.28em] uppercase"
-          >
+          <p class="text-muted-foreground mb-2 text-xs font-semibold tracking-[0.28em] uppercase">
             Vuestrata
           </p>
-          <h1 class="text-surface-950 dark:text-surface-50 text-3xl font-bold tracking-tight">
+          <h1 class="text-foreground text-3xl font-bold tracking-tight">
             {{ t('auth_register') }}
           </h1>
-          <p class="text-surface-600 dark:text-surface-300 mt-2 text-sm leading-6">
+          <p class="text-muted-foreground mt-2 text-sm leading-6">
             {{ t('auth_register_subtitle') }}
           </p>
         </div>
@@ -158,7 +156,7 @@ async function onSubmit(values: Record<string, unknown>) {
 
     <p class="text-surface-500 mt-6 text-center text-sm">
       {{ t('auth_has_account') }}
-      <RouterLink to="/auth/login" class="text-primary-500 hover:text-primary-600 font-medium">
+      <RouterLink to="/auth/login" class="text-link hover:text-link-hover font-medium">
         {{ t('auth_login') }}
       </RouterLink>
     </p>

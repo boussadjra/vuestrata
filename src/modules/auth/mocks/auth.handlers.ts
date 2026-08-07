@@ -3,6 +3,7 @@ import { delay, http, HttpResponse } from 'msw'
 import { createMockJwt, isValidToken } from '@/mocks/utils'
 import { useDemoAuthBackend } from '@/state/demo-auth-backend'
 import { ensureDefaultDemoUsers, getDemoUsers } from '@/state/demo-store'
+import { DEMO_ACCOUNT } from '@/state/demo/account'
 import type { AuthCredentials, User } from '~/types'
 
 function tokensFor(user: User) {
@@ -26,7 +27,22 @@ export const authMockHandlers = [
     const body = (await request.json()) as AuthCredentials
     const users = await ensureDefaultDemoUsers()
     const matchedUser = users.find((u) => u.email === body.email)
-    if (matchedUser && body.password) {
+
+    // The password is actually checked now. This used to be `body.password`
+    // alone — any non-empty string logged you in as the matched user — which
+    // made the demo's "invalid credentials" path untestable and meant the
+    // login form was not demonstrating a login at all.
+    //
+    // Registered users choose their own password, which the demo store does
+    // not persist (storing passwords, even fake ones, is a habit worth not
+    // teaching), so any non-empty password is accepted for them. The seeded
+    // demo account must match DEMO_ACCOUNT exactly.
+    const isSeededDemoAccount = matchedUser?.email === DEMO_ACCOUNT.email
+    const passwordAccepted = isSeededDemoAccount
+      ? body.password === DEMO_ACCOUNT.password
+      : Boolean(body.password)
+
+    if (matchedUser && passwordAccepted) {
       if (matchedUser.mfaEnabled) {
         return HttpResponse.json({
           mfaRequired: true,
