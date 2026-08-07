@@ -75,6 +75,25 @@
 }
 
 :root.theme-terminal.dark {
+  /*
+   * Semantic overrides for this theme.
+   *
+   * The shared :root.dark mapping in styles/semantic.css assumes a ramp whose
+   * mid steps are mid-tone. Terminal packs everything from 300 up into near
+   * black, so foreground tokens have to move several steps lighter to stay
+   * legible on its background.
+   */
+  --color-foreground: var(--color-surface-50);
+  --color-muted-foreground: var(--color-surface-100);
+  --color-subtle-foreground: var(--color-surface-200);
+  --color-border: var(--color-surface-600);
+  --color-border-strong: var(--color-surface-500);
+  --color-input: var(--color-surface-500);
+  --color-sidebar-foreground: var(--color-surface-100);
+  --color-sidebar-border: var(--color-surface-700);
+  /* Vivid green fill: white text fails contrast on it, dark text clears it. */
+  --color-primary-foreground: #04140b;
+
   /* In dark mode, make the green more vibrant */
   --color-primary-400: #4ade80;
   --color-primary-500: #22c55e;

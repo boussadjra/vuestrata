@@ -4,6 +4,7 @@ import { createConsola } from 'consola'
 
 import { inlineVueHandlersPlugin } from './plugins/inline-vue-handlers.plugin.mjs'
 import { moduleScopeStatePlugin } from './plugins/module-scope-state.plugin.mjs'
+import { noRawPalettePlugin } from './plugins/no-raw-palette.plugin.mjs'
 
 const logger = createConsola({
   level: 3,
@@ -14,7 +15,7 @@ const logger = createConsola({
 })
 
 const root = process.cwd()
-const plugins = [inlineVueHandlersPlugin(), moduleScopeStatePlugin()]
+const plugins = [inlineVueHandlersPlugin(), moduleScopeStatePlugin(), noRawPalettePlugin()]
 
 let hasError = false
 

@@ -60,6 +60,12 @@
 }
 
 :root.theme-brutalist.dark {
+  /*
+   * The neon primary is light enough that white text on it fails contrast.
+   * Filled controls in this theme take dark text instead.
+   */
+  --color-primary-foreground: #000000;
+
   --color-primary-500: #00ff00;
   --color-primary-600: #00cc00;
   --color-primary-700: #009900;

@@ -1,0 +1,245 @@
+/*
+ * Semantic design tokens.
+ *
+ * Every token here is an ALIAS onto a numeric ramp step — none of them
+ * introduces a new colour value. That is the whole design: each theme keeps its
+ * own hue ramps and therefore its own character, while the *meaning* of a
+ * colour ("this is a border", "this is muted text") is defined once instead of
+ * being re-derived at each of the ~330 call sites that used to hand-write a
+ * `light dark:` pair.
+ *
+ * Imported by app.css AFTER the theme files so it can reference whichever ramp
+ * the active theme installed.
+ *
+ * ── Adding a theme ─────────────────────────────────────────────────────────
+ * Define the five ramps (primary, secondary, accent, danger, surface) and you
+ * get every semantic token for free, in both colour modes. Override an
+ * individual semantic token only when the theme's character genuinely demands
+ * it — do NOT restate the whole ramp.
+ */
+
+@theme {
+  /* ── Status ramps ────────────────────────────────────────────────────────
+   * The 330-odd raw-palette utilities in this codebase were almost entirely
+   * status colour (`text-red-500`, `bg-green-50`, `border-amber-200`) — the one
+   * thing the token system had no answer for. Only `danger` existed.
+   *
+   * These default to sensible universal hues. A theme may override them, but
+   * most should not: success/warning/error carry cultural meaning that a
+   * theme's personality should not reinterpret.
+   */
+
+  /* Success — Emerald */
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-200: #a7f3d0;
+  --color-success-300: #6ee7b7;
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+  --color-success-800: #065f46;
+  --color-success-900: #064e3b;
+  --color-success-950: #022c22;
+
+  /* Warning — Amber */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  --color-warning-950: #451a03;
+
+  /* Info — Sky */
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-200: #bae6fd;
+  --color-info-300: #7dd3fc;
+  --color-info-400: #38bdf8;
+  --color-info-500: #0ea5e9;
+  --color-info-600: #0284c7;
+  --color-info-700: #0369a1;
+  --color-info-800: #075985;
+  --color-info-900: #0c4a6e;
+  --color-info-950: #082f49;
+
+  /* ── Surfaces ────────────────────────────────────────────────────────────
+   * `background` is the page, `card` sits on top of it, `elevated` on top of
+   * that (popovers, dropdowns, dialogs). Keeping them distinct is what lets a
+   * dialog read as above a card without every component inventing its own
+   * `bg-white dark:bg-surface-900`.
+   */
+  --color-background: var(--color-surface-50);
+  --color-card: #ffffff;
+  --color-elevated: #ffffff;
+  --color-muted: var(--color-surface-100);
+
+  /* ── Foregrounds ─────────────────────────────────────────────────────────
+   * Contrast against their matching surface. surface-900 on surface-50 is
+   * ~16:1; surface-500 on surface-50 is ~4.8:1, clearing WCAG AA for body text
+   * — which is why muted-foreground is 500 and not the 400 that several
+   * components were reaching for directly.
+   */
+  --color-foreground: var(--color-surface-900);
+  /*
+   * `surface-600`, not `surface-500`.
+   *
+   * A foreground token has to clear AA against EVERY surface it is used on, not
+   * just the page background. `surface-500` reached 4.61:1 on `background` but
+   * only 4.34:1 on the slightly darker `muted` — so the same class passed in a
+   * card and failed inside an inset block. `surface-600` clears both with room
+   * to spare and still reads as clearly secondary against `foreground`.
+   */
+  --color-muted-foreground: var(--color-surface-600);
+  --color-subtle-foreground: var(--color-surface-400);
+
+  /**
+   * Fill colour for solid controls that carry TEXT (primary buttons, selected
+   * chips).
+   *
+   * `primary-500` is the brand display weight and lands around 3.3:1 against
+   * white — enough for a non-text UI element (WCAG 1.4.11 asks 3:1) but short
+   * of the 4.5:1 that text on it requires. `primary-600` clears both, so a
+   * filled button and its label are legible on every theme.
+   *
+   * Keep using `primary-500` for decoration that carries no text: slider fills,
+   * status dots, focus glows.
+   */
+  --color-primary-solid: var(--color-primary-600);
+  --color-primary-solid-hover: var(--color-primary-700);
+
+  /* Text that sits ON a filled colour block. */
+  --color-primary-foreground: #ffffff;
+  --color-destructive-foreground: #ffffff;
+  --color-success-foreground: #ffffff;
+  --color-warning-foreground: var(--color-surface-950);
+  --color-info-foreground: #ffffff;
+
+  /* ── Lines ───────────────────────────────────────────────────────────────*/
+  --color-border: var(--color-surface-200);
+  --color-border-strong: var(--color-surface-300);
+  --color-input: var(--color-surface-300);
+
+  /* ── Focus ───────────────────────────────────────────────────────────────
+   * One ring colour for the whole app. The global `*:focus-visible` rule in
+   * app.css consumes it. It used to be a `color-mix(…, white)` that lightened
+   * the ring in BOTH modes, so on a dark surface the ring drifted toward the
+   * background it was supposed to stand out from.
+   */
+  --color-ring: var(--color-primary-600);
+
+  /* ── Links ───────────────────────────────────────────────────────────────
+   * `primary-500` is the brand's *display* weight and lands around 3:1 on a
+   * light surface — fine for a filled button, below AA for text. Links need
+   * their own step, not the brand mid-tone.
+   */
+  --color-link: var(--color-primary-700);
+  --color-link-hover: var(--color-primary-800);
+
+  /* ── Status semantics ────────────────────────────────────────────────────*/
+  --color-destructive: var(--color-danger-600);
+  --color-destructive-subtle: var(--color-danger-50);
+  --color-success-subtle: var(--color-success-50);
+  --color-warning-subtle: var(--color-warning-50);
+  --color-info-subtle: var(--color-info-50);
+
+  /* ── Sidebar ─────────────────────────────────────────────────────────────
+   * Separate from `card` so a theme can give navigation its own weight without
+   * dragging every panel with it.
+   */
+  --color-sidebar: var(--color-surface-50);
+  --color-sidebar-foreground: var(--color-surface-700);
+  --color-sidebar-accent: var(--color-primary-50);
+  --color-sidebar-accent-foreground: var(--color-primary-700);
+  --color-sidebar-border: var(--color-surface-200);
+
+  /* ── Chart series ────────────────────────────────────────────────────────
+   * Eight categorical slots, read at runtime by `useThemeColors`.
+   *
+   * The previous palette had five entries taken straight off the brand ramps,
+   * two pairs of which were a single ramp step apart — series 2/4 and 3/5 were
+   * near-indistinguishable, and colour was the only thing distinguishing them.
+   * These alternate hue families and step values so adjacent series differ in
+   * BOTH hue and lightness, which keeps them separable in greyscale and for
+   * the ~8% of men with a colour-vision deficiency.
+   */
+  --color-chart-1: var(--color-primary-600);
+  --color-chart-2: var(--color-accent-500);
+  --color-chart-3: var(--color-info-500);
+  --color-chart-4: var(--color-warning-500);
+  --color-chart-5: var(--color-secondary-600);
+  --color-chart-6: var(--color-success-600);
+  --color-chart-7: var(--color-primary-300);
+  --color-chart-8: var(--color-accent-800);
+}
+
+/*
+ * ── Dark mode ──────────────────────────────────────────────────────────────
+ *
+ * ONE block, covering every theme.
+ *
+ * Eight of the ten themes previously had no dark surface flip at all: their
+ * `.dark` blocks adjusted a couple of primary steps and some shadows, leaving
+ * `--color-surface-50` at #f8fafc in dark mode. Dark mode only "worked" because
+ * every component hand-wrote `dark:` inversions, which is why the same
+ * component could be correct on one theme and wrong on another.
+ *
+ * Re-pointing the semantic aliases here fixes all ten at once and keeps the
+ * light/dark relationship in one place. A theme that wants a different dark
+ * treatment overrides individual tokens in its own `.dark` block, which wins
+ * by source order.
+ */
+:root.dark {
+  --color-background: var(--color-surface-950);
+  --color-card: var(--color-surface-900);
+  --color-elevated: var(--color-surface-800);
+  --color-muted: var(--color-surface-800);
+
+  --color-foreground: var(--color-surface-50);
+  --color-muted-foreground: var(--color-surface-400);
+  --color-subtle-foreground: var(--color-surface-500);
+
+  --color-warning-foreground: var(--color-surface-950);
+
+  --color-border: var(--color-surface-800);
+  --color-border-strong: var(--color-surface-700);
+  --color-input: var(--color-surface-700);
+
+  /* Lighter ring: a 600-weight ring on a near-black surface is barely visible.
+     Focus indication must survive the mode flip — it is the only affordance
+     keyboard users have. */
+  --color-ring: var(--color-primary-400);
+
+  --color-link: var(--color-primary-300);
+  --color-link-hover: var(--color-primary-200);
+
+  /* Status colours lighten in dark mode so they stay legible on a dark
+     surface; the 600-weight versions used in light mode drop below AA. */
+  --color-destructive: var(--color-danger-400);
+  --color-destructive-subtle: color-mix(in oklch, var(--color-danger-950) 70%, transparent);
+  --color-success-subtle: color-mix(in oklch, var(--color-success-950) 70%, transparent);
+  --color-warning-subtle: color-mix(in oklch, var(--color-warning-950) 70%, transparent);
+  --color-info-subtle: color-mix(in oklch, var(--color-info-950) 70%, transparent);
+
+  --color-sidebar: var(--color-surface-950);
+  --color-sidebar-foreground: var(--color-surface-300);
+  --color-sidebar-accent: color-mix(in oklch, var(--color-primary-950) 60%, transparent);
+  --color-sidebar-accent-foreground: var(--color-primary-300);
+  --color-sidebar-border: var(--color-surface-800);
+
+  /* Chart series shift to lighter ramp steps for the same reason: a 600-weight
+     series line on a #020617 canvas is close to invisible. */
+  --color-chart-1: var(--color-primary-400);
+  --color-chart-2: var(--color-accent-400);
+  --color-chart-3: var(--color-info-400);
+  --color-chart-4: var(--color-warning-400);
+  --color-chart-5: var(--color-secondary-300);
+  --color-chart-6: var(--color-success-400);
+  --color-chart-7: var(--color-primary-200);
+  --color-chart-8: var(--color-accent-600);
+}

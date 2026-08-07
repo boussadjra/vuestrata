@@ -8,6 +8,11 @@
 @import './themes/terminal.css';
 @import './themes/blueprint.css';
 @import './themes/febin.css';
+/* AFTER the themes: semantic tokens alias whichever ramp the active theme
+   installed, and the single `:root.dark` block there gives every theme a real
+   dark-mode surface flip. */
+@import './semantic.css';
+@import './motion.css';
 @plugin '@egoist/tailwindcss-icons';
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -359,19 +364,8 @@
   animation: scale-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-float {
-    animation: none;
-  }
-
-  .animate-slide-down,
-  .animate-fade-in,
-  .animate-slide-up,
-  .animate-scale-in {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-  }
-}
+/* Reduced-motion handling lives in ./motion.css, which covers every animation
+   and transition rather than the four utilities that were listed here. */
 
 .shadow-elevated {
   box-shadow: var(--shadow-elevated);
@@ -771,9 +765,29 @@ html.dark ::-webkit-scrollbar-thumb {
 }
 
 /* Focus ring utility */
+/*
+ * The one focus indicator.
+ *
+ * `--color-ring` is a semantic token that re-points in dark mode (see
+ * semantic.css). The previous rule mixed the ring toward WHITE in both modes,
+ * so on a near-black dark surface it drifted toward the background it was
+ * meant to stand out from.
+ *
+ * The extra outline-color declaration is a graceful degradation: browsers
+ * without `Highlight`/`HighlightText` support keep the token colour, while
+ * Windows High Contrast Mode — which discards author colours entirely — still
+ * paints a visible ring using the system colour.
+ */
 *:focus-visible {
-  outline: 2px solid color-mix(in oklch, var(--color-primary-500) 78%, white);
-  outline-offset: 3px;
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: var(--shape-radius-sm, 0.25rem);
+}
+
+@media (forced-colors: active) {
+  *:focus-visible {
+    outline: 2px solid Highlight;
+  }
 }
 
 /* ===========================

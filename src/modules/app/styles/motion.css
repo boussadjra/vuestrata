@@ -1,0 +1,59 @@
+/*
+ * Reduced-motion handling, in one place.
+ *
+ * `prefers-reduced-motion` was previously honoured in five scattered spots
+ * (a partial block in app.css, the boot loader, the dashboard orbs, one button
+ * transition, one hero component). Everything else — every Tailwind
+ * `transition-*` and `animate-*` utility, every `<Transition>` component, the
+ * smooth-scroll rule, and the view-transition on route change — ran regardless.
+ *
+ * For users who set this preference, motion is not a stylistic preference. It
+ * can trigger nausea, dizziness, and migraine (WCAG 2.3.3 Animation from
+ * Interactions). A partial implementation is close to no implementation.
+ *
+ * Motion is reduced to a near-zero duration rather than `none`, so:
+ *   - `transitionend` / `animationend` listeners still fire. Code that waits
+ *     for one (the boot loader does) would hang forever on `animation: none`.
+ *   - Elements land in their final state instead of never starting.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  /* The catch-all. `!important` is warranted: this must beat utility classes,
+     inline styles, and component-scoped CSS alike, and there is no specificity
+     that reliably does so. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Purely decorative, infinite motion has no final state worth reaching —
+     stop it outright rather than running it 0.01ms at a time. */
+  .animate-float,
+  .animate-pulse-glow,
+  .animate-gradient,
+  .animate-shimmer,
+  .animate-shake,
+  .dashboard-glow {
+    animation: none !important;
+  }
+
+  /* app.css sets `scroll-behavior: smooth` on <html> unconditionally; a
+     scripted `scrollIntoView` would otherwise animate anyway. */
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  /* Cross-document/route view transitions are full-viewport motion — the most
+     disruptive kind. Skip the animation; the DOM swap still happens. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
