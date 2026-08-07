@@ -44,23 +44,43 @@ const filteredEntries = computed(() => {
   )
 })
 
-const actionColors: Record<string, string> = {
-  'user.login': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  'user.logout': 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300',
-  'user.register': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  'user.invite': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  'user.update_role': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  'role.update': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  'report.create':
-    'bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-400',
-  'billing.subscribe':
-    'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400',
-  'billing.cancel': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  'billing.update_plan':
-    'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400',
-  'settings.update': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  'report.export':
-    'bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-400',
+/**
+ * Tone applied to an action badge.
+ *
+ * Actions are grouped into a handful of tones rather than each picking its own
+ * colour. The previous map mixed raw palette families (blue, cyan, yellow, red)
+ * with theme families (primary, secondary) in the same object, so half the
+ * badges followed the active theme and half did not.
+ */
+const ACTION_TONES = {
+  neutral: 'bg-muted text-muted-foreground',
+  info: 'bg-info-100 text-info-800 dark:bg-info-900/30 dark:text-info-200',
+  success: 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-200',
+  warning: 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-200',
+  danger: 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-200',
+  primary: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300',
+  secondary: 'bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300',
+} as const
+
+type ActionTone = keyof typeof ACTION_TONES
+
+const actionTones: Record<string, ActionTone> = {
+  'user.login': 'info',
+  'user.logout': 'neutral',
+  'user.register': 'success',
+  'user.invite': 'success',
+  'user.update_role': 'info',
+  'role.update': 'info',
+  'report.create': 'secondary',
+  'report.export': 'secondary',
+  'billing.subscribe': 'primary',
+  'billing.update_plan': 'primary',
+  'billing.cancel': 'danger',
+  'settings.update': 'warning',
+}
+
+function toneClassFor(action: string): string {
+  return ACTION_TONES[actionTones[action] ?? 'neutral']
 }
 
 const actionIconNames: Record<string, IconName> = {
@@ -116,7 +136,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
       <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
         {{ t('audit_title') }}
       </h1>
-      <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('audit_subtitle') }}</p>
+      <p class="text-muted-foreground mt-1">{{ t('audit_subtitle') }}</p>
     </div>
 
     <!-- Stats -->
@@ -124,21 +144,21 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
       <div
         class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-xl border bg-white/90 p-4"
       >
-        <p class="text-surface-500 dark:text-surface-400 text-sm">{{ t('audit_total_events') }}</p>
+        <p class="text-muted-foreground text-sm">{{ t('audit_total_events') }}</p>
         <p class="text-surface-900 text-2xl font-bold tabular-nums dark:text-white">{{ total }}</p>
       </div>
       <div
         class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-xl border bg-white/90 p-4"
       >
-        <p class="text-surface-500 dark:text-surface-400 text-sm">{{ t('audit_auth_events') }}</p>
-        <p class="text-2xl font-bold text-blue-600 tabular-nums dark:text-blue-400">
+        <p class="text-muted-foreground text-sm">{{ t('audit_auth_events') }}</p>
+        <p class="text-info-700 dark:text-info-300 text-2xl font-bold tabular-nums">
           {{ entries.filter((e) => e.action.startsWith('user.')).length }}
         </p>
       </div>
       <div
         class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-xl border bg-white/90 p-4"
       >
-        <p class="text-surface-500 dark:text-surface-400 text-sm">
+        <p class="text-muted-foreground text-sm">
           {{ t('audit_billing_events') }}
         </p>
         <p class="text-primary-600 dark:text-primary-400 text-2xl font-bold tabular-nums">
@@ -148,7 +168,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
       <div
         class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-xl border bg-white/90 p-4"
       >
-        <p class="text-surface-500 dark:text-surface-400 text-sm">
+        <p class="text-muted-foreground text-sm">
           {{ t('audit_unique_actions') }}
         </p>
         <p class="text-surface-900 text-2xl font-bold tabular-nums dark:text-white">
@@ -168,14 +188,14 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
           <span
             :class="[
               resolveIcon('search'),
-              'text-surface-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2',
+              'text-muted-foreground absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2',
             ]"
           />
           <input
             v-model="searchQuery"
             type="text"
             :placeholder="t('audit_search')"
-            class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border py-2 pr-3 pl-9 text-sm outline-none focus:ring-2"
+            class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border py-2 ps-9 pe-3 text-sm outline-none focus:ring-2"
           />
         </div>
         <div class="flex flex-wrap gap-2" role="group" :aria-label="t('audit_filter_group')">
@@ -184,7 +204,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
             :aria-pressed="actionFilter === ''"
             :class="[
               actionFilter === ''
-                ? 'bg-primary-500 text-white'
+                ? 'bg-primary-600 text-primary-foreground'
                 : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300',
               'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
             ]"
@@ -199,7 +219,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
             :aria-pressed="actionFilter === action"
             :class="[
               actionFilter === action
-                ? 'bg-primary-500 text-white'
+                ? 'bg-primary-600 text-primary-foreground'
                 : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300',
               'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
             ]"
@@ -211,11 +231,11 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
       </div>
 
       <!-- Timeline list -->
-      <div v-if="loading" class="text-surface-400 p-12 text-center">
+      <div v-if="loading" class="text-muted-foreground p-12 text-center">
         <span :class="[resolveIcon('refresh'), 'mx-auto mb-2 block h-8 w-8 animate-spin']" />
         {{ t('audit_loading') }}
       </div>
-      <div v-else-if="filteredEntries.length === 0" class="text-surface-400 p-12 text-center">
+      <div v-else-if="filteredEntries.length === 0" class="text-muted-foreground p-12 text-center">
         <span :class="[resolveIcon('document'), 'mx-auto mb-2 block h-8 w-8']" />
         {{ t('audit_empty') }}
       </div>
@@ -227,7 +247,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
         >
           <div
             :class="[
-              actionColors[entry.action] || 'bg-surface-100 dark:bg-surface-700',
+              toneClassFor(entry.action),
               'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
             ]"
           >
@@ -237,34 +257,31 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
             <div class="flex flex-wrap items-center gap-2">
               <span
                 :class="[
-                  actionColors[entry.action] ||
-                    'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300',
+                  toneClassFor(entry.action),
                   'rounded-full px-2 py-0.5 text-xs font-semibold',
                 ]"
               >
                 {{ formatAuditAction(entry.action) }}
               </span>
-              <span class="text-surface-600 dark:text-surface-300 text-sm"
+              <span class="text-muted-foreground text-sm"
                 >{{ t('common_on') }} <span class="font-medium">{{ entry.resource }}</span></span
               >
             </div>
-            <div class="text-surface-400 mt-1 flex items-center gap-3 text-xs">
+            <div class="text-muted-foreground mt-1 flex items-center gap-3 text-xs">
               <span
                 >{{ t('common_user') }}:
-                <span class="text-surface-600 dark:text-surface-300 font-medium">{{
-                  entry.userId
-                }}</span></span
+                <span class="text-muted-foreground font-medium">{{ entry.userId }}</span></span
               >
               <span v-if="entry.ip">{{ t('common_ip') }}: {{ entry.ip }}</span>
               <span :title="formatTime(entry.createdAt)">{{ relativeTime(entry.createdAt) }}</span>
             </div>
-            <p v-if="entry.details" class="text-surface-400 mt-1 max-w-xl truncate text-xs">
+            <p v-if="entry.details" class="text-muted-foreground mt-1 max-w-xl truncate text-xs">
               {{ JSON.stringify(entry.details) }}
             </p>
           </div>
           <time
             :title="formatTime(entry.createdAt)"
-            class="text-surface-400 hidden shrink-0 text-xs tabular-nums sm:block"
+            class="text-muted-foreground hidden shrink-0 text-xs tabular-nums sm:block"
           >
             {{ formatTime(entry.createdAt) }}
           </time>
@@ -283,7 +300,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
         >
           {{ t('common_previous') }}
         </button>
-        <span class="text-surface-600 dark:text-surface-300 px-2 text-sm font-medium tabular-nums">
+        <span class="text-muted-foreground px-2 text-sm font-medium tabular-nums">
           {{ page }} / {{ totalPages }}
         </span>
         <button

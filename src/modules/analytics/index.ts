@@ -30,7 +30,12 @@ const analyticsModule: ModuleDefinition = {
       path: '/dashboard',
       name: '/dashboard',
       component: () => import('./pages/index.vue'),
-      meta: { layout: 'dashboard', requiresAuth: true, module: 'analytics' },
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        module: 'analytics',
+        title: 'sidebar_dashboard',
+      },
     },
     {
       path: '/dashboard/audit',
@@ -41,13 +46,19 @@ const analyticsModule: ModuleDefinition = {
         requiresAuth: true,
         requiredPermission: 'audit:read',
         module: 'analytics',
+        title: 'sidebar_audit',
       },
     },
     {
       path: '/dashboard/charts',
       name: '/dashboard/charts',
       component: () => import('./pages/charts.vue'),
-      meta: { layout: 'dashboard', requiresAuth: true, module: 'analytics' },
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        module: 'analytics',
+        title: 'sidebar_charts',
+      },
     },
   ],
 
@@ -56,12 +67,17 @@ const analyticsModule: ModuleDefinition = {
       label: 'sidebar_dashboard',
       icon: 'chart',
       to: '/dashboard',
+      group: 'overview',
+      // Exact: '/dashboard' prefixes every page in the app, so without this the
+      // overview entry stays highlighted no matter where the user navigates.
+      exact: true,
       order: 1,
     },
     {
       label: 'sidebar_charts',
       icon: 'graph',
       to: '/dashboard/charts',
+      group: 'overview',
       order: 50,
     },
     {
@@ -69,6 +85,7 @@ const analyticsModule: ModuleDefinition = {
       icon: 'shield-check',
       to: '/dashboard/audit',
       permission: 'audit:read',
+      group: 'organization',
       order: 60,
     },
   ],
@@ -83,8 +100,29 @@ const analyticsModule: ModuleDefinition = {
 export default analyticsModule
 
 // ─── Public API barrel ──────────────────────────────────
-export { useDashboardStatsQuery } from './composables/useDashboardStatsQuery'
+export {
+  useActivitySeriesQuery,
+  useAttentionItemsQuery,
+  useDashboardStatsQuery,
+  useFunnelQuery,
+  useRecentActivityQuery,
+  useRevenueBreakdownQuery,
+  useSystemHealthQuery,
+  useTeamPerformanceQuery,
+  useUpcomingEventsQuery,
+} from './composables/useDashboardQueries'
 export { useAuditLogsQuery } from './composables/useAuditLogsQuery'
-export type { DashboardStats } from './composables/useDashboardStatsQuery'
 export type { AuditLogFilters } from './composables/useAuditLogsQuery'
+export type {
+  ActivitySeries,
+  DashboardFilters,
+  DashboardRange,
+  DashboardSegment,
+  DashboardStats,
+  Funnel,
+  Money,
+  RevenueBreakdown,
+  TeamPerformance,
+  Trend,
+} from './types/dashboard'
 export { analyticsModuleKeys } from './query-keys'

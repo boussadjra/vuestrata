@@ -26,7 +26,8 @@ import { useI18n } from 'vue-i18n'
 
 import BaseChart from '@/components/ui/BaseChart.vue'
 import { useTheme } from '@/composables/useTheme'
-import { useThemeColors } from '@/composables/useThemeColors'
+
+import { useChartColors, withAlpha } from '../composables/useChartColors'
 
 use([
   CanvasRenderer,
@@ -50,15 +51,13 @@ use([
 
 const { isDark } = useTheme()
 const { t } = useI18n()
-const { primary: cPrimary, secondary: cSecondary, accent: cAccent } = useThemeColors()
-
-function hexToRgba(hex: string, alpha: number): string {
-  const h = hex.replace('#', '')
-  const r = parseInt(h.substring(0, 2), 16)
-  const g = parseInt(h.substring(2, 4), 16)
-  const b = parseInt(h.substring(4, 6), 16)
-  return `rgba(${r},${g},${b},${alpha})`
-}
+// Series colours come from the categorical chart tokens, so every chart on
+// this page draws from one palette that is separable in greyscale and flips
+// with dark mode. See styles/semantic.css.
+const { seriesColor } = useChartColors()
+const cPrimary = computed(() => seriesColor(0))
+const cSecondary = computed(() => seriesColor(4))
+const cAccent = computed(() => seriesColor(1))
 
 const textColor = computed(() => (isDark.value ? '#94a3b8' : '#64748b'))
 const axisLineColor = computed(() => (isDark.value ? '#334155' : '#e2e8f0'))
@@ -115,8 +114,8 @@ const areaLine = computed<EChartsOption>(() => ({
           x2: 0,
           y2: 1,
           colorStops: [
-            { offset: 0, color: hexToRgba(cPrimary.value, 0.25) },
-            { offset: 1, color: hexToRgba(cPrimary.value, 0) },
+            { offset: 0, color: withAlpha(cPrimary.value, 0.25) },
+            { offset: 1, color: withAlpha(cPrimary.value, 0) },
           ],
         },
       },
@@ -136,8 +135,8 @@ const areaLine = computed<EChartsOption>(() => ({
           x2: 0,
           y2: 1,
           colorStops: [
-            { offset: 0, color: hexToRgba(cSecondary.value, 0.15) },
-            { offset: 1, color: hexToRgba(cSecondary.value, 0) },
+            { offset: 0, color: withAlpha(cSecondary.value, 0.15) },
+            { offset: 1, color: withAlpha(cSecondary.value, 0) },
           ],
         },
       },
@@ -157,8 +156,8 @@ const areaLine = computed<EChartsOption>(() => ({
           x2: 0,
           y2: 1,
           colorStops: [
-            { offset: 0, color: hexToRgba(cAccent.value, 0.18) },
-            { offset: 1, color: hexToRgba(cAccent.value, 0) },
+            { offset: 0, color: withAlpha(cAccent.value, 0.18) },
+            { offset: 1, color: withAlpha(cAccent.value, 0) },
           ],
         },
       },
@@ -292,14 +291,14 @@ const radar = computed<EChartsOption>(() => ({
         {
           value: [85, 72, 91, 68, 78, 82],
           name: 'This Quarter',
-          areaStyle: { color: hexToRgba(cPrimary.value, 0.15) },
+          areaStyle: { color: withAlpha(cPrimary.value, 0.15) },
           lineStyle: { color: cPrimary.value, width: 2 },
           itemStyle: { color: cPrimary.value },
         },
         {
           value: [70, 85, 75, 80, 65, 70],
           name: 'Last Quarter',
-          areaStyle: { color: hexToRgba(cAccent.value, 0.12) },
+          areaStyle: { color: withAlpha(cAccent.value, 0.12) },
           lineStyle: { color: cAccent.value, width: 2 },
           itemStyle: { color: cAccent.value },
         },
@@ -357,7 +356,7 @@ const scatter = computed<EChartsOption>(() => ({
       itemStyle: {
         color: cPrimary.value,
         shadowBlur: 10,
-        shadowColor: hexToRgba(cPrimary.value, 0.3),
+        shadowColor: withAlpha(cPrimary.value, 0.3),
       },
     },
   ],
@@ -489,8 +488,8 @@ const heatmap = computed<EChartsOption>(() => ({
     bottom: 0,
     inRange: {
       color: isDark.value
-        ? ['#1e293b', hexToRgba(cPrimary.value, 0.5), cPrimary.value]
-        : [hexToRgba(cPrimary.value, 0.05), hexToRgba(cPrimary.value, 0.4), cPrimary.value],
+        ? ['#1e293b', withAlpha(cPrimary.value, 0.5), cPrimary.value]
+        : [withAlpha(cPrimary.value, 0.05), withAlpha(cPrimary.value, 0.4), cPrimary.value],
     },
     textStyle: { color: textColor.value },
   },
@@ -511,7 +510,7 @@ const heatmap = computed<EChartsOption>(() => ({
       <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
         {{ t('charts_title') }}
       </h1>
-      <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('charts_subtitle') }}</p>
+      <p class="text-muted-foreground mt-1">{{ t('charts_subtitle') }}</p>
     </div>
 
     <!-- Area Line + Stacked Bar -->
@@ -584,8 +583,7 @@ const heatmap = computed<EChartsOption>(() => ({
             >
               -10
             </button>
-            <span
-              class="text-surface-600 dark:text-surface-300 w-10 text-center text-sm font-medium tabular-nums"
+            <span class="text-muted-foreground w-10 text-center text-sm font-medium tabular-nums"
               >{{ gaugeValue }}%</span
             >
             <button
