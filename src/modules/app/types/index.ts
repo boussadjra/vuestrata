@@ -170,14 +170,29 @@ export type {
 } from './forms'
 
 // ─── App Config ──────────────────────────────────────────
+// Shape is produced by `resolveRuntimeEnv` in app/config/env.schema.ts, which
+// owns the validation. Keep the two in sync.
 export interface AppConfig {
+  /**
+   * Which of the two build targets this artifact is. Resolved at build time;
+   * see the `__VUESTRATA_DEMO__` define in vite.config.ts for the compile-time
+   * counterpart used to strip demo code from production bundles.
+   */
+  runtimeMode: 'production' | 'demo'
   title: string
   apiUrl: string
   useMocks: boolean
   authProvider: 'jwt' | 'oauth' | 'mock'
   iconProvider: IconProvider
+  /** Default theme for fresh sessions; persisted preferences override it. */
+  theme: string
   demoAuth: {
     retentionHours: number
+  }
+  /** Integration point for an error-reporting provider; see app/plugins/error-reporting.ts. */
+  errorReporting: {
+    dsn: string | undefined
+    release: string | undefined
   }
 }
 

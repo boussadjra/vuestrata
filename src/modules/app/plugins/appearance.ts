@@ -25,7 +25,30 @@ export const APPEARANCE_KEYS = {
 export const SUPPORTED_LOCALES = ['en', 'fr', 'ar'] as const
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number]
 
+/**
+ * Display metadata for the locale switcher.
+ *
+ * The label is the *endonym* — the language's name in itself — and is
+ * deliberately not translated. A user who has landed in a language they cannot
+ * read needs "Français" to find French; "French" in Arabic script does not help
+ * them, and it is the one string in the app that must never be localized.
+ *
+ * Lives here, next to `SUPPORTED_LOCALES`, so adding a language is a single
+ * edit. It used to be a second hand-written list inside `AppHeader.vue`, which
+ * could (and did) fall out of step with the locales the app actually loads.
+ */
+export const LOCALE_METADATA: Record<SupportedLocale, { label: string; flag: string }> = {
+  en: { label: 'English', flag: '🇬🇧' },
+  fr: { label: 'Français', flag: '🇫🇷' },
+  ar: { label: 'العربية', flag: '🇸🇦' },
+}
+
 const RTL_LOCALES = new Set<SupportedLocale>(['ar'])
+
+/** Whether a locale is written right-to-left. */
+export function isRtlLocale(locale: string): boolean {
+  return RTL_LOCALES.has(locale as SupportedLocale)
+}
 
 // Defence in depth: only allow safe identifiers in values that get spliced
 // into class names / DOM attributes (in case localStorage was tampered with).

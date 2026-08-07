@@ -55,7 +55,7 @@ const apiEvents: ApiEventRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Stepper</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         Multi-step process indicator with navigation controls and step descriptions.
       </p>
     </header>
@@ -134,15 +134,15 @@ const apiEvents: ApiEventRow[] = [
       <ComponentDemo :code="statesCode">
         <div class="max-w-lg space-y-6">
           <div>
-            <p class="text-surface-400 mb-2 text-xs font-medium">At step 1 (start):</p>
+            <p class="text-muted-foreground mb-2 text-xs font-medium">At step 1 (start):</p>
             <UiStepper :model-value="0" :steps="basicSteps" />
           </div>
           <div>
-            <p class="text-surface-400 mb-2 text-xs font-medium">At step 2 (in progress):</p>
+            <p class="text-muted-foreground mb-2 text-xs font-medium">At step 2 (in progress):</p>
             <UiStepper :model-value="1" :steps="basicSteps" />
           </div>
           <div>
-            <p class="text-surface-400 mb-2 text-xs font-medium">At step 4 (completed):</p>
+            <p class="text-muted-foreground mb-2 text-xs font-medium">At step 4 (completed):</p>
             <UiStepper :model-value="3" :steps="basicSteps" />
           </div>
         </div>

@@ -64,7 +64,7 @@ const apiProps: ApiPropRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Avatar</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         User or entity representation with image, fallback initials, and multiple sizes.
       </p>
     </header>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppNotifications from '@/components/layout/AppNotifications.vue'
+import SkipLink from '@/components/layout/SkipLink.vue'
 import { resolveIcon } from '@/config/icon-provider'
 
 const route = useRoute()
@@ -68,9 +69,8 @@ const isActive = (to: string) => route.path === to
 </script>
 
 <template>
-  <div
-    class="bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex min-h-screen flex-col"
-  >
+  <div class="bg-surface-50 dark:bg-surface-950 text-foreground flex min-h-screen flex-col">
+    <SkipLink />
     <div class="flex flex-1">
       <!-- Mobile sidebar toggle -->
       <button
@@ -106,7 +106,7 @@ const isActive = (to: string) => route.path === to
             :class="
               route.path === '/components'
                 ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
-                : 'text-surface-700 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400'
+                : 'text-foreground hover:text-primary-600 dark:hover:text-primary-400'
             "
             @click="sidebarOpen = false"
           >
@@ -115,7 +115,7 @@ const isActive = (to: string) => route.path === to
 
           <div v-for="cat in categories" :key="cat.title">
             <h3
-              class="text-surface-400 dark:text-surface-500 mb-1.5 px-3 text-[11px] font-semibold tracking-widest uppercase"
+              class="text-muted-foreground mb-1.5 px-3 text-[11px] font-semibold tracking-widest uppercase"
             >
               {{ cat.title }}
             </h3>
@@ -127,7 +127,7 @@ const isActive = (to: string) => route.path === to
                     'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-150',
                     isActive(item.to)
                       ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                      : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-200',
+                      : 'text-muted-foreground hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-200',
                   ]"
                   @click="sidebarOpen = false"
                 >
@@ -140,7 +140,11 @@ const isActive = (to: string) => route.path === to
       </aside>
 
       <!-- Main content -->
-      <main class="max-w-4xl min-w-0 flex-1 p-6 lg:p-10">
+      <main
+        id="main-content"
+        tabindex="-1"
+        class="max-w-4xl min-w-0 flex-1 p-6 focus:outline-none lg:p-10"
+      >
         <RouterView />
       </main>
     </div>

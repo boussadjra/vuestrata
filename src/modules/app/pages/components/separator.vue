@@ -78,7 +78,7 @@ const apiSlots: ApiSlotRow[] = [{ name: 'default', description: 'Custom label co
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Separator</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         A visual divider between content sections, supporting horizontal and vertical orientations.
       </p>
     </header>

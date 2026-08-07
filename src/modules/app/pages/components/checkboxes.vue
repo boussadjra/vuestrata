@@ -75,7 +75,7 @@ const apiEvents: ApiEventRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Checkbox</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         Binary toggle with label, indeterminate support, and multiple sizes.
       </p>
     </header>
@@ -137,9 +137,7 @@ const apiEvents: ApiEventRow[] = [
       </p>
       <ComponentDemo :code="groupCode">
         <fieldset class="space-y-3">
-          <legend class="text-surface-700 dark:text-surface-300 mb-2 text-sm font-medium">
-            Notification preferences
-          </legend>
+          <legend class="text-foreground mb-2 text-sm font-medium">Notification preferences</legend>
           <UiCheckbox v-model="terms" label="Product updates" id="pref-updates" />
           <UiCheckbox v-model="newsletter" label="Weekly newsletter" id="pref-newsletter" />
           <UiCheckbox v-model="updates" label="Community announcements" id="pref-community" />

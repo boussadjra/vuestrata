@@ -72,9 +72,7 @@ const apiEvents: ApiEventRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Switch</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
-        Toggle control for boolean on/off settings.
-      </p>
+      <p class="text-muted-foreground text-lg">Toggle control for boolean on/off settings.</p>
     </header>
 
     <!-- Usage -->
@@ -120,23 +118,21 @@ const apiEvents: ApiEventRow[] = [
         >
           <div class="flex items-center justify-between p-4">
             <div>
-              <p class="text-surface-900 dark:text-surface-100 text-sm font-medium">Dark mode</p>
+              <p class="text-foreground text-sm font-medium">Dark mode</p>
               <p class="text-surface-500 text-xs">Use dark theme across the app</p>
             </div>
             <UiSwitch v-model="darkMode" id="setting-dark" />
           </div>
           <div class="flex items-center justify-between p-4">
             <div>
-              <p class="text-surface-900 dark:text-surface-100 text-sm font-medium">
-                Notifications
-              </p>
+              <p class="text-foreground text-sm font-medium">Notifications</p>
               <p class="text-surface-500 text-xs">Receive push notifications</p>
             </div>
             <UiSwitch v-model="notifications" id="setting-notifs" />
           </div>
           <div class="flex items-center justify-between p-4">
             <div>
-              <p class="text-surface-900 dark:text-surface-100 text-sm font-medium">Auto-save</p>
+              <p class="text-foreground text-sm font-medium">Auto-save</p>
               <p class="text-surface-500 text-xs">Save changes automatically</p>
             </div>
             <UiSwitch v-model="autoSave" id="setting-autosave" />

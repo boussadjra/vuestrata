@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import AppNotifications from '@/components/layout/AppNotifications.vue'
+import SkipLink from '@/components/layout/SkipLink.vue'
 </script>
 
 <template>
-  <div
-    class="bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex min-h-screen items-center justify-center"
-  >
-    <div class="w-full max-w-md px-4 py-8">
+  <div class="bg-background text-foreground flex min-h-screen items-center justify-center">
+    <SkipLink />
+    <main id="main-content" tabindex="-1" class="w-full max-w-md px-4 py-8 focus:outline-none">
       <RouterView />
-    </div>
+    </main>
     <AppNotifications />
   </div>
 </template>

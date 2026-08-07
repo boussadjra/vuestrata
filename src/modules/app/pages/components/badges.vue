@@ -87,7 +87,7 @@ const apiSlots: ApiSlotRow[] = [{ name: 'default', description: 'Badge label con
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Badge</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         Compact status indicators and labels with variants, sizes, and dot indicators.
       </p>
     </header>

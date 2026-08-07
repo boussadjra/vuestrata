@@ -1,7 +1,7 @@
 <template>
-  <div
-    class="bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 min-h-screen"
-  >
-    <RouterView />
+  <div class="bg-background text-foreground min-h-screen">
+    <main id="main-content" tabindex="-1" class="focus:outline-none">
+      <RouterView />
+    </main>
   </div>
 </template>

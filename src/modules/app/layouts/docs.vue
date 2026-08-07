@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppNotifications from '@/components/layout/AppNotifications.vue'
+import SkipLink from '@/components/layout/SkipLink.vue'
 </script>
 
 <template>
-  <div
-    class="bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex h-screen flex-col"
-  >
+  <div class="bg-background text-foreground flex h-screen flex-col">
+    <SkipLink />
     <AppHeader />
-    <div class="min-h-0 flex-1 overflow-hidden">
+    <main id="main-content" tabindex="-1" class="min-h-0 flex-1 overflow-hidden focus:outline-none">
       <RouterView />
-    </div>
+    </main>
     <AppNotifications />
   </div>
 </template>

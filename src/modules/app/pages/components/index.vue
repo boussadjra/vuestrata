@@ -172,15 +172,13 @@ const categories: Category[] = [
 <template>
   <div>
     <h1 class="mb-2 text-3xl font-bold">{{ t('sidebar_components') }}</h1>
-    <p class="text-surface-500 dark:text-surface-400 mb-10 text-lg">
+    <p class="text-muted-foreground mb-10 text-lg">
       Explore all provider-agnostic UI components. Each works with both Reka UI and Vuetify&nbsp;0.
     </p>
 
     <div class="space-y-10">
       <section v-for="cat in categories" :key="cat.title">
-        <h2
-          class="text-surface-400 dark:text-surface-500 mb-4 text-sm font-semibold tracking-widest uppercase"
-        >
+        <h2 class="text-muted-foreground mb-4 text-sm font-semibold tracking-widest uppercase">
           {{ cat.title }}
         </h2>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -191,11 +189,11 @@ const categories: Category[] = [
             class="group border-surface-200 dark:border-surface-700/60 dark:bg-surface-900 hover:border-primary-300 dark:hover:border-primary-700 rounded-xl border bg-white p-5 transition-all duration-200 hover:shadow-md"
           >
             <h3
-              class="text-surface-900 dark:text-surface-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 text-sm font-semibold transition-colors"
+              class="text-foreground group-hover:text-primary-600 dark:group-hover:text-primary-400 text-sm font-semibold transition-colors"
             >
               {{ item.label }}
             </h3>
-            <p class="text-surface-500 dark:text-surface-400 mt-1 text-xs leading-relaxed">
+            <p class="text-muted-foreground mt-1 text-xs leading-relaxed">
               {{ item.description }}
             </p>
           </RouterLink>

@@ -84,7 +84,7 @@ const apiSlots: ApiSlotRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Card</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         Content container with optional header, footer, title, subtitle, and hover effect.
       </p>
     </header>

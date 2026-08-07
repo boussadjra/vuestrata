@@ -1,70 +1,33 @@
-import { createScopedLogger } from '~/lib/logger'
+import { runtimeEnv } from '~/lib/config'
 import type { AppConfig } from '~/types'
 
-// Canonical auth env key: keep the existing VUESTRATA_ prefix convention and use
-// VUESTRATA_AUTH_ADAPTER consistently across runtime code, env examples, and docs.
-export const AUTH_ADAPTER_ENV_KEY = 'VUESTRATA_AUTH_ADAPTER' as const
-
-const configLogger = createScopedLogger('app-config')
-
-const VALID_AUTH_PROVIDERS = ['mock', 'jwt', 'oauth'] as const satisfies ReadonlyArray<
-  AppConfig['authProvider']
->
-const VALID_ICON_PROVIDERS = ['solar', 'lucide', 'phosphor'] as const satisfies ReadonlyArray<
-  AppConfig['iconProvider']
->
+// Re-exported so app-layer code keeps importing configuration from one place.
+// The schema itself lives in core/lib/config because the API client (also core)
+// consumes it, and core must not depend on app.
+export {
+  AUTH_ADAPTER_ENV_KEY,
+  AUTH_ADAPTERS,
+  ENV_KEYS,
+  ICON_PROVIDERS,
+  RUNTIME_MODES,
+  isDemoRuntime,
+} from '~/lib/config'
+export type { AuthAdapterName, IconProviderName, RuntimeEnv, RuntimeMode } from '~/lib/config'
 
 /**
- * Validate an env value against a fixed allowlist and fall back to a default
- * when unset or invalid. Unsafe `as` casts on env vars are a security and
- * correctness hazard — prefer this helper at every env boundary.
+ * The configured auth adapter. Exported separately because it is read during
+ * bootstrap before `appConfig` consumers exist.
  */
-function pickEnum<T extends string>(
-  envKey: string,
-  value: unknown,
-  allowed: ReadonlyArray<T>,
-  fallback: T,
-): T {
-  if (value === undefined || value === null || value === '') return fallback
-  if (typeof value === 'string' && (allowed as ReadonlyArray<string>).includes(value)) {
-    return value as T
-  }
-  configLogger.warn(
-    `Invalid ${envKey} value ${JSON.stringify(value)} — expected one of ${allowed.join(', ')}. Falling back to "${fallback}".`,
-  )
-  return fallback
-}
-
-function resolveAuthAdapter(): AppConfig['authProvider'] {
-  const raw = import.meta.env.VUESTRATA_AUTH_ADAPTER
-  if (import.meta.env.PROD) {
-    if (typeof raw !== 'string' || !(VALID_AUTH_PROVIDERS as ReadonlyArray<string>).includes(raw)) {
-      throw new Error(
-        `[app-config] ${AUTH_ADAPTER_ENV_KEY} must be set to one of ${VALID_AUTH_PROVIDERS.join(', ')} in production (received ${JSON.stringify(raw)}).`,
-      )
-    }
-    return raw as AppConfig['authProvider']
-  }
-  return pickEnum(AUTH_ADAPTER_ENV_KEY, raw, VALID_AUTH_PROVIDERS, 'mock')
-}
-
-export const authAdapter = resolveAuthAdapter()
+export const authAdapter = runtimeEnv.authAdapter
 
 export const appConfig: AppConfig = {
-  title: import.meta.env.VUESTRATA_APP_TITLE || 'Vuestrata',
-  apiUrl: import.meta.env.VUESTRATA_API_URL || '/api',
-  useMocks: import.meta.env.VUESTRATA_USE_MOCKS === 'true',
-  authProvider: authAdapter,
-  iconProvider: pickEnum(
-    'VUESTRATA_ICON_PROVIDER',
-    import.meta.env.VUESTRATA_ICON_PROVIDER,
-    VALID_ICON_PROVIDERS,
-    'solar',
-  ),
-  demoAuth: {
-    retentionHours: (() => {
-      const raw = Number(import.meta.env.VITE_VUESTRATA_DEMO_AUTH_RETENTION_HOURS)
-      return !isNaN(raw) && raw >= 1 ? Math.floor(raw) : 24
-    })(),
-  },
+  runtimeMode: runtimeEnv.runtimeMode,
+  title: runtimeEnv.title,
+  apiUrl: runtimeEnv.apiUrl,
+  useMocks: runtimeEnv.useMocks,
+  authProvider: runtimeEnv.authAdapter,
+  iconProvider: runtimeEnv.iconProvider,
+  theme: runtimeEnv.theme,
+  demoAuth: runtimeEnv.demoAuth,
+  errorReporting: runtimeEnv.errorReporting,
 }

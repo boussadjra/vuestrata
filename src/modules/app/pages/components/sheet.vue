@@ -34,7 +34,7 @@ const usageCode = `<UiSheet v-model="open" title="Sheet Title" description="A ba
   <template #trigger>
     <UiButton>Open Sheet</UiButton>
   </template>
-  <p class="text-sm text-surface-600 dark:text-surface-400">This is the sheet body content.</p>
+  <p class="text-sm text-muted-foreground">This is the sheet body content.</p>
 </UiSheet>`
 
 const sidesCode = `<UiSheet v-model="leftOpen" side="left" title="Left Sheet" description="Slides in from the left.">
@@ -99,7 +99,7 @@ const apiSlots: ApiSlotRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Sheet</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         A panel that slides in from the edge of the screen, useful for secondary content and forms.
       </p>
     </header>
@@ -112,7 +112,7 @@ const apiSlots: ApiSlotRow[] = [
           <template #trigger>
             <UiButton>Open Sheet</UiButton>
           </template>
-          <p class="text-surface-600 dark:text-surface-400 text-sm">
+          <p class="text-muted-foreground text-sm">
             This is the sheet body content. You can place anything here.
           </p>
         </UiSheet>
@@ -210,7 +210,7 @@ const apiSlots: ApiSlotRow[] = [
             <template #trigger>
               <UiButton>Open Sheet</UiButton>
             </template>
-            <p class="text-surface-600 dark:text-surface-400 text-sm">Sheet content goes here.</p>
+            <p class="text-muted-foreground text-sm">Sheet content goes here.</p>
           </UiSheet>
         </template>
       </ComponentPlayground>

@@ -21,14 +21,14 @@ const usageCode = `<UiDialog v-model="open" title="Basic Dialog" description="Th
   <template #trigger>
     <UiButton>Open Dialog</UiButton>
   </template>
-  <p class="text-sm text-surface-600 dark:text-surface-400">Here is the dialog content.</p>
+  <p class="text-sm text-muted-foreground">Here is the dialog content.</p>
 </UiDialog>`
 
 const confirmCode = `<UiDialog v-model="confirmOpen" title="Delete Item" description="This action cannot be undone.">
   <template #trigger>
     <UiButton variant="destructive">Delete</UiButton>
   </template>
-  <p class="text-sm text-surface-600 dark:text-surface-400">
+  <p class="text-sm text-muted-foreground">
     Are you sure you want to delete this item? All associated data will be permanently removed.
   </p>
   <template #footer>
@@ -60,7 +60,7 @@ const scrollCode = `<UiDialog v-model="scrollOpen" title="Terms of Service" desc
   <template #trigger>
     <UiButton variant="secondary">View Terms</UiButton>
   </template>
-  <div class="max-h-60 overflow-y-auto space-y-4 text-sm text-surface-600 dark:text-surface-400">
+  <div class="max-h-60 overflow-y-auto space-y-4 text-sm text-muted-foreground">
     <p>Lorem ipsum dolor sit amet...</p>
   </div>
   <template #footer>
@@ -93,7 +93,7 @@ const apiSlots: ApiSlotRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Dialog</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         A modal overlay that focuses attention on a critical interaction or message.
       </p>
     </header>
@@ -110,7 +110,7 @@ const apiSlots: ApiSlotRow[] = [
           <template #trigger>
             <UiButton>Open Dialog</UiButton>
           </template>
-          <p class="text-surface-600 dark:text-surface-400 text-sm">
+          <p class="text-muted-foreground text-sm">
             Here is the dialog content. You can place any elements inside.
           </p>
         </UiDialog>
@@ -129,7 +129,7 @@ const apiSlots: ApiSlotRow[] = [
           <template #trigger>
             <UiButton variant="destructive">Delete</UiButton>
           </template>
-          <p class="text-surface-600 dark:text-surface-400 text-sm">
+          <p class="text-muted-foreground text-sm">
             Are you sure you want to delete this item? All associated data will be permanently
             removed.
           </p>
@@ -189,9 +189,7 @@ const apiSlots: ApiSlotRow[] = [
           <template #trigger>
             <UiButton variant="secondary">View Terms</UiButton>
           </template>
-          <div
-            class="text-surface-600 dark:text-surface-400 max-h-60 space-y-4 overflow-y-auto text-sm"
-          >
+          <div class="text-muted-foreground max-h-60 space-y-4 overflow-y-auto text-sm">
             <p>
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
               incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
@@ -233,7 +231,7 @@ const apiSlots: ApiSlotRow[] = [
             <template #trigger>
               <UiButton>Open Dialog</UiButton>
             </template>
-            <p class="text-surface-600 dark:text-surface-400 text-sm">Dialog content goes here.</p>
+            <p class="text-muted-foreground text-sm">Dialog content goes here.</p>
           </UiDialog>
         </template>
       </ComponentPlayground>

@@ -16,20 +16,14 @@ const { t } = useI18n()
         >
           {{ t('not_found_kicker') }}
         </p>
-        <h1
-          class="text-surface-900 dark:text-surface-50 font-mono text-7xl leading-none font-bold md:text-8xl"
-        >
-          404
-        </h1>
+        <h1 class="text-foreground font-mono text-7xl leading-none font-bold md:text-8xl">404</h1>
       </div>
 
       <div>
-        <h2
-          class="text-surface-900 dark:text-surface-50 text-3xl font-bold tracking-tight md:text-4xl"
-        >
+        <h2 class="text-foreground text-3xl font-bold tracking-tight md:text-4xl">
           {{ t('not_found_message') }}
         </h2>
-        <p class="text-surface-600 dark:text-surface-400 mt-4 max-w-2xl text-lg leading-relaxed">
+        <p class="text-muted-foreground mt-4 max-w-2xl text-lg leading-relaxed">
           {{ t('not_found_description') }}
         </p>
 

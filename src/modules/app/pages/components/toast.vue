@@ -57,7 +57,7 @@ const apiEvents: ApiEventRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Toast</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         Temporary notification popups with variants and auto-dismiss.
       </p>
     </header>

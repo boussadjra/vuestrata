@@ -74,7 +74,7 @@ const apiEvents: ApiEventRow[] = [
   <div class="space-y-12">
     <header>
       <h1 class="mb-2 text-3xl font-bold">Select</h1>
-      <p class="text-surface-500 dark:text-surface-400 text-lg">
+      <p class="text-muted-foreground text-lg">
         Dropdown select for choosing one option from a list.
       </p>
     </header>

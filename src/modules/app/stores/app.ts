@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { useAppStorage } from '~/composables/useAppStorage'
+import { appConfig } from '~/config/app.config'
 import { createScopedLogger } from '~/lib/logger'
 import {
   APPEARANCE_KEYS,
@@ -34,20 +35,19 @@ export const useAppStore = defineStore('app', () => {
     validate: isSupportedLocale,
     fallback: 'en',
   })
-  const theme = useAppStorage<ThemeName>(
-    APPEARANCE_KEYS.theme,
-    import.meta.env.VUESTRATA_THEME || 'default',
-  )
+  // Defaults come from the validated env boundary, not raw import.meta.env —
+  // appConfig has already checked these against their allowlists.
+  const theme = useAppStorage<ThemeName>(APPEARANCE_KEYS.theme, appConfig.theme)
   const isDark = useAppStorage<boolean>(APPEARANCE_KEYS.dark, () => {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
   const iconProvider = useAppStorage<IconProvider>(
     'vuestrata-icon-provider',
-    import.meta.env.VUESTRATA_ICON_PROVIDER || 'solar',
+    appConfig.iconProvider,
     {
       validate: isAllowed(ICON_PROVIDERS),
-      fallback: import.meta.env.VUESTRATA_ICON_PROVIDER || 'solar',
+      fallback: appConfig.iconProvider,
     },
   )
 
