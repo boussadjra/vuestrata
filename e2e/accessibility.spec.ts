@@ -1,46 +1,165 @@
 import AxeBuilder from '@axe-core/playwright'
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
 import { logInAsDemoAdmin } from './helpers/auth'
 
-test.describe('Accessibility audit', () => {
-  test('home page should have no critical a11y violations', async ({ page }) => {
-    await page.goto('/')
-    const results = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-      .analyze()
+/**
+ * Automated accessibility audit.
+ *
+ * Two things changed here beyond adding pages:
+ *
+ * 1. **A readiness wait.** `page.goto()` resolves on document load, not on the
+ *    Vue app mounting. Auditing immediately raced the first render — against a
+ *    built preview axe ran over a half-rendered tree, and against the dev
+ *    server it often ran over nothing at all. A suite that audits an empty page
+ *    passes every time while testing nothing.
+ *
+ * 2. **`serious` is now a failure, not just `critical`.** Most real barriers —
+ *    insufficient contrast, a missing form label, an unlabelled control — are
+ *    classified `serious`. Asserting only on `critical` let all of them through.
+ *
+ * Axe cannot judge focus order, whether an announcement makes sense, or whether
+ * a chart is comprehensible. See `docs/7.testing/` for the manual checklist.
+ */
 
-    expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([])
-  })
+const BLOCKING_IMPACTS = new Set(['critical', 'serious'])
 
-  test('login page should have no critical a11y violations', async ({ page }) => {
-    await page.goto('/auth/login')
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+/** Appearance preferences persisted by `plugins/appearance.ts`. */
+const APPEARANCE_KEYS = {
+  dark: 'vuestrata-dark',
+  theme: 'vuestrata-theme',
+  locale: 'vuestrata-locale',
+}
 
-    expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([])
-  })
+interface Appearance {
+  dark?: boolean
+  theme?: string
+  locale?: 'en' | 'fr' | 'ar'
+}
 
-  test('dashboard should have no critical a11y violations', async ({ page }) => {
+/**
+ * Seed appearance BEFORE the app boots.
+ *
+ * `bootstrapTheme()` reads localStorage pre-mount to avoid a flash of the wrong
+ * theme, so setting it after navigation would require a reload to take effect.
+ */
+async function applyAppearance(page: Page, appearance: Appearance) {
+  await page.addInitScript(
+    ({ keys, value }) => {
+      // Raw strings, not JSON: appearance.ts reads these with getItem and
+      // compares directly, so a JSON-quoted value fails its validation and
+      // silently falls back to the default.
+      if (value.dark !== undefined) localStorage.setItem(keys.dark, String(value.dark))
+      if (value.theme) localStorage.setItem(keys.theme, value.theme)
+      if (value.locale) localStorage.setItem(keys.locale, value.locale)
+    },
+    { keys: APPEARANCE_KEYS, value: appearance },
+  )
+}
+
+async function gotoAndSettle(page: Page, path: string): Promise<void> {
+  await page.goto(path)
+  await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
+  await expect(page.locator('main').first()).toBeVisible({ timeout: 20_000 })
+  // Formwerk wires label associations in a post-mount effect; let in-flight
+  // work settle before inspecting the DOM.
+  await page.waitForLoadState('networkidle')
+}
+
+async function audit(page: Page, tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']) {
+  const results = await new AxeBuilder({ page }).withTags(tags).analyze()
+  const blocking = results.violations.filter((violation) =>
+    BLOCKING_IMPACTS.has(violation.impact ?? ''),
+  )
+
+  // Assert on a readable summary — the raw violation objects carry node arrays
+  // that produce hundreds of lines of unusable diff on failure.
+  expect(
+    blocking.map((violation) => `[${violation.impact}] ${violation.id}: ${violation.help}`),
+    'Blocking accessibility violations',
+  ).toEqual([])
+}
+
+test.describe('Accessibility — public pages', () => {
+  for (const path of ['/', '/auth/login', '/auth/register', '/403']) {
+    test(`${path} has no blocking violations`, async ({ page }) => {
+      await gotoAndSettle(page, path)
+      await audit(page)
+    })
+  }
+})
+
+test.describe('Accessibility — authenticated pages', () => {
+  for (const path of [
+    '/dashboard',
+    '/dashboard/charts',
+    '/dashboard/audit',
+    '/dashboard/forms',
+    '/dashboard/settings',
+    // One page per interaction pattern the domain modules introduce. Auditing
+    // all twenty-odd routes would mostly re-audit the same shell; these are the
+    // ones whose *structure* differs, and structure is what axe can see:
+    // a server-backed grid, a record page, a multi-step form, a card grid, a
+    // board, a date grid, master/detail, a feed, a directory, a report table.
+    '/dashboard/customers',
+    '/dashboard/customers/CUS-1000',
+    '/dashboard/orders/new',
+    '/dashboard/products',
+    '/dashboard/projects',
+    '/dashboard/calendar',
+    '/dashboard/messages',
+    '/dashboard/notifications',
+    '/dashboard/team',
+    '/dashboard/reports',
+    '/dashboard/account',
+  ]) {
+    test(`${path} has no blocking violations`, async ({ page }) => {
+      await logInAsDemoAdmin(page)
+      await gotoAndSettle(page, path)
+      await audit(page)
+    })
+  }
+})
+
+/**
+ * Colour-mode and theme matrix.
+ *
+ * Each theme installs its own ramps, and dark mode re-points the semantic
+ * tokens on top of them, so a contrast pass on the default light theme says
+ * nothing about the other nineteen combinations. Auditing all ten themes in
+ * both modes on every page would be far too slow for CI, so this covers the
+ * highest-signal combinations: the default theme in both modes, plus the two
+ * themes whose ramps sit closest to their surfaces.
+ */
+test.describe('Accessibility — theme and colour-mode matrix', () => {
+  const combinations = [
+    { theme: 'default', dark: false },
+    { theme: 'default', dark: true },
+    // Low-contrast risk: near-black surfaces with saturated accents.
+    { theme: 'terminal', dark: true },
+    // Light, low-saturation ramps where muted text is most at risk.
+    { theme: 'ghibli', dark: false },
+    { theme: 'brutalist', dark: true },
+  ]
+
+  for (const { theme, dark } of combinations) {
+    test(`${theme} / ${dark ? 'dark' : 'light'} — dashboard`, async ({ page }) => {
+      await logInAsDemoAdmin(page)
+      await applyAppearance(page, { theme, dark })
+      await gotoAndSettle(page, '/dashboard')
+      await audit(page)
+    })
+  }
+})
+
+test.describe('Accessibility — RTL', () => {
+  test('Arabic locale renders right-to-left without violations', async ({ page }) => {
     await logInAsDemoAdmin(page)
-    await page.goto('/dashboard')
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    await applyAppearance(page, { locale: 'ar' })
+    await gotoAndSettle(page, '/dashboard')
 
-    expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([])
-  })
-
-  test('forms page should have no critical a11y violations', async ({ page }) => {
-    await logInAsDemoAdmin(page)
-    await page.goto('/dashboard/forms')
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
-
-    expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([])
-  })
-
-  test('tables page should have no critical a11y violations', async ({ page }) => {
-    await logInAsDemoAdmin(page)
-    await page.goto('/dashboard/tables')
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
-
-    expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([])
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ar')
+    await audit(page)
   })
 })

@@ -91,7 +91,7 @@ test.describe('Contact form — validation', () => {
     await page.locator('button[type="submit"]').first().click()
 
     // Expect at least one error message to appear
-    const errors = page.locator('p.text-xs.text-red-500')
+    const errors = page.locator('form [role="alert"]')
     await expect(errors.first()).toBeVisible({ timeout: 3_000 })
   })
 
@@ -183,7 +183,7 @@ test.describe('Contact form — validation', () => {
 
     // The Zod error message from z.literal(true).message
     await expect(
-      page.locator('p.text-xs.text-red-500').filter({ hasText: /agree/i }).first(),
+      page.locator('form [role="alert"]').filter({ hasText: /agree/i }).first(),
     ).toBeVisible({ timeout: 3_000 })
   })
 })
@@ -357,7 +357,7 @@ test.describe('Accessibility', () => {
     await page.locator('button[type="submit"]').first().click()
 
     // If no role=alert, fall back to checking for error text
-    const errorTexts = page.locator('p.text-xs.text-red-500')
+    const errorTexts = page.locator('form [role="alert"]')
     const count = await errorTexts.count()
     // At least some errors should appear
     expect(count).toBeGreaterThan(0)
