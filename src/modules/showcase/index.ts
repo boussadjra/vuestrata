@@ -28,13 +28,23 @@ const showcaseModule: ModuleDefinition = {
       path: '/dashboard/forms',
       name: '/dashboard/forms',
       component: () => import('./pages/forms.vue'),
-      meta: { layout: 'dashboard', requiresAuth: true, module: 'showcase' },
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        module: 'showcase',
+        title: 'sidebar_forms',
+      },
     },
     {
       path: '/dashboard/tables',
       name: '/dashboard/tables',
       component: () => import('./pages/tables.vue'),
-      meta: { layout: 'dashboard', requiresAuth: true, module: 'showcase' },
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        module: 'showcase',
+        title: 'sidebar_tables',
+      },
     },
   ],
 
@@ -43,13 +53,22 @@ const showcaseModule: ModuleDefinition = {
       label: 'sidebar_forms',
       icon: 'document',
       to: '/dashboard/forms',
+      group: 'reference',
       order: 40,
     },
     {
       label: 'sidebar_tables',
       icon: 'database',
       to: '/dashboard/tables',
+      group: 'reference',
       order: 41,
+    },
+    {
+      label: 'sidebar_components',
+      icon: 'widget',
+      to: '/docs/components/overview',
+      group: 'reference',
+      order: 42,
     },
   ],
 

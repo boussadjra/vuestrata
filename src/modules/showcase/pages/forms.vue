@@ -136,7 +136,7 @@ async function handleProfileSubmit() {
       <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
         {{ t('forms_title') }}
       </h1>
-      <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('forms_subtitle') }}</p>
+      <p class="text-muted-foreground mt-1">{{ t('forms_subtitle') }}</p>
     </div>
 
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
@@ -147,13 +147,13 @@ async function handleProfileSubmit() {
         <h2 class="text-surface-900 mb-1 text-xl font-bold dark:text-white">
           {{ t('forms_contact') }}
         </h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+        <p class="text-muted-foreground mb-6 text-sm">
           {{ t('forms_contact_desc') }}
         </p>
 
         <form class="space-y-5" @submit.prevent="handleContactSubmit">
           <div>
-            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+            <label class="text-foreground mb-1.5 block text-sm font-medium"
               >{{ t('forms_name') }} *</label
             >
             <input
@@ -162,18 +162,18 @@ async function handleProfileSubmit() {
               :class="[
                 'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
                 contactErrors.name
-                  ? 'border-red-500 focus:ring-red-500/20'
+                  ? 'border-destructive focus:ring-danger-500/20'
                   : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
               ]"
               :placeholder="t('forms_name_placeholder')"
             />
-            <p v-if="contactErrors.name" class="mt-1 text-xs text-red-500">
+            <p v-if="contactErrors.name" role="alert" class="text-destructive mt-1 text-xs">
               {{ contactErrors.name }}
             </p>
           </div>
 
           <div>
-            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+            <label class="text-foreground mb-1.5 block text-sm font-medium"
               >{{ t('forms_email') }} *</label
             >
             <input
@@ -182,18 +182,18 @@ async function handleProfileSubmit() {
               :class="[
                 'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
                 contactErrors.email
-                  ? 'border-red-500 focus:ring-red-500/20'
+                  ? 'border-destructive focus:ring-danger-500/20'
                   : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
               ]"
               :placeholder="t('forms_email_placeholder')"
             />
-            <p v-if="contactErrors.email" class="mt-1 text-xs text-red-500">
+            <p v-if="contactErrors.email" role="alert" class="text-destructive mt-1 text-xs">
               {{ contactErrors.email }}
             </p>
           </div>
 
           <div>
-            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+            <label class="text-foreground mb-1.5 block text-sm font-medium"
               >{{ t('forms_subject') }} *</label
             >
             <input
@@ -202,18 +202,18 @@ async function handleProfileSubmit() {
               :class="[
                 'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
                 contactErrors.subject
-                  ? 'border-red-500 focus:ring-red-500/20'
+                  ? 'border-destructive focus:ring-danger-500/20'
                   : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
               ]"
               :placeholder="t('forms_subject_placeholder')"
             />
-            <p v-if="contactErrors.subject" class="mt-1 text-xs text-red-500">
+            <p v-if="contactErrors.subject" role="alert" class="text-destructive mt-1 text-xs">
               {{ contactErrors.subject }}
             </p>
           </div>
 
           <div>
-            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+            <label class="text-foreground mb-1.5 block text-sm font-medium"
               >{{ t('forms_message') }} *</label
             >
             <textarea
@@ -222,21 +222,20 @@ async function handleProfileSubmit() {
               :class="[
                 'bg-surface-50 dark:bg-surface-900 w-full resize-none rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
                 contactErrors.message
-                  ? 'border-red-500 focus:ring-red-500/20'
+                  ? 'border-destructive focus:ring-danger-500/20'
                   : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
               ]"
               :placeholder="t('forms_message_placeholder')"
             />
-            <p v-if="contactErrors.message" class="mt-1 text-xs text-red-500">
+            <p v-if="contactErrors.message" role="alert" class="text-destructive mt-1 text-xs">
               {{ contactErrors.message }}
             </p>
           </div>
 
           <div>
-            <label
-              class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
-              >{{ t('forms_priority') }}</label
-            >
+            <label class="text-foreground mb-1.5 block text-sm font-medium">{{
+              t('forms_priority')
+            }}</label>
             <div class="flex gap-3">
               <label
                 v-for="p in ['low', 'medium', 'high']"
@@ -250,9 +249,7 @@ async function handleProfileSubmit() {
                   :value="p"
                   class="accent-primary-500"
                 />
-                <span class="text-surface-600 dark:text-surface-300 text-sm capitalize">{{
-                  p
-                }}</span>
+                <span class="text-muted-foreground text-sm capitalize">{{ p }}</span>
               </label>
             </div>
           </div>
@@ -264,11 +261,9 @@ async function handleProfileSubmit() {
                 type="checkbox"
                 class="border-surface-300 dark:border-surface-600 accent-primary-500 rounded"
               />
-              <span class="text-surface-600 dark:text-surface-300 text-sm"
-                >{{ t('forms_agree_terms') }} *</span
-              >
+              <span class="text-muted-foreground text-sm">{{ t('forms_agree_terms') }} *</span>
             </label>
-            <p v-if="contactErrors.agreeTerms" class="mt-1 text-xs text-red-500">
+            <p v-if="contactErrors.agreeTerms" role="alert" class="text-destructive mt-1 text-xs">
               {{ contactErrors.agreeTerms }}
             </p>
           </div>
@@ -290,90 +285,99 @@ async function handleProfileSubmit() {
         <h2 class="text-surface-900 mb-1 text-xl font-bold dark:text-white">
           {{ t('forms_profile') }}
         </h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+        <p class="text-muted-foreground mb-6 text-sm">
           {{ t('forms_profile_desc') }}
         </p>
 
         <form class="space-y-5" @submit.prevent="handleProfileSubmit">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              <label
+                for="profile-first-name"
+                class="text-foreground mb-1.5 block text-sm font-medium"
                 >{{ t('forms_first_name') }} *</label
               >
               <input
+                id="profile-first-name"
                 v-model="profileData.firstName"
                 type="text"
                 :class="[
                   'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
                   profileErrors.firstName
-                    ? 'border-red-500 focus:ring-red-500/20'
+                    ? 'border-destructive focus:ring-danger-500/20'
                     : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
                 ]"
               />
-              <p v-if="profileErrors.firstName" class="mt-1 text-xs text-red-500">
+              <p v-if="profileErrors.firstName" role="alert" class="text-destructive mt-1 text-xs">
                 {{ profileErrors.firstName }}
               </p>
             </div>
             <div>
-              <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+              <label
+                for="profile-last-name"
+                class="text-foreground mb-1.5 block text-sm font-medium"
                 >{{ t('forms_last_name') }} *</label
               >
               <input
+                id="profile-last-name"
                 v-model="profileData.lastName"
                 type="text"
                 :class="[
                   'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
                   profileErrors.lastName
-                    ? 'border-red-500 focus:ring-red-500/20'
+                    ? 'border-destructive focus:ring-danger-500/20'
                     : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
                 ]"
               />
-              <p v-if="profileErrors.lastName" class="mt-1 text-xs text-red-500">
+              <p v-if="profileErrors.lastName" role="alert" class="text-destructive mt-1 text-xs">
                 {{ profileErrors.lastName }}
               </p>
             </div>
           </div>
 
           <div>
-            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+            <label for="profile-email" class="text-foreground mb-1.5 block text-sm font-medium"
               >{{ t('forms_email') }} *</label
             >
             <input
+              id="profile-email"
               v-model="profileData.email"
               type="email"
               :class="[
                 'bg-surface-50 dark:bg-surface-900 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2',
                 profileErrors.email
-                  ? 'border-red-500 focus:ring-red-500/20'
+                  ? 'border-destructive focus:ring-danger-500/20'
                   : 'border-surface-200 dark:border-surface-700 focus:ring-primary-500/20 focus:border-primary-500',
               ]"
             />
-            <p v-if="profileErrors.email" class="mt-1 text-xs text-red-500">
+            <p v-if="profileErrors.email" role="alert" class="text-destructive mt-1 text-xs">
               {{ profileErrors.email }}
             </p>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label
-                class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
-                >{{ t('forms_phone') }}</label
-              >
+              <label for="profile-phone" class="text-foreground mb-1.5 block text-sm font-medium">{{
+                t('forms_phone')
+              }}</label>
               <input
+                id="profile-phone"
                 v-model="profileData.phone"
                 type="tel"
                 class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
               />
-              <p v-if="profileErrors.phone" class="mt-1 text-xs text-red-500">
+              <p v-if="profileErrors.phone" role="alert" class="text-destructive mt-1 text-xs">
                 {{ profileErrors.phone }}
               </p>
             </div>
             <div>
               <label
-                class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+                for="profile-company"
+                class="text-foreground mb-1.5 block text-sm font-medium"
                 >{{ t('forms_company') }}</label
               >
               <input
+                id="profile-company"
                 v-model="profileData.company"
                 type="text"
                 class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
@@ -382,10 +386,11 @@ async function handleProfileSubmit() {
           </div>
 
           <div>
-            <label class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
+            <label for="profile-role" class="text-foreground mb-1.5 block text-sm font-medium"
               >{{ t('forms_role') }} *</label
             >
             <select
+              id="profile-role"
               v-model="profileData.role"
               class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
             >
@@ -397,16 +402,16 @@ async function handleProfileSubmit() {
           </div>
 
           <div>
-            <label
-              class="text-surface-700 dark:text-surface-300 mb-1.5 block text-sm font-medium"
-              >{{ t('forms_bio') }}</label
-            >
+            <label for="profile-bio" class="text-foreground mb-1.5 block text-sm font-medium">{{
+              t('forms_bio')
+            }}</label>
             <textarea
+              id="profile-bio"
               v-model="profileData.bio"
               :rows="3"
               class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 focus:ring-primary-500/20 focus:border-primary-500 w-full resize-none rounded-xl border px-3 py-2.5 text-sm transition-all outline-none focus:ring-2"
             />
-            <p class="text-surface-400 mt-1 text-xs">
+            <p class="text-muted-foreground mt-1 text-xs">
               {{ t('forms_char_count', { count: (profileData.bio ?? '').length }) }}
             </p>
           </div>
@@ -419,7 +424,9 @@ async function handleProfileSubmit() {
                 <p class="text-surface-900 text-sm font-medium dark:text-white">
                   {{ t('forms_email_notifications') }}
                 </p>
-                <p class="text-surface-400 text-xs">{{ t('forms_email_notifications_desc') }}</p>
+                <p class="text-muted-foreground text-xs">
+                  {{ t('forms_email_notifications_desc') }}
+                </p>
               </div>
               <input
                 v-model="profileData.notifications"
@@ -434,7 +441,7 @@ async function handleProfileSubmit() {
                 <p class="text-surface-900 text-sm font-medium dark:text-white">
                   {{ t('forms_public_profile') }}
                 </p>
-                <p class="text-surface-400 text-xs">{{ t('forms_public_profile_desc') }}</p>
+                <p class="text-muted-foreground text-xs">{{ t('forms_public_profile_desc') }}</p>
               </div>
               <input
                 v-model="profileData.publicProfile"
@@ -459,7 +466,7 @@ async function handleProfileSubmit() {
       <h2 class="text-surface-900 mb-1 text-xl font-bold dark:text-white">
         {{ t('forms_primitives') }}
       </h2>
-      <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+      <p class="text-muted-foreground mb-6 text-sm">
         {{ t('forms_primitives_desc') }}
       </p>
 
@@ -468,7 +475,7 @@ async function handleProfileSubmit() {
         <div class="space-y-1.5">
           <label
             v-bind="nameField.labelProps.value"
-            class="text-surface-700 dark:text-surface-300 block text-sm font-medium"
+            class="text-foreground block text-sm font-medium"
             >{{ t('forms_full_name') }}</label
           >
           <input
@@ -482,7 +489,7 @@ async function handleProfileSubmit() {
         <div class="space-y-1.5">
           <label
             v-bind="emailField.labelProps.value"
-            class="text-surface-700 dark:text-surface-300 block text-sm font-medium"
+            class="text-foreground block text-sm font-medium"
             >{{ t('forms_email') }}</label
           >
           <input
@@ -494,9 +501,7 @@ async function handleProfileSubmit() {
 
         <!-- NumberField -->
         <div class="space-y-1.5">
-          <label class="text-surface-700 dark:text-surface-300 block text-sm font-medium">{{
-            t('forms_age')
-          }}</label>
+          <label class="text-foreground block text-sm font-medium">{{ t('forms_age') }}</label>
           <div class="flex items-center gap-2">
             <UiButton v-bind="ageField.decrementButtonProps.value" variant="secondary" size="sm">
               −
@@ -515,7 +520,7 @@ async function handleProfileSubmit() {
         <div class="space-y-1.5 md:col-span-2">
           <label
             v-bind="bioField.labelProps.value"
-            class="text-surface-700 dark:text-surface-300 block text-sm font-medium"
+            class="text-foreground block text-sm font-medium"
             >{{ t('forms_bio') }}</label
           >
           <textarea
@@ -533,16 +538,14 @@ async function handleProfileSubmit() {
             type="checkbox"
             class="border-surface-300 dark:border-surface-600 accent-primary-500 h-4 w-4 rounded"
           />
-          <label
-            v-bind="newsletter.labelProps.value"
-            class="text-surface-700 dark:text-surface-300 text-sm"
-            >{{ t('forms_subscribe_newsletter') }}</label
-          >
+          <label v-bind="newsletter.labelProps.value" class="text-foreground text-sm">{{
+            t('forms_subscribe_newsletter')
+          }}</label>
         </div>
 
         <!-- RadioGroup -->
         <fieldset class="space-y-2">
-          <legend class="text-surface-700 dark:text-surface-300 block text-sm font-medium">
+          <legend class="text-foreground block text-sm font-medium">
             {{ t('forms_preferred_role') }}
           </legend>
           <div class="space-y-2">
@@ -554,9 +557,7 @@ async function handleProfileSubmit() {
                 value="developer"
                 class="accent-primary-500"
               />
-              <span class="text-surface-600 dark:text-surface-300 text-sm">{{
-                t('forms_developer')
-              }}</span>
+              <span class="text-muted-foreground text-sm">{{ t('forms_developer') }}</span>
             </label>
             <label class="flex cursor-pointer items-center gap-2">
               <input
@@ -566,9 +567,7 @@ async function handleProfileSubmit() {
                 value="designer"
                 class="accent-primary-500"
               />
-              <span class="text-surface-600 dark:text-surface-300 text-sm">{{
-                t('forms_designer')
-              }}</span>
+              <span class="text-muted-foreground text-sm">{{ t('forms_designer') }}</span>
             </label>
             <label class="flex cursor-pointer items-center gap-2">
               <input
@@ -578,9 +577,7 @@ async function handleProfileSubmit() {
                 value="manager"
                 class="accent-primary-500"
               />
-              <span class="text-surface-600 dark:text-surface-300 text-sm">{{
-                t('forms_manager')
-              }}</span>
+              <span class="text-muted-foreground text-sm">{{ t('forms_manager') }}</span>
             </label>
           </div>
         </fieldset>
