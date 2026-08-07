@@ -1,0 +1,81 @@
+name: Deploy Demo
+
+on:
+  # Runs only after CI has fully succeeded on the same commit. A deploy that
+  # does not wait for the e2e gate would publish artifacts nobody verified.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Manual re-deploy, e.g. after rotating a Vercel token.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    # `workflow_run` fires on failure too, so the result must be checked
+    # explicitly — this is the actual gate.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    environment:
+      name: demo
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      # These are the exact variables the hosted demo needs. The env schema
+      # rejects any other combination at build time, so a misconfigured deploy
+      # fails here rather than serving a broken demo.
+      - name: Build demo artifact
+        env:
+          VUESTRATA_RUNTIME_MODE: demo
+          VUESTRATA_USE_MOCKS: 'true'
+          VUESTRATA_AUTH_ADAPTER: mock
+          VUESTRATA_API_URL: /api
+          VUESTRATA_APP_TITLE: Vuestrata Demo
+          VUESTRATA_RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: vp build
+
+      - name: Verify bundle invariants
+        run: node scripts/build/verify-bundle.mjs --mode=demo
+
+      - name: Deploy
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN is not set — skipping deploy."
+            echo "url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # --prebuilt would need `vercel build`, which would re-run the build
+          # without the env above. Deploy dist/ as a static artifact instead.
+          url=$(npx --yes vercel@latest deploy dist \
+            --token "$VERCEL_TOKEN" \
+            --prod \
+            --yes \
+            --archive=tgz)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to $url"

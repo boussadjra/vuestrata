@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# A newer push to the same branch makes an in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: '20'
 
@@ -21,6 +29,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: vp lint
       - run: node scripts/lint/run-custom-rules.mjs
+      # The committed MSW worker does not update when the dependency does. A
+      # stale one fails MSW's integrity check at runtime and silently disables
+      # mocking, which would take the whole hosted demo down.
+      - run: node scripts/msw/check-worker-version.mjs
+      # Docs rot silently: a path renamed in a refactor leaves the prose
+      # pointing at a file nobody will find, and nothing fails. This checks the
+      # claims a machine can verify — that every source path and relative link
+      # still resolves.
+      - run: node scripts/docs/check-links.mjs
       - run: vp fmt --check
 
   typecheck:
@@ -35,24 +52,81 @@ jobs:
       - run: vp exec vue-tsc --noEmit
 
   test:
-    name: Unit Tests
+    name: Tests (${{ matrix.suite }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # All three suites now run. Previously only `unit` did, so the component
+        # and integration suites could rot without anyone noticing.
+        suite: [unit, component, integration]
     steps:
       - uses: actions/checkout@v4
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
-      - run: vp run test:unit -- --coverage
+      - run: vp run test:${{ matrix.suite }} -- --coverage
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage
+          name: coverage-${{ matrix.suite }}
           path: coverage/
 
-  e2e:
-    name: E2E Tests
+  build:
+    name: Build (${{ matrix.target }})
     runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Both artifacts are built and verified on every change. Building only
+          # one leaves the other free to break unnoticed until release day.
+          - target: demo
+            runtime_mode: demo
+            use_mocks: 'true'
+            auth_adapter: mock
+            api_url: /api
+          - target: production
+            runtime_mode: production
+            use_mocks: 'false'
+            auth_adapter: jwt
+            api_url: https://api.vuestrata.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build
+        env:
+          VUESTRATA_RUNTIME_MODE: ${{ matrix.runtime_mode }}
+          VUESTRATA_USE_MOCKS: ${{ matrix.use_mocks }}
+          VUESTRATA_AUTH_ADAPTER: ${{ matrix.auth_adapter }}
+          VUESTRATA_API_URL: ${{ matrix.api_url }}
+          VUESTRATA_RELEASE: ${{ github.sha }}
+        run: vp build
+
+      # Type checking and tests cannot see what ends up in the bundle. This is
+      # the only check that catches a regression reintroducing MSW or demo
+      # credentials into the production artifact.
+      - name: Verify bundle invariants
+        run: node scripts/build/verify-bundle.mjs --mode=${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist/
+          retention-days: 7
+
+  e2e:
+    name: E2E (built artifact)
+    runs-on: ubuntu-latest
+    # Depends on build so a broken bundle fails fast and cheaply, before
+    # spending browser time on it.
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
       - uses: voidzero-dev/setup-vp@v1
@@ -60,25 +134,36 @@ jobs:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
       - run: vp exec playwright install --with-deps chromium
-      - run: vp run test:e2e -- --project=chromium
+
+      # E2E_TARGET=preview makes Playwright run `vp build && vp preview` over
+      # dist/ rather than the dev server. This is what exercises the real
+      # chunking, the __VUESTRATA_DEMO__ compile-out, and MSW registering from
+      # a built artifact — none of which the dev server can prove.
+      # Includes the accessibility, RTL and keyboard-navigation suites — they
+      # live in e2e/ and run as part of the same pass.
+      - name: Run E2E against the production preview
+        env:
+          E2E_TARGET: preview
+        run: vp run test:e2e -- --project=chromium
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 7
 
-  build:
-    name: Build
+  # Single required status check. Point branch protection at this one job and it
+  # stays correct as jobs are added or renamed.
+  ci-ok:
+    name: CI OK
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test]
+    if: always()
+    needs: [lint, typecheck, test, build, e2e]
     steps:
-      - uses: actions/checkout@v4
-      - uses: voidzero-dev/setup-vp@v1
-        with:
-          cache: true
-          node-version: ${{ env.NODE_VERSION }}
-      - run: vp build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
+      - name: Fail if any dependency failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One or more CI jobs did not succeed."
+          exit 1
+      - run: echo "All CI jobs succeeded."

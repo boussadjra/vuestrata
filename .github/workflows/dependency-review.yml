@@ -1,0 +1,28 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Review dependency changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/dependency-review-action@v4
+        with:
+          # Block on high and above. Lower severities are surfaced in the PR
+          # comment for a judgement call rather than hard-failing the build.
+          fail-on-severity: high
+          # Copyleft licenses would change the licensing of anything built from
+          # this template, which is not a decision a dependency bump should make.
+          deny-licenses: AGPL-3.0, GPL-2.0, GPL-3.0, LGPL-2.0, LGPL-2.1, LGPL-3.0
+          comment-summary-in-pr: on-failure

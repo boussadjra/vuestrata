@@ -1,0 +1,51 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    labels: [dependencies]
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+
+    groups:
+      # Grouped so a week of routine bumps is one reviewable PR against one CI
+      # run, rather than a dozen competing branches that each invalidate the
+      # others' lockfile.
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      security:
+        applies-to: security-updates
+        patterns: ['*']
+
+    ignore:
+      # Vite+ wraps Vite, Vitest, Oxlint, Oxfmt and tsdown, and pins their
+      # versions itself. Bumping them independently breaks the toolchain — they
+      # must move together via `vp upgrade`. See AGENTS.md.
+      - dependency-name: vite
+      - dependency-name: vitest
+      - dependency-name: vite-plus
+      - dependency-name: '@voidzero-dev/*'
+      # Pinned to a pkg.pr.new build; a registry range would not resolve.
+      # See SECURITY.md for the supply-chain caveat.
+      - dependency-name: comark
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: 'chore(ci)'
+    groups:
+      actions:
+        patterns: ['*']
