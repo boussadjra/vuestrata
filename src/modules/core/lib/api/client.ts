@@ -1,20 +1,29 @@
 import { ofetch, type FetchOptions } from 'ofetch'
 
+import { runtimeEnv } from '~/lib/config'
 import { AppError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import { tryGetApiAuthBackend } from '~/lib/runtime'
 
-import { applyAuthHeaders, handleTokenRefresh, notifySessionExpired } from './auth-interceptor'
+import {
+  applyAuthHeaders,
+  getAuthTransport,
+  handleTokenRefresh,
+  notifySessionExpired,
+} from './auth-interceptor'
 
 export { installApiAuth, resetAuthInterceptor } from './auth-interceptor'
 export type { ApiAuthProvider } from './types'
 type ApiRequestOptions = Omit<FetchOptions<'json'>, 'method' | 'body'>
-// import.meta.env.VUESTRATA_API_URL may be a relative path like '/api'.
-// In Node (tests) a relative base breaks URL resolution inside ofetch
-// (new URL requires an absolute base). Normalize to an absolute URL
-// using the current origin in browser environments or fallback to
-// http://localhost during tests/Node.
-const _rawBaseURL = import.meta.env.VUESTRATA_API_URL || '/api'
+// `runtimeEnv.apiUrl` may be a relative path like '/api'. In Node (tests) a
+// relative base breaks URL resolution inside ofetch (new URL requires an
+// absolute base). Normalize to an absolute URL using the current origin in
+// browser environments, or fall back to http://localhost during tests/Node.
+//
+// Read through the validated env boundary (core/lib/config) rather than
+// import.meta.env directly, so there is one place that decides what a valid
+// API URL is.
+const _rawBaseURL = runtimeEnv.apiUrl
 const baseURL = ((): string => {
   try {
     if (typeof _rawBaseURL !== 'string') return String(_rawBaseURL)
@@ -74,7 +83,6 @@ export const apiFetch = ofetch.create({
   // Hard upper bound so a hung backend cannot keep a user-facing request
   // pending indefinitely; individual callers can still override if needed.
   timeout: 15_000,
-  credentials: 'include',
 
   onRequest({ options }) {
     const headers = new Headers(options.headers as HeadersInit)
@@ -82,18 +90,33 @@ export const apiFetch = ofetch.create({
 
     const method = (options.method ?? 'GET').toUpperCase()
     const isMutating = !IDEMPOTENT_METHODS.has(method)
+    const transport = getAuthTransport()
 
-    // Mutating requests need CSRF protection. If our cached value is null
-    // (e.g. the meta tag was injected after first read on a slow hydration),
-    // drop the cache and read once more before giving up — null-caching the
-    // first miss permanently would silently break every state-changing call.
-    let csrfToken = getCsrfToken()
-    if (!csrfToken && isMutating) {
-      invalidateCsrfToken()
-      csrfToken = getCsrfToken()
-    }
-    if (csrfToken) {
-      headers.set('X-CSRF-Token', csrfToken)
+    // `credentials` is set per-request rather than once on `ofetch.create`
+    // because it depends on the configured auth adapter, which is not known
+    // at module-evaluation time. It was previously hardcoded to 'include',
+    // so a bearer-token deployment sent ambient cookies on every request
+    // while ALSO sending an Authorization header — two credentials for a
+    // backend that asked for one.
+    options.credentials ??= transport === 'cookie' ? 'include' : 'omit'
+
+    // CSRF is a cookie-transport concern. With bearer tokens there is no
+    // ambient credential for a third-party page to ride on, so the header
+    // adds nothing; sending it anyway invites a backend to treat header
+    // presence as proof of a same-site request.
+    if (transport === 'cookie') {
+      // If the cached value is null (the meta tag was injected after the first
+      // read on a slow hydration) drop the cache and read once more before
+      // giving up — permanently null-caching the first miss would silently
+      // break every state-changing call.
+      let csrfToken = getCsrfToken()
+      if (!csrfToken && isMutating) {
+        invalidateCsrfToken()
+        csrfToken = getCsrfToken()
+      }
+      if (csrfToken) {
+        headers.set('X-CSRF-Token', csrfToken)
+      }
     }
     options.headers = headers
 
