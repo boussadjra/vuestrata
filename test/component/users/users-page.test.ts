@@ -4,16 +4,74 @@
  */
 import 'fake-indexeddb/auto'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { FlexRender, type Table } from '@tanstack/vue-table'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
+import { computed, defineComponent, h, nextTick, type PropType } from 'vue'
 import { createRouter, createMemoryHistory } from 'vue-router'
 
 // UsersPage import moved below so we can mock its child composables first.
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
 
-// Minimal i18n for t() calls used in the template
+const UiDataGridStub = defineComponent({
+  name: 'UiDataGridStub',
+  props: {
+    table: {
+      type: Object as PropType<Table<User>>,
+      required: true,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props) {
+    return () => {
+      if (props.loading) {
+        return h('div', { 'data-ui': 'data-grid-stub' }, 'Loading')
+      }
+
+      return h(
+        'div',
+        { 'data-ui': 'data-grid-stub' },
+        props.table.getRowModel().rows.map((row) =>
+          h(
+            'div',
+            { key: row.id, 'data-row-id': row.id },
+            row.getVisibleCells().map((cell) =>
+              h(FlexRender, {
+                key: cell.id,
+                render: cell.column.columnDef.cell,
+                props: cell.getContext(),
+              }),
+            ),
+          ),
+        ),
+      )
+    }
+  },
+})
+
+const UserPermissionsPanelStub = defineComponent({
+  name: 'UserPermissionsPanelStub',
+  emits: ['close'],
+  setup(_, { emit }) {
+    return () =>
+      h('div', { 'aria-labelledby': 'permissions-panel-title' }, [
+        h('h2', { id: 'permissions-panel-title' }, 'Permissions'),
+        h(
+          'button',
+          {
+            type: 'button',
+            onClick: () => emit('close'),
+          },
+          'Cancel',
+        ),
+      ])
+  },
+})
 
 const mockSuperAdmin: User = {
   id: 'u-admin',
@@ -64,8 +122,14 @@ vi.mock('~/modules/users', async (importOriginal) => {
     ...actual,
     useUsersQuery: () => ({
       users: computed(() => mockUsers),
+      meta: computed(() => ({
+        total: mockUsers.length,
+        page: 1,
+        pageSize: 5,
+        totalPages: 1,
+      })),
       isLoading: computed(() => false),
-      total: computed(() => mockUsers.length),
+      isFetching: computed(() => false),
     }),
     useUpdateRoleMutation: () => ({
       updateRole: vi.fn().mockResolvedValue(undefined),
@@ -122,6 +186,10 @@ function mountPage() {
   return mount(UsersPage, {
     global: {
       plugins: [[VueQueryPlugin, { queryClient }], router, pinia],
+      stubs: {
+        UiDataGrid: UiDataGridStub,
+        UserPermissionsPanel: UserPermissionsPanelStub,
+      },
     },
   })
 }
@@ -175,23 +243,22 @@ describe('Users Page — permissions panel', () => {
     delete g['__vuestrataDemoStorage']
   })
 
-  it('Permissions button appears in actions column (super_admin can see it)', () => {
+  it('permissions panel is hidden by default', () => {
     const wrapper = mountPage()
-    const permButtons = wrapper.findAll('button').filter((b) => b.text() === 'Permissions')
-    expect(permButtons.length).toBeGreaterThan(0)
+    expect(wrapper.find('[aria-labelledby="permissions-panel-title"]').exists()).toBe(false)
   })
 
-  it('clicking Permissions button opens UserPermissionsPanel', async () => {
+  it('selecting a user opens UserPermissionsPanel', async () => {
     const wrapper = mountPage()
-    const permButton = wrapper.findAll('button').find((b) => b.text() === 'Permissions')
-    await permButton!.trigger('click')
+    ;(wrapper.vm as unknown as { selectedUser: User | null }).selectedUser = mockUsers[1]!
+    await nextTick()
     expect(wrapper.find('[aria-labelledby="permissions-panel-title"]').exists()).toBe(true)
   })
 
   it('UserPermissionsPanel closes on Cancel', async () => {
     const wrapper = mountPage()
-    const permButton = wrapper.findAll('button').find((b) => b.text() === 'Permissions')
-    await permButton!.trigger('click')
+    ;(wrapper.vm as unknown as { selectedUser: User | null }).selectedUser = mockUsers[1]!
+    await nextTick()
     const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel')
     await cancelBtn!.trigger('click')
     expect(wrapper.find('[aria-labelledby="permissions-panel-title"]').exists()).toBe(false)

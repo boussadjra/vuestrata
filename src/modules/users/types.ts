@@ -9,6 +9,8 @@ export interface UserFilters extends Record<string, unknown> {
   role?: string
   page?: number
   pageSize?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 export interface UserInvitePayload {

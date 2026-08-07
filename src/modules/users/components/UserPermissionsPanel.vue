@@ -96,7 +96,7 @@ async function submit() {
           >
             {{ t('users_permissions_title') }}
           </h2>
-          <p class="text-surface-500 dark:text-surface-400 mt-0.5 text-sm">
+          <p class="text-muted-foreground mt-0.5 text-sm">
             {{ user.name }} · <span class="capitalize">{{ user.role }}</span>
           </p>
         </div>
@@ -109,7 +109,7 @@ async function submit() {
       <div
         v-if="isSelf"
         role="status"
-        class="mx-6 mt-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+        class="bg-warning-subtle text-warning-800 dark:text-warning-200 mx-6 mt-4 rounded-lg px-4 py-2 text-sm"
       >
         {{ t('users_permissions_self_warning') }}
       </div>
@@ -118,7 +118,7 @@ async function submit() {
       <p
         v-if="serverError"
         role="alert"
-        class="mx-6 mt-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400"
+        class="bg-destructive-subtle text-destructive mx-6 mt-3 rounded-lg px-4 py-2 text-sm"
       >
         {{ serverError }}
       </p>
@@ -126,9 +126,7 @@ async function submit() {
       <!-- Permissions list -->
       <div class="flex-1 overflow-y-auto px-6 py-4">
         <div v-for="ns in namespaces" :key="ns" class="mb-4">
-          <h3
-            class="text-surface-500 dark:text-surface-400 mb-2 text-xs font-semibold tracking-widest uppercase"
-          >
+          <h3 class="text-muted-foreground mb-2 text-xs font-semibold tracking-widest uppercase">
             {{ ns }}
           </h3>
           <div class="space-y-1">
@@ -148,12 +146,12 @@ async function submit() {
                 :disabled="isUsersReadDisabled(perm as Permission)"
                 @update:model-value="setPermission(perm as Permission, $event)"
               />
-              <span class="text-surface-800 dark:text-surface-200 flex-1 text-sm">
+              <span class="text-foreground flex-1 text-sm">
                 {{ perm }}
               </span>
               <span
                 v-if="roleDefaults.has(perm)"
-                class="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                class="bg-info-subtle text-info-700 dark:text-info-300 rounded px-1.5 py-0.5 text-xs"
               >
                 default
               </span>

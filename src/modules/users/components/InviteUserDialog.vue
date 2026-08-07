@@ -82,7 +82,7 @@ async function submit(event: Event) {
         <p
           v-if="fieldErrors.server"
           role="alert"
-          class="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400"
+          class="bg-destructive-subtle text-destructive rounded-lg px-4 py-2 text-sm"
         >
           {{ fieldErrors.server }}
         </p>

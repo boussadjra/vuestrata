@@ -19,6 +19,7 @@ export function useUsers(filters?: MaybeRef<UserFilters>) {
     users: query.users,
     meta: query.meta,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     error: query.error,
     refresh: query.refetch,
     updateRole: (userId: string, role: Role) => updateRole(userId, role),

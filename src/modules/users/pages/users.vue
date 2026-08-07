@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { createColumnHelper } from '@tanstack/vue-table'
-import { FlexRender } from '@tanstack/vue-table'
 import { useI18n } from 'vue-i18n'
 
-import { UiButton, UiSelect, UiTextField } from '@/components/ui'
-import { useDataTable } from '@/composables/useDataTable'
+import { UiButton, UiDataGrid, UiSelect } from '@/components/ui'
+import { useDataTable, type DataTableQueryState } from '@/composables/useDataTable'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
 import { ROLE_DEFINITIONS, getRegisteredPermissions } from '@/lib/rbac'
@@ -12,11 +11,12 @@ import { useNotificationStore } from '@/stores/notification'
 import type { IconName } from '@/types'
 import type { User, Role, BuiltinPermission } from '@/types'
 import { useUpdateRoleMutation, useUsersQuery } from '~/modules/users'
+import type { UserFilters } from '~/modules/users'
 
 import InviteUserDialog from '../components/InviteUserDialog.vue'
 import UserPermissionsPanel from '../components/UserPermissionsPanel.vue'
 
-const { can, isAtLeast } = useRbac()
+const { can } = useRbac()
 const notifications = useNotificationStore()
 const { t } = useI18n()
 
@@ -25,9 +25,11 @@ const editingRole = ref<Role>('member')
 const showInviteDialog = ref(false)
 const selectedUser = ref<User | null>(null)
 
-const { users, isLoading: loading } = useUsersQuery(ref({ pageSize: 50 }))
-
 const { updateRole } = useUpdateRoleMutation()
+
+const canAssignRoles = can('roles:assign')
+const canUpdateUsers = can('users:update')
+const showActionsColumn = canAssignRoles || canUpdateUsers
 
 const roleOptions: { value: Role; label: string }[] = Object.values(ROLE_DEFINITIONS).map((r) => ({
   value: r.name,
@@ -35,73 +37,202 @@ const roleOptions: { value: Role; label: string }[] = Object.values(ROLE_DEFINIT
 }))
 
 const columnHelper = createColumnHelper<User>()
+const serverUsers = ref<User[]>([])
+const serverMeta = ref<{ total: number; totalPages: number } | null>(null)
+
+function setEditingRole(value: string | number | Array<string | number>) {
+  const nextValue = Array.isArray(value) ? value[0] : value
+
+  if (typeof nextValue === 'string') {
+    editingRole.value = nextValue as Role
+  }
+}
 
 const columns = [
-  columnHelper.display({
-    id: 'select',
-    header: ({ table }) =>
-      h('input', {
-        type: 'checkbox',
-        checked: table.getIsAllPageRowsSelected(),
-        onChange: (e: Event) =>
-          table.toggleAllPageRowsSelected((e.target as HTMLInputElement).checked),
-        class: 'rounded border-surface-300 dark:border-surface-600',
-      }),
-    cell: ({ row }) =>
-      h('input', {
-        type: 'checkbox',
-        checked: row.getIsSelected(),
-        onChange: () => row.toggleSelected(),
-        class: 'rounded border-surface-300 dark:border-surface-600',
-      }),
-    size: 40,
-  }),
   columnHelper.accessor('name', {
     header: () => t('users_col_name'),
-    cell: (info) => info.getValue(),
+    meta: {
+      label: t('users_col_name'),
+      width: '16rem',
+    },
   }),
   columnHelper.accessor('email', {
     header: () => t('users_col_email'),
-    cell: (info) => info.getValue(),
+    meta: {
+      label: t('users_col_email'),
+      width: '18rem',
+    },
   }),
   columnHelper.accessor('role', {
     header: () => t('users_col_role'),
-    cell: (info) => info.getValue(),
-    filterFn: 'equals',
+    cell: ({ row }) => {
+      if (editingUserId.value === row.original.id) {
+        return h(UiSelect, {
+          modelValue: editingRole.value,
+          options: roleOptions,
+          'onUpdate:modelValue': setEditingRole,
+        })
+      }
+
+      return h(
+        'span',
+        {
+          class: [roleColor[row.original.role], 'rounded-full px-2.5 py-1 text-xs font-semibold'],
+        },
+        row.original.role,
+      )
+    },
+    meta: {
+      label: t('users_col_role'),
+      filter: {
+        variant: 'select',
+        options: roleOptions,
+      },
+      width: '10rem',
+    },
   }),
   columnHelper.accessor('provider', {
     header: () => t('users_col_provider'),
-    cell: (info) => info.getValue() ?? 'credentials',
+    cell: ({ row }) =>
+      h('div', { class: 'flex items-center gap-1.5' }, [
+        h('span', {
+          class: [
+            resolveIcon(providerIconName[row.original.provider ?? 'credentials'] ?? 'lock'),
+            'text-muted-foreground h-4 w-4',
+          ],
+        }),
+        h('span', row.original.provider ?? 'credentials'),
+      ]),
+    meta: {
+      label: t('users_col_provider'),
+      width: '10rem',
+    },
   }),
   columnHelper.accessor('emailVerified', {
     header: () => t('users_col_verified'),
-    cell: (info) => (info.getValue() ? t('common_yes') : t('common_no')),
+    cell: ({ row }) =>
+      row.original.emailVerified
+        ? h('span', { class: [resolveIcon('check-circle'), 'h-5 w-5 text-green-500'] })
+        : h('span', { class: [resolveIcon('close-circle'), 'text-surface-300 h-5 w-5'] }),
+    meta: {
+      label: t('users_col_verified'),
+      align: 'center',
+      width: '7rem',
+    },
   }),
   columnHelper.accessor('lastLoginAt', {
     header: () => t('users_col_last_login'),
-    cell: (info) => {
-      const val = info.getValue()
-      return val ? new Date(val).toLocaleDateString() : '—'
+    cell: ({ getValue }) => {
+      const value = getValue()
+      return value ? new Date(value).toLocaleDateString() : '—'
+    },
+    meta: {
+      label: t('users_col_last_login'),
+      width: '10rem',
     },
   }),
+  ...(showActionsColumn
+    ? [
+        columnHelper.display({
+          id: 'actions',
+          header: () => t('users_col_actions'),
+          enableHiding: false,
+          cell: ({ row }) => {
+            if (editingUserId.value === row.original.id) {
+              return h('div', { class: 'flex items-center gap-2' }, [
+                h(
+                  UiButton,
+                  { variant: 'ghost', size: 'sm', onClick: () => saveRole(row.original) },
+                  { default: () => t('button_save') },
+                ),
+                h(
+                  UiButton,
+                  { variant: 'ghost', size: 'sm', onClick: cancelEdit },
+                  { default: () => t('button_cancel') },
+                ),
+              ])
+            }
+
+            const actions: ReturnType<typeof h>[] = []
+
+            if (canAssignRoles) {
+              actions.push(
+                h(
+                  UiButton,
+                  { variant: 'ghost', size: 'sm', onClick: () => startEditRole(row.original) },
+                  { default: () => t('users_change_role') },
+                ),
+              )
+            }
+
+            if (canUpdateUsers) {
+              actions.push(
+                h(
+                  UiButton,
+                  {
+                    variant: 'ghost',
+                    size: 'sm',
+                    onClick: () => {
+                      selectedUser.value = row.original
+                    },
+                  },
+                  { default: () => t('users_permissions') },
+                ),
+              )
+            }
+
+            return h('div', { class: 'flex items-center gap-2' }, actions)
+          },
+          meta: {
+            label: t('users_col_actions'),
+            width: '16rem',
+          },
+        }),
+      ]
+    : []),
 ]
 
-const {
-  table,
-  globalFilter,
-  sorting,
-  rowSelection,
-  pagination,
-  selectedRows,
-  totalRows,
-  pageCount,
-  currentPage,
-} = useDataTable<User>({
-  data: () => users.value,
+const userTableState = useDataTable<User>({
+  data: () => serverUsers.value,
   columns,
-  enableRowSelection: true,
+  enableFiltering: true,
   enablePagination: true,
+  enableRowSelection: true,
+  enableColumnVisibility: true,
   pageSize: 5,
+  manualPagination: true,
+  manualFiltering: true,
+  manualSorting: true,
+  rowCount: () => serverMeta.value?.total,
+  pageCount: () => serverMeta.value?.totalPages,
+  getRowId: (row) => row.id,
+})
+
+const { table, queryState } = userTableState
+
+const userFilters = computed<UserFilters>(() => {
+  const roleFilter = queryState.value.columnFilters.find((filter) => filter.id === 'role')?.value
+  const primarySort = queryState.value.sorting[0]
+
+  return {
+    page: queryState.value.pagination.page,
+    pageSize: queryState.value.pagination.pageSize,
+    search: queryState.value.globalFilter || undefined,
+    role: typeof roleFilter === 'string' ? roleFilter : undefined,
+    sortBy: primarySort?.id,
+    sortOrder: primarySort?.direction,
+  }
+})
+
+const usersQuery = useUsersQuery(userFilters)
+const loading = computed(() => usersQuery.isLoading.value || usersQuery.isFetching.value)
+
+serverUsers.value = usersQuery.users.value
+serverMeta.value = usersQuery.meta.value
+
+watchEffect(() => {
+  serverUsers.value = usersQuery.users.value
+  serverMeta.value = usersQuery.meta.value
 })
 
 function startEditRole(user: User) {
@@ -152,18 +283,6 @@ const allPermissions = [...getRegisteredPermissions()] as BuiltinPermission[]
 function permLabel(perm: string): string {
   return t(`perm_${perm.replace(':', '_')}`)
 }
-
-function setPageSize(value: number | string) {
-  pagination.value = {
-    ...pagination.value,
-    pageSize: Number(value),
-    pageIndex: 0,
-  }
-}
-
-function onPageSizeChange(value: string | number | Array<string | number>) {
-  setPageSize(Array.isArray(value) ? (value[0] ?? pagination.value.pageSize) : value)
-}
 </script>
 
 <template>
@@ -174,7 +293,7 @@ function onPageSizeChange(value: string | number | Array<string | number>) {
         <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
           {{ t('users_title') }}
         </h1>
-        <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('users_subtitle') }}</p>
+        <p class="text-muted-foreground mt-1">{{ t('users_subtitle') }}</p>
       </div>
       <div class="flex gap-3">
         <UiButton v-if="can('users:create')" variant="primary" @click="showInviteDialog = true">
@@ -199,194 +318,16 @@ function onPageSizeChange(value: string | number | Array<string | number>) {
     <div
       class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 overflow-hidden rounded-2xl border bg-white/90 shadow-sm"
     >
-      <!-- Toolbar -->
-      <div
-        class="border-surface-200 dark:border-surface-700 flex flex-col items-start justify-between gap-3 border-b p-4 sm:flex-row sm:items-center"
-      >
-        <div class="flex w-full items-center gap-3 sm:w-auto">
-          <UiTextField
-            v-model="globalFilter"
-            type="text"
-            :placeholder="t('users_search')"
-            icon="search"
-            class="sm:w-64"
-          />
-          <span v-if="selectedRows.length" class="text-surface-500 text-sm">
-            {{ selectedRows.length }} {{ t('common_selected') }}
-          </span>
-        </div>
-        <div class="text-surface-500 text-sm">
-          {{ totalRows }} {{ t('users_total') }} ·
-          {{ t('common_page_of', { current: currentPage, total: pageCount }) }}
-        </div>
-      </div>
-
-      <!-- Table -->
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr
-              v-for="headerGroup in table.getHeaderGroups()"
-              :key="headerGroup.id"
-              class="border-surface-200 dark:border-surface-700 border-b"
-            >
-              <th
-                v-for="header in headerGroup.headers"
-                :key="header.id"
-                :style="{ width: header.getSize() + 'px' }"
-                class="text-surface-600 dark:text-surface-300 bg-surface-50/50 dark:bg-surface-900/50 px-4 py-3 text-left font-semibold"
-                :class="{
-                  'hover:text-primary-500 cursor-pointer select-none': header.column.getCanSort(),
-                }"
-                @click="header.column.getToggleSortingHandler()?.($event)"
-              >
-                <div class="flex items-center gap-1">
-                  <FlexRender
-                    v-if="!header.isPlaceholder"
-                    :render="header.column.columnDef.header"
-                    :props="header.getContext()"
-                  />
-                  <span
-                    v-if="header.column.getIsSorted() === 'asc'"
-                    :class="[resolveIcon('arrow-up'), 'h-3 w-3']"
-                  />
-                  <span
-                    v-else-if="header.column.getIsSorted() === 'desc'"
-                    :class="[resolveIcon('arrow-down'), 'h-3 w-3']"
-                  />
-                </div>
-              </th>
-              <th
-                class="text-surface-600 dark:text-surface-300 bg-surface-50/50 dark:bg-surface-900/50 px-4 py-3 text-left font-semibold"
-              >
-                {{ t('users_col_actions') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td :colspan="columns.length + 1" class="text-surface-400 px-4 py-12 text-center">
-                <span :class="[resolveIcon('refresh'), 'mb-2 inline-block h-6 w-6 animate-spin']" />
-                <p>{{ t('users_loading') }}</p>
-              </td>
-            </tr>
-            <tr
-              v-for="row in table.getRowModel().rows"
-              v-else
-              :key="row.id"
-              class="border-surface-100 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-800/50 border-b transition-colors"
-              :class="{ 'bg-primary-50/50 dark:bg-primary-900/10': row.getIsSelected() }"
-            >
-              <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="px-4 py-3">
-                <!-- Role column: custom rendering -->
-                <template v-if="cell.column.id === 'role'">
-                  <template v-if="editingUserId === row.original.id">
-                    <UiSelect v-model="editingRole" :options="roleOptions" size="sm" />
-                  </template>
-                  <template v-else>
-                    <span
-                      :class="[
-                        roleColor[row.original.role],
-                        'rounded-full px-2.5 py-1 text-xs font-semibold',
-                      ]"
-                    >
-                      {{ row.original.role }}
-                    </span>
-                  </template>
-                </template>
-                <!-- Provider column -->
-                <template v-else-if="cell.column.id === 'provider'">
-                  <div class="flex items-center gap-1.5">
-                    <span
-                      :class="[
-                        resolveIcon(
-                          providerIconName[row.original.provider ?? 'credentials'] ?? 'lock',
-                        ),
-                        'text-surface-400 h-4 w-4',
-                      ]"
-                    />
-                    <span>{{ row.original.provider ?? 'credentials' }}</span>
-                  </div>
-                </template>
-                <!-- Verified column -->
-                <template v-else-if="cell.column.id === 'emailVerified'">
-                  <span
-                    v-if="row.original.emailVerified"
-                    :class="[resolveIcon('check-circle'), 'h-5 w-5 text-green-500']"
-                  />
-                  <span v-else :class="[resolveIcon('close-circle'), 'text-surface-300 h-5 w-5']" />
-                </template>
-                <!-- Default -->
-                <template v-else>
-                  <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-                </template>
-              </td>
-              <!-- Actions -->
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-2">
-                  <template v-if="editingUserId === row.original.id">
-                    <UiButton variant="ghost" size="sm" @click="saveRole(row.original)">
-                      {{ t('button_save') }}
-                    </UiButton>
-                    <UiButton variant="ghost" size="sm" @click="cancelEdit()">
-                      {{ t('button_cancel') }}
-                    </UiButton>
-                  </template>
-                  <template v-else-if="can('roles:assign')">
-                    <UiButton variant="ghost" size="sm" @click="startEditRole(row.original)">
-                      {{ t('users_change_role') }}
-                    </UiButton>
-                    <UiButton
-                      v-if="can('users:update')"
-                      variant="ghost"
-                      size="sm"
-                      @click="selectedUser = row.original"
-                    >
-                      {{ t('users_permissions') }}
-                    </UiButton>
-                  </template>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div
-        class="border-surface-200 dark:border-surface-700 flex items-center justify-between border-t p-4"
-      >
-        <div class="flex items-center gap-2">
-          <span class="text-surface-500 text-sm">{{ t('common_rows_per_page') }}:</span>
-          <UiSelect
-            :model-value="pagination.pageSize"
-            :options="[5, 10, 20, 50].map((s) => ({ value: s, label: String(s) }))"
-            size="sm"
-            @update:model-value="onPageSizeChange"
-          />
-        </div>
-        <div class="flex items-center gap-2">
-          <UiButton
-            variant="secondary"
-            size="sm"
-            :disabled="!table.getCanPreviousPage()"
-            @click="table.previousPage()"
-          >
-            {{ t('common_previous') }}
-          </UiButton>
-          <span class="text-surface-600 dark:text-surface-300 text-sm font-medium tabular-nums">
-            {{ currentPage }} / {{ pageCount }}
-          </span>
-          <UiButton
-            variant="secondary"
-            size="sm"
-            :disabled="!table.getCanNextPage()"
-            @click="table.nextPage()"
-          >
-            {{ t('common_next') }}
-          </UiButton>
-        </div>
-      </div>
+      <UiDataGrid
+        :table="table"
+        selectable
+        :loading="loading"
+        :loading-text="t('users_loading')"
+        :search-placeholder="t('users_search')"
+        :page-size-options="[5, 10, 20, 50]"
+        :total-rows="serverMeta?.total"
+        :empty-text="t('common_no_results')"
+      />
     </div>
 
     <!-- Permissions Matrix -->
@@ -396,20 +337,20 @@ function onPageSizeChange(value: string | number | Array<string | number>) {
       <h2 class="text-surface-900 mb-4 text-xl font-bold dark:text-white">
         {{ t('users_permissions') }}
       </h2>
-      <p class="text-surface-500 dark:text-surface-400 mb-4 text-sm">
+      <p class="text-muted-foreground mb-4 text-sm">
         {{ t('users_permissions_desc') }}
       </p>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-surface-200 dark:border-surface-700 border-b">
-              <th class="text-surface-600 dark:text-surface-300 px-3 py-2 text-left font-semibold">
+              <th class="text-muted-foreground px-3 py-2 text-start font-semibold">
                 {{ t('users_col_permission') }}
               </th>
               <th
                 v-for="roleDef in Object.values(ROLE_DEFINITIONS)"
                 :key="roleDef.name"
-                class="text-surface-600 dark:text-surface-300 px-3 py-2 text-center font-semibold"
+                class="text-muted-foreground px-3 py-2 text-center font-semibold"
               >
                 {{ roleDef.label }}
               </th>
@@ -421,7 +362,7 @@ function onPageSizeChange(value: string | number | Array<string | number>) {
               :key="perm"
               class="border-surface-100 dark:border-surface-800 border-b"
             >
-              <td class="text-surface-600 dark:text-surface-300 px-3 py-2 text-sm">
+              <td class="text-muted-foreground px-3 py-2 text-sm">
                 {{ permLabel(perm) }}
               </td>
               <td

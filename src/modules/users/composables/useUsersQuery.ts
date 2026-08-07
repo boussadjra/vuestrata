@@ -20,6 +20,8 @@ export function useUsersQuery(filters?: MaybeRef<UserFilters>) {
       if (f.pageSize) params.set('pageSize', String(f.pageSize))
       if (f.search) params.set('search', f.search)
       if (f.role) params.set('role', f.role)
+      if (f.sortBy) params.set('sortBy', f.sortBy)
+      if (f.sortOrder) params.set('sortOrder', f.sortOrder)
       return apiGet<PaginatedResponse<User>>(`/users?${params.toString()}`)
     },
   })
@@ -27,6 +29,7 @@ export function useUsersQuery(filters?: MaybeRef<UserFilters>) {
   const users = computed(() => query.data.value?.data ?? [])
   const meta = computed(() => query.data.value?.meta ?? null)
   const isLoading = computed(() => query.isLoading.value)
+  const isFetching = computed(() => query.isFetching.value)
   const error = computed(() => {
     const e = query.error.value
     return e ? normalizeError(e).message : null
@@ -36,6 +39,7 @@ export function useUsersQuery(filters?: MaybeRef<UserFilters>) {
     users,
     meta,
     isLoading,
+    isFetching,
     error,
     refetch: () => query.refetch(),
   }
