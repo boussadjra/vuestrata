@@ -1,6 +1,6 @@
 {
   "name": "vuestrata",
-  "version": "1.0.1-alpha.1",
+  "version": "1.0.1-alpha.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -37,6 +37,7 @@
     "version:preminor": "node scripts/release/version.mjs preminor --preid alpha",
     "version:premajor": "node scripts/release/version.mjs premajor --preid alpha",
     "version:prerelease": "node scripts/release/version.mjs prerelease --preid alpha",
+    "version:prerelease:alpha": "node scripts/release/version.mjs prerelease --preid alpha",
     "version:prerelease:beta": "node scripts/release/version.mjs prerelease --preid beta",
     "version:prerelease:rc": "node scripts/release/version.mjs prerelease --preid rc",
     "release:verify": "vp check && vp test --run",
