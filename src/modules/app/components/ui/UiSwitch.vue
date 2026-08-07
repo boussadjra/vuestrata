@@ -4,8 +4,40 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui'
 import { useUiSwitch, type SwitchProps } from '@/composables/forms'
 import { useAppStore } from '@/stores/app'
 
+/**
+ * Attributes are forwarded manually.
+ *
+ * With the default fallthrough, a caller's `aria-label` landed on the wrapper
+ * `<div>` — which is not an interactive element, so the attribute is prohibited
+ * there AND the switch itself was left with no accessible name. Two axe
+ * violations from one misplaced attribute.
+ */
+defineOptions({ inheritAttrs: false })
+
 const props = withDefaults(defineProps<SwitchProps>(), {
   size: 'md',
+})
+
+const attrs = useAttrs()
+
+/** ARIA and identity attributes belong on the control, not the wrapper. */
+const controlAttrs = computed(() => {
+  const forwarded: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key.startsWith('aria-') || key === 'id' || key === 'title' || key === 'tabindex') {
+      forwarded[key] = value
+    }
+  }
+  return forwarded
+})
+
+/** Everything else (class, style, listeners) stays on the wrapper. */
+const wrapperAttrs = computed(() => {
+  const rest: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(attrs)) {
+    if (!(key in controlAttrs.value)) rest[key] = value
+  }
+  return rest
 })
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -44,10 +76,10 @@ function emitToggle() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
+  <div v-bind="wrapperAttrs" class="flex flex-col gap-1">
     <div class="inline-flex items-center gap-2">
       <SwitchRoot
-        v-bind="inputProps"
+        v-bind="{ ...inputProps, ...controlAttrs }"
         :class="trackClasses"
         data-ui="switch"
         data-provider="reka"
@@ -72,7 +104,7 @@ function emitToggle() {
         {{ label }}
       </label>
     </div>
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
   </div>

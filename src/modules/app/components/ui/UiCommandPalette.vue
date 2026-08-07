@@ -66,17 +66,17 @@ const emptyStateText = computed(() => props.emptyText ?? t('common_no_results'))
     <ul v-if="filtered.length" class="space-y-1">
       <li v-for="item in filtered" :key="item.id">
         <button
-          class="shaped-radius-sm text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800/80 flex w-full items-start justify-between px-2.5 py-2 text-left transition-colors"
+          class="shaped-radius-sm text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800/80 flex w-full items-start justify-between px-2.5 py-2 text-start transition-colors"
           @click="selectItem(item.id)"
         >
           <span class="text-sm">{{ item.label }}</span>
-          <span v-if="item.hint" class="text-surface-500 dark:text-surface-400 ml-3 text-xs">
+          <span v-if="item.hint" class="text-muted-foreground ms-3 text-xs">
             {{ item.hint }}
           </span>
         </button>
       </li>
     </ul>
-    <p v-else class="text-surface-500 dark:text-surface-400 px-2 py-1 text-sm">
+    <p v-else class="text-muted-foreground px-2 py-1 text-sm">
       {{ emptyStateText }}
     </p>
   </div>

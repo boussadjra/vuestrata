@@ -31,7 +31,7 @@ const inputClasses = computed(() => [
   'placeholder:text-surface-400 dark:placeholder:text-surface-500',
   'focus:outline-none focus:ring-2 focus:ring-offset-0',
   displayError.value
-    ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
+    ? 'border-destructive focus:ring-danger-300'
     : 'border-surface-300 dark:border-surface-600 focus:ring-primary-300 focus:border-primary-400',
   'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-50 dark:disabled:bg-surface-900',
   sizeClasses[props.size ?? 'md'],
@@ -39,18 +39,14 @@ const inputClasses = computed(() => [
 ])
 
 const buttonClasses =
-  'absolute top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 disabled:opacity-50 disabled:cursor-not-allowed p-1'
+  'absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-surface-600 dark:hover:text-surface-300 disabled:opacity-50 disabled:cursor-not-allowed p-1'
 </script>
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
     <div class="relative">
       <NumberFieldRoot
@@ -78,13 +74,13 @@ const buttonClasses =
         </NumberFieldIncrement>
       </NumberFieldRoot>
     </div>
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

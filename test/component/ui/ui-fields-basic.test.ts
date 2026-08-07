@@ -320,6 +320,17 @@ describe('Formwerk Basic Fields', () => {
       })
       expect(wrapper.text()).toContain('Must accept')
     })
+
+    it('emits a checked value when toggled from indeterminate', async () => {
+      const wrapper = mount(UiCheckbox, {
+        props: { label: 'Select all rows', modelValue: 'indeterminate' },
+      })
+
+      await wrapper.find('[data-ui="checkbox"]').trigger('click')
+
+      expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([true])
+      expect(wrapper.emitted('change')?.[0]).toEqual([true])
+    })
   })
 
   describe('UiSwitch', () => {

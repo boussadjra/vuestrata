@@ -78,13 +78,13 @@ function onValueChange(value: DateValue | DateValue[] | undefined) {
     >
       <CalendarHeader class="mb-2 flex items-center justify-between gap-3">
         <CalendarPrev
-          class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+          class="hover:bg-surface-100 dark:hover:bg-surface-700 text-muted-foreground rounded p-1"
         >
           ←
         </CalendarPrev>
-        <CalendarHeading class="text-surface-700 dark:text-surface-300 text-sm font-medium" />
+        <CalendarHeading class="text-foreground text-sm font-medium" />
         <CalendarNext
-          class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+          class="hover:bg-surface-100 dark:hover:bg-surface-700 text-muted-foreground rounded p-1"
         >
           →
         </CalendarNext>
@@ -101,7 +101,7 @@ function onValueChange(value: DateValue | DateValue[] | undefined) {
               <CalendarHeadCell
                 v-for="weekDay in weekDays"
                 :key="weekDay"
-                class="text-surface-400 px-1 py-1 text-center text-xs font-medium"
+                class="text-muted-foreground px-1 py-1 text-center text-xs font-medium"
               >
                 {{ weekDay }}
               </CalendarHeadCell>

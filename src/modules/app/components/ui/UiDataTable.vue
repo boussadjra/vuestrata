@@ -20,7 +20,7 @@ defineProps<{
             v-for="header in headerGroup.headers"
             :key="header.id"
             :colSpan="header.colSpan"
-            class="border-surface-200 text-surface-700 dark:border-surface-700 dark:text-surface-300 border-b px-3 py-2 text-left"
+            class="border-surface-200 text-surface-700 dark:border-surface-700 dark:text-surface-300 border-b px-3 py-2 text-start"
             :class="{ 'cursor-pointer select-none': header.column.getCanSort() }"
             scope="col"
             @click="header.column.getToggleSortingHandler()?.($event)"

@@ -33,7 +33,7 @@ const sizeClasses: Record<string, string> = {
   <div class="flex flex-col gap-1.5" :data-provider="provider" data-ui="progress">
     <div
       v-if="label || showValue"
-      class="text-surface-500 dark:text-surface-400 flex items-center justify-between text-xs"
+      class="text-muted-foreground flex items-center justify-between text-xs"
     >
       <span v-if="label">{{ label }}</span>
       <span v-if="showValue">{{ percentage }}%</span>

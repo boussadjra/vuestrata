@@ -64,7 +64,7 @@ function onOpenUpdate(value: boolean) {
         <slot />
 
         <DialogClose
-          class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-4 right-4 p-1 transition-colors"
+          class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute end-4 top-4 p-1 transition-colors"
           :aria-label="t('button_close')"
         >
           <span :class="[resolveIcon('close'), 'h-4 w-4']" />

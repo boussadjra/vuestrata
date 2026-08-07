@@ -29,9 +29,7 @@ const {
 const hoveredStar = ref(0)
 
 const descriptionClass = computed(() =>
-  props.provider === 'reka'
-    ? 'text-surface-500 dark:text-surface-400 text-xs'
-    : 'text-surface-500 text-xs',
+  props.provider === 'reka' ? 'text-muted-foreground text-xs' : 'text-surface-500 text-xs',
 )
 
 function onStarClick(star: number) {
@@ -42,13 +40,9 @@ function onStarClick(star: number) {
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
 
     <div
@@ -64,7 +58,7 @@ function onStarClick(star: number) {
         type="button"
         class="text-xl transition-colors focus:outline-none"
         :class="{
-          'text-yellow-400': star <= (hoveredStar || (fieldValue ?? 0)),
+          'text-warning-400': star <= (hoveredStar || (fieldValue ?? 0)),
           'text-surface-300 dark:text-surface-600': star > (hoveredStar || (fieldValue ?? 0)),
           'cursor-not-allowed opacity-50': disabled,
           'cursor-pointer': !disabled,
@@ -79,7 +73,7 @@ function onStarClick(star: number) {
       </button>
     </div>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p v-else-if="hint || description" v-bind="descriptionProps" :class="descriptionClass">

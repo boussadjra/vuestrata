@@ -136,7 +136,7 @@ function onValueChange(value: string | number | Array<string | number>) {
 
 const triggerClasses = computed(() => [
   'shaped-border shaped-radius-sm inline-flex w-full items-center justify-between border px-3 py-2 text-sm',
-  'bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200',
+  'bg-card text-foreground',
   displayError.value ? invalidSelectTriggerClass : 'border-surface-300 dark:border-surface-600',
   'hover:border-surface-400 dark:hover:border-surface-500',
   'focus:outline-none focus:ring-2 focus:ring-primary-300',
@@ -147,11 +147,7 @@ const triggerClasses = computed(() => [
 
 <template>
   <div class="flex flex-col gap-1" :class="attrs.class" :style="attrs.style">
-    <label
-      v-if="label"
-      v-bind="enhancedLabelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="enhancedLabelProps" class="text-foreground text-sm font-medium">
       {{ label }}
       <span v-if="required" :class="fieldRequiredIndicatorClass">*</span>
     </label>
@@ -171,8 +167,8 @@ const triggerClasses = computed(() => [
         data-ui="select"
       >
         <span v-if="hasSelection" class="truncate">{{ selectedLabel }}</span>
-        <span v-else class="text-surface-400 truncate">{{ placeholderText }}</span>
-        <SelectIcon class="text-surface-400 ml-2 text-xs">▼</SelectIcon>
+        <span v-else class="text-muted-foreground truncate">{{ placeholderText }}</span>
+        <SelectIcon class="text-muted-foreground ms-2 text-xs">▼</SelectIcon>
       </SelectTrigger>
 
       <SelectPortal>
@@ -218,7 +214,7 @@ const triggerClasses = computed(() => [
     <p
       v-else-if="hint || description"
       v-bind="enhancedDescriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

@@ -25,7 +25,7 @@ const resizeClasses: Record<string, string> = {
 }
 
 const classes = computed(() => [
-  'w-full rounded-lg border bg-white dark:bg-surface-800 px-3 py-2 text-sm text-surface-700 dark:text-surface-200 transition-colors',
+  'w-full rounded-lg border bg-white dark:bg-surface-800 px-3 py-2 text-sm text-foreground transition-colors',
   'placeholder:text-surface-400 dark:placeholder:text-surface-500',
   'focus:outline-none focus:ring-2 focus:ring-offset-0',
   displayError.value
@@ -38,11 +38,7 @@ const classes = computed(() => [
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
       <span v-if="required" :class="fieldRequiredIndicatorClass">*</span>
     </label>
@@ -61,7 +57,7 @@ const classes = computed(() => [
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

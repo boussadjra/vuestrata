@@ -33,7 +33,7 @@ const toggleClasses = computed(() => [
   isChecked.value
     ? 'bg-primary-700 border-primary-700 text-white hover:bg-primary-800'
     : props.provider === 'reka'
-      ? 'bg-white dark:bg-surface-800 border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-700'
+      ? 'bg-white dark:bg-surface-800 border-surface-300 dark:border-surface-600 text-foreground hover:bg-surface-50 dark:hover:bg-surface-700'
       : 'bg-white border-surface-300 text-surface-700 hover:bg-surface-50',
   sizeClasses[props.size],
 ])

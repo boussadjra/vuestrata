@@ -41,7 +41,7 @@ const { t } = useI18n()
       >
         <slot />
         <PopoverClose
-          class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute top-2 right-2 p-1 transition-colors"
+          class="shaped-radius-sm hover:bg-surface-100 dark:hover:bg-surface-700 absolute end-2 top-2 p-1 transition-colors"
           :aria-label="t('button_close')"
         >
           <span :class="[resolveIcon('close'), 'h-3.5 w-3.5']" />

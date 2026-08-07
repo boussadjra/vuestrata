@@ -19,11 +19,7 @@ const { groupProps, labelProps, isDirty, isValid, isTouched, isDisabled, getErro
 
 <template>
   <fieldset v-bind="groupProps" class="flex flex-col gap-3">
-    <legend
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 mb-1 text-sm font-semibold"
-    >
+    <legend v-if="label" v-bind="labelProps" class="text-foreground mb-1 text-sm font-semibold">
       {{ label }}
     </legend>
     <slot

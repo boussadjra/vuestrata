@@ -68,8 +68,7 @@ const variantClasses: Record<string, string> = {
     'bg-secondary-700 text-white shadow-[var(--shadow-soft)] hover:bg-secondary-800 hover:shadow-[var(--shadow-card)] active:bg-secondary-900 focus-visible:ring-secondary-300',
   accent:
     'bg-accent-700 text-white shadow-[var(--shadow-soft)] hover:bg-accent-800 hover:shadow-[var(--shadow-card)] active:bg-accent-900 focus-visible:ring-accent-300',
-  ghost:
-    'bg-transparent text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800',
+  ghost: 'bg-transparent text-foreground hover:bg-muted',
   destructive:
     'bg-danger-700 text-white shadow-[var(--shadow-soft)] hover:bg-danger-800 hover:shadow-[var(--shadow-card)] active:bg-danger-900 focus-visible:ring-danger-300',
 }
@@ -78,7 +77,7 @@ const activeVariantClasses: Record<string, string> = {
   primary: 'bg-primary-800 text-white hover:bg-primary-900 focus-visible:ring-primary-300',
   secondary: 'bg-secondary-800 text-white hover:bg-secondary-900 focus-visible:ring-secondary-300',
   accent: 'bg-accent-800 text-white hover:bg-accent-900 focus-visible:ring-accent-300',
-  ghost: 'bg-surface-200 text-surface-900 dark:bg-surface-800 dark:text-white',
+  ghost: 'bg-muted text-foreground',
   destructive: 'bg-danger-800 text-white hover:bg-danger-900 focus-visible:ring-danger-300',
 }
 

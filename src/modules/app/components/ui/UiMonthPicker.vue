@@ -63,7 +63,7 @@ const triggerClasses = computed(() => [
   'shaped-border shaped-radius-sm inline-flex w-full items-center justify-between border px-3 py-2 text-sm',
   'bg-white text-surface-700 dark:bg-surface-800 dark:text-surface-200',
   displayError.value
-    ? 'border-red-400 dark:border-red-500 focus:ring-red-300'
+    ? 'border-destructive focus:ring-danger-300'
     : 'border-surface-300 dark:border-surface-600 focus:ring-primary-300',
   'focus:ring-2 focus:outline-none',
   props.disabled ? 'cursor-not-allowed opacity-50' : '',
@@ -75,13 +75,9 @@ const optionClasses =
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
 
     <SelectRoot
@@ -91,7 +87,7 @@ const optionClasses =
     >
       <SelectTrigger :class="triggerClasses" data-ui="month-picker" data-provider="reka">
         <span class="truncate">{{ selectedMonthLabel }}</span>
-        <SelectIcon class="text-surface-400 ml-2 text-xs">▼</SelectIcon>
+        <SelectIcon class="text-muted-foreground ms-2 text-xs">▼</SelectIcon>
       </SelectTrigger>
 
       <SelectPortal>
@@ -107,7 +103,7 @@ const optionClasses =
               :value="month.value"
               :class="optionClasses"
             >
-              <SelectItemIndicator class="text-primary-500 absolute left-2 flex items-center"
+              <SelectItemIndicator class="text-primary-500 absolute start-2 flex items-center"
                 >✓</SelectItemIndicator
               >
               <SelectItemText>{{ month.label }}</SelectItemText>
@@ -117,13 +113,13 @@ const optionClasses =
       </SelectPortal>
     </SelectRoot>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

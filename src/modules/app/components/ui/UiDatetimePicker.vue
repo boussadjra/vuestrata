@@ -84,7 +84,7 @@ const controlClasses = computed(() => [
   'shaped-border shaped-radius-sm inline-flex flex-1 flex-wrap items-center gap-0.5 border px-3 py-2 text-sm',
   'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
   displayError.value
-    ? 'border-red-400 dark:border-red-500'
+    ? 'border-destructive'
     : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300 focus-within:ring-2',
   props.disabled ? 'cursor-not-allowed opacity-50' : '',
 ])
@@ -95,13 +95,9 @@ const segmentClasses =
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
 
     <DatePickerRoot
@@ -143,13 +139,13 @@ const segmentClasses =
         <DatePickerCalendar v-slot="{ weekDays, grid }">
           <DatePickerHeader class="mb-2 flex items-center justify-between gap-3">
             <DatePickerPrev
-              class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+              class="hover:bg-surface-100 dark:hover:bg-surface-700 text-muted-foreground rounded p-1"
             >
               ←
             </DatePickerPrev>
-            <DatePickerHeading class="text-surface-700 dark:text-surface-300 text-sm font-medium" />
+            <DatePickerHeading class="text-foreground text-sm font-medium" />
             <DatePickerNext
-              class="hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-400 rounded p-1"
+              class="hover:bg-surface-100 dark:hover:bg-surface-700 text-muted-foreground rounded p-1"
             >
               →
             </DatePickerNext>
@@ -166,7 +162,7 @@ const segmentClasses =
                   <DatePickerHeadCell
                     v-for="weekDay in weekDays"
                     :key="weekDay"
-                    class="text-surface-400 px-1 py-1 text-center text-xs font-medium"
+                    class="text-muted-foreground px-1 py-1 text-center text-xs font-medium"
                   >
                     {{ weekDay }}
                   </DatePickerHeadCell>
@@ -201,13 +197,13 @@ const segmentClasses =
       </DatePickerContent>
     </DatePickerRoot>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

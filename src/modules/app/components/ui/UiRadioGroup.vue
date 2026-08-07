@@ -20,7 +20,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const { groupProps, labelProps, errorMessageProps, descriptionProps, displayError, fieldValue } =
   useUiRadioGroup(props)
 
-const labelClass = 'text-surface-700 dark:text-surface-300 text-sm font-medium'
+const labelClass = 'text-foreground text-sm font-medium'
 
 watch(
   () => fieldValue.value,
@@ -60,15 +60,15 @@ watch(
           <RadioGroupIndicator class="block h-2 w-2 rounded-full bg-white" />
         </RadioGroupItem>
         <span class="flex min-w-0 flex-col">
-          <span class="text-surface-700 dark:text-surface-300 text-sm">{{ option.label }}</span>
-          <span v-if="option.description" class="text-surface-500 dark:text-surface-400 text-xs">
+          <span class="text-foreground text-sm">{{ option.label }}</span>
+          <span v-if="option.description" class="text-muted-foreground text-xs">
             {{ option.description }}
           </span>
         </span>
       </label>
     </RadioGroupRoot>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p v-else-if="hint || description" v-bind="descriptionProps" class="text-surface-500 text-xs">

@@ -35,13 +35,9 @@ function onValueChange(value: string[]) {
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
 
     <TagsInputRoot
@@ -55,7 +51,7 @@ function onValueChange(value: string[]) {
       :class="[
         'dark:bg-surface-800 bg-white',
         displayError
-          ? 'border-red-400 dark:border-red-500'
+          ? 'border-destructive'
           : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300 focus-within:ring-2',
         disabled ? 'cursor-not-allowed opacity-50' : '',
       ]"
@@ -79,17 +75,17 @@ function onValueChange(value: string[]) {
       </TagsInputItem>
       <TagsInputInput
         :placeholder="!tagsValue.length ? tagsPlaceholder : ''"
-        class="text-surface-700 dark:text-surface-200 placeholder:text-surface-400 min-w-20 flex-1 bg-transparent text-sm outline-none"
+        class="text-foreground placeholder:text-surface-400 min-w-20 flex-1 bg-transparent text-sm outline-none"
       />
     </TagsInputRoot>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

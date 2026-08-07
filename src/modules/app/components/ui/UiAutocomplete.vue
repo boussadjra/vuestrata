@@ -55,7 +55,7 @@ const anchorClasses = computed(() => [
   'shaped-border shaped-radius-sm flex items-center border px-3 py-2',
   'bg-white dark:bg-surface-800',
   displayError.value
-    ? 'border-red-400 dark:border-red-500 focus-within:ring-red-300'
+    ? 'border-destructive focus-within:ring-danger-300'
     : 'border-surface-300 dark:border-surface-600 focus-within:ring-primary-300',
   'focus-within:ring-2',
   props.disabled ? 'cursor-not-allowed opacity-50' : '',
@@ -71,13 +71,9 @@ const optionClasses = computed(() => [
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
 
     <ComboboxRoot
@@ -105,7 +101,7 @@ const optionClasses = computed(() => [
         class="shaped-border shaped-radius shaped-shadow border-surface-200 dark:border-surface-700 dark:bg-surface-800 z-50 mt-1 max-h-60 w-full overflow-auto border bg-white p-1"
       >
         <ComboboxViewport>
-          <ComboboxEmpty class="text-surface-500 dark:text-surface-400 px-3 py-2 text-sm">
+          <ComboboxEmpty class="text-muted-foreground px-3 py-2 text-sm">
             {{ t('common_no_results') }}
           </ComboboxEmpty>
 
@@ -117,7 +113,7 @@ const optionClasses = computed(() => [
             :disabled="option.disabled"
             :class="optionClasses"
           >
-            <ComboboxItemIndicator class="text-primary-500 absolute left-2 flex items-center">
+            <ComboboxItemIndicator class="text-primary-500 absolute start-2 flex items-center">
               ✓
             </ComboboxItemIndicator>
             <span class="truncate">{{ option.label }}</span>
@@ -126,13 +122,13 @@ const optionClasses = computed(() => [
       </ComboboxContent>
     </ComboboxRoot>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

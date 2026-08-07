@@ -65,15 +65,11 @@ function onUpdateModelValue(value: unknown) {
         <div class="min-w-0">
           <p
             class="text-sm font-semibold"
-            :class="
-              index <= current
-                ? 'text-surface-900 dark:text-surface-100'
-                : 'text-surface-500 dark:text-surface-400'
-            "
+            :class="index <= current ? 'text-foreground' : 'text-muted-foreground'"
           >
             {{ step.label }}
           </p>
-          <p v-if="step.description" class="text-surface-500 dark:text-surface-400 text-xs">
+          <p v-if="step.description" class="text-muted-foreground text-xs">
             {{ step.description }}
           </p>
         </div>
@@ -99,15 +95,11 @@ function onUpdateModelValue(value: unknown) {
       <div class="min-w-0">
         <p
           class="text-sm font-semibold"
-          :class="
-            index <= current
-              ? 'text-surface-900 dark:text-surface-100'
-              : 'text-surface-500 dark:text-surface-400'
-          "
+          :class="index <= current ? 'text-foreground' : 'text-muted-foreground'"
         >
           {{ step.label }}
         </p>
-        <p v-if="step.description" class="text-surface-500 dark:text-surface-400 text-xs">
+        <p v-if="step.description" class="text-muted-foreground text-xs">
           {{ step.description }}
         </p>
       </div>

@@ -25,13 +25,9 @@ const {
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
 
     <div
@@ -45,7 +41,7 @@ const {
       data-ui="file-upload"
       :data-provider="provider"
     >
-      <span class="text-surface-400 text-sm">Drop files here or click to browse</span>
+      <span class="text-muted-foreground text-sm">Drop files here or click to browse</span>
       <input v-bind="inputProps" :accept="accept" :multiple="multiple" />
     </div>
 
@@ -55,20 +51,20 @@ const {
         :key="entry.id"
         class="bg-surface-50 dark:bg-surface-800 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm"
       >
-        <span class="text-surface-700 dark:text-surface-300 flex-1 truncate">{{
-          entry.file.name
-        }}</span>
-        <span class="text-surface-400 text-xs">{{ (entry.file.size / 1024).toFixed(1) }}KB</span>
+        <span class="text-foreground flex-1 truncate">{{ entry.file.name }}</span>
+        <span class="text-muted-foreground text-xs"
+          >{{ (entry.file.size / 1024).toFixed(1) }}KB</span
+        >
       </div>
     </div>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

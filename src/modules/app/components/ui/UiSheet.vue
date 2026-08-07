@@ -40,7 +40,7 @@ function close() {
       >
         <div>
           <h3 v-if="title" class="text-base font-semibold">{{ title }}</h3>
-          <p v-if="description" class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+          <p v-if="description" class="text-muted-foreground mt-1 text-sm">
             {{ description }}
           </p>
         </div>

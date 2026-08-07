@@ -50,22 +50,18 @@ const useProviderBreadcrumb = computed(() =>
         class="inline-flex items-center gap-1.5"
       >
         <component :is="dividerComponent" v-if="index > 0">
-          <span :class="[resolveIcon('chevron-right'), 'text-surface-400 h-3.5 w-3.5']" />
+          <span :class="[resolveIcon('chevron-right'), 'text-muted-foreground h-3.5 w-3.5']" />
         </component>
         <RouterLink
           v-if="item.to && index < items.length - 1"
           :to="item.to"
           class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors"
         >
-          <span v-if="item.icon" :class="[item.icon, 'mr-1 h-4 w-4']" />
+          <span v-if="item.icon" :class="[item.icon, 'me-1 h-4 w-4']" />
           {{ item.label }}
         </RouterLink>
-        <component
-          :is="pageComponent"
-          v-else
-          class="text-surface-900 dark:text-surface-100 font-medium"
-        >
-          <span v-if="item.icon" :class="[item.icon, 'mr-1 h-4 w-4']" />
+        <component :is="pageComponent" v-else class="text-foreground font-medium">
+          <span v-if="item.icon" :class="[item.icon, 'me-1 h-4 w-4']" />
           {{ item.label }}
         </component>
       </component>
@@ -77,18 +73,18 @@ const useProviderBreadcrumb = computed(() =>
       <li v-for="(item, index) in items" :key="index" class="inline-flex items-center gap-1.5">
         <span
           v-if="index > 0"
-          :class="[resolveIcon('chevron-right'), 'text-surface-400 h-3.5 w-3.5']"
+          :class="[resolveIcon('chevron-right'), 'text-muted-foreground h-3.5 w-3.5']"
         />
         <RouterLink
           v-if="item.to && index < items.length - 1"
           :to="item.to"
           class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors"
         >
-          <span v-if="item.icon" :class="[item.icon, 'mr-1 h-4 w-4']" />
+          <span v-if="item.icon" :class="[item.icon, 'me-1 h-4 w-4']" />
           {{ item.label }}
         </RouterLink>
-        <span v-else class="text-surface-900 dark:text-surface-100 font-medium">
-          <span v-if="item.icon" :class="[item.icon, 'mr-1 h-4 w-4']" />
+        <span v-else class="text-foreground font-medium">
+          <span v-if="item.icon" :class="[item.icon, 'me-1 h-4 w-4']" />
           {{ item.label }}
         </span>
       </li>

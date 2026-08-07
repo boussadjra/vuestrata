@@ -101,13 +101,9 @@ function handleTreeToggle(event: Event & { detail?: { originalEvent?: Event } })
 
 <template>
   <div class="flex flex-col gap-1">
-    <label
-      v-if="label"
-      v-bind="labelProps"
-      class="text-surface-700 dark:text-surface-300 text-sm font-medium"
-    >
+    <label v-if="label" v-bind="labelProps" class="text-foreground text-sm font-medium">
       {{ label }}
-      <span v-if="required" class="ml-0.5 text-red-500">*</span>
+      <span v-if="required" class="text-destructive ms-0.5">*</span>
     </label>
 
     <PopoverRoot v-model:open="isOpen">
@@ -118,7 +114,7 @@ function handleTreeToggle(event: Event & { detail?: { originalEvent?: Event } })
             'shaped-border shaped-radius-sm inline-flex w-full items-center justify-between border px-3 py-2 text-sm',
             'text-surface-700 dark:bg-surface-800 dark:text-surface-200 bg-white',
             displayError
-              ? 'border-red-400 focus:ring-red-300 dark:border-red-500'
+              ? 'border-destructive focus:ring-danger-300'
               : 'border-surface-300 dark:border-surface-600',
             'focus:ring-primary-300 focus:ring-2 focus:outline-none',
             'disabled:cursor-not-allowed disabled:opacity-50',
@@ -133,8 +129,8 @@ function handleTreeToggle(event: Event & { detail?: { originalEvent?: Event } })
           <span v-else-if="props.multiple && selectedLabels.length" class="truncate">
             {{ selectedLabels.length }} {{ t('common_selected') }}
           </span>
-          <span v-else class="text-surface-400 truncate">{{ placeholderText }}</span>
-          <span class="text-surface-400 ml-2 text-xs">▼</span>
+          <span v-else class="text-muted-foreground truncate">{{ placeholderText }}</span>
+          <span class="text-muted-foreground ms-2 text-xs">▼</span>
         </button>
       </PopoverTrigger>
 
@@ -167,7 +163,7 @@ function handleTreeToggle(event: Event & { detail?: { originalEvent?: Event } })
               :class="{
                 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400':
                   isSelected,
-                'text-surface-700 dark:text-surface-200': !isSelected,
+                'text-foreground': !isSelected,
                 'pointer-events-none opacity-40': item.value.disabled,
               }"
               :style="{ paddingLeft: `${(item.level - 1) * 16 + 8}px` }"
@@ -176,7 +172,7 @@ function handleTreeToggle(event: Event & { detail?: { originalEvent?: Event } })
               <button
                 v-if="item.hasChildren"
                 type="button"
-                class="text-surface-400 flex h-4 w-4 flex-shrink-0 items-center justify-center text-xs"
+                class="text-muted-foreground flex h-4 w-4 flex-shrink-0 items-center justify-center text-xs"
                 @click.stop="handleToggle()"
               >
                 {{ isExpanded ? '▼' : '▶' }}
@@ -189,13 +185,13 @@ function handleTreeToggle(event: Event & { detail?: { originalEvent?: Event } })
       </PopoverContent>
     </PopoverRoot>
 
-    <p v-if="displayError" v-bind="errorMessageProps" class="text-xs text-red-500" role="alert">
+    <p v-if="displayError" v-bind="errorMessageProps" class="text-destructive text-xs" role="alert">
       {{ displayError }}
     </p>
     <p
       v-else-if="hint || description"
       v-bind="descriptionProps"
-      class="text-surface-500 dark:text-surface-400 text-xs"
+      class="text-muted-foreground text-xs"
     >
       {{ hint || description }}
     </p>

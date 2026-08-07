@@ -8,6 +8,12 @@ export interface AlertProps {
   title?: string
   dismissible?: boolean
   icon?: boolean
+  /**
+   * Accessible name for the dismiss button. Overridable because this is a UI
+   * primitive with no i18n of its own — a hardcoded English label is the only
+   * thing an Arabic or French screen-reader user would hear here.
+   */
+  dismissLabel?: string
 }
 
 const props = withDefaults(defineProps<AlertProps>(), {
@@ -15,43 +21,69 @@ const props = withDefaults(defineProps<AlertProps>(), {
   variant: 'info',
   dismissible: false,
   icon: true,
+  dismissLabel: 'Dismiss',
 })
 
 const emit = defineEmits<{ dismiss: [] }>()
 
 const visible = ref(true)
 
+/**
+ * Variant styling, expressed in semantic tokens.
+ *
+ * Each variant used to carry four hardcoded raw-palette pairs (a light shade
+ * plus a hand-written dark twin) — 28 such utilities in this file alone. That meant
+ * the alert looked identical on all ten themes and needed its light/dark
+ * inversion written out by hand for every colour.
+ *
+ * `*-subtle` backgrounds and the foreground/border steps re-point themselves in
+ * dark mode via the single `:root.dark` block in styles/semantic.css, so there
+ * is no `dark:` variant here at all.
+ */
 const variantConfig: Record<
-  string,
-  { bg: string; border: string; iconName: IconName; iconColor: string; text: string }
+  NonNullable<AlertProps['variant']>,
+  {
+    bg: string
+    border: string
+    iconName: IconName
+    iconColor: string
+    text: string
+    role: 'alert' | 'status'
+  }
 > = {
   info: {
-    bg: 'bg-blue-50 dark:bg-blue-950/30',
-    border: 'border-blue-200 dark:border-blue-800',
+    bg: 'bg-info-subtle',
+    border: 'border-info-200 dark:border-info-800',
     iconName: 'info-circle',
-    iconColor: 'text-blue-500',
-    text: 'text-blue-800 dark:text-blue-200',
+    // Non-urgent: 'status' is announced politely, without interrupting.
+    role: 'status',
+    iconColor: 'text-info-600 dark:text-info-400',
+    text: 'text-info-900 dark:text-info-100',
   },
   success: {
-    bg: 'bg-green-50 dark:bg-green-950/30',
-    border: 'border-green-200 dark:border-green-800',
+    bg: 'bg-success-subtle',
+    border: 'border-success-200 dark:border-success-800',
     iconName: 'check-circle',
-    iconColor: 'text-green-500',
-    text: 'text-green-800 dark:text-green-200',
+    role: 'status',
+    iconColor: 'text-success-600 dark:text-success-400',
+    text: 'text-success-900 dark:text-success-100',
   },
   warning: {
-    bg: 'bg-amber-50 dark:bg-amber-950/30',
-    border: 'border-amber-200 dark:border-amber-800',
+    bg: 'bg-warning-subtle',
+    border: 'border-warning-200 dark:border-warning-800',
     iconName: 'danger-triangle',
-    iconColor: 'text-amber-500',
-    text: 'text-amber-800 dark:text-amber-200',
+    // Urgent: 'alert' interrupts the screen reader, which is warranted here.
+    role: 'alert',
+    iconColor: 'text-warning-600 dark:text-warning-400',
+    text: 'text-warning-900 dark:text-warning-100',
   },
   error: {
-    bg: 'bg-red-50 dark:bg-red-950/30',
-    border: 'border-red-200 dark:border-red-800',
+    bg: 'bg-destructive-subtle',
+    border: 'border-danger-200 dark:border-danger-800',
     iconName: 'close-circle',
-    iconColor: 'text-red-500',
-    text: 'text-red-800 dark:text-red-200',
+    role: 'alert',
+    iconColor: 'text-danger-600 dark:text-danger-400',
+    text: 'text-danger-900 dark:text-danger-100',
   },
 }
 
@@ -78,7 +110,7 @@ function dismiss() {
         config.border,
         config.text,
       ]"
-      role="alert"
+      :role="config.role"
       data-ui="alert"
       :data-provider="provider"
     >
@@ -95,11 +127,12 @@ function dismiss() {
       </div>
       <button
         v-if="dismissible"
+        type="button"
         class="shrink-0 rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-        aria-label="Dismiss"
+        :aria-label="dismissLabel"
         @click="dismiss"
       >
-        <span :class="[resolveIcon('close'), 'h-4 w-4']" />
+        <span :class="[resolveIcon('close'), 'h-4 w-4']" aria-hidden="true" />
       </button>
     </div>
   </Transition>

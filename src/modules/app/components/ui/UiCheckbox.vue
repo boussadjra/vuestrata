@@ -31,9 +31,9 @@ const { inputProps, labelProps, isChecked, toggle, errorMessageProps, displayErr
   useUiCheckbox(props)
 
 function emitToggle() {
-  if (props.disabled || props.readonly || isIndeterminate.value) return
+  if (props.disabled || props.readonly) return
   const currentValue = props.modelValue ?? props.checked ?? isChecked.value
-  const nextValue = !currentValue
+  const nextValue = isIndeterminate.value ? true : !currentValue
   emit('update:modelValue', nextValue)
   emit('change', nextValue)
 }

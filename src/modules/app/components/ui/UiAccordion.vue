@@ -45,7 +45,7 @@ const rootProps = computed(() => ({
     >
       <AccordionHeader>
         <AccordionTrigger
-          class="group text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-700/60 flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          class="group text-foreground hover:bg-surface-50 dark:hover:bg-surface-700/60 flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
         >
           <slot :name="`trigger-${item.value}`" :item="item">
             {{ item.title }}
@@ -53,7 +53,7 @@ const rootProps = computed(() => ({
           <span
             :class="[
               resolveIcon('chevron-down'),
-              'text-surface-400 h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180',
+              'text-muted-foreground h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180',
             ]"
           />
         </AccordionTrigger>
@@ -62,7 +62,7 @@ const rootProps = computed(() => ({
       <AccordionContent
         class="data-[state=open]:animate-slide-down data-[state=closed]:animate-slide-up overflow-hidden text-sm"
       >
-        <div class="text-surface-600 dark:text-surface-400 px-4 pb-3">
+        <div class="text-muted-foreground px-4 pb-3">
           <slot :name="`content-${item.value}`" :item="item">
             {{ item.content }}
           </slot>

@@ -17,7 +17,7 @@ const optionClasses = computed(() => [
 
 <template>
   <SelectItem :value="value" :disabled="disabled" data-provider="reka" :class="optionClasses">
-    <SelectItemIndicator class="text-primary-500 absolute left-2 flex items-center"
+    <SelectItemIndicator class="text-primary-500 absolute start-2 flex items-center"
       >✓</SelectItemIndicator
     >
     <SelectItemText>{{ label }}</SelectItemText>

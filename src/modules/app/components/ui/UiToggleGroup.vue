@@ -35,10 +35,14 @@ function itemClasses(option: ToggleGroupOption) {
     'inline-flex items-center justify-center font-medium transition-colors',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2',
     'disabled:opacity-50 disabled:cursor-not-allowed',
-    'border-e border-surface-300 last:border-e-0 dark:border-surface-600',
+    'border-border border-e last:border-e-0',
+    // Semantic tokens rather than ramp steps: the selected fill needs a
+    // foreground the THEME chooses (brutalist's neon primary takes dark text,
+    // where white fails contrast), and the unselected state must stay legible
+    // on themes whose ramp is not mid-tone at 200/700.
     isSelected(option.value)
-      ? 'bg-primary-700 text-white'
-      : 'bg-white text-surface-700 hover:bg-surface-50 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700',
+      ? 'bg-primary-solid text-primary-foreground'
+      : 'bg-card text-foreground hover:bg-muted',
     option.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
     sizeClasses[props.size],
   ]
@@ -47,11 +51,11 @@ function itemClasses(option: ToggleGroupOption) {
 
 <template>
   <div class="flex flex-col gap-1">
-    <label v-if="label" class="text-surface-700 dark:text-surface-300 text-sm font-medium">
+    <label v-if="label" class="text-foreground text-sm font-medium">
       {{ label }}
     </label>
     <div
-      class="btns-wrapper border-surface-300 dark:border-surface-600 inline-flex overflow-hidden rounded-md border"
+      class="btns-wrapper border-border inline-flex overflow-hidden rounded-md border"
       role="group"
       :data-provider="provider"
       data-ui="togglegroup"
@@ -75,7 +79,7 @@ function itemClasses(option: ToggleGroupOption) {
         </ToggleGroupItem>
       </ToggleGroupRoot>
     </div>
-    <p v-if="error" class="text-xs text-red-500" role="alert">
+    <p v-if="error" class="text-destructive text-xs" role="alert">
       {{ error }}
     </p>
   </div>

@@ -68,7 +68,7 @@ const avatarClasses = computed(() => [
         />
         <AvatarFallback
           :delay-ms="fallbackDelayMs"
-          class="text-surface-600 dark:text-surface-300 dark:bg-surface-800 flex h-full w-full items-center justify-center bg-white font-medium select-none"
+          class="text-muted-foreground dark:bg-surface-800 flex h-full w-full items-center justify-center bg-white font-medium select-none"
         >
           {{ initials }}
         </AvatarFallback>
@@ -95,7 +95,7 @@ const avatarClasses = computed(() => [
     />
     <AvatarFallback
       :delay-ms="fallbackDelayMs"
-      class="text-surface-600 dark:text-surface-300 dark:bg-surface-800 flex h-full w-full items-center justify-center bg-white font-medium select-none"
+      class="text-muted-foreground dark:bg-surface-800 flex h-full w-full items-center justify-center bg-white font-medium select-none"
     >
       {{ initials }}
     </AvatarFallback>

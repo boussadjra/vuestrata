@@ -39,7 +39,7 @@ const { items, add, addButtonProps, Iteration } = useFormRepeater({
           <button
             v-bind="removeButtonProps"
             type="button"
-            class="mt-1 rounded-md px-2 py-1 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+            class="text-destructive hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20 mt-1 rounded-md px-2 py-1 text-xs transition-colors"
           >
             {{ removeButtonLabel }}
           </button>
@@ -51,7 +51,7 @@ const { items, add, addButtonProps, Iteration } = useFormRepeater({
       <button
         v-bind="addButtonProps"
         type="button"
-        class="border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:border-primary-400 hover:text-primary-600 dark:hover:border-primary-500 dark:hover:text-primary-400 self-start rounded-md border border-dashed px-3 py-1.5 text-sm transition-colors"
+        class="border-surface-300 dark:border-surface-600 text-muted-foreground hover:border-primary-400 hover:text-primary-600 dark:hover:border-primary-500 dark:hover:text-primary-400 self-start rounded-md border border-dashed px-3 py-1.5 text-sm transition-colors"
         @click="add()"
       >
         {{ addButtonLabel }}
