@@ -14,19 +14,10 @@ import {
 } from '@/config/component-docs'
 import DefaultLayout from '@/layouts/default.vue'
 import { useAuthStore } from '@/stores/auth'
-import { createScopedLogger } from '~/lib/logger'
-import {
-  hasPermission,
-  hasAnyPermission,
-  hasAllPermissions,
-  isRoleAtLeast,
-  emitAuthorizationEvent,
-} from '~/lib/rbac'
-import type { Permission, Role } from '~/types'
+import type { Permission } from '~/types'
 
 import { pinia } from './pinia'
-
-const routerLogger = createScopedLogger('router')
+import { resolveRouteAccess, type GuardedRoute } from './route-guard'
 
 NProgress.configure({
   showSpinner: false,
@@ -75,85 +66,29 @@ router.onError(() => {
   NProgress.done()
 })
 
-// Auth & RBAC guard
+// Auth & RBAC guard.
+//
+// The decision logic lives in `route-guard.ts` as a pure function so it can be
+// unit-tested without booting a router — it is the app's only client-side
+// access control, and it previously had no direct test coverage at all. This
+// hook only adapts the store and translates the decision into a navigation.
 router.beforeEach((to) => {
   const authStore = useAuthStore(pinia)
-  const requiresAuth = to.meta.requiresAuth === true
 
-  if (requiresAuth && !authStore.isAuthenticated) {
-    return { path: '/auth/login', query: { redirect: to.fullPath } }
-  }
-  if (authStore.isAuthenticated) {
-    const userRole: Role = authStore.userRole
-    const userPermissions = authStore.userPermissions
+  const decision = resolveRouteAccess(to as GuardedRoute, {
+    isAuthenticated: authStore.isAuthenticated,
+    role: authStore.userRole,
+    permissions: authStore.userPermissions as Permission[] | undefined,
+  })
 
-    // Check required role
-    if (to.meta.requiredRole && !isRoleAtLeast(userRole, to.meta.requiredRole)) {
+  switch (decision.type) {
+    case 'login':
+      return { path: '/auth/login', query: { redirect: decision.redirect } }
+    case 'forbidden':
       return { path: '/403' }
-    }
-
-    // Resolve permission context for predicate evaluation
-    let context: Record<string, unknown> | undefined
-    if (to.meta.permissionContext) {
-      try {
-        context =
-          typeof to.meta.permissionContext === 'function'
-            ? (to.meta.permissionContext(to) ?? undefined)
-            : to.meta.permissionContext
-      } catch (err) {
-        // Fail closed. A resolver that throws cannot be trusted to hand us
-        // the data a predicate needs, and silently proceeding without the
-        // context could grant access to a resource-scoped route on the base
-        // role check alone — exactly the permission escalation the context
-        // exists to prevent.
-        routerLogger.error('permissionContext resolver threw', { path: to.fullPath, err })
-        emitAuthorizationEvent({
-          permission: 'permissionContext:resolver',
-          granted: false,
-          userRole,
-          source: 'guard',
-          context: {
-            error: 'permissionContext resolver threw',
-            path: to.fullPath,
-          },
-        })
-        return { path: '/403' }
-      }
-    }
-
-    // Multi-permission check (takes precedence over singular)
-    if (to.meta.requiredPermissions?.length) {
-      const mode = to.meta.permissionMode ?? 'all'
-      const checkFn = mode === 'any' ? hasAnyPermission : hasAllPermissions
-      if (
-        !checkFn(
-          userRole,
-          userPermissions as Permission[] | undefined,
-          to.meta.requiredPermissions,
-          context,
-          'guard',
-        )
-      ) {
-        return { path: '/403' }
-      }
-    }
-    // Singular permission check (backward-compatible)
-    else if (to.meta.requiredPermission) {
-      if (
-        !hasPermission(
-          userRole,
-          userPermissions as Permission[] | undefined,
-          to.meta.requiredPermission,
-          context,
-          'guard',
-        )
-      ) {
-        return { path: '/403' }
-      }
-    }
+    default:
+      return true
   }
-
-  return true
 })
 
 /**
