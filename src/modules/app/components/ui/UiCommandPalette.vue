@@ -58,7 +58,7 @@ const emptyStateText = computed(() => props.emptyText ?? t('common_no_results'))
       <input
         v-model="query"
         :placeholder="placeholderText"
-        class="placeholder:text-surface-400 dark:placeholder:text-surface-500 w-full appearance-none border-0 bg-transparent text-sm text-inherit shadow-none ring-0 outline-none"
+        class="unstyled-input placeholder:text-surface-400 dark:placeholder:text-surface-500 w-full appearance-none border-0 bg-transparent text-sm text-inherit shadow-none outline-none"
         @input="emit('update:modelValue', query)"
       />
     </div>
