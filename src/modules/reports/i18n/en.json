@@ -1,0 +1,23 @@
+{
+  "reports_col_change": "Change",
+  "reports_col_dimension": "Breakdown",
+  "reports_empty_body": "Try a different type or period.",
+  "reports_empty_title": "No reports match",
+  "reports_export_of": "Export report: {name}",
+  "reports_export_queued": "Export of \"{name}\" queued. You will be notified when it is ready.",
+  "reports_export_restricted": "Exporting requires the reports:export permission. Ask an administrator if you need it.",
+  "reports_filter_kind": "Filter by type",
+  "reports_filter_period": "Filter by period",
+  "reports_generated": "Generated",
+  "reports_kind_inventory": "Inventory",
+  "reports_kind_pipeline": "Pipeline",
+  "reports_kind_revenue": "Revenue",
+  "reports_kind_support": "Support",
+  "reports_kind_usage": "Usage",
+  "reports_nav": "Reports",
+  "reports_period_month": "Month",
+  "reports_period_quarter": "Quarter",
+  "reports_period_year": "Year",
+  "reports_subtitle": "Saved reports across revenue, pipeline, usage, and support",
+  "reports_title": "Reports"
+}

@@ -1,0 +1,23 @@
+{
+  "reports_col_change": "Évolution",
+  "reports_col_dimension": "Répartition",
+  "reports_empty_body": "Essayez un autre type ou une autre période.",
+  "reports_empty_title": "Aucun rapport correspondant",
+  "reports_export_of": "Exporter le rapport : {name}",
+  "reports_export_queued": "Export de « {name} » mis en file. Vous serez notifié une fois prêt.",
+  "reports_export_restricted": "L'export nécessite la permission reports:export. Contactez un administrateur si besoin.",
+  "reports_filter_kind": "Filtrer par type",
+  "reports_filter_period": "Filtrer par période",
+  "reports_generated": "Généré le",
+  "reports_kind_inventory": "Stock",
+  "reports_kind_pipeline": "Pipeline",
+  "reports_kind_revenue": "Revenus",
+  "reports_kind_support": "Support",
+  "reports_kind_usage": "Usage",
+  "reports_nav": "Rapports",
+  "reports_period_month": "Mois",
+  "reports_period_quarter": "Trimestre",
+  "reports_period_year": "Année",
+  "reports_subtitle": "Rapports enregistrés : revenus, pipeline, usage et support",
+  "reports_title": "Rapports"
+}

@@ -1,0 +1,23 @@
+{
+  "reports_col_change": "التغير",
+  "reports_col_dimension": "التوزيع",
+  "reports_empty_body": "جرّب نوعًا أو فترة مختلفة.",
+  "reports_empty_title": "لا توجد تقارير مطابقة",
+  "reports_export_of": "تصدير التقرير: {name}",
+  "reports_export_queued": "تم وضع تصدير «{name}» في قائمة الانتظار. سيتم إشعارك عند اكتماله.",
+  "reports_export_restricted": "يتطلب التصدير صلاحية reports:export. تواصل مع المسؤول إن كنت بحاجة إليها.",
+  "reports_filter_kind": "تصفية حسب النوع",
+  "reports_filter_period": "تصفية حسب الفترة",
+  "reports_generated": "أُنشئ في",
+  "reports_kind_inventory": "المخزون",
+  "reports_kind_pipeline": "خط المبيعات",
+  "reports_kind_revenue": "الإيرادات",
+  "reports_kind_support": "الدعم",
+  "reports_kind_usage": "الاستخدام",
+  "reports_nav": "التقارير",
+  "reports_period_month": "شهر",
+  "reports_period_quarter": "ربع سنة",
+  "reports_period_year": "سنة",
+  "reports_subtitle": "تقارير محفوظة للإيرادات وخط المبيعات والاستخدام والدعم",
+  "reports_title": "التقارير"
+}
