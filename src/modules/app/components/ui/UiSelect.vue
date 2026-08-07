@@ -10,14 +10,14 @@ import {
 import { useI18n } from 'vue-i18n'
 
 import { useUiSelect, type SelectProps } from '@/composables/forms'
-
-import UiOption from './UiOption.vue'
-import UiOptionGroup from './UiOptionGroup.vue'
 import {
   fieldErrorMessageClass,
   fieldRequiredIndicatorClass,
   invalidSelectTriggerClass,
-} from './validationPresentation'
+} from '@/utils/validationPresentation'
+
+import UiOption from './UiOption.vue'
+import UiOptionGroup from './UiOptionGroup.vue'
 
 const props = defineProps<SelectProps>()
 

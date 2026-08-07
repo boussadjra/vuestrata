@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ButtonGroupItemValue, ButtonGroupModelValue } from './button-group.types'
+import type { ButtonGroupItemValue, ButtonGroupModelValue } from '~/types'
 
 export interface ButtonGroupProps {
   provider?: 'reka'

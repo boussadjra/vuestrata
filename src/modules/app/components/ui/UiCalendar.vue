@@ -16,8 +16,7 @@ import {
 import type { DateValue } from 'reka-ui/date'
 
 import type { FieldProps } from '@/types'
-
-import { fromDateValue, toDatePlaceholder, toDateValue } from './dateValue'
+import { fromDateValue, toDatePlaceholder, toDateValue } from '@/utils/dateValue'
 
 export interface CalendarProps extends Omit<FieldProps, 'size'> {
   modelValue?: Date

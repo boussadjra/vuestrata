@@ -3,8 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
 import { resolveIcon } from '~/config/icon-provider'
-
-import type { ButtonGroupItemValue, ButtonGroupModelValue } from './button-group.types'
+import type { ButtonGroupItemValue, ButtonGroupModelValue } from '~/types'
 
 export interface ButtonProps {
   provider?: 'reka'

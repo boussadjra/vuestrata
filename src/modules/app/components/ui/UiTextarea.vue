@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { useUiTextarea, type TextareaProps } from '@/composables/forms'
-
 import {
   fieldErrorMessageClass,
   fieldRequiredIndicatorClass,
   invalidTextInputClass,
-} from './validationPresentation'
+} from '@/utils/validationPresentation'
 
 const props = withDefaults(defineProps<TextareaProps>(), {
   rows: 4,

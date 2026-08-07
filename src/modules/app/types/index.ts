@@ -269,6 +269,9 @@ export type {
   UsageMetrics,
 } from './billing'
 
+// ─── Button Group ────────────────────────────────────────
+export type { ButtonGroupItemValue, ButtonGroupModelValue } from './button-group'
+
 // ─── UI & Layout ─────────────────────────────────────────
 export interface Notification {
   id: string

@@ -3,8 +3,7 @@ import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 
 import { useUiCheckbox, type CheckboxProps } from '@/composables/forms'
 import { resolveIcon } from '~/config/icon-provider'
-
-import { fieldErrorMessageClass, invalidCheckboxClass } from './validationPresentation'
+import { fieldErrorMessageClass, invalidCheckboxClass } from '~/utils/validationPresentation'
 
 const props = withDefaults(
   defineProps<

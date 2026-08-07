@@ -22,14 +22,13 @@ import type { DateValue } from 'reka-ui/date'
 import { useI18n } from 'vue-i18n'
 
 import { useUiDateField, type DateFieldProps } from '@/composables/forms'
-
 import {
   fromDateValue,
   inferDateGranularity,
   inferHourCycle,
   toDatePlaceholder,
   toDateValue,
-} from './dateValue'
+} from '@/utils/dateValue'
 
 export interface DatetimePickerProps extends DateFieldProps {
   hour12?: boolean

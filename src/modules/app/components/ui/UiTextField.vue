@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { useUiTextField, type TextFieldProps } from '@/composables/forms'
-
 import {
   fieldErrorMessageClass,
   fieldRequiredIndicatorClass,
   invalidTextInputClass,
-} from './validationPresentation'
+} from '@/utils/validationPresentation'
 
 const props = withDefaults(defineProps<TextFieldProps & { provider?: 'reka' }>(), {
   provider: 'reka',
