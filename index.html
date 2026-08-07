@@ -11,9 +11,23 @@
       CSP defense-in-depth (the static host MUST send the canonical header — see public/_headers).
       `style-src 'unsafe-inline'` is required by Tailwind/Vue runtime style injection; everything else is locked down.
     -->
+    <!--
+      Baseline CSP for environments that serve this file without the header set
+      (local `vp preview`, a bare static host). The authoritative policy is the
+      HTTP header in vercel.json / public/_headers / the Dockerfile nginx block;
+      keep all four in sync.
+
+      Two directives are deliberately absent here:
+        - `frame-ancestors` is ignored when delivered via <meta>, so it lives in
+          the header only (X-Frame-Options: DENY covers the meta case).
+        - `/api` was previously listed in `connect-src`. A path is not a valid
+          CSP source, and one invalid source makes the browser discard the WHOLE
+          directive — so connect-src was providing no protection at all. Same
+          origin is already covered by 'self'.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' /api; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none';"
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

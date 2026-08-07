@@ -8,4 +8,12 @@ e2e
 test
 coverage
 playwright-report
-.env.local
+test-results
+
+# Never bake local environment files into the image. Vite inlines
+# import.meta.env at build time, so a stray .env would silently override the
+# build args in the Dockerfile and could leak local configuration into the
+# bundle. Previously only .env.local was excluded.
+.env
+.env.*
+!.env.example
