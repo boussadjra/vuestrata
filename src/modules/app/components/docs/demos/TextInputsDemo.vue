@@ -12,7 +12,7 @@ const searchQuery = ref('')
       <template #header>
         <div>
           <h3 class="text-surface-900 text-lg font-bold dark:text-white">Text inputs</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+          <p class="text-muted-foreground mt-1 text-sm">
             TextField, SearchField, NumberField, and Textarea in action.
           </p>
         </div>
@@ -69,23 +69,23 @@ const searchQuery = ref('')
       </template>
       <dl class="space-y-2 text-sm">
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Username</dt>
+          <dt class="text-muted-foreground">Username</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ username || '—' }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Email</dt>
+          <dt class="text-muted-foreground">Email</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ email || '—' }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Search</dt>
+          <dt class="text-muted-foreground">Search</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ searchQuery || '—' }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Quantity</dt>
+          <dt class="text-muted-foreground">Quantity</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ quantity }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Bio</dt>
+          <dt class="text-muted-foreground">Bio</dt>
           <dd class="text-surface-900 max-w-48 truncate font-mono dark:text-white">
             {{ bio || '—' }}
           </dd>

@@ -18,9 +18,7 @@ const codeMarkdown = computed(() => `\`\`\`vue\n${props.code.trim()}\n\`\`\``)
     <div
       class="border-surface-200 dark:border-surface-700/60 bg-surface-50 dark:bg-surface-800/50 flex items-center justify-between border-b px-4 py-2"
     >
-      <span v-if="title" class="text-surface-500 dark:text-surface-400 text-xs font-medium">{{
-        title
-      }}</span>
+      <span v-if="title" class="text-muted-foreground text-xs font-medium">{{ title }}</span>
       <span v-else />
       <UiToggleGroup
         :model-value="activeTab"

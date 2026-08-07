@@ -24,7 +24,7 @@ const viewOptions = [
       <template #header>
         <div>
           <h3 class="text-surface-900 text-lg font-bold dark:text-white">Choice inputs</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+          <p class="text-muted-foreground mt-1 text-sm">
             Checkbox, Switch, Toggle, RadioGroup, and ToggleGroup.
           </p>
         </div>
@@ -55,23 +55,23 @@ const viewOptions = [
       </template>
       <dl class="space-y-2 text-sm">
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Agreed</dt>
+          <dt class="text-muted-foreground">Agreed</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ agreed }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Notifications</dt>
+          <dt class="text-muted-foreground">Notifications</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ notifications }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Featured</dt>
+          <dt class="text-muted-foreground">Featured</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ featured }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Plan</dt>
+          <dt class="text-muted-foreground">Plan</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ plan }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">View mode</dt>
+          <dt class="text-muted-foreground">View mode</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ viewMode }}</dd>
         </div>
       </dl>

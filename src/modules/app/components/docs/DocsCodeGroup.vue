@@ -48,10 +48,7 @@ watch(activeTab, () => {
     <div
       class="border-surface-200/80 dark:border-surface-700/80 bg-surface-50/80 dark:bg-surface-900/80 flex flex-wrap items-center gap-2 border-b px-3 py-3"
     >
-      <span
-        v-if="tabs.length <= 1"
-        class="text-surface-500 dark:text-surface-400 px-2 text-xs font-medium"
-      >
+      <span v-if="tabs.length <= 1" class="text-muted-foreground px-2 text-xs font-medium">
         {{ tabs[0]?.label ?? 'Code sample' }}
       </span>
       <div v-else class="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">

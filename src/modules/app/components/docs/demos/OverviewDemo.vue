@@ -38,7 +38,7 @@ const query = ref('Ada Lovelace')
       <div
         class="border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/70 rounded-2xl border p-4"
       >
-        <p class="text-surface-500 dark:text-surface-400 text-sm font-medium">Current input</p>
+        <p class="text-muted-foreground text-sm font-medium">Current input</p>
         <p class="text-surface-900 mt-2 text-lg font-semibold dark:text-white">{{ query }}</p>
         <div class="mt-4">
           <UiProgress :model-value="72" />
@@ -49,7 +49,7 @@ const query = ref('Ada Lovelace')
 
   <UiDialog v-model:open="open">
     <template #title>Preview dialog</template>
-    <p class="text-surface-600 dark:text-surface-300 text-sm">
+    <p class="text-muted-foreground text-sm">
       This example uses the same `Ui*` components shown in the docs code pane.
     </p>
   </UiDialog>

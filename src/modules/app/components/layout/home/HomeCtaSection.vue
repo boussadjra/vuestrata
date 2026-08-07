@@ -28,12 +28,10 @@ const ctaSourceButton = computed(() => t('cta_source_button'))
           >
             {{ ctaSectionLabel }}
           </p>
-          <h2
-            class="text-surface-900 dark:text-surface-50 text-3xl font-bold tracking-tight md:text-4xl"
-          >
+          <h2 class="text-foreground text-3xl font-bold tracking-tight md:text-4xl">
             {{ ctaSectionTitle }}
           </h2>
-          <p class="text-surface-600 dark:text-surface-400 mt-4 max-w-2xl text-lg leading-relaxed">
+          <p class="text-muted-foreground mt-4 max-w-2xl text-lg leading-relaxed">
             {{ ctaSectionDesc }}
           </p>
         </div>
@@ -42,7 +40,7 @@ const ctaSourceButton = computed(() => t('cta_source_button'))
           <div
             class="border-surface-200/80 bg-surface-50/90 dark:border-surface-700 dark:bg-surface-950/78 rounded-[calc(var(--shape-radius)+0.125rem)] border p-5 shadow-(--shadow-soft)"
           >
-            <ul class="text-surface-600 dark:text-surface-400 grid gap-2 text-sm">
+            <ul class="text-muted-foreground grid gap-2 text-sm">
               <li class="flex items-center gap-2">
                 <span
                   :class="[

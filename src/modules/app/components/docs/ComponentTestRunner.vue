@@ -109,8 +109,8 @@ function impactBadge(impact?: string | null) {
             >
             <span class="text-sm font-medium">{{ v.id }}</span>
           </div>
-          <p class="text-surface-500 dark:text-surface-400 text-xs">{{ v.description }}</p>
-          <p class="text-surface-400 font-mono text-xs">{{ v.helpUrl }}</p>
+          <p class="text-muted-foreground text-xs">{{ v.description }}</p>
+          <p class="text-muted-foreground font-mono text-xs">{{ v.helpUrl }}</p>
         </div>
       </div>
 
@@ -130,7 +130,7 @@ function impactBadge(impact?: string | null) {
       v-else
       class="border-surface-200 dark:border-surface-700/60 border-t px-4 py-4 text-center"
     >
-      <p class="text-surface-400 text-xs">
+      <p class="text-muted-foreground text-xs">
         Click "Run Audit" to check WCAG 2.0 A/AA compliance and best practices
       </p>
     </div>

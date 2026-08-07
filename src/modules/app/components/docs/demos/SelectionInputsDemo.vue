@@ -50,7 +50,7 @@ const categoryNodes = [
       <template #header>
         <div>
           <h3 class="text-surface-900 text-lg font-bold dark:text-white">Selection inputs</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+          <p class="text-muted-foreground mt-1 text-sm">
             Select, ComboBox, TagsField, TreeSelect, and OTPField.
           </p>
         </div>
@@ -109,25 +109,25 @@ const categoryNodes = [
       </template>
       <dl class="space-y-2 text-sm">
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Country</dt>
+          <dt class="text-muted-foreground">Country</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ country || '—' }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Timezone</dt>
+          <dt class="text-muted-foreground">Timezone</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ timezone || '—' }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Skills</dt>
+          <dt class="text-muted-foreground">Skills</dt>
           <dd class="text-surface-900 font-mono dark:text-white">
             {{ skills.length ? skills.join(', ') : '—' }}
           </dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Category</dt>
+          <dt class="text-muted-foreground">Category</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ category || '—' }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">OTP code</dt>
+          <dt class="text-muted-foreground">OTP code</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ verifyCode || '—' }}</dd>
         </div>
       </dl>

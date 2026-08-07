@@ -99,9 +99,7 @@ function reset() {
           :key="def.name"
           class="flex items-center justify-between gap-3"
         >
-          <label class="text-surface-600 dark:text-surface-400 shrink-0 font-mono text-xs">{{
-            def.name
-          }}</label>
+          <label class="text-muted-foreground shrink-0 font-mono text-xs">{{ def.name }}</label>
 
           <UiSwitch v-if="def.type === 'boolean'" v-model="values[def.name] as boolean" size="sm" />
 
@@ -135,15 +133,12 @@ function reset() {
 
         <template v-if="slotDefs?.length">
           <div class="border-surface-200 dark:border-surface-700/60 mt-3 border-t pt-3">
-            <span
-              class="text-surface-400 dark:text-surface-500 text-xs font-semibold tracking-wider uppercase"
+            <span class="text-muted-foreground text-xs font-semibold tracking-wider uppercase"
               >Slots</span
             >
           </div>
           <div v-for="slot in slotDefs" :key="slot.name" class="space-y-1">
-            <label class="text-surface-600 dark:text-surface-400 font-mono text-xs">{{
-              slot.name
-            }}</label>
+            <label class="text-muted-foreground font-mono text-xs">{{ slot.name }}</label>
             <UiTextField v-model="slotValues[slot.name]" size="sm" class="w-full" />
           </div>
         </template>

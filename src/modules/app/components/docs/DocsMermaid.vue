@@ -156,7 +156,7 @@ const zoomLabel = computed(() => `${Math.round(scale.value * 100)}%`)
   >
     <div v-if="rendered.svg" class="relative">
       <UiButton
-        class="absolute top-2 right-2 z-10 shadow-sm"
+        class="absolute end-2 top-2 z-10 shadow-sm"
         variant="ghost"
         size="sm"
         :icon="resolveIcon('zoom-in')"
@@ -172,8 +172,8 @@ const zoomLabel = computed(() => `${Math.round(scale.value * 100)}%`)
     </div>
 
     <div v-else class="space-y-3">
-      <p class="text-sm font-medium text-red-600 dark:text-red-400">Mermaid render failed.</p>
-      <p class="text-surface-500 dark:text-surface-400 text-sm">{{ rendered.error }}</p>
+      <p class="text-destructive text-sm font-medium">Mermaid render failed.</p>
+      <p class="text-muted-foreground text-sm">{{ rendered.error }}</p>
       <pre
         class="bg-surface-100 dark:bg-surface-950 overflow-auto rounded p-3 text-xs"
       ><code>{{ props.content }}</code></pre>

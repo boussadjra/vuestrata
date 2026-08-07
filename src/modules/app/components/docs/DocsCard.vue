@@ -33,7 +33,7 @@ defineProps<{
           <div class="min-w-0">
             <h3
               v-if="title"
-              class="text-surface-950 dark:text-surface-50 m-0! text-lg leading-7 font-semibold tracking-tight"
+              class="text-foreground m-0! text-lg leading-7 font-semibold tracking-tight"
             >
               {{ title }}
             </h3>
@@ -47,7 +47,7 @@ defineProps<{
         />
       </div>
 
-      <div class="text-surface-600 dark:text-surface-400 text-sm leading-6">
+      <div class="text-muted-foreground text-sm leading-6">
         <slot />
       </div>
     </div>

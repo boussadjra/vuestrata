@@ -161,7 +161,7 @@ function syncScenarioCodeState(key: string, event: Event) {
           <h3 class="text-surface-900 text-2xl font-bold dark:text-white">
             Three live states, one shared form shell
           </h3>
-          <p class="text-surface-500 dark:text-surface-400 text-sm leading-6">
+          <p class="text-muted-foreground text-sm leading-6">
             The old profile-by-surface matrix is reduced to the cases developers actually inspect: a
             healthy default, a validation-heavy draft, and a submit path with payload visibility.
           </p>
@@ -200,7 +200,7 @@ function syncScenarioCodeState(key: string, event: Event) {
                 'text-xs font-semibold tracking-[0.22em] uppercase',
                 scenario.key === 'validation'
                   ? 'text-danger-600 dark:text-danger-300'
-                  : 'text-surface-500 dark:text-surface-400',
+                  : 'text-muted-foreground',
               ]"
             >
               {{ scenario.eyebrow }}
@@ -208,7 +208,7 @@ function syncScenarioCodeState(key: string, event: Event) {
             <h4 class="text-surface-900 text-lg font-bold dark:text-white">
               {{ scenario.title }}
             </h4>
-            <p class="text-surface-500 dark:text-surface-400 text-sm leading-6">
+            <p class="text-muted-foreground text-sm leading-6">
               {{ scenario.description }}
             </p>
           </div>
@@ -285,9 +285,7 @@ function syncScenarioCodeState(key: string, event: Event) {
               </div>
 
               <div v-if="scenario.lastSubmission.value" class="mt-4">
-                <p
-                  class="text-surface-500 dark:text-surface-400 text-xs font-semibold tracking-[0.18em] uppercase"
-                >
+                <p class="text-muted-foreground text-xs font-semibold tracking-[0.18em] uppercase">
                   Last payload
                 </p>
                 <pre
@@ -297,7 +295,7 @@ function syncScenarioCodeState(key: string, event: Event) {
               </div>
 
               <div class="mt-5 flex flex-col gap-3 border-t border-current/10 pt-4">
-                <p class="text-surface-500 dark:text-surface-400 text-sm leading-6">
+                <p class="text-muted-foreground text-sm leading-6">
                   {{ scenario.footnote }}
                 </p>
                 <UiButton
@@ -327,7 +325,7 @@ function syncScenarioCodeState(key: string, event: Event) {
               <span
                 :class="[
                   resolveIcon('chevron-down'),
-                  'summary-cue text-surface-400 inline-block h-4 w-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none',
+                  'summary-cue text-muted-foreground inline-block h-4 w-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none',
                   openScenarioCode[scenario.key] ? 'rotate-180' : '',
                 ]"
                 aria-hidden="true"

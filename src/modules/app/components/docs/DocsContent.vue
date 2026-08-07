@@ -26,7 +26,7 @@ const emit = defineEmits<{ back: [] }>()
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div class="min-w-0">
             <div
-              class="text-surface-400 dark:text-surface-500 flex flex-wrap items-center gap-2 text-[11px] font-medium tracking-[0.18em] uppercase"
+              class="text-muted-foreground flex flex-wrap items-center gap-2 text-[11px] font-medium tracking-[0.18em] uppercase"
             >
               <span>{{
                 doc.section ? doc.section.replace(/-/g, ' ') : t('common_documentation')
@@ -39,14 +39,12 @@ const emit = defineEmits<{ back: [] }>()
                 {{ doc.subsectionLabel || doc.subsection?.replace(/-/g, ' ') }}
               </span>
             </div>
-            <h1
-              class="text-surface-900 dark:text-surface-100 mt-3 text-3xl font-bold tracking-tight"
-            >
+            <h1 class="text-foreground mt-3 text-3xl font-bold tracking-tight">
               {{ doc.title }}
             </h1>
             <p
               v-if="doc.description"
-              class="text-surface-600 dark:text-surface-300 mt-3 max-w-3xl text-sm leading-6 sm:text-base"
+              class="text-muted-foreground mt-3 max-w-3xl text-sm leading-6 sm:text-base"
             >
               {{ doc.description }}
             </p>
@@ -71,7 +69,7 @@ const emit = defineEmits<{ back: [] }>()
             :plugins="docsComarkPlugins"
           />
           <template #fallback>
-            <div class="text-surface-400 flex items-center gap-2 py-12">
+            <div class="text-muted-foreground flex items-center gap-2 py-12">
               <span class="i-solar-refresh-bold-duotone h-5 w-5 animate-spin" />
               Loading...
             </div>
@@ -83,10 +81,8 @@ const emit = defineEmits<{ back: [] }>()
         v-else
         class="border-surface-200/80 bg-surface-50/86 dark:border-surface-800 dark:bg-surface-900/78 mx-auto max-w-xl rounded-[calc(var(--shape-radius)+0.25rem)] border px-6 py-12 text-center shadow-[var(--shadow-soft)]"
       >
-        <p class="text-surface-900 dark:text-surface-100 text-lg font-semibold">
-          This docs route is not indexed.
-        </p>
-        <p class="text-surface-500 dark:text-surface-400 mt-2 text-sm leading-6">
+        <p class="text-foreground text-lg font-semibold">This docs route is not indexed.</p>
+        <p class="text-muted-foreground mt-2 text-sm leading-6">
           The markdown registry has no entry for this URL.
         </p>
         <UiButton variant="ghost" size="md" class="mt-5" @click="emit('back')">

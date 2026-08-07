@@ -84,7 +84,7 @@ onUnmounted(() => {
           </h1>
 
           <p
-            class="text-surface-500 dark:text-surface-400 animate-slide-up mb-9 max-w-lg text-lg leading-relaxed lg:text-xl"
+            class="text-muted-foreground animate-slide-up mb-9 max-w-lg text-lg leading-relaxed lg:text-xl"
             style="animation-delay: 0.08s"
           >
             {{ t('hero_desc') }}
@@ -102,12 +102,12 @@ onUnmounted(() => {
           </div>
 
           <div
-            class="text-surface-500 dark:text-surface-400 animate-slide-up flex flex-wrap gap-x-5 gap-y-2 text-[13px]"
+            class="text-muted-foreground animate-slide-up flex flex-wrap gap-x-5 gap-y-2 text-[13px]"
             style="animation-delay: 0.24s"
           >
             <span v-for="s in stackItems" :key="s.label" class="inline-flex items-center gap-1.5">
               <span :class="[s.icon, 'h-4 w-4 shrink-0']" />
-              <span class="text-surface-700 dark:text-surface-300 font-medium">{{ s.label }}</span>
+              <span class="text-foreground font-medium">{{ s.label }}</span>
             </span>
           </div>
         </div>

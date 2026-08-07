@@ -30,7 +30,7 @@ const option: EChartsOption = {
     <template #header>
       <div>
         <h3 class="text-surface-900 text-lg font-bold dark:text-white">Chart preview</h3>
-        <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+        <p class="text-muted-foreground mt-1 text-sm">
           Live ECharts rendering through the shared `BaseChart` wrapper.
         </p>
       </div>

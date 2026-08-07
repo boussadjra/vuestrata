@@ -62,7 +62,7 @@ const { fields, values, isSubmitting, handleSubmit, reset } = useFormBuilder({
       <template #header>
         <div>
           <h3 class="text-surface-900 text-lg font-bold dark:text-white">Config-driven form</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+          <p class="text-muted-foreground mt-1 text-sm">
             Generated from a field definition array via useFormBuilder().
           </p>
         </div>
@@ -91,7 +91,7 @@ const { fields, values, isSubmitting, handleSubmit, reset } = useFormBuilder({
         <h3 class="text-surface-900 text-lg font-bold dark:text-white">Form state</h3>
       </template>
       <pre
-        class="text-surface-700 dark:text-surface-300 bg-surface-50 dark:bg-surface-800 max-h-64 overflow-auto rounded-lg p-3 font-mono text-xs"
+        class="text-foreground bg-surface-50 dark:bg-surface-800 max-h-64 overflow-auto rounded-lg p-3 font-mono text-xs"
         >{{ JSON.stringify(values, null, 2) }}</pre
       >
     </UiCard>

@@ -237,10 +237,10 @@ watch(
 )
 
 const itemLinkClass =
-  'focus-visible:ring-primary-300 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5'
+  'focus-visible:ring-primary-300 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-start text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5'
 
 const childLinkClass =
-  'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg py-2 pr-3 pl-4 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5'
+  'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg py-2 pe-3 ps-4 text-start text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5'
 </script>
 
 <template>
@@ -281,7 +281,7 @@ const childLinkClass =
         'mb-3 font-semibold',
         currentSlug === ''
           ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300'
-          : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800',
+          : 'text-foreground hover:bg-surface-100 dark:hover:bg-surface-800',
       ]"
       :aria-current="currentSlug === '' ? 'page' : undefined"
       @click="closeSidebarAfterNavigation"
@@ -293,7 +293,7 @@ const childLinkClass =
       <section v-for="section in sections" :key="section.key">
         <h2
           :id="`docs-section-${section.key}`"
-          class="text-surface-500 dark:text-surface-400 mb-2 px-3 text-xs font-bold tracking-wider uppercase"
+          class="text-muted-foreground mb-2 px-3 text-xs font-bold tracking-wider uppercase"
         >
           {{ section.label }}
         </h2>
@@ -310,7 +310,7 @@ const childLinkClass =
                 itemLinkClass,
                 isActive(entry.doc.slug)
                   ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 font-semibold'
-                  : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
+                  : 'text-muted-foreground hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
               ]"
               :aria-current="isActive(entry.doc.slug) ? 'page' : undefined"
               @click="closeSidebarAfterNavigation"
@@ -326,7 +326,7 @@ const childLinkClass =
                   'justify-between font-semibold',
                   isGroupActive(entry.group)
                     ? 'bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100'
-                    : 'text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
+                    : 'text-foreground hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
                 ]"
                 :aria-expanded="isGroupExpanded(entry.group.key)"
                 :aria-controls="getGroupPanelId(entry.group.key)"
@@ -354,7 +354,7 @@ const childLinkClass =
                       childLinkClass,
                       isActive(sub.slug)
                         ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/30 dark:text-primary-300 font-semibold'
-                        : 'text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
+                        : 'text-muted-foreground hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
                     ]"
                     :aria-current="isActive(sub.slug) ? 'page' : undefined"
                     @click="closeSidebarAfterNavigation"

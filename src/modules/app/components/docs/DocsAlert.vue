@@ -35,10 +35,7 @@ const styles = computed(() => {
 
 <template>
   <div
-    :class="[
-      'text-surface-700 dark:text-surface-200 my-4 flex items-start gap-3 rounded-lg border p-4',
-      styles.panel,
-    ]"
+    :class="['text-foreground my-4 flex items-start gap-3 rounded-lg border p-4', styles.panel]"
     role="note"
   >
     <span :class="[styles.icon, 'mt-0.5 h-5 w-5 shrink-0']" aria-hidden="true" />

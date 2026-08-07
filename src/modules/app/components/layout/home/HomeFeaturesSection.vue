@@ -39,12 +39,10 @@ const FEATURE_ICON_CLASSES = [
           >
             {{ t('features_section_label') }}
           </p>
-          <h2
-            class="text-surface-900 dark:text-surface-50 mb-4 text-3xl font-bold tracking-tight md:text-4xl"
-          >
+          <h2 class="text-foreground mb-4 text-3xl font-bold tracking-tight md:text-4xl">
             {{ t('features_section_title') }}
           </h2>
-          <p class="text-surface-500 dark:text-surface-400 text-lg leading-8">
+          <p class="text-muted-foreground text-lg leading-8">
             {{ t('features_section_desc') }}
           </p>
         </div>
@@ -72,7 +70,7 @@ const FEATURE_ICON_CLASSES = [
               >
                 <span :class="[resolveIcon(feature.iconName), 'h-5 w-5']" aria-hidden="true" />
               </div>
-              <span class="text-surface-400 dark:text-surface-500 font-mono text-xs">
+              <span class="text-muted-foreground font-mono text-xs">
                 {{ String(featureIndex + 1).padStart(2, '0') }}
               </span>
             </div>
@@ -83,12 +81,10 @@ const FEATURE_ICON_CLASSES = [
             />
           </div>
 
-          <h3
-            class="text-surface-950 dark:text-surface-50 mb-2 text-xl font-semibold tracking-tight"
-          >
+          <h3 class="text-foreground mb-2 text-xl font-semibold tracking-tight">
             {{ feature.title }}
           </h3>
-          <p class="text-surface-600 dark:text-surface-400 max-w-xl text-base leading-relaxed">
+          <p class="text-muted-foreground max-w-xl text-base leading-relaxed">
             {{ feature.desc }}
           </p>
         </li>

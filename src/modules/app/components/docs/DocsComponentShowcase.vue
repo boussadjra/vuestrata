@@ -113,10 +113,10 @@ const activePanel = ref<'preview' | 'code'>('preview')
     <div class="border-surface-200/80 dark:border-surface-700/80 border-b px-5 py-5 lg:px-6">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div class="max-w-2xl">
-          <h3 class="text-surface-900 dark:text-surface-100 text-lg font-semibold">
+          <h3 class="text-foreground text-lg font-semibold">
             {{ demo.title }}
           </h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm leading-6">
+          <p class="text-muted-foreground mt-1 text-sm leading-6">
             {{ demo.description }}
           </p>
         </div>

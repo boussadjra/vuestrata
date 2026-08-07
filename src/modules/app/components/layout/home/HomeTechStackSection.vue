@@ -30,11 +30,11 @@ const { t } = useI18n()
         >
           {{ t('stack_section_label') }}
         </p>
-        <h2 class="text-surface-900 dark:text-surface-50 text-2xl font-bold tracking-tight">
+        <h2 class="text-foreground text-2xl font-bold tracking-tight">
           {{ t('stack_section_title') }}
         </h2>
 
-        <p class="text-surface-500 dark:text-surface-400 mt-4 text-base leading-7">
+        <p class="text-muted-foreground mt-4 text-base leading-7">
           {{ t('stack_section_desc') }}
         </p>
       </div>
@@ -45,22 +45,26 @@ const { t } = useI18n()
         <div
           v-for="(stackItem, stackIndex) in stackItems"
           :key="stackItem.label"
-          class="border-surface-200/80 dark:border-surface-800 animate-scale-in bg-surface-50/60 flex items-start gap-3 border-b p-4 sm:odd:border-e lg:nth-[3n]:border-e-0 lg:nth-[3n+1]:border-e lg:nth-[3n+2]:border-e lg:nth-last-[-n+3]:border-b-0 dark:bg-transparent"
+          class="border-surface-200/80 dark:border-surface-800 animate-scale-in bg-surface-50/60 border-b p-4 sm:odd:border-e lg:nth-[3n]:border-e-0 lg:nth-[3n+1]:border-e lg:nth-[3n+2]:border-e lg:nth-last-[-n+3]:border-b-0 dark:bg-transparent"
           :style="{ animationDelay: `${0.05 + stackIndex * 0.06}s` }"
         >
-          <span
-            class="border-surface-200 bg-surface-50 text-surface-700 dark:border-surface-700 dark:bg-surface-950 dark:text-surface-200 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
-          >
-            <span :class="[stackItem.icon, 'h-5 w-5']" />
-          </span>
-          <div class="min-w-0">
-            <dt class="text-surface-800 dark:text-surface-100 text-sm font-semibold">
-              {{ stackItem.label }}
-            </dt>
-            <dd class="text-surface-500 dark:text-surface-400 mt-0.5 text-xs leading-5">
-              {{ stackItem.desc }}
-            </dd>
-          </div>
+          <!--
+            The icon lives inside <dt>, not as a sibling of it.
+            A <div> directly inside a <dl> may contain ONLY a <dt>/<dd> group;
+            an extra element alongside them makes the list structurally invalid,
+            and a screen reader then loses the term/description pairing.
+          -->
+          <dt class="text-foreground flex min-w-0 items-center gap-3 text-sm font-semibold">
+            <span
+              class="border-surface-200 bg-surface-50 text-surface-700 dark:border-surface-700 dark:bg-surface-950 dark:text-surface-200 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
+            >
+              <span :class="[stackItem.icon, 'h-5 w-5']" aria-hidden="true" />
+            </span>
+            <span class="truncate">{{ stackItem.label }}</span>
+          </dt>
+          <dd class="text-muted-foreground mt-1 ps-13 text-xs leading-5">
+            {{ stackItem.desc }}
+          </dd>
         </div>
       </dl>
     </div>

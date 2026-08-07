@@ -26,9 +26,7 @@ defineProps<{
           <span class="bg-surface-300/80 dark:bg-surface-600/60 h-3 w-3 rounded-full" />
         </div>
         <div class="flex flex-1 justify-center">
-          <span class="text-surface-400 dark:text-surface-500 text-[11px] font-medium tracking-wide"
-            >App.vue</span
-          >
+          <span class="text-muted-foreground text-[11px] font-medium tracking-wide">App.vue</span>
         </div>
         <div class="w-12" />
       </div>
@@ -84,16 +82,22 @@ defineProps<{
         </div>
       </div>
 
+      <!--
+        Opaque `bg-muted` rather than a translucent tint: a semi-transparent
+        background composites against whatever is behind it, so the effective
+        contrast of the 10px label text is not knowable from the declared
+        colours — and here it landed below AA.
+      -->
       <dl
-        class="border-surface-200 bg-surface-100/70 dark:border-surface-800 dark:bg-surface-950/60 text-surface-500 dark:text-surface-400 grid grid-cols-3 border-t px-4 py-3 text-[10px] tracking-wide uppercase"
+        class="border-border bg-muted text-foreground grid grid-cols-3 border-t px-4 py-3 text-[10px] font-semibold tracking-wide uppercase"
       >
         <div>
           <dt>Provider</dt>
-          <dd class="text-surface-800 dark:text-surface-200 mt-1 font-mono normal-case">Reka UI</dd>
+          <dd class="text-foreground mt-1 font-mono normal-case">Reka UI</dd>
         </div>
         <div>
           <dt>Theme</dt>
-          <dd class="text-surface-800 dark:text-surface-200 mt-1 font-mono normal-case">Default</dd>
+          <dd class="text-foreground mt-1 font-mono normal-case">Default</dd>
         </div>
         <div>
           <dt>Checks</dt>

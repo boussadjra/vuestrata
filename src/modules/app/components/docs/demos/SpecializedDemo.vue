@@ -11,7 +11,7 @@ const rating = ref(3)
       <template #header>
         <div>
           <h3 class="text-surface-900 text-lg font-bold dark:text-white">Specialized inputs</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+          <p class="text-muted-foreground mt-1 text-sm">
             Slider, ColorPicker, Editable, and RatingField.
           </p>
         </div>
@@ -60,11 +60,11 @@ const rating = ref(3)
       </template>
       <dl class="space-y-3 text-sm">
         <div class="flex items-center justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Volume</dt>
+          <dt class="text-muted-foreground">Volume</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ volume }}%</dd>
         </div>
         <div class="flex items-center justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Accent color</dt>
+          <dt class="text-muted-foreground">Accent color</dt>
           <dd class="flex items-center gap-2">
             <span
               class="border-surface-200 dark:border-surface-600 inline-block h-4 w-4 rounded-full border"
@@ -74,13 +74,13 @@ const rating = ref(3)
           </dd>
         </div>
         <div class="flex items-center justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Page title</dt>
+          <dt class="text-muted-foreground">Page title</dt>
           <dd class="text-surface-900 max-w-48 truncate font-mono dark:text-white">
             {{ pageTitle }}
           </dd>
         </div>
         <div class="flex items-center justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Rating</dt>
+          <dt class="text-muted-foreground">Rating</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ rating }} / 5</dd>
         </div>
       </dl>

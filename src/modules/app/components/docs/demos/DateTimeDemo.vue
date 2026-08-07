@@ -12,7 +12,7 @@ const graduationYear = ref<Date>()
       <template #header>
         <div>
           <h3 class="text-surface-900 text-lg font-bold dark:text-white">Date &amp; time inputs</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 text-sm">
+          <p class="text-muted-foreground mt-1 text-sm">
             DateField, TimeField, DatePicker, MonthPicker, and YearPicker.
           </p>
         </div>
@@ -57,29 +57,29 @@ const graduationYear = ref<Date>()
       </template>
       <dl class="space-y-2 text-sm">
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Event date</dt>
+          <dt class="text-muted-foreground">Event date</dt>
           <dd class="text-surface-900 font-mono dark:text-white">
             {{ eventDate?.toLocaleDateString() ?? '—' }}
           </dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Start time</dt>
+          <dt class="text-muted-foreground">Start time</dt>
           <dd class="text-surface-900 font-mono dark:text-white">{{ startTime || '—' }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Appointment</dt>
+          <dt class="text-muted-foreground">Appointment</dt>
           <dd class="text-surface-900 font-mono dark:text-white">
             {{ appointmentDate?.toLocaleDateString() ?? '—' }}
           </dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Billing month</dt>
+          <dt class="text-muted-foreground">Billing month</dt>
           <dd class="text-surface-900 font-mono dark:text-white">
             {{ billingMonth?.toLocaleDateString() ?? '—' }}
           </dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-surface-500 dark:text-surface-400">Graduation year</dt>
+          <dt class="text-muted-foreground">Graduation year</dt>
           <dd class="text-surface-900 font-mono dark:text-white">
             {{ graduationYear?.toLocaleDateString() ?? '—' }}
           </dd>
