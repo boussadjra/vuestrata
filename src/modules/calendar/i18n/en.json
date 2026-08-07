@@ -1,0 +1,18 @@
+{
+  "calendar_all_day": "All day",
+  "calendar_attendees": "{count} attendees",
+  "calendar_day_empty": "Nothing scheduled for this day.",
+  "calendar_event_count": "{count} events",
+  "calendar_filter_kind": "Filter by type",
+  "calendar_grid_caption": "Calendar for {month}. Use the arrow keys to move between days.",
+  "calendar_kind_deadline": "Deadline",
+  "calendar_kind_holiday": "Holiday",
+  "calendar_kind_maintenance": "Maintenance",
+  "calendar_kind_meeting": "Meeting",
+  "calendar_kind_review": "Review",
+  "calendar_nav": "Calendar",
+  "calendar_next_month": "Next month",
+  "calendar_previous_month": "Previous month",
+  "calendar_subtitle": "Meetings, deadlines, and maintenance windows",
+  "calendar_title": "Calendar"
+}

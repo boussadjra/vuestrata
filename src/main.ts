@@ -1,22 +1,21 @@
 import { configure as configureFormwerk } from '@formwerk/core'
 
-import { authAdapter as configuredAuthAdapter } from '@/config/app.config'
+import { appConfig, authAdapter as configuredAuthAdapter } from '@/config/app.config'
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
 // Utilities & error handling
-import { installErrorHandlers, normalizeError } from '@/lib/errors'
+import { installErrorHandlers, normalizeError, reportError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 // Modules
 import { setupModules, useModuleStore } from '@/modules'
 import { createAuthAdapter } from '@/modules/auth'
 import { appModules } from '@/modules/setup'
 import { bootstrapTheme } from '@/plugins/bootstrap-theme'
+import { installErrorReporting } from '@/plugins/error-reporting'
 import { installI18n } from '@/plugins/i18n'
 // Plugins (initialization order matters)
 import { pinia } from '@/plugins/pinia'
 import { router, layoutMap } from '@/plugins/router'
 import { VueQueryPlugin, vueQueryOptions } from '@/plugins/vue-query'
-import { onInvalidation } from '@/state/demo-storage'
-import { ensureDefaultDemoUsers, getDemoSession } from '@/state/demo-store'
 import { installRuntimeBackends } from '@/state/runtime-backends'
 // Stores
 import { useAuthStore } from '@/stores/auth'
@@ -40,20 +39,21 @@ configureFormwerk({ disableHtmlValidation: true })
 // ─── Bootstrap helpers ────────────────────────────────────────────────────────
 
 function setupVueErrorHandler(app: ReturnType<typeof createApp>): void {
-  // Sole sink for Vue render-time errors. When a real error-reporting
-  // integration is added (Sentry, etc.) wire it here behind a feature
-  // flag rather than sprinkling reporters across components.
+  // Sole sink for Vue render-time errors. `reportError` is a no-op unless a
+  // provider was installed by `installErrorReporting()` — keep reporters out of
+  // components so this stays the one place errors leave the app.
   app.config.errorHandler = (err, instance, info) => {
-    logger.error('Vue error:', {
-      err,
-      component: instance?.$options?.name,
-      info,
-    })
+    const component = instance?.$options?.name
+    logger.error('Vue error:', { err, component, info })
+    reportError(err, { source: 'vue:render', component, info })
   }
 }
 
 function setupAuthInterceptor(authStore: ReturnType<typeof useAuthStore>): void {
   installApiAuth({
+    // The adapter decides whether the app sends a bearer token or relies on a
+    // cookie session. The client previously did BOTH unconditionally.
+    transport: createAuthAdapter(configuredAuthAdapter).transport,
     getToken: () => authStore.token,
     getRefreshToken: () => authStore.refreshToken,
     setAuth: (token, refreshToken) => {
@@ -88,6 +88,9 @@ function setupAuthInterceptor(authStore: ReturnType<typeof useAuthStore>): void 
     if (!rt) return
     try {
       const adapter = createAuthAdapter(configuredAuthAdapter)
+      // Cookie-session adapters have no refresh token to rotate — the backend
+      // renews the session itself — so there is nothing to do here.
+      if (!adapter.capabilities.refresh || !adapter.refreshToken) return
       const result = await adapter.refreshToken(rt)
       if (authStore.user) {
         authStore.setAuth(authStore.user, result.token, result.refreshToken, result.expiresIn)
@@ -98,9 +101,23 @@ function setupAuthInterceptor(authStore: ReturnType<typeof useAuthStore>): void 
   })
 }
 
+/**
+ * Load the demo-state barrel.
+ *
+ * Every use is wrapped in `if (__VUESTRATA_DEMO__)` so rolldown removes the
+ * `import()` — and with it the whole IndexedDB demo layer, the seeded
+ * super-admin, and the demo credentials — from a production build. Importing
+ * `~/state/demo-store` statically anywhere in application code would defeat
+ * this; `scripts/build/verify-bundle.mjs --strict-demo` is what catches it.
+ */
+function loadDemoState() {
+  return import('@/state/demo')
+}
+
 async function restoreSession(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
-  // Mock adapter: restore session from IndexedDB demo-store if available
-  if (configuredAuthAdapter === 'mock') {
+  // Mock adapter: restore the session from the IndexedDB demo store.
+  if (__VUESTRATA_DEMO__ && configuredAuthAdapter === 'mock') {
+    const { getDemoSession } = await loadDemoState()
     const session = await getDemoSession()
     if (session) {
       authStore.setAuth(session.user, session.token, session.refreshToken, session.expiresIn)
@@ -165,6 +182,9 @@ async function clearDemoAuthTab(authStore: ReturnType<typeof useAuthStore>): Pro
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
 async function bootstrap() {
+  // Install the reporter BEFORE the global handlers so an error thrown during
+  // the rest of bootstrap is still captured. No-op without a configured DSN.
+  await installErrorReporting()
   installErrorHandlers()
 
   const app = createApp(App)
@@ -175,7 +195,7 @@ async function bootstrap() {
   // Wire core/lib runtime backends (api-auth, rbac, validation cache).
   // Must happen after pinia (api-auth backend is a Pinia store) and before
   // any code path that reads from those backends (e.g. setupAuthInterceptor).
-  await installRuntimeBackends()
+  installRuntimeBackends()
   const authStore = useAuthStore()
   setupAuthInterceptor(authStore)
 
@@ -183,8 +203,13 @@ async function bootstrap() {
   app.use(VueQueryPlugin, vueQueryOptions)
   installI18n(app)
 
-  if (configuredAuthAdapter === 'mock') {
-    await ensureDefaultDemoUsers()
+  // Seed the demo super-admin. This runs AFTER installRuntimeBackends() so the
+  // RBAC registry is populated and the seeded user gets every permission that
+  // actually exists. It used to run inside installRuntimeBackends() with no
+  // guard at all, writing a super-admin into IndexedDB in every environment.
+  if (__VUESTRATA_DEMO__ && configuredAuthAdapter === 'mock') {
+    const { seedDemoSuperAdmin } = await loadDemoState()
+    await seedDemoSuperAdmin()
   }
 
   await restoreSession(authStore)
@@ -195,13 +220,18 @@ async function bootstrap() {
 
   app.use(router)
 
-  // Enable MSW for development if configured. Started AFTER setupModules so
-  // module-contributed handlers (e.g. the auth module's mocks) are included
-  // alongside the static handler set.
-  if (import.meta.env.DEV && import.meta.env.VUESTRATA_USE_MOCKS === 'true') {
+  // Enable MSW when this is a demo build and mocks are switched on. Gating on
+  // `__VUESTRATA_DEMO__` rather than `import.meta.env.DEV` is what makes the
+  // hosted demo possible at all — the old DEV check meant MSW could never start
+  // in a built artifact. The constant also lets rolldown drop this whole branch
+  // (and the msw-vendor chunk) from a production build.
+  //
+  // Started AFTER setupModules so module-contributed handlers (e.g. the auth
+  // module's mocks) are included alongside the static handler set.
+  if (__VUESTRATA_DEMO__ && appConfig.useMocks) {
     const { startMockWorker } = await import('@/mocks/browser')
     const moduleStore = useModuleStore()
-    await startMockWorker(moduleStore.collectMockHandlers())
+    await startMockWorker(await moduleStore.collectMockHandlers())
   }
 
   // Wait for router initialization before mounting
@@ -210,20 +240,23 @@ async function bootstrap() {
   app.mount('#app')
   removeAppLoader()
 
-  // Listen for demo auth updates broadcast from other tabs so permissions and
-  // session state refresh without a full page reload.
-  onInvalidation(async (event) => {
-    if (event === 'update') {
-      await restoreSession(authStore)
-      return
-    }
+  // Cross-tab demo session syncing. Entirely demo-only: it exists so signing
+  // out in one tab clears the others, which real backends handle with a shared
+  // cookie or a 401 on the next request.
+  if (__VUESTRATA_DEMO__ && configuredAuthAdapter === 'mock') {
+    const { getDemoSession, onInvalidation } = await loadDemoState()
 
-    if (event === 'clear') {
-      await clearDemoAuthTab(authStore)
-    }
-  })
+    onInvalidation(async (event) => {
+      if (event === 'update') {
+        await restoreSession(authStore)
+        return
+      }
 
-  if (configuredAuthAdapter === 'mock') {
+      if (event === 'clear') {
+        await clearDemoAuthTab(authStore)
+      }
+    })
+
     const demoSessionPoll = window.setInterval(async () => {
       if (!authStore.isAuthenticated) return
 

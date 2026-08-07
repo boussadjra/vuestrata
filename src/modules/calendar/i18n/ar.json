@@ -1,0 +1,18 @@
+{
+  "calendar_all_day": "طوال اليوم",
+  "calendar_attendees": "{count} مشاركين",
+  "calendar_day_empty": "لا يوجد شيء مجدول في هذا اليوم.",
+  "calendar_event_count": "{count} أحداث",
+  "calendar_filter_kind": "تصفية حسب النوع",
+  "calendar_grid_caption": "تقويم {month}. استخدم مفاتيح الأسهم للتنقل بين الأيام.",
+  "calendar_kind_deadline": "موعد نهائي",
+  "calendar_kind_holiday": "عطلة",
+  "calendar_kind_maintenance": "صيانة",
+  "calendar_kind_meeting": "اجتماع",
+  "calendar_kind_review": "مراجعة",
+  "calendar_nav": "التقويم",
+  "calendar_next_month": "الشهر التالي",
+  "calendar_previous_month": "الشهر السابق",
+  "calendar_subtitle": "الاجتماعات والمواعيد النهائية ونوافذ الصيانة",
+  "calendar_title": "التقويم"
+}

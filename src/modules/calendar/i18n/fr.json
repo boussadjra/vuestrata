@@ -1,0 +1,18 @@
+{
+  "calendar_all_day": "Toute la journée",
+  "calendar_attendees": "{count} participants",
+  "calendar_day_empty": "Rien de prévu ce jour-là.",
+  "calendar_event_count": "{count} événements",
+  "calendar_filter_kind": "Filtrer par type",
+  "calendar_grid_caption": "Calendrier de {month}. Utilisez les flèches pour naviguer entre les jours.",
+  "calendar_kind_deadline": "Échéance",
+  "calendar_kind_holiday": "Jour férié",
+  "calendar_kind_maintenance": "Maintenance",
+  "calendar_kind_meeting": "Réunion",
+  "calendar_kind_review": "Revue",
+  "calendar_nav": "Calendrier",
+  "calendar_next_month": "Mois suivant",
+  "calendar_previous_month": "Mois précédent",
+  "calendar_subtitle": "Réunions, échéances et fenêtres de maintenance",
+  "calendar_title": "Calendrier"
+}

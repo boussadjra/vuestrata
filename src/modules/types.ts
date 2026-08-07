@@ -21,18 +21,58 @@ export interface ModuleRouteMeta {
   layout?: string
   /** Module that owns this route */
   module?: string
+  /**
+   * i18n key for the page name, used by the breadcrumb and the route
+   * announcer. A key rather than a string: route definitions are evaluated at
+   * module-registration time, long before a locale is chosen.
+   */
+  title?: string
 }
 
 export type ModuleRoute = RouteRecordRaw
 
+/**
+ * Sidebar section headings.
+ *
+ * A module declares which group its entries belong to by id; the group's own
+ * label and position live in one registry (`src/modules/nav-groups.ts`) rather
+ * than being repeated by every contributing module. Without that, two modules
+ * placing items under "Workspace" would each carry their own copy of the
+ * heading and could disagree about its order.
+ */
+export interface ModuleNavGroupDefinition {
+  /** Stable identifier referenced by `ModuleNavItem.group`. */
+  id: string
+  /** i18n key for the heading. Never a literal — headings are user-visible. */
+  label: string
+  /** Sort order among groups (lower = higher up). */
+  order: number
+}
+
 export interface ModuleNavItem {
+  /** i18n key, resolved with `t()` at render time. */
   label: string
   icon: string
+  /**
+   * Target route. Optional: a parent that only exists to hold `children`
+   * renders as a disclosure button rather than a link.
+   */
   to?: string
   permission?: Permission
   children?: ModuleNavItem[]
-  /** Sort order in sidebar (lower = higher) */
+  /** Sort order within the group (lower = higher). */
   order?: number
+  /** Group id from the nav-group registry. Ungrouped items fall back to `workspace`. */
+  group?: string
+  /**
+   * Exact-match the route instead of prefix-matching.
+   *
+   * Prefix matching is right for a section root (`/dashboard/orders` should
+   * stay active on `/dashboard/orders/42`) but wrong for an index entry that
+   * sits alongside its own siblings — `/dashboard` would otherwise light up on
+   * every page in the app.
+   */
+  exact?: boolean
 }
 
 export interface ModuleConfig {
@@ -85,8 +125,18 @@ export interface ModuleDefinition {
   /** Per-locale translation messages keyed by locale code */
   i18n?: Record<string, Record<string, string>>
 
-  /** MSW mock handler factory (dev only) */
-  mockHandlers?: () => unknown[]
+  /**
+   * MSW mock handler factory — demo builds only.
+   *
+   * MUST return a promise from a dynamic `import()` rather than referencing
+   * statically-imported handlers. A static import puts `msw` in the module
+   * graph of the module barrel, which drags the whole msw-vendor chunk into
+   * real production bundles even though nothing ever calls this.
+   *
+   * @example
+   *   mockHandlers: async () => (await import('./mocks/users.handlers')).handlers
+   */
+  mockHandlers?: () => unknown[] | Promise<unknown[]>
 
   /** Called when module is installed */
   install?: () => void | Promise<void>

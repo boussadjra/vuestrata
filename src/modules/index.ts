@@ -6,7 +6,19 @@ import { createScopedLogger } from '~/lib/logger'
 import { registerPermissions, validateBuiltinRolePermissions } from '~/lib/rbac'
 
 import { loadModuleTranslations } from './i18n'
-import type { ModuleDefinition, ModuleConfig, ModuleNavItem, ModuleRoute } from './types'
+import { NAV_GROUPS, resolveNavGroup } from './nav-groups'
+import type {
+  ModuleDefinition,
+  ModuleConfig,
+  ModuleNavGroupDefinition,
+  ModuleNavItem,
+  ModuleRoute,
+} from './types'
+
+/** A sidebar section with the items that resolved into it. */
+export interface ResolvedNavGroup extends ModuleNavGroupDefinition {
+  items: ModuleNavItem[]
+}
 
 // ─── Module Store ─────────────────────────────────────────
 
@@ -77,6 +89,27 @@ export const useModuleStore = defineStore('modules', () => {
       if (mod.navItems?.length) items.push(...mod.navItems)
     }
     return items.sort((a, b) => (a.order ?? 99) - (b.order ?? 99))
+  })
+
+  /**
+   * Nav items bucketed into sidebar sections, in group order.
+   *
+   * Empty groups are dropped: a heading with nothing under it is a promise the
+   * UI cannot keep, and permission filtering in the sidebar can legitimately
+   * empty an entire section for some roles.
+   */
+  const navGroups = computed<ResolvedNavGroup[]>(() => {
+    const buckets = new Map<string, ModuleNavItem[]>()
+    for (const item of navItems.value) {
+      const group = resolveNavGroup(item.group)
+      const bucket = buckets.get(group.id)
+      if (bucket) bucket.push(item)
+      else buckets.set(group.id, [item])
+    }
+
+    return NAV_GROUPS.filter((group) => buckets.has(group.id))
+      .map((group) => ({ ...group, items: buckets.get(group.id)! }))
+      .sort((a, b) => a.order - b.order)
   })
 
   /** Module configs grouped by category */
@@ -267,12 +300,31 @@ export const useModuleStore = defineStore('modules', () => {
   }
 
   /**
-   * Collect all MSW mock handlers from enabled modules (dev only).
+   * Collect all MSW mock handlers from enabled modules — demo builds only.
+   *
+   * Async because module handler factories return a dynamic `import()`, which
+   * is what keeps `msw` out of the static module graph (and therefore out of
+   * production bundles). Factories are awaited in parallel; a module whose
+   * handlers fail to load is skipped with a warning rather than taking the
+   * whole mock layer down.
    */
-  function collectMockHandlers(): unknown[] {
+  async function collectMockHandlers(): Promise<unknown[]> {
+    const modules = activeModules.value.filter((mod) => mod.mockHandlers)
+
+    const settled = await Promise.allSettled(
+      modules.map(async (mod) => ({ id: mod.config.id, handlers: await mod.mockHandlers!() })),
+    )
+
     const handlers: unknown[] = []
-    for (const mod of activeModules.value) {
-      if (mod.mockHandlers) handlers.push(...mod.mockHandlers())
+    for (const [index, result] of settled.entries()) {
+      if (result.status === 'fulfilled') {
+        handlers.push(...result.value.handlers)
+      } else {
+        moduleLogger.error(
+          `Failed to load mock handlers for module "${modules[index]?.config.id}"`,
+          { err: result.reason },
+        )
+      }
     }
     return handlers
   }
@@ -283,6 +335,7 @@ export const useModuleStore = defineStore('modules', () => {
     activeModules,
     routes,
     navItems,
+    navGroups,
     modulesByCategory,
     registerModule,
     registerModules,
