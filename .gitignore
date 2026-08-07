@@ -40,3 +40,5 @@ typed-router.d.ts
 
 # Docker
 docker-compose.override.yml
+.scratch/
+.scratch/

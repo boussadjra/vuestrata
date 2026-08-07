@@ -42,7 +42,7 @@ const visibleActions = computed(() =>
 
 <template>
   <UiPanel :title="t('dash_quick_actions_title')" content-class="min-h-0">
-    <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <ul class="grid grid-cols-1 gap-2 xl:grid-cols-2">
       <li v-for="action in visibleActions" :key="action.key">
         <RouterLink
           :to="action.to"

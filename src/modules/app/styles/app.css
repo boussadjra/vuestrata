@@ -870,9 +870,9 @@ button:active,
 }
 
 /* Inputs — consistent styling */
-input:not([type='checkbox']):not([type='radio']),
-select,
-textarea {
+input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+select:not(.unstyled-input),
+textarea:not(.unstyled-input) {
   border: 1px solid color-mix(in oklch, var(--color-surface-300) 88%, white);
   border-radius: var(--shape-radius-sm);
   background: color-mix(in oklch, var(--color-surface-50) 96%, white);
@@ -881,21 +881,21 @@ textarea {
     box-shadow 0.2s ease,
     background-color 0.2s ease;
 }
-input:not([type='checkbox']):not([type='radio']):focus,
-select:focus,
-textarea:focus {
+input:not([type='checkbox']):not([type='radio']):not(.unstyled-input):focus,
+select:not(.unstyled-input):focus,
+textarea:not(.unstyled-input):focus {
   border-color: var(--color-primary-400);
   box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary-400) 12%, transparent);
 }
-html.dark input:not([type='checkbox']):not([type='radio']),
-html.dark select,
-html.dark textarea {
+html.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+html.dark select:not(.unstyled-input),
+html.dark textarea:not(.unstyled-input) {
   background: color-mix(in oklch, var(--color-surface-800) 94%, black);
   border-color: color-mix(in oklch, var(--color-surface-700) 92%, black);
 }
-html.dark input:not([type='checkbox']):not([type='radio']):focus,
-html.dark select:focus,
-html.dark textarea:focus {
+html.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input):focus,
+html.dark select:not(.unstyled-input):focus,
+html.dark textarea:not(.unstyled-input):focus {
   border-color: var(--color-primary-500);
   box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary-500) 20%, transparent);
 }

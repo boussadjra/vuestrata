@@ -56,7 +56,6 @@ function setSegment(value: string | number | Array<string | number>) {
     <UiToggleGroup
       :model-value="filters.range"
       :options="rangeOptions"
-      size="sm"
       :aria-label="t('dash_filter_range')"
       @update:model-value="setRange"
     />

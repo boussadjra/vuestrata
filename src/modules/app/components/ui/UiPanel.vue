@@ -50,7 +50,7 @@ const state = computed(() => {
 <template>
   <section
     :aria-labelledby="headingId"
-    class="border-border bg-card flex flex-col rounded-[var(--shape-radius)] border shadow-(--shadow-card)"
+    class="border-border bg-card flex h-full flex-col rounded-[var(--shape-radius)] border shadow-(--shadow-card)"
   >
     <div class="border-border flex items-start justify-between gap-3 border-b p-4">
       <div class="min-w-0">

@@ -119,6 +119,11 @@ defineProps<{
 
 .terminal-wrapper div {
   direction: ltr;
+  /* `dir="ltr"` fixes character order, but `text-align` is a separate,
+     inherited property — in RTL the page's `[dir='rtl'] { text-align: right }`
+     still cascades in and right-aligns any wrapped line inside a flex item
+     (the import statement is the only line long enough to wrap). */
+  text-align: left;
 }
 
 .code-line {
@@ -141,11 +146,11 @@ defineProps<{
 }
 
 .pl1 {
-  padding-start: 1.25rem;
+  padding-inline-start: 1.25rem;
 }
 
 .pl2 {
-  padding-start: 2.5rem;
+  padding-inline-start: 2.5rem;
 }
 
 @keyframes code-appear {

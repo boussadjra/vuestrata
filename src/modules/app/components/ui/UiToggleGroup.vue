@@ -69,7 +69,7 @@ function itemClasses(option: ToggleGroupOption) {
         <ToggleGroupItem
           v-for="option in options"
           :key="option.value"
-          class="flex-1"
+          class="flex-1 whitespace-nowrap"
           :class="itemClasses(option)"
           :value="option.value"
           :disabled="option.disabled || disabled"
