@@ -35,8 +35,18 @@ describe('RBAC - Role Definitions', () => {
     }
   })
 
-  it('super_admin should have all 16 permissions', () => {
-    expect(ROLE_DEFINITIONS.super_admin.permissions).toHaveLength(16)
+  // Asserted structurally rather than as a count. A hardcoded `16` here meant
+  // that adding a domain permission failed this test for no reason other than
+  // arithmetic, which teaches everyone to update the number without reading
+  // what it was protecting. What actually matters is that the top of the
+  // hierarchy holds everything every other role does.
+  it('super_admin holds every permission any role grants', () => {
+    const superAdmin = new Set<string>(ROLE_DEFINITIONS.super_admin.permissions)
+    for (const role of allRoles) {
+      for (const permission of ROLE_DEFINITIONS[role].permissions) {
+        expect(superAdmin.has(permission), `super_admin is missing ${permission}`).toBe(true)
+      }
+    }
   })
 
   it('guest should have only dashboard:read', () => {
@@ -152,18 +162,21 @@ describe('RBAC - Permission Registry', () => {
     clearRegistry()
   })
 
-  it('should include all 16 built-in permissions by default', () => {
+  it('seeds every permission the role hierarchy can grant', () => {
     const registered = getRegisteredPermissions()
-    expect(registered.size).toBe(16)
+    for (const permission of resolveRolePermissions('super_admin')) {
+      expect(registered.has(permission), `${permission} was not seeded`).toBe(true)
+    }
     expect(isRegisteredPermission('users:read')).toBe(true)
     expect(isRegisteredPermission('audit:read')).toBe(true)
   })
 
   it('should register module permissions with namespace prefix', () => {
-    registerPermissions('catalog', ['read', 'write'])
-    expect(isRegisteredPermission('catalog:read')).toBe(true)
-    expect(isRegisteredPermission('catalog:write')).toBe(true)
-    expect(getRegisteredPermissions().size).toBe(18)
+    const before = getRegisteredPermissions().size
+    registerPermissions('inventory', ['read', 'write'])
+    expect(isRegisteredPermission('inventory:read')).toBe(true)
+    expect(isRegisteredPermission('inventory:write')).toBe(true)
+    expect(getRegisteredPermissions().size).toBe(before + 2)
   })
 
   it('should keep fully-qualified module permissions as-is', () => {
@@ -196,16 +209,27 @@ describe('RBAC - Role Inheritance', () => {
     expect(perms).toHaveLength(1)
   })
 
-  it('viewer inherits guest + adds reports:read', () => {
+  it('viewer inherits everything guest has and adds read access', () => {
     const perms = resolveRolePermissions('viewer')
-    expect(perms).toContain('dashboard:read')
+    for (const permission of resolveRolePermissions('guest')) {
+      expect(perms).toContain(permission)
+    }
     expect(perms).toContain('reports:read')
-    expect(perms).toHaveLength(2)
+    // A viewer must never gain a write capability, whatever modules are added.
+    expect(perms.filter((permission) => permission.endsWith(':manage'))).toEqual([])
   })
 
-  it('super_admin should have all 16 built-in permissions', () => {
-    const perms = resolveRolePermissions('super_admin')
-    expect(perms).toHaveLength(16)
+  it('permissions accumulate monotonically up the hierarchy', () => {
+    // The property the delta model is supposed to guarantee, and the one that
+    // breaks silently if a delta is added to the wrong role.
+    const ordered: Role[] = ['guest', 'viewer', 'member', 'manager', 'admin', 'super_admin']
+    for (let index = 1; index < ordered.length; index += 1) {
+      const lower = new Set(resolveRolePermissions(ordered[index - 1]!))
+      const higher = new Set(resolveRolePermissions(ordered[index]!))
+      for (const permission of lower) {
+        expect(higher.has(permission), `${ordered[index]} lost ${permission}`).toBe(true)
+      }
+    }
   })
 
   it('resolved permissions match ROLE_DEFINITIONS for all roles', () => {

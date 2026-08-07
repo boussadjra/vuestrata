@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 
 import {
   applyAuthHeaders,
+  getAuthTransport,
   handleTokenRefresh,
   installApiAuth,
   notifySessionExpired,
@@ -67,6 +68,36 @@ describe('auth-interceptor', () => {
       const headers = new Headers()
       applyAuthHeaders(headers)
       expect(headers.get('Authorization')).toBeNull()
+    })
+
+    // Under a cookie session the browser attaches the credential itself. An
+    // Authorization header there is a second, unasked-for credential — at best
+    // ignored, at worst routing the backend down a path that skips its CSRF
+    // check. The client previously sent both on every request.
+    it('omits the Authorization header entirely under the cookie transport', () => {
+      const { provider } = createProvider()
+      provider.transport = 'cookie'
+      installApiAuth(provider)
+
+      const headers = new Headers()
+      applyAuthHeaders(headers)
+
+      expect(headers.get('Authorization')).toBeNull()
+    })
+
+    it('defaults to the bearer transport when none is declared', () => {
+      const { provider } = createProvider()
+      installApiAuth(provider)
+
+      expect(getAuthTransport()).toBe('bearer')
+    })
+
+    it('reports the declared transport', () => {
+      const { provider } = createProvider()
+      provider.transport = 'cookie'
+      installApiAuth(provider)
+
+      expect(getAuthTransport()).toBe('cookie')
     })
   })
 

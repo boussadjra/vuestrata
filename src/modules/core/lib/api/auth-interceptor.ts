@@ -3,7 +3,7 @@ import { ofetch } from 'ofetch'
 import { createScopedLogger } from '~/lib/logger'
 import { getApiAuthBackend, tryGetApiAuthBackend } from '~/lib/runtime'
 
-import type { ApiAuthProvider } from './types'
+import type { ApiAuthProvider, ApiAuthTransport } from './types'
 
 const authLogger = createScopedLogger('api:auth')
 
@@ -24,8 +24,22 @@ export function resetAuthInterceptor(): void {
   tryGetApiAuthBackend()?.resetTransient()
 }
 
-/** Inject the current auth token into request headers. */
+/** The configured transport, defaulting to bearer when nothing is installed. */
+export function getAuthTransport(): ApiAuthTransport {
+  return tryGetApiAuthBackend()?.getProvider()?.transport ?? 'bearer'
+}
+
+/**
+ * Inject the current auth token into request headers.
+ *
+ * No-op under the cookie transport: the browser attaches the session cookie
+ * itself, and an `Authorization` header there would be a second, unasked-for
+ * credential — at best ignored, at worst routed down a different code path on
+ * the backend than the one that enforces CSRF.
+ */
 export function applyAuthHeaders(headers: Headers): void {
+  if (getAuthTransport() === 'cookie') return
+
   const provider = tryGetApiAuthBackend()?.getProvider() ?? null
   const token = provider?.getToken()
   if (token) {
@@ -93,6 +107,20 @@ async function refreshAccessToken(baseURL: string): Promise<string | null> {
   const maxRetries = 2
   const endpoint = provider.refreshEndpoint ?? '/auth/refresh'
   const refreshUrl = `${baseURL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  const transport = getAuthTransport()
+
+  // This call deliberately uses bare `ofetch` rather than `apiFetch`: routing
+  // it through the configured client would re-enter this same interceptor on a
+  // 401 and recurse. The transport-dependent request options that `apiFetch`
+  // would have applied are therefore reproduced here — previously they were
+  // simply missing, so the refresh request carried neither cookies nor a CSRF
+  // header and failed against any cookie-session backend.
+  const credentials: RequestCredentials = transport === 'cookie' ? 'include' : 'omit'
+  const headers = new Headers()
+  if (transport === 'cookie') {
+    const csrfToken = provider.getCsrfToken?.() ?? null
+    if (csrfToken) headers.set('X-CSRF-Token', csrfToken)
+  }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -103,6 +131,8 @@ async function refreshAccessToken(baseURL: string): Promise<string | null> {
       }>(refreshUrl, {
         method: 'POST',
         body: { refreshToken },
+        credentials,
+        headers,
       })
       try {
         provider.setAuth(res.token, res.refreshToken)

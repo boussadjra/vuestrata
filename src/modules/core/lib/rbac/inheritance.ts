@@ -26,12 +26,24 @@ const ROLE_DELTA_DEFINITIONS: Record<
   viewer: {
     label: 'Viewer',
     description: 'Read-only access to dashboards and reports',
-    delta: ['reports:read'],
+    // A viewer can look at every operational area but change none of it. The
+    // read/manage split, rather than one permission per module, is what makes
+    // the difference between viewer and manager visible in the UI: the same
+    // pages load, the write actions are simply absent.
+    delta: [
+      'reports:read',
+      'customers:read',
+      'orders:read',
+      'catalog:read',
+      'projects:read',
+      'calendar:read',
+      'team:read',
+    ],
   },
   member: {
     label: 'Member',
     description: 'Standard team member',
-    delta: ['users:read', 'settings:read'],
+    delta: ['users:read', 'settings:read', 'messages:read', 'calendar:manage'],
   },
   manager: {
     label: 'Manager',
@@ -44,6 +56,10 @@ const ROLE_DELTA_DEFINITIONS: Record<
       'dashboard:export',
       'reports:create',
       'reports:export',
+      'customers:manage',
+      'orders:manage',
+      'catalog:manage',
+      'projects:manage',
     ],
   },
   admin: {

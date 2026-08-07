@@ -1,7 +1,15 @@
 export type Role = 'super_admin' | 'admin' | 'manager' | 'member' | 'viewer' | 'guest'
 
-// The 16 built-in permissions — preserves autocomplete for known permissions
+/**
+ * Every permission the application knows about, as a closed union.
+ *
+ * Closed on purpose: a `string`-typed permission means `can('user:read')` — note
+ * the missing plural — compiles, always returns false, and silently hides a
+ * page. Adding a domain means adding its permissions here and granting them in
+ * `inheritance.ts`; the compiler then finds every place that needs updating.
+ */
 export type BuiltinPermission =
+  // ─── Platform ───────────────────────────────────────────
   | 'users:read'
   | 'users:create'
   | 'users:update'
@@ -18,6 +26,19 @@ export type BuiltinPermission =
   | 'reports:create'
   | 'reports:export'
   | 'audit:read'
+  // ─── Domain modules ─────────────────────────────────────
+  | 'customers:read'
+  | 'customers:manage'
+  | 'orders:read'
+  | 'orders:manage'
+  | 'catalog:read'
+  | 'catalog:manage'
+  | 'projects:read'
+  | 'projects:manage'
+  | 'calendar:read'
+  | 'calendar:manage'
+  | 'messages:read'
+  | 'team:read'
 
 // Permission type: strict union of built-in literals enforced at compile time.
 // Dynamic permissions should be added to BuiltinPermission or validated at runtime.
