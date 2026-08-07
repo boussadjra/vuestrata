@@ -20,7 +20,18 @@ const DEMO_ENVELOPE_VERSION = 1
 const DEMO_CHANNEL_NAME = 'vuestrata-demo-auth'
 const DEMO_STORAGE_EVENT_KEY = 'vuestrata-demo-auth-invalidation'
 const DEMO_STORAGE_STATE_KEY = '__vuestrataDemoStorage'
-const DEMO_SALT = import.meta.env.VITE_VUESTRATA_DEMO_SALT ?? 'vuestrata-demo-v1'
+/**
+ * Namespacing salt for the demo envelope's integrity digest.
+ *
+ * This is deliberately a PUBLIC constant, not a secret. It previously read from
+ * `VITE_VUESTRATA_DEMO_SALT`, which — because `envPrefix` is `VUESTRATA_` — was
+ * never actually exposed to client code, so this fallback was always the value
+ * in use. More importantly, any value shipped in a client bundle is readable by
+ * anyone; the digest detects accidental corruption and version skew in demo
+ * data, it does not authenticate it. `e2e/helpers/auth.ts` reproduces it on
+ * purpose to seed demo state.
+ */
+export const DEMO_SALT = 'vuestrata-demo-v1'
 
 type SerializedInvalidation = {
   event: DemoInvalidationEvent

@@ -1,3 +1,5 @@
+import { resolveRolePermissions } from '~/lib/rbac/inheritance'
+import type { Permission } from '~/lib/rbac/types'
 import type { User } from '~/types'
 
 import { appConfig } from '../config/app.config'
@@ -11,24 +13,14 @@ export type DemoSession = {
   expiresIn: number
 }
 
-export const DEFAULT_DEMO_PERMISSIONS = [
-  'users:read',
-  'users:create',
-  'users:update',
-  'users:delete',
-  'roles:read',
-  'roles:assign',
-  'billing:read',
-  'billing:manage',
-  'dashboard:read',
-  'dashboard:export',
-  'settings:read',
-  'settings:update',
-  'reports:read',
-  'reports:create',
-  'reports:export',
-  'audit:read',
-] as const
+/**
+ * Permissions granted to the seeded demo account.
+ *
+ * Resolved from the role hierarchy rather than listed by hand, so a module that
+ * adds a permission does not silently lock the demo admin out of its own pages.
+ * The copy this replaced was already two permissions behind.
+ */
+export const DEFAULT_DEMO_PERMISSIONS: readonly Permission[] = resolveRolePermissions('super_admin')
 
 export const DEFAULT_DEMO_USERS: User[] = [
   {

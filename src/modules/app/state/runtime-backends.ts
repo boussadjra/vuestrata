@@ -1,4 +1,5 @@
 import { useApiRuntimeStore } from '@/stores/api-runtime'
+import { resolveRolePermissions } from '~/lib/rbac/inheritance'
 import type { AuthorizationHookFn, PredicateFn } from '~/lib/rbac/types'
 import type { BuiltinPermission } from '~/lib/rbac/types'
 import {
@@ -10,26 +11,17 @@ import {
 } from '~/lib/runtime'
 import type { ValidationAdapter } from '~/types'
 
-import { getDemoUsers, setDemoUsers } from './demo-store'
-
-export const BUILTIN_PERMISSIONS: BuiltinPermission[] = [
-  'users:read',
-  'users:create',
-  'users:update',
-  'users:delete',
-  'roles:read',
-  'roles:assign',
-  'billing:read',
-  'billing:manage',
-  'dashboard:read',
-  'dashboard:export',
-  'settings:read',
-  'settings:update',
-  'reports:read',
-  'reports:create',
-  'reports:export',
-  'audit:read',
-]
+/**
+ * Every permission the RBAC registry is seeded with.
+ *
+ * Derived from the role hierarchy rather than hand-listed. The hand-written
+ * copy went stale the moment a module added a permission: `validatePermissions`
+ * then warned about a permission that was perfectly legitimate, and — worse —
+ * the demo super-admin was seeded without it, so an admin silently lost access
+ * to a page. Walking the top of the hierarchy makes drift impossible, because
+ * a permission no role can ever hold is a permission that does nothing.
+ */
+export const BUILTIN_PERMISSIONS: BuiltinPermission[] = resolveRolePermissions('super_admin')
 
 /**
  * Build a fresh RBAC backend (Set/Map registries) seeded with built-in
@@ -80,39 +72,22 @@ const validationCacheBackendState = createGlobalState(
   },
 )
 
-async function seedDemoSuperAdmin(): Promise<void> {
-  const users = await getDemoUsers()
-  if (users.length > 0) return
-
-  const allPermissions = [...rbacBackendState().permissions] as import('~/types').Permission[]
-  const now = new Date().toISOString()
-  await setDemoUsers([
-    {
-      id: '1',
-      email: 'demo@vuestrata.dev',
-      name: 'Demo Admin',
-      role: 'super_admin',
-      permissions: allPermissions,
-      emailVerified: true,
-      mfaEnabled: false,
-      provider: 'credentials',
-      createdAt: now,
-      lastLoginAt: now,
-    },
-  ])
-}
-
 /**
- * Wire all `core/lib` runtime injection slots from app-layer state
- * containers. Must be called after `app.use(pinia)` so Pinia stores are
- * resolvable.
+ * Wire all `core/lib` runtime injection slots from app-layer state containers.
+ * Must be called after `app.use(pinia)` so Pinia stores are resolvable.
+ *
+ * This function used to end with an unconditional `await seedDemoSuperAdmin()`.
+ * There was no dev check and no adapter check, so EVERY boot in EVERY
+ * environment — including a real production deployment against a real backend —
+ * wrote a `super_admin` user holding every registered permission into the
+ * browser's IndexedDB. Demo seeding now lives in `state/demo/seed.ts` and is
+ * called only from the `__VUESTRATA_DEMO__` branch in main.ts.
  */
-export async function installRuntimeBackends(): Promise<void> {
+export function installRuntimeBackends(): void {
   const apiRuntime = useApiRuntimeStore()
   installApiAuthBackend(apiRuntime.backend)
   installRbacBackend(rbacBackendState())
   installValidationCacheBackend(validationCacheBackendState())
-  await seedDemoSuperAdmin()
 }
 
 /** @internal Test-only — re-seed RBAC and clear validation cache. */

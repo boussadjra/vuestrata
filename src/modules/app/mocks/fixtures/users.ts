@@ -1,3 +1,4 @@
+import { resolveRolePermissions } from '~/lib/rbac/inheritance'
 import type { User } from '~/types'
 
 export const mockUsers: User[] = [
@@ -7,24 +8,10 @@ export const mockUsers: User[] = [
     name: 'Demo Admin',
     avatar: undefined,
     role: 'super_admin',
-    permissions: [
-      'users:read',
-      'users:create',
-      'users:update',
-      'users:delete',
-      'roles:read',
-      'roles:assign',
-      'billing:read',
-      'billing:manage',
-      'dashboard:read',
-      'dashboard:export',
-      'settings:read',
-      'settings:update',
-      'reports:read',
-      'reports:create',
-      'reports:export',
-      'audit:read',
-    ],
+    // Resolved from the hierarchy: a hand-written list here goes stale every
+    // time a module introduces a permission, and the symptom is a demo admin
+    // who cannot open a page their own role is supposed to grant.
+    permissions: resolveRolePermissions('super_admin'),
     emailVerified: true,
     mfaEnabled: false,
     provider: 'credentials',

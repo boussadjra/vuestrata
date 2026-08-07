@@ -20,6 +20,8 @@ import { installRuntimeBackends, resetRuntimeBackends } from '~/state/runtime-ba
  */
 export async function resetRuntimeState(): Promise<void> {
   setActivePinia(createPinia())
-  await installRuntimeBackends()
+  // Synchronous since demo seeding moved out of it — wiring runtime backends
+  // no longer touches IndexedDB.
+  installRuntimeBackends()
   resetRuntimeBackends()
 }

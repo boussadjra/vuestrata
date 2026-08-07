@@ -5,6 +5,17 @@ import type { Permission, PaginatedResponse, Role, User } from '~/types'
 import { useDemoAuthBackend } from '../../state/demo-auth-backend'
 import { isValidToken } from '../utils'
 
+function normalizeSortableValue(value: unknown): number | string {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const dateValue = Date.parse(value)
+    return Number.isNaN(dateValue) ? value.toLowerCase() : dateValue
+  }
+
+  return ''
+}
+
 export const usersHandlers = [
   http.get('*/users', async ({ request }) => {
     await delay(200)
@@ -17,6 +28,8 @@ export const usersHandlers = [
     const pageSize = Number(url.searchParams.get('pageSize') ?? '10')
     const search = url.searchParams.get('search') ?? ''
     const role = url.searchParams.get('role') ?? ''
+    const sortBy = url.searchParams.get('sortBy') ?? ''
+    const sortOrder = url.searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc'
 
     let filtered = await getDemoUsers()
     if (search) {
@@ -27,6 +40,17 @@ export const usersHandlers = [
     }
     if (role) {
       filtered = filtered.filter((u) => u.role === role)
+    }
+
+    if (sortBy) {
+      filtered = [...filtered].sort((left, right) => {
+        const leftValue = normalizeSortableValue(left[sortBy as keyof User])
+        const rightValue = normalizeSortableValue(right[sortBy as keyof User])
+
+        if (leftValue < rightValue) return sortOrder === 'asc' ? -1 : 1
+        if (leftValue > rightValue) return sortOrder === 'asc' ? 1 : -1
+        return 0
+      })
     }
 
     const total = filtered.length
