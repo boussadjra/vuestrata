@@ -128,26 +128,41 @@ The auth system uses a pluggable adapter pattern:
 import { useAuth } from '@/modules/auth'
 
 const { login, register, logout, isLoading, error } = useAuth()
-await login({ email: 'demo@vuestrata.dev', password: 'password' })
+// Demo credentials live in src/modules/app/state/demo/account.ts and are
+// shared by the login page, the MSW handler and the e2e helper.
+await login({ email: 'demo@vuestrata.dev', password: 'demo1234' })
 ```
 
 Switch adapters by changing `VUESTRATA_AUTH_ADAPTER` in `.env`:
 
-- `mock` — Local MSW-based auth (default for development)
-- `jwt` — JWT auth contract stub (not yet implemented beyond the shared interface)
-- `oauth` — OAuth auth contract stub (not yet implemented beyond the shared interface)
+- `mock` — IndexedDB-backed demo auth. Demo builds only; its endpoints exist
+  only inside MSW, so the build rejects it in production mode.
+- `jwt` — credentials + bearer token, refreshed via `/auth/refresh`
+- `oauth` — OAuth/PKCE authorization-code flow
 
-Adapter maturity:
+Each adapter declares a `transport` and a set of `capabilities`, so the UI hides
+controls for features the configured adapter does not support rather than
+discovering it at click time.
 
-| Adapter | Status  | Notes                                                                                                                              |
-| ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `mock`  | ✅ Full | Credentials login, registration, logout, user retrieval, refresh, social entry points, magic link request, magic link verification |
-| `jwt`   | ⚠ Stub  | Reuses the mock adapter surface until a real backend implementation is added                                                       |
-| `oauth` | ⚠ Stub  | Reuses the mock adapter surface until a real backend implementation is added                                                       |
+| Adapter | Transport | Register | Social | Magic link | MFA | Refresh | Code exchange |
+| ------- | --------- | -------- | ------ | ---------- | --- | ------- | ------------- |
+| `mock`  | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | —             |
+| `jwt`   | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | —             |
+| `oauth` | cookie    | —        | ✅     | —          | —   | ✅      | ✅            |
+
+`jwt` and `oauth` are complete against the documented endpoint contract and
+verified by `msw/node` contract tests. They need a backend that implements it —
+see [Real production deployment](docs/8.deployment/2.real-production.md).
 
 ## Environment Variables
 
-Runtime env keys use the `VUESTRATA_` prefix, and demo-session retention uses `VITE_VUESTRATA_DEMO_AUTH_RETENTION_HOURS`. See `.env.example` for the current set.
+Every runtime key uses the `VUESTRATA_` prefix. That prefix **replaces** Vite's
+default `VITE_`, so a `VITE_*` variable is never exposed to client code.
+
+The one variable that matters most is `VUESTRATA_RUNTIME_MODE` (`demo` or
+`production`) — it decides whether MSW and the demo state are in the bundle at
+all. See [Environment](docs/6.configuration/1.environment.md) for the full
+reference and `.env.example` for annotated defaults.
 
 ## Docker
 

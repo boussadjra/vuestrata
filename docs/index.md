@@ -32,4 +32,29 @@ Reka-based Ui wrappers with shared base components.
 ::card{title="Configuration" icon="settings" to="/docs/configuration/environment"}
 Runtime configuration for icons, validation, auth, and theming.
 ::
+
+::card{title="Deployment" icon="rocket" to="/docs/deployment/vercel-demo"}
+Ship the backend-free demo, or a production build against your own API.
 ::
+
+::card{title="Readiness" icon="shield-check" to="/docs/readiness"}
+What is ready, what is not — separated for the demo, the template, and your app.
+::
+
+::card{title="Troubleshooting" icon="danger-triangle" to="/docs/troubleshooting"}
+Failures that have actually happened here, and what caused them.
+::
+::
+
+## Two artifacts, one codebase
+
+`VUESTRATA_RUNTIME_MODE` decides which application a build produces:
+
+- **`demo`** — MSW answers every request from seeded fixtures. No backend, no
+  database, no secrets. This is what the public demo runs.
+- **`production`** — MSW, the demo account and the demo state are compiled out
+  entirely, and a real auth adapter talks to your API.
+
+The difference is verified mechanically rather than by inspection —
+`scripts/build/verify-bundle.mjs` runs eight assertions against the production
+artifact in CI. See [Environment](/docs/configuration/environment).
