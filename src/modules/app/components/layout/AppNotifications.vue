@@ -14,10 +14,10 @@ const variantIconName: Record<string, IconName> = {
 }
 
 const variantColor: Record<string, string> = {
-  info: 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/50',
-  success: 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/50',
-  warning: 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50',
-  error: 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/50',
+  info: 'border-info-300 bg-info-subtle dark:border-info-700',
+  success: 'border-success-300 bg-success-subtle dark:border-success-700',
+  warning: 'border-warning-300 bg-warning-subtle dark:border-warning-700',
+  error: 'border-danger-300 bg-destructive-subtle dark:border-danger-700',
 }
 
 const variantLive: Record<string, 'polite' | 'assertive'> = {
@@ -58,10 +58,10 @@ const variantLive: Record<string, 'polite' | 'assertive'> = {
             ]"
           />
           <div class="min-w-0 flex-1">
-            <p v-if="n.title" class="text-surface-900 dark:text-surface-50 text-sm font-semibold">
+            <p v-if="n.title" class="text-foreground text-sm font-semibold">
               {{ n.title }}
             </p>
-            <p class="text-surface-600 dark:text-surface-400 text-sm">{{ n.message }}</p>
+            <p class="text-muted-foreground text-sm">{{ n.message }}</p>
           </div>
           <UiButton
             variant="ghost"

@@ -20,12 +20,10 @@ const year = new Date().getFullYear()
           <Logo className="h-6 w-auto" />
         </span>
         <div class="min-w-0">
-          <p
-            class="text-surface-400 dark:text-surface-500 text-[11px] font-medium tracking-[0.18em] uppercase"
-          >
+          <p class="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
             {{ t('common_starter_workbench') }}
           </p>
-          <p class="text-surface-600 dark:text-surface-300 text-sm">
+          <p class="text-muted-foreground text-sm">
             © {{ year }} Vuestrata. {{ t('home_footer') }}
           </p>
         </div>

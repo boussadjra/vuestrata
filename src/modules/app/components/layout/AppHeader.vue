@@ -2,13 +2,16 @@
 import { useI18n } from 'vue-i18n'
 
 import { UiButton, UiSelect } from '@/components/ui'
+import { useLocales } from '@/composables/useLocales'
 import { useTheme } from '@/composables/useTheme'
 import { resolveIcon } from '@/config/icon-provider'
-import { useAuth } from '@/modules/auth'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 
 import Logo from '../Logo.vue'
+import AppBreadcrumb from './AppBreadcrumb.vue'
+import AppCommandPalette from './AppCommandPalette.vue'
+import AppUserMenu from './AppUserMenu.vue'
 
 withDefaults(
   defineProps<{
@@ -22,46 +25,16 @@ withDefaults(
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
-const { logout } = useAuth()
 const { isDark, toggleDark } = useTheme()
 const route = useRoute()
 
-const locales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'ar', label: 'العربية' },
-]
+// The locale list, its normalization, and the store round-trip all live in one
+// composable now — this component used to carry its own copy of each.
+const { options: locales, current: currentLocale } = useLocales()
 
-const supportedLocaleCodes = new Set(locales.map((entry) => entry.code))
-
-function normalizeLocale(code: string | string[] | null | undefined) {
-  const candidate = Array.isArray(code) ? code[0] : code
-  if (typeof candidate !== 'string' || candidate.length === 0) return 'en'
-
-  const lowered = candidate.toLowerCase()
-  if (supportedLocaleCodes.has(lowered)) return lowered
-  const base = lowered.split('-')[0]
-  return base && supportedLocaleCodes.has(base) ? base : 'en'
-}
-
-// Use a ref instead of writable computed for explicit two-way binding
-const currentLocale = ref(normalizeLocale(appStore.locale))
-
-// Sync store -> local ref (when store changes externally)
-watch(
-  () => appStore.locale,
-  (newLocale) => {
-    currentLocale.value = normalizeLocale(newLocale)
-  },
+const localeOptions = computed(() =>
+  locales.map((entry) => ({ label: `${entry.flag} ${entry.label}`, value: entry.code })),
 )
-
-// Sync local ref -> store (when user selects a different locale)
-watch(currentLocale, (newValue) => {
-  const normalized = normalizeLocale(newValue)
-  if (normalized !== appStore.locale) {
-    appStore.setLocale(normalized)
-  }
-})
 
 const normalizedPath = computed(() => {
   const path = route.path.replace(/\/+$/, '')
@@ -82,8 +55,7 @@ const guestAction = computed(() => {
       label: t('auth_register'),
       icon: 'user-plus' as const,
       variant: 'ghost' as const,
-      className:
-        'border-surface-200 bg-surface-50/90 text-surface-700 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200 hover:text-surface-900 dark:hover:text-surface-50 border',
+      className: 'border-border bg-card text-foreground hover:text-foreground border',
     }
   }
 
@@ -93,8 +65,7 @@ const guestAction = computed(() => {
       label: t('auth_login'),
       icon: 'login' as const,
       variant: 'ghost' as const,
-      className:
-        'border-surface-200 bg-surface-50/90 text-surface-700 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200 hover:text-surface-900 dark:hover:text-surface-50 border',
+      className: 'border-border bg-card text-foreground hover:text-foreground border',
     }
   }
 
@@ -124,7 +95,8 @@ const guestAction = computed(() => {
           variant="ghost"
           size="md"
           icon
-          aria-label="Toggle sidebar"
+          :aria-label="t('sidebar_toggle')"
+          data-testid="mobile-sidebar-toggle"
           class="lg:hidden"
           @click="appStore.toggleSidebar()"
         >
@@ -137,6 +109,7 @@ const guestAction = computed(() => {
           size="md"
           icon
           class="hidden shrink-0 lg:inline-flex"
+          data-testid="desktop-sidebar-toggle"
           :aria-label="t('sidebar_toggle')"
           @click="appStore.toggleSidebar()"
         >
@@ -158,31 +131,31 @@ const guestAction = computed(() => {
               Vuestrata
             </span>
             <span
-              class="text-surface-400 dark:text-surface-500 mt-1 truncate text-[11px] font-medium tracking-[0.18em] uppercase"
+              class="text-muted-foreground mt-1 truncate text-[11px] font-medium tracking-[0.18em] uppercase"
             >
               {{ t('common_starter_workbench') }}
             </span>
           </span>
         </RouterLink>
 
-        <div v-else class="hidden min-w-0 flex-col lg:flex">
-          <span
-            class="text-surface-400 dark:text-surface-500 text-[11px] font-medium tracking-[0.18em] uppercase"
-          >
-            {{ t('common_workspace') }}
-          </span>
-          <span class="text-surface-700 dark:text-surface-200 text-sm font-semibold">
-            {{ t('common_app_shell') }}
-          </span>
+        <!--
+          Inside the dashboard the header carries the breadcrumb instead of a
+          static "App shell" caption. The caption told the user nothing they
+          could not see; the trail tells them where they are and gets them back.
+        -->
+        <div v-else class="hidden min-w-0 lg:block">
+          <AppBreadcrumb />
         </div>
       </div>
 
       <div class="flex items-center gap-2">
         <div class="flex items-center gap-1.5 sm:gap-2">
+          <AppCommandPalette v-if="authStore.isAuthenticated" />
+
           <UiSelect
             class="min-w-35"
             v-model="currentLocale"
-            :options="locales.map((l) => ({ label: l.label, value: l.code }))"
+            :options="localeOptions"
             :aria-label="t('header_locale_label')"
           />
 
@@ -190,9 +163,7 @@ const guestAction = computed(() => {
             <span
               :class="[
                 resolveIcon('document'),
-                isDocsRoute
-                  ? 'text-primary-500 dark:text-primary-300'
-                  : 'text-surface-500 dark:text-surface-400',
+                isDocsRoute ? 'text-primary-500 dark:text-primary-300' : 'text-muted-foreground',
                 'h-5 w-5',
               ]"
             />
@@ -209,9 +180,7 @@ const guestAction = computed(() => {
             <span
               :class="[
                 resolveIcon('document'),
-                isDocsRoute
-                  ? 'text-primary-500 dark:text-primary-300'
-                  : 'text-surface-500 dark:text-surface-400',
+                isDocsRoute ? 'text-primary-500 dark:text-primary-300' : 'text-muted-foreground',
                 'h-5 w-5',
               ]"
             />
@@ -224,23 +193,13 @@ const guestAction = computed(() => {
             :aria-label="isDark ? t('common_switch_light_mode') : t('common_switch_dark_mode')"
             @click="toggleDark()"
           >
-            <span v-if="isDark" :class="[resolveIcon('sun'), 'h-5 w-5 text-amber-400']" />
+            <span v-if="isDark" :class="[resolveIcon('sun'), 'text-warning-400 h-5 w-5']" />
             <span v-else :class="[resolveIcon('moon'), 'text-primary-500 h-5 w-5']" />
           </UiButton>
 
           <template v-if="authStore.isAuthenticated">
             <UiButton
-              to="/dashboard/settings"
-              variant="ghost"
-              size="md"
-              icon
-              :aria-label="t('nav_settings')"
-            >
-              <span
-                :class="[resolveIcon('settings'), 'text-surface-500 dark:text-surface-400 h-5 w-5']"
-              />
-            </UiButton>
-            <UiButton
+              v-if="!isDashboardRoute"
               to="/dashboard"
               variant="ghost"
               size="md"
@@ -249,11 +208,7 @@ const guestAction = computed(() => {
             >
               <span :class="[resolveIcon('chart'), 'text-primary-500 h-5 w-5']" />
             </UiButton>
-            <UiButton variant="ghost" size="md" icon :aria-label="t('auth_logout')" @click="logout">
-              <span
-                :class="[resolveIcon('logout'), 'text-surface-500 dark:text-surface-400 h-5 w-5']"
-              />
-            </UiButton>
+            <AppUserMenu />
           </template>
           <template v-else>
             <UiButton
