@@ -70,23 +70,23 @@ const usagePercent = (current: number, limit: number) =>
       <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
         {{ t('billing_title') }}
       </h1>
-      <p class="text-surface-500 dark:text-surface-400 mt-1">{{ t('billing_subtitle') }}</p>
+      <p class="text-muted-foreground mt-1">{{ t('billing_subtitle') }}</p>
     </div>
 
     <!-- Loading State -->
     <div v-if="billing.isLoading" class="flex items-center justify-center py-20">
       <span :class="[resolveIcon('refresh'), 'text-primary-500 h-6 w-6 animate-spin']" />
-      <span class="text-surface-500 ml-3">{{ t('common_loading') }}</span>
+      <span class="text-surface-500 ms-3">{{ t('common_loading') }}</span>
     </div>
 
     <!-- Error State -->
     <div
       v-else-if="billing.error"
-      class="rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/20"
+      class="border-danger-200 dark:border-danger-800 bg-destructive-subtle rounded-2xl border p-6 text-center"
     >
-      <p class="mb-3 text-red-600 dark:text-red-400">{{ billing.error }}</p>
+      <p class="text-destructive mb-3">{{ billing.error }}</p>
       <button
-        class="rounded-xl bg-red-600 px-4 py-2 text-sm text-white transition hover:bg-red-500"
+        class="bg-destructive text-destructive-foreground hover:bg-danger-700 rounded-xl px-4 py-2 text-sm transition"
         @click="billing.fetchBillingData()"
       >
         {{ t('common_retry') }}
@@ -106,10 +106,8 @@ const usagePercent = (current: number, limit: number) =>
           class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-2xl border bg-white/90 p-6 shadow-sm"
         >
           <div class="mb-3 flex items-center justify-between">
-            <span class="text-surface-600 dark:text-surface-300 text-sm font-semibold">{{
-              key
-            }}</span>
-            <span class="text-surface-400 text-xs">
+            <span class="text-muted-foreground text-sm font-semibold">{{ key }}</span>
+            <span class="text-muted-foreground text-xs">
               {{
                 key === 'Storage'
                   ? `${metric.current.toFixed(1)} / ${metric.limit} GB`
@@ -122,9 +120,9 @@ const usagePercent = (current: number, limit: number) =>
               class="h-full rounded-full transition-all duration-500"
               :class="
                 usagePercent(metric.current, metric.limit) > 80
-                  ? 'bg-red-500'
+                  ? 'bg-destructive'
                   : usagePercent(metric.current, metric.limit) > 60
-                    ? 'bg-yellow-500'
+                    ? 'bg-warning-500'
                     : 'bg-primary-500'
               "
               :style="{
@@ -132,7 +130,7 @@ const usagePercent = (current: number, limit: number) =>
               }"
             />
           </div>
-          <p class="text-surface-400 mt-2 text-xs">
+          <p class="text-muted-foreground mt-2 text-xs">
             {{
               metric.limit < 0
                 ? t('common_unlimited')
@@ -174,7 +172,9 @@ const usagePercent = (current: number, limit: number) =>
           ]"
         >
           {{ t('billing_yearly') }}
-          <span class="ml-1 text-xs font-bold text-green-500">{{ t('billing_save_pct') }}</span>
+          <span class="text-success-600 dark:text-success-400 ms-1 text-xs font-bold">{{
+            t('billing_save_pct')
+          }}</span>
         </span>
       </div>
 
@@ -204,14 +204,14 @@ const usagePercent = (current: number, limit: number) =>
             <span :class="[resolveIcon('star'), 'h-5 w-5']" />
           </div>
           <h3 class="text-surface-900 text-lg font-bold dark:text-white">{{ plan.name }}</h3>
-          <p class="text-surface-500 dark:text-surface-400 mt-1 mb-4 text-sm">
+          <p class="text-muted-foreground mt-1 mb-4 text-sm">
             {{ plan.description }}
           </p>
           <div class="mb-6">
             <span class="text-surface-900 text-4xl font-black dark:text-white">
               {{ formatPrice(plan.price[billingInterval]) }}
             </span>
-            <span v-if="plan.price[billingInterval] > 0" class="text-surface-400 text-sm"
+            <span v-if="plan.price[billingInterval] > 0" class="text-muted-foreground text-sm"
               >/{{
                 billingInterval === 'yearly' ? t('billing_per_year') : t('billing_per_month')
               }}</span
@@ -221,10 +221,13 @@ const usagePercent = (current: number, limit: number) =>
             <li
               v-for="feature in plan.features"
               :key="feature"
-              class="text-surface-600 dark:text-surface-300 flex items-start gap-2 text-sm"
+              class="text-muted-foreground flex items-start gap-2 text-sm"
             >
               <span
-                :class="[resolveIcon('check-circle'), 'mt-0.5 h-4 w-4 shrink-0 text-green-500']"
+                :class="[
+                  resolveIcon('check-circle'),
+                  'text-success-600 dark:text-success-400 mt-0.5 h-4 w-4 shrink-0',
+                ]"
               />
               {{ feature }}
             </li>
@@ -235,7 +238,7 @@ const usagePercent = (current: number, limit: number) =>
               'w-full rounded-xl py-2.5 text-sm font-semibold transition-all',
               plan.highlighted
                 ? 'bg-primary-600 hover:bg-primary-500 text-white shadow-md'
-                : 'border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 border',
+                : 'border-surface-200 dark:border-surface-700 text-foreground hover:bg-surface-100 dark:hover:bg-surface-800 border',
             ]"
             @click="handleSubscribe(plan.id)"
           >
@@ -281,7 +284,7 @@ const usagePercent = (current: number, limit: number) =>
                   <p class="text-surface-900 text-sm font-medium dark:text-white">
                     •••• {{ pm.last4 }}
                   </p>
-                  <p v-if="pm.expiryMonth" class="text-surface-400 text-xs">
+                  <p v-if="pm.expiryMonth" class="text-muted-foreground text-xs">
                     {{ t('billing_expires') }} {{ pm.expiryMonth }}/{{ pm.expiryYear }}
                   </p>
                 </div>
@@ -309,12 +312,12 @@ const usagePercent = (current: number, limit: number) =>
               class="border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 flex items-center justify-between rounded-xl border p-3 transition-colors"
             >
               <div class="flex items-center gap-3">
-                <span :class="[resolveIcon('file'), 'text-surface-400 h-5 w-5']" />
+                <span :class="[resolveIcon('file'), 'text-muted-foreground h-5 w-5']" />
                 <div>
                   <p class="text-surface-900 text-sm font-medium dark:text-white">
                     {{ invoice.number }}
                   </p>
-                  <p class="text-surface-400 text-xs">
+                  <p class="text-muted-foreground text-xs">
                     {{ invoice.periodStart }} — {{ invoice.periodEnd }}
                   </p>
                 </div>
@@ -324,9 +327,9 @@ const usagePercent = (current: number, limit: number) =>
                   :class="[
                     'rounded-full px-2 py-0.5 text-xs font-semibold',
                     invoice.status === 'paid'
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-200'
                       : invoice.status === 'open'
-                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        ? 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-200'
                         : 'bg-surface-100 text-surface-500 dark:bg-surface-700',
                   ]"
                   >{{ invoice.status }}</span
@@ -343,18 +346,18 @@ const usagePercent = (current: number, limit: number) =>
       <!-- Cancel Subscription -->
       <div
         v-if="billing.isSubscribed"
-        class="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-6 dark:border-red-800/40 dark:bg-red-900/10"
+        class="border-danger-200 dark:border-danger-800/40 bg-destructive-subtle flex items-center justify-between rounded-2xl border p-6"
       >
         <div>
-          <h3 class="text-lg font-bold text-red-700 dark:text-red-400">
+          <h3 class="text-danger-800 dark:text-danger-200 text-lg font-bold">
             {{ t('billing_cancel_title') }}
           </h3>
-          <p class="mt-1 text-sm text-red-600/70 dark:text-red-400/70">
+          <p class="text-danger-700/80 dark:text-danger-300/80 mt-1 text-sm">
             {{ t('billing_cancel_text') }}
           </p>
         </div>
         <button
-          class="rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+          class="border-danger-300 dark:border-danger-700 text-destructive hover:bg-danger-100 dark:hover:bg-danger-900/20 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
           @click="handleCancel"
         >
           {{ t('billing_cancel_plan') }}
