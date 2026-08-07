@@ -80,7 +80,7 @@ function switchIconProvider(p: IconProvider) {
 <template>
   <div class="animate-fade-in mx-auto max-w-3xl px-4 py-10">
     <h1 class="mb-2 text-3xl font-bold">{{ t('settings_title') }}</h1>
-    <p class="text-surface-500 dark:text-surface-400 mb-10">{{ t('settings_subtitle') }}</p>
+    <p class="text-muted-foreground mb-10">{{ t('settings_subtitle') }}</p>
 
     <div class="space-y-8">
       <!-- Appearance -->
@@ -88,7 +88,7 @@ function switchIconProvider(p: IconProvider) {
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
         <h2 class="mb-2 text-lg font-bold">{{ t('settings_appearance') }}</h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+        <p class="text-muted-foreground mb-6 text-sm">
           {{ t('settings_appearance_desc') }}
         </p>
 
@@ -100,7 +100,7 @@ function switchIconProvider(p: IconProvider) {
               class="bg-surface-200 dark:bg-surface-700 flex h-10 w-10 items-center justify-center rounded-xl"
             >
               <span v-if="isDark" :class="[resolveIcon('moon'), 'text-primary-400 h-5 w-5']" />
-              <span v-else :class="[resolveIcon('sun'), 'h-5 w-5 text-amber-500']" />
+              <span v-else :class="[resolveIcon('sun'), 'text-warning-500 h-5 w-5']" />
             </div>
             <div>
               <span class="block text-sm font-semibold">{{ t('settings_dark_mode') }}</span>
@@ -118,13 +118,13 @@ function switchIconProvider(p: IconProvider) {
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
         <h2 class="mb-2 text-lg font-bold">{{ t('settings_shapes_title') }}</h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-6 text-sm">
+        <p class="text-muted-foreground mb-6 text-sm">
           {{ t('settings_shapes_desc') }}
         </p>
 
         <!-- Border Radius -->
         <div class="mb-6">
-          <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">
+          <h3 class="text-foreground mb-3 text-sm font-semibold">
             {{ t('settings_border_radius') }}
           </h3>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -149,7 +149,7 @@ function switchIconProvider(p: IconProvider) {
 
         <!-- Borders -->
         <div class="mb-6">
-          <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">
+          <h3 class="text-foreground mb-3 text-sm font-semibold">
             {{ t('settings_borders') }}
           </h3>
           <div class="grid grid-cols-4 gap-3">
@@ -177,7 +177,7 @@ function switchIconProvider(p: IconProvider) {
 
         <!-- Shadows -->
         <div>
-          <h3 class="text-surface-700 dark:text-surface-300 mb-3 text-sm font-semibold">
+          <h3 class="text-foreground mb-3 text-sm font-semibold">
             {{ t('settings_shadows') }}
           </h3>
           <div class="grid grid-cols-4 gap-3">
@@ -209,7 +209,7 @@ function switchIconProvider(p: IconProvider) {
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
         <h2 class="mb-2 text-lg font-bold">{{ t('settings_language') }}</h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
+        <p class="text-muted-foreground mb-5 text-sm">
           {{ t('settings_language_desc') }}
         </p>
         <div class="grid grid-cols-3 gap-3">
@@ -235,7 +235,7 @@ function switchIconProvider(p: IconProvider) {
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
         <h2 class="mb-2 text-lg font-bold">{{ t('settings_theme') }}</h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
+        <p class="text-muted-foreground mb-5 text-sm">
           {{ t('settings_theme_desc') }}
         </p>
         <div class="grid grid-cols-3 gap-3">
@@ -261,7 +261,7 @@ function switchIconProvider(p: IconProvider) {
         class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
       >
         <h2 class="mb-2 text-lg font-bold">{{ t('settings_icon_provider') }}</h2>
-        <p class="text-surface-500 dark:text-surface-400 mb-5 text-sm">
+        <p class="text-muted-foreground mb-5 text-sm">
           {{ t('settings_icon_provider_desc') }}
         </p>
         <div class="grid grid-cols-3 gap-3">
@@ -284,7 +284,7 @@ function switchIconProvider(p: IconProvider) {
 
       <!-- Logout -->
       <UiButton variant="destructive" block @click="logout">
-        <span :class="[resolveIcon('logout'), 'mr-1 h-4 w-4']" />
+        <span :class="[resolveIcon('logout'), 'me-1 h-4 w-4']" />
         {{ t('auth_logout') }}
       </UiButton>
     </div>

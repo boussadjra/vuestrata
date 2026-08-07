@@ -37,7 +37,12 @@ const settingsModule: ModuleDefinition = {
       path: '/dashboard/settings',
       name: '/dashboard/settings',
       component: () => import('./pages/settings.vue'),
-      meta: { layout: 'dashboard', requiresAuth: true, module: 'settings' },
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        module: 'settings',
+        title: 'settings_nav',
+      },
     },
   ],
 
@@ -46,6 +51,7 @@ const settingsModule: ModuleDefinition = {
       label: 'settings_nav',
       icon: 'settings',
       to: '/dashboard/settings',
+      group: 'account',
       order: 90,
     },
   ],
