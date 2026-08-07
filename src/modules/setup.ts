@@ -21,8 +21,16 @@
 import analyticsModule from './analytics'
 import authModule from './auth'
 import billingModule from './billing'
+import calendarModule from './calendar'
+import catalogModule from './catalog'
+import customersModule from './customers'
+import messagesModule from './messages'
+import ordersModule from './orders'
+import projectsModule from './projects'
+import reportsModule from './reports'
 import settingsModule from './settings'
 import showcaseModule from './showcase'
+import teamModule from './team'
 import type { ModuleDefinition } from './types'
 import usersModule from './users'
 
@@ -34,6 +42,18 @@ export const appModules: ModuleDefinition[] = [
   analyticsModule,
   // billing: subscription, invoices, and payment management (TanStack Query pattern)
   billingModule,
+  // ─── Domain modules ───────────────────────────────────
+  // Each owns a zod contract, a seeded mock backend, queries built on
+  // `createCollectionApi`, and functional pages. They are the worked examples
+  // for adding a domain of your own.
+  customersModule,
+  ordersModule,
+  catalogModule,
+  projectsModule,
+  calendarModule,
+  messagesModule,
+  teamModule,
+  reportsModule,
   // users: team member management and role-based access (TanStack Query pattern)
   usersModule,
   // showcase: forms and data-tables demos (presentational only)
