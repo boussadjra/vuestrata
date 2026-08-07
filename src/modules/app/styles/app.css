@@ -132,6 +132,30 @@
   --animate-gradient: gradient-shift 8s ease-in-out infinite;
 }
 
+/* ─── Layering System ─────────────────────────────────────
+ * Named z-index tokens for the app shell. Siblings at equal z-index stack by
+ * DOM order, not by intent — naming the layers keeps their required order
+ * explicit regardless of where each element sits in the template.
+ *
+ * Two drawer patterns coexist and must not share tokens:
+ *  - Dashboard's mobile nav (AppSidebar) is a true modal: it sets
+ *    aria-modal and traps focus, so its backdrop must outrank the sticky
+ *    header (--z-modal-backdrop > --z-sticky).
+ *  - Docs' mobile nav (DocsSidebar) is a non-modal disclosure that treats
+ *    the header as persistent chrome above it, so its own backdrop stays
+ *    below the header on purpose (--z-drawer-backdrop < --z-sticky).
+ */
+:root {
+  --z-drawer-backdrop: 20;
+  --z-drawer: 30;
+
+  --z-sticky: 30;
+  --z-modal-backdrop: 35;
+  --z-modal: 40;
+
+  --z-dropdown: 50;
+}
+
 /* ─── Shape System ────────────────────────────────────────
  * CSS custom properties for border-radius, border-width, and shadow intensity.
  * Controlled by shape-radius-*, shape-border-*, shape-shadow-* classes on <html>.

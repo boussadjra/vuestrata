@@ -107,7 +107,7 @@ const indentStyle = computed(() =>
         side="right"
         align="start"
         :side-offset="8"
-        class="border-border bg-elevated z-50 min-w-52 rounded-[var(--shape-radius-sm)] border p-1.5 shadow-[var(--shadow-soft)]"
+        class="border-border bg-elevated z-(--z-dropdown) min-w-52 rounded-[var(--shape-radius-sm)] border p-1.5 shadow-[var(--shadow-soft)]"
       >
         <p class="text-muted-foreground px-2.5 pt-1 pb-2 text-xs font-semibold">{{ label }}</p>
         <ul class="space-y-1">

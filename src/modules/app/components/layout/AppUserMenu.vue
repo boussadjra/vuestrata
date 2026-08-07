@@ -69,7 +69,7 @@ function go(to: string) {
       <DropdownMenuContent
         align="end"
         :side-offset="8"
-        class="border-border bg-elevated z-50 min-w-56 rounded-[var(--shape-radius-sm)] border p-1.5 shadow-[var(--shadow-soft)]"
+        class="border-border bg-elevated z-(--z-dropdown) min-w-56 rounded-[var(--shape-radius-sm)] border p-1.5 shadow-[var(--shadow-soft)]"
       >
         <div class="px-2.5 py-2">
           <p class="text-foreground truncate text-sm font-medium">{{ user.name }}</p>

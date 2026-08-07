@@ -83,7 +83,7 @@ const isCollapsedRail = computed(() => !isMobileViewport.value && appStore.sideb
     :aria-modal="isDrawerOpen ? 'true' : undefined"
     :inert="isInert || undefined"
     :class="[
-      'fixed inset-y-0 inset-s-0 z-40 flex flex-col border-e',
+      'fixed inset-y-0 inset-s-0 z-(--z-modal) flex flex-col border-e',
       'border-sidebar-border bg-sidebar/88 backdrop-blur-xl',
       'transition-[width,transform,background-color,border-color] duration-300',
       isMobileViewport ? 'w-72' : appStore.sidebarCollapsed ? 'w-20' : 'w-72',
@@ -184,7 +184,7 @@ const isCollapsedRail = computed(() => !isMobileViewport.value && appStore.sideb
   >
     <div
       v-if="isMobileViewport && isSidebarOpen"
-      class="bg-surface-950/45 fixed inset-0 z-30 backdrop-blur-[2px] lg:hidden"
+      class="bg-surface-950/45 fixed inset-0 z-(--z-modal-backdrop) backdrop-blur-[2px] lg:hidden"
       @click="appStore.closeSidebar()"
     />
   </Transition>
