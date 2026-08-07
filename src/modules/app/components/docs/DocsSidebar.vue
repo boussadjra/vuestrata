@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import { UiButton } from '@/components/ui'
-
 import { getGroupPanelId, type SidebarSection, type SubsectionGroup } from './docsNavigation'
 
 const { t } = useI18n()
@@ -26,12 +24,10 @@ const FOCUSABLE_SELECTOR = [
 
 const emit = defineEmits<{
   close: []
-  toggleOpen: []
   toggleGroup: [key: string]
 }>()
 
 const sidebarRef = ref<HTMLElement | null>(null)
-const toggleButtonContainerRef = ref<HTMLElement | null>(null)
 const isDesktop = ref(false)
 const restoreFocusOnClose = ref(true)
 const focusMainOnClose = ref(false)
@@ -65,12 +61,6 @@ function closeSidebarAfterNavigation() {
   closeSidebar({ restoreFocus: false, focusMain: true })
 }
 
-function handleToggleOpen() {
-  restoreFocusOnClose.value = true
-  focusMainOnClose.value = false
-  emit('toggleOpen')
-}
-
 function syncDesktopState(event?: MediaQueryListEvent) {
   isDesktop.value = event?.matches ?? desktopMediaQuery?.matches ?? false
 }
@@ -89,7 +79,8 @@ function setBodyScrollLock(locked: boolean) {
 }
 
 function getToggleButtonElement() {
-  return toggleButtonContainerRef.value?.querySelector<HTMLElement>('[data-ui="button"]') ?? null
+  if (typeof document === 'undefined') return null
+  return document.querySelector<HTMLElement>('[aria-controls="docs-sidebar"]')
 }
 
 function getFocusableElements() {
@@ -244,21 +235,6 @@ const childLinkClass =
 </script>
 
 <template>
-  <div ref="toggleButtonContainerRef" class="lg:hidden">
-    <UiButton
-      variant="primary"
-      size="lg"
-      icon
-      class="fixed inset-e-4 bottom-4 z-40 rounded-full"
-      aria-controls="docs-sidebar"
-      :aria-label="t('common_toggle_docs_nav')"
-      :aria-expanded="open"
-      @click="handleToggleOpen"
-    >
-      <span class="i-solar-hamburger-menu-bold h-5 w-5" aria-hidden="true" />
-    </UiButton>
-  </div>
-
   <aside
     ref="sidebarRef"
     id="docs-sidebar"
@@ -269,7 +245,7 @@ const childLinkClass =
     :class="[
       'border-surface-200/80 bg-surface-50/98 dark:border-surface-700 dark:bg-surface-900/98 min-h-0 w-72 shrink-0 border-e shadow-(--shadow-elevated) lg:shadow-none',
       'overflow-y-auto p-4 lg:sticky lg:top-0 lg:h-full',
-      'fixed inset-y-16 inset-s-0 z-30 lg:relative lg:inset-auto',
+      'fixed inset-y-16 inset-s-0 z-(--z-drawer) lg:relative lg:inset-auto',
       open ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
       'transition-transform duration-200',
     ]"
@@ -372,7 +348,7 @@ const childLinkClass =
 
   <div
     v-if="isMobileOpen"
-    class="fixed inset-0 z-20 bg-black/30 lg:hidden"
+    class="fixed inset-0 z-(--z-drawer-backdrop) bg-black/30 lg:hidden"
     aria-hidden="true"
     @click="closeSidebar()"
   />

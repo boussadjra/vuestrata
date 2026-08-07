@@ -2,6 +2,9 @@
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppNotifications from '@/components/layout/AppNotifications.vue'
 import SkipLink from '@/components/layout/SkipLink.vue'
+
+// Shared with AppHeader's docs nav toggle — see useDocsSidebar.ts.
+provideDocsSidebar()
 </script>
 
 <template>

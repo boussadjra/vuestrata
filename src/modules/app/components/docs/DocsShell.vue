@@ -276,7 +276,7 @@ for (const demo of COMPONENT_DEMO_DOCS) {
 const rootDoc = docs.find((doc) => doc.slug === '')
 const route = useRoute()
 const router = useRouter()
-const sidebarOpen = ref(false)
+const { open: sidebarOpen, close: closeSidebar } = useDocsSidebar()
 const sidebarSections = computed(() => buildSidebarSections(docs))
 
 const currentSlug = computed(() => {
@@ -298,10 +298,6 @@ function toggleGroup(key: string) {
   else expandedGroups.value.add(key)
 }
 
-function closeSidebar() {
-  sidebarOpen.value = false
-}
-
 watch(
   currentSlug,
   () => {
@@ -320,7 +316,7 @@ watch(
 )
 
 function navigateTo(slug: string) {
-  sidebarOpen.value = false
+  closeSidebar()
   router.push(slug ? `/docs/${slug}` : '/docs')
 }
 </script>
@@ -332,7 +328,6 @@ function navigateTo(slug: string) {
       :current-slug="currentSlug"
       :open="sidebarOpen"
       :expanded-groups="expandedGroups"
-      @toggle-open="sidebarOpen = !sidebarOpen"
       @toggle-group="toggleGroup"
       @close="closeSidebar"
     />

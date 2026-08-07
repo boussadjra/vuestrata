@@ -48,6 +48,8 @@ function routeStartsWith(base: string) {
 const isDashboardRoute = computed(() => routeStartsWith('/dashboard'))
 const isDocsRoute = computed(() => routeStartsWith('/docs'))
 
+const docsSidebar = useDocsSidebar()
+
 const guestAction = computed(() => {
   if (normalizedPath.value === '/auth/login') {
     return {
@@ -55,7 +57,7 @@ const guestAction = computed(() => {
       label: t('auth_register'),
       icon: 'user-plus' as const,
       variant: 'ghost' as const,
-      className: 'border-border bg-card text-foreground hover:text-foreground border',
+      className: 'border-border border',
     }
   }
 
@@ -65,7 +67,7 @@ const guestAction = computed(() => {
       label: t('auth_login'),
       icon: 'login' as const,
       variant: 'ghost' as const,
-      className: 'border-border bg-card text-foreground hover:text-foreground border',
+      className: 'border-border border',
     }
   }
 
@@ -81,7 +83,7 @@ const guestAction = computed(() => {
 
 <template>
   <header
-    class="app-header border-surface-200/70 bg-surface-50/78 dark:border-surface-800/70 dark:bg-surface-950/84 sticky top-0 z-30 border-b backdrop-blur-xl transition-colors"
+    class="app-header border-surface-200/70 bg-surface-50/78 dark:border-surface-800/70 dark:bg-surface-950/84 sticky top-0 z-(--z-sticky) border-b backdrop-blur-xl transition-colors"
   >
     <div
       :class="[
@@ -114,6 +116,21 @@ const guestAction = computed(() => {
           @click="appStore.toggleSidebar()"
         >
           <span :class="[resolveIcon('sidebar'), 'h-4 w-4']" />
+        </UiButton>
+
+        <UiButton
+          v-if="isDocsRoute"
+          variant="ghost"
+          size="md"
+          icon
+          aria-controls="docs-sidebar"
+          :aria-label="t('common_toggle_docs_nav')"
+          :aria-expanded="docsSidebar.open.value"
+          data-testid="docs-sidebar-toggle"
+          class="lg:hidden"
+          @click="docsSidebar.toggle()"
+        >
+          <span :class="[resolveIcon('menu'), 'h-5 w-5']" />
         </UiButton>
 
         <RouterLink
@@ -159,7 +176,13 @@ const guestAction = computed(() => {
             :aria-label="t('header_locale_label')"
           />
 
-          <UiButton to="/docs" variant="ghost" size="md" class="hidden sm:inline-flex">
+          <UiButton
+            to="/docs"
+            variant="ghost"
+            size="md"
+            class="hidden sm:inline-flex"
+            :aria-current="isDocsRoute ? 'page' : undefined"
+          >
             <span
               :class="[
                 resolveIcon('document'),
@@ -175,6 +198,7 @@ const guestAction = computed(() => {
             size="md"
             icon
             :aria-label="t('common_documentation')"
+            :aria-current="isDocsRoute ? 'page' : undefined"
             :class="['sm:hidden', isDocsRoute ? 'text-primary-700 dark:text-primary-300' : '']"
           >
             <span
