@@ -1,6 +1,17 @@
 import { logger } from '~/lib/logger'
 import type { ApiError } from '~/types'
 
+import { reportError } from './reporter'
+
+export {
+  getErrorReporter,
+  installErrorReporter,
+  reportError,
+  resetErrorReporter,
+  setErrorReporterUser,
+} from './reporter'
+export type { ErrorReporter, ErrorReportContext } from './reporter'
+
 /** Normalized application error */
 export class AppError extends Error {
   public readonly code: string
@@ -120,12 +131,20 @@ export function installErrorHandlers(target: EventTarget = globalThis as EventTa
       code: error.code,
       status: error.status,
     })
+    reportError(event.reason, {
+      source: 'window:unhandledrejection',
+      extra: { code: error.code, status: error.status },
+    })
   }) as EventListener)
 
   target.addEventListener('error', ((event: ErrorEvent) => {
     errorLogger.error('Uncaught error:', event.message, {
       filename: event.filename,
       lineno: event.lineno,
+    })
+    reportError(event.error ?? new Error(event.message), {
+      source: 'window:error',
+      extra: { filename: event.filename, lineno: event.lineno },
     })
   }) as EventListener)
 }
