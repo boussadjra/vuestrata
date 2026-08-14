@@ -29,10 +29,15 @@ const year = new Date().getFullYear()
         </div>
       </div>
 
+      <!-- Semantic tokens, not `text-surface-600 dark:text-surface-300`. A ramp
+           step is only a safe foreground on a ramp that runs where you assume:
+           Terminal's `surface-300` is #52525b, so the dark-mode pair rendered
+           dark grey on near-black at 2.63:1. `muted-foreground` is re-pointed
+           per theme precisely so callers do not have to know that. -->
       <div class="flex flex-wrap items-center gap-2">
         <RouterLink
           to="/docs"
-          class="border-surface-200/80 bg-surface-50 text-surface-600 hover:text-surface-900 dark:border-surface-700/70 dark:bg-surface-900/75 dark:text-surface-300 dark:hover:text-surface-50 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+          class="border-border bg-muted text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
         >
           <span class="i-solar-document-text-bold h-4 w-4" />
           {{ t('common_documentation') }}
@@ -41,7 +46,7 @@ const year = new Date().getFullYear()
           href="https://github.com/boussadjra/vuestrata"
           target="_blank"
           rel="noopener noreferrer"
-          class="border-surface-200/80 bg-surface-50 text-surface-600 hover:text-surface-900 dark:border-surface-700/70 dark:bg-surface-900/75 dark:text-surface-300 dark:hover:text-surface-50 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+          class="border-border bg-muted text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
         >
           <span class="i-solar-github-bold h-4 w-4" />
           <span>GitHub</span>

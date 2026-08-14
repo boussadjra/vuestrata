@@ -35,15 +35,17 @@
     <!--
       Listing a family here costs one line of CSS, not a font binary: the browser
       only downloads a face once a rule actually matches text with it. So the
-      theme-specific families (Space Grotesk, JetBrains Mono, Nunito, Fraunces)
-      are free for anyone not on those themes.
+      theme-specific families (Space Grotesk, JetBrains Mono, Nunito, Fraunces,
+      IBM Plex Sans, Rubik) are free for anyone not on those themes.
 
       JetBrains Mono is NOT theme-specific — `--font-mono` in app.css has always
       named it, but it was never loaded, so every code block in the app silently
-      fell back to the platform's generic monospace.
+      fell back to the platform's generic monospace. Rubik was the same story:
+      Harbour and Sunset have both named it in `--font-sans` since they were
+      written, and both silently rendered in the platform default sans instead.
     -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300..900&family=Fraunces:opsz,wght@9..144,400..700&family=Inter:wght@300..900&family=JetBrains+Mono:wght@400;500;700&family=Nunito:wght@300..800&family=Space+Grotesk:wght@300..700&family=Tajawal:wght@300;400;500;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300..900&family=Fraunces:opsz,wght@9..144,400..700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Inter:wght@300..900&family=JetBrains+Mono:wght@400;500;700&family=Nunito:wght@300..800&family=Rubik:wght@300..900&family=Space+Grotesk:wght@300..700&family=Tajawal:wght@300;400;500;700;800;900&display=swap"
       rel="stylesheet"
     />
     <title>Vuestrata</title>

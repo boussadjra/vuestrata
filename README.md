@@ -9,7 +9,7 @@ A modern, production-ready Vue 3 template with multi-theme support, Reka UI wrap
 - **Vue 3.5+** with `<script setup>` and Composition API
 - **TypeScript 6.0+** in strict mode
 - **Tailwind CSS v4** with CSS-first configuration
-- **Multi-theme system** — 10 built-in themes (Default, Blueprint, Brutalist, Febin, Forest, Ghibli, Ocean, Rose, Sunset, Terminal) + dark mode
+- **Multi-theme system** — 10 built-in themes (Default, Blueprint, Brutalist, Forest, Ghibli, Harbour, Ocean, Rose, Sunset, Terminal) + dark mode
 - **Reka UI component layer** — `Ui*` wrappers backed by shared base composables
 - **File-based routing** via Vue Router 5
 - **Auto-imports** — composables, Vue APIs, and components
@@ -106,7 +106,7 @@ src/
 
 Vuestrata ships with 10 built-in themes plus dark mode:
 
-`default`, `blueprint`, `brutalist`, `febin`, `forest`, `ghibli`, `ocean`, `rose`, `sunset`, and `terminal`.
+`default`, `blueprint`, `brutalist`, `forest`, `ghibli`, `harbour`, `ocean`, `rose`, `sunset`, and `terminal`.
 
 Themes are registered in `src/modules/app/config/theme.config.ts`, applied as `theme-*` classes on `<html>`, and managed through `useTheme()` with first-paint syncing handled by `bootstrapTheme()`.
 

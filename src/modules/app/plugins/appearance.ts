@@ -54,6 +54,36 @@ export function isRtlLocale(locale: string): boolean {
 // into class names / DOM attributes (in case localStorage was tampered with).
 const THEME_PATTERN = /^[a-z0-9-]+$/
 
+/**
+ * Themes that have been renamed, old name → new name.
+ *
+ * A persisted theme is a choice the user actually made, and `readTheme()`
+ * validates the *shape* of the stored value, not that a theme by that name
+ * still exists. Without this map a rename leaves the old value in storage
+ * where it passes validation, resolves to no registered theme, and silently
+ * drops the user back to Default with no indication why.
+ *
+ * Entries can be removed once the affected releases are far enough behind that
+ * nobody is still carrying the old value.
+ */
+const THEME_ALIASES: Record<string, string> = {
+  // Renamed in 1.0.1-alpha: "Febin" named nobody and described nothing.
+  febin: 'harbour',
+}
+
+/**
+ * Resolve a stored theme name through the rename map.
+ *
+ * Exported because there are TWO readers of the persisted theme and they run at
+ * different times: this module's `readTheme()` on the pre-mount bootstrap, and
+ * the Pinia store's `useAppStorage` after mount. Migrating only the first one
+ * would paint the right theme for a frame and then have the store hydrate the
+ * stale name straight back over it.
+ */
+export function normalizeThemeName(name: string): string {
+  return THEME_ALIASES[name] ?? name
+}
+
 export interface Appearance {
   dark: boolean
   /** Theme name. Used to derive a `theme-<name>` class unless `themeClass` is provided. */
@@ -134,7 +164,8 @@ function readDark(): boolean {
 
 function readTheme(): string {
   const saved = readStorage(APPEARANCE_KEYS.theme)
-  return saved && THEME_PATTERN.test(saved) ? saved : 'default'
+  if (!saved || !THEME_PATTERN.test(saved)) return 'default'
+  return normalizeThemeName(saved)
 }
 
 function readLocale(): SupportedLocale {

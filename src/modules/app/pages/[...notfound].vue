@@ -8,7 +8,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <main class="bg-surface-50 dark:bg-surface-950 flex min-h-screen items-center px-5 py-12">
+  <main class="bg-background flex min-h-screen items-center px-5 py-12">
     <section class="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
       <div class="border-surface-200 dark:border-surface-800 border-y py-8">
         <p

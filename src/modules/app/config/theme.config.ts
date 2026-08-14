@@ -11,7 +11,7 @@ const builtinThemes: ThemeConfig[] = [
   { name: 'rose', label: 'Rose', cssClass: 'theme-rose' },
   { name: 'terminal', label: 'Terminal', cssClass: 'theme-terminal' },
   { name: 'blueprint', label: 'Blueprint', cssClass: 'theme-blueprint' },
-  { name: 'febin', label: 'Febin', cssClass: 'theme-febin' },
+  { name: 'harbour', label: 'Harbour', cssClass: 'theme-harbour' },
 ]
 
 /** Register a custom theme at runtime */

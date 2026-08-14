@@ -195,29 +195,29 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 
 #### Character Cards
 
-| Theme         | Aesthetic                               | Design Mood                                 |
-| ------------- | --------------------------------------- | ------------------------------------------- |
-| **Default**   | Teal on slate                           | Precise, professional, neutral              |
-| **Blueprint** | Sepia ink on aged parchment             | Drafting board nostalgia, gridded precision |
-| **Brutalist** | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration        |
-| **Febin**     | Coral/orange on warm sunrise surface    | Vibrant twilight, painterly warmth          |
-| **Forest**    | Emerald + warm gold on olive            | Grounded, natural, earthy abundance         |
-| **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene             |
-| **Ocean**     | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth      |
-| **Rose**      | Rose pink + slate purple                | Sophisticated, modern, editorial            |
-| **Sunset**    | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration             |
-| **Terminal**  | Phosphor green on dark charcoal         | Developer-native, monospace, austere        |
+| Theme         | Aesthetic                               | Design Mood                               |
+| ------------- | --------------------------------------- | ----------------------------------------- |
+| **Default**   | Teal on slate                           | Precise, professional, neutral            |
+| **Blueprint** | Plotter azure + verdigris + Corten      | Technical, gridded, drawing-set precision |
+| **Brutalist** | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration      |
+| **Forest**    | Emerald + warm gold on olive            | Grounded, natural, earthy abundance       |
+| **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene           |
+| **Harbour**   | Burnt orange + cobalt on warm cream     | Painterly, complementary, autumn coast    |
+| **Ocean**     | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth    |
+| **Rose**      | Rose pink + slate purple                | Sophisticated, modern, editorial          |
+| **Sunset**    | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration           |
+| **Terminal**  | Phosphor green on dark charcoal         | Developer-native, monospace, austere      |
 
 #### Full Token Table
 
 | Theme     | Primary-500 | Secondary-500 | Accent-500 | Surface-50 | Radius-md | Body Font         |
 | --------- | ----------- | ------------- | ---------- | ---------- | --------- | ----------------- |
 | Default   | `#29a07d`   | `#9b8c74`     | `#cc62b3`  | `#f8fafc`  | 0.375rem  | Inter             |
-| Blueprint | `#8c6420`   | `#3a66a0`     | `#b65530`  | `#f8f3e6`  | 0         | Bookman Old Style |
+| Blueprint | `#3b73ed`   | `#1f9187`     | `#cd5a2f`  | `#f7f9fc`  | 0         | IBM Plex Sans     |
 | Brutalist | `#303030`   | `#d9c200`     | `#ff1a75`  | `#fafafa`  | 0         | Space Grotesk     |
-| Febin     | `#dd7c55`   | `#597ba8`     | `#f23d4e`  | `#fffcf8`  | 0.75rem   | Rubik             |
 | Forest    | `#10b981`   | `#c9b210`     | `#14b8a6`  | `#fafaf5`  | 0.625rem  | Inter             |
 | Ghibli    | `#4f8058`   | `#c4713a`     | `#4f86a8`  | `#fdfaf4`  | 0.875rem  | Nunito / Fraunces |
+| Harbour   | `#e2661f`   | `#4a60d2`     | `#c4497f`  | `#fdf7ef`  | 0.75rem   | Rubik             |
 | Ocean     | `#6366f1`   | `#06b6d4`     | `#8b5cf6`  | `#f8fafc`  | 0.5rem    | Inter             |
 | Rose      | `#f43f5e`   | `#a855f7`     | `#d946ef`  | `#fafafa`  | 0.5rem    | Inter             |
 | Sunset    | `#f97316`   | `#f43f5e`     | `#eab308`  | `#fafaf9`  | 0.5rem    | Rubik             |
@@ -241,18 +241,37 @@ Engineered teal cuts through graphite slate. Radii are tight (md=0.375rem), shad
 
 ---
 
-**Blueprint** — _The Aged Schematic_
-A vintage technical drawing on yellowed quadrille paper. Dark sepia ink for primary actions, blueprint blue annotations for secondary context, aged red correction marks for accents. All radii are zero — precision demands sharp corners. Shadows are hard flat offsets (2px 2px 0), not gaussian. A custom `--blueprint-grid-*` overlay renders graph paper lines on the page background.
+**Blueprint** — _The Drawing Set_
+A contemporary architectural drawing. Light mode is the plotted sheet: azure line work on cool white stock. Dark mode is the reprographic original — the cyanotype, pale blue on Prussian blue. The supporting palette is a material board rather than an ink collection: verdigris for oxidised copper and zinc, Corten terracotta for weathering steel. All radii are zero on both scales. Shadows are hard flat offsets, mirrored in RTL. Four patterns are lifted from real drawing conventions (below).
 
-| Token         | Value                               | Notes                            |
-| ------------- | ----------------------------------- | -------------------------------- |
-| Primary-500   | `#8c6420`                           | Dark sepia ink                   |
-| Secondary-500 | `#3a66a0`                           | Annotation blue                  |
-| Accent-500    | `#b65530`                           | Aged red correction              |
-| Surface-50    | `#f8f3e6`                           | Yellowed parchment               |
-| Radius        | 0 everywhere                        | No rounding — drafting precision |
-| Shadow style  | Hard flat offset (2–4px, 0 blur)    | Paper stacking                   |
-| Font          | Bookman Old Style → Georgia → serif | Vintage print stack              |
+| Token         | Value                                            | Notes                                        |
+| ------------- | ------------------------------------------------ | -------------------------------------------- |
+| Primary-500   | `#3b73ed`                                        | Plotter azure, one family across 50→950      |
+| Secondary-500 | `#1f9187`                                        | Verdigris — patinated copper                 |
+| Accent-500    | `#cd5a2f`                                        | Corten / terracotta, hue ≈ 16°               |
+| Surface-50    | `#f7f9fc` light / `#eaf2fb` dark ramp            | Drawing stock; dark ramp is its own          |
+| Surface-950   | `#0d141f` light / `#08131f` dark                 | Prussian blue is the dark page               |
+| Radius        | 0 everywhere, incl. the `--shape-radius-*` scale | No rounding — drafting precision             |
+| Shadow style  | Hard flat offset (1–4px, 0 blur), RTL-mirrored   | Sheets stacked on a board                    |
+| Font          | IBM Plex Sans → Inter → Tajawal/Cairo            | Technical grotesque, drawn on an eng. grid   |
+| Charts        | Own 8-slot material board                        | Semantic default put three blues in a legend |
+
+The four patterns, each a real drawing convention:
+
+| Pattern               | Where                                  | Convention it comes from                    |
+| --------------------- | -------------------------------------- | ------------------------------------------- |
+| Modular sheet grid    | `:root` — 12px snap + 96px module      | The drawing sheet itself                    |
+| Registration marks    | `.card::before` — four corner L-marks  | Crop/registration marks on a plotted sheet  |
+| Drawing frame         | `.card::after` — hairline inset 6px    | The border set in from the paper edge       |
+| Section hatch (poché) | Header bottom band, `thead`            | 45° hatch marking cut material in a section |
+| Construction lines    | Inputs: dashed at rest, solid on focus | Orthographic hidden/setting-out lines       |
+
+Four deliberate departures from the previous version:
+
+- **It is blue now.** The theme called "Blueprint" ran sepia ink on yellowed parchment — a _vintage paper_ theme. Blue was demoted to `secondary`, so the one colour the name promises never reached a primary button, a link, a focus ring or the first chart series.
+- **The motifs are architectural, not papercraft.** A torn-paper `clip-path` ribbon across the top of every card is a scrapbook device. The five conventions above are all taken from drawing sets.
+- **Bookman Old Style is a 1936 bookface.** Working drawings are lettered in a technical grotesque — DIN, Univers and descendants. All-caps lettering is kept for buttons and dropped for body copy, because drawing _notes_ are sentence case.
+- **Rounding was only half-zeroed.** `--radius-*` was `0` but `--shape-radius-*` was not, so the theme fought its own softness back with `border-radius: 0 !important` on each element in turn. See the Zero-Radius Contract.
 
 ---
 
@@ -279,21 +298,6 @@ Three deliberate departures from the previous version:
 
 ---
 
-**Febin** — _The Windmill at Dusk_
-Inspired by vibrant windmill sunset art. Soft coral/orange primary (#dd7c55), twilight slate-blue secondary (#597ba8), deep crimson accent. The surface is a warm glowing sunrise (#fffcf8). Radii are large (sm=0.5rem, 2xl=2rem) — this is the most rounded theme. Shadows mix warm coral and cool blue in dual-tone stacking. Rubik type.
-
-| Token           | Value                    | Notes                          |
-| --------------- | ------------------------ | ------------------------------ |
-| Primary-500     | `#dd7c55`                | Soft sunset coral              |
-| Secondary-500   | `#597ba8`                | Twilight slate blue            |
-| Accent-500      | `#f23d4e`                | Deep crimson                   |
-| Surface-50      | `#fffcf8`                | Warm glowing sunrise           |
-| Radius-sm / 2xl | 0.5rem / 2rem            | Largest rounding in the system |
-| Shadow style    | Dual-tone (coral + blue) | Painterly layering             |
-| Font            | Rubik                    | Friendly geometric             |
-
----
-
 **Forest** — _The Forest Floor_
 Emerald primary (#10b981) with warm gold secondary (#c9b210) and teal accent (#14b8a6). Warm olive surface tints. Organic radius (md=0.625rem). Shadows are natural emerald-tinted, low-contrast. The palette evokes forest light breaking through leaves — many greens, one highlight of gold.
 
@@ -310,7 +314,7 @@ Emerald primary (#10b981) with warm gold secondary (#c9b210) and teal accent (#1
 ---
 
 **Ghibli** — _The Animated Clearing_
-Forest green (#4f8058), warm terracotta secondary (#c4713a), meadow-sky accent (#4f86a8). Warm cream surfaces (#fdfaf4) under a soft three-point painterly wash. The largest rounding in the system after Febin. Nunito carries body and UI; Fraunces carries headings — the serif is an accent, not the default. Shadows are the gentlest in the system. Dark mode is a real forest night: deep green-black surfaces (#10150f) with warm parchment text.
+Forest green (#4f8058), warm terracotta secondary (#c4713a), meadow-sky accent (#4f86a8). Warm cream surfaces (#fdfaf4) under a soft three-point painterly wash. The largest rounding in the system after Harbour. Nunito carries body and UI; Fraunces carries headings — the serif is an accent, not the default. Shadows are the gentlest in the system. Dark mode is a real forest night: deep green-black surfaces (#10150f) with warm parchment text.
 
 | Token         | Value                                           | Notes                                   |
 | ------------- | ----------------------------------------------- | --------------------------------------- |
@@ -329,6 +333,31 @@ Three deliberate departures from the previous version:
 - **Dark mode is now actually dark.** The old `.dark` block inverted the surface ramp (`--color-surface-950` → `#fdfbf7`), but `semantic.css` already inverts — it maps `--color-background` onto `surface-950` in dark mode. The two inversions cancelled and the page stayed cream. The dark ramp now runs the same direction as every other theme and supplies night colours at the dark end.
 - **The ramps were spliced and are now continuous.** `primary-50…400` were stock Tailwind green (`#4ade80` at 400) bolted onto a muted forest green from 500 down, jumping hue and chroma mid-ramp. Because `semantic.css` reaches for `primary-400` as the dark-mode focus ring, this theme's ring was neon. Accent had the same splice (Tailwind sky over muted blue).
 - **The serif moved to where a serif belongs.** Georgia headed the stack for _everything_, including 12px UI labels. Fraunces now handles display sizes and Nunito handles the rest — which is what the original "serif accent" comment described but the stack did not do.
+
+---
+
+**Harbour** — _The Autumn Coast_
+Painted from a reference illustration: cobalt cottages on an orange headland, a cold periwinkle sea behind them, a cream sky with the sun just above the horizon, a figure in a plum coat in the foreground. The whole image is one complementary pair — burnt orange against cobalt — held together by warm cream, and that is the theme. Primary is the headland (the largest field of colour), secondary the cottages (the subject), accent the coat. The page wash is the composition in four gradient layers: sun, sea band, headland, brick-red brush. Largest rounding in the system, on both scales. Rubik type.
+
+| Token           | Value                                    | Notes                                           |
+| --------------- | ---------------------------------------- | ----------------------------------------------- |
+| Primary-500     | `#e2661f`                                | Burnt orange, hue ≈ 22° — deeper than Sunset    |
+| Secondary-500   | `#4a60d2`                                | Cobalt, the one saturated cool in the picture   |
+| Accent-500      | `#c4497f`                                | Plum — unique in the set, far from every status |
+| Surface-50      | `#fdf7ef` light / `#f6f1ea` dark ramp    | Sky cream; cold shadow at the dark end          |
+| Radius-sm / 2xl | 0.5rem / 2rem (`--shape-radius` 1.25rem) | Largest rounding in the system                  |
+| Shadow style    | Dual-tone (headland warm + sea cool)     | Painterly layering                              |
+| Font            | Rubik (carries Arabic itself)            | Friendly geometric                              |
+| Charts          | Own 8-slot palette read off the painting | Warm/cool alternate slot to slot                |
+
+Six deliberate departures from the previous version:
+
+- **It was called "Febin".** A name that described nothing and identified nobody, which is the one job a theme name has in a picker of ten. `plugins/appearance.ts` carries a `THEME_ALIASES` map so a browser still holding the old value in `vuestrata-theme` resolves to Harbour and gets the new name written back, rather than silently reverting to Default.
+- **The palette follows the picture.** The old accent was a crimson one hue step off `--color-danger-*`, so an accent chip and a destructive button were the same colour.
+- **Rubik was never loaded.** `--font-sans` had named it since the theme was written, but it was absent from `index.html`, so Harbour — and Sunset, which also names it — silently rendered in the platform default sans.
+- **It was not actually the most rounded theme.** `--radius-*` was large but `--shape-radius-*` was not, and cards, buttons and inputs round from the latter.
+- **The button rules matched nothing.** They keyed off `button.bg-primary-700`, a utility no component emits. They now use the `data-ui` / `data-variant` attributes the UI kit renders.
+- **The glass surfaces hardcoded `rgba(255, 250, 243, …)`** — literal copies of two ramp steps, which detach the moment the ramp moves. They are `color-mix` on the tokens now, at 90% rather than 82%: a translucent card composites against whatever the wash is doing behind it, so the effective contrast of body copy is not knowable from the declared colours.
 
 ---
 
@@ -410,9 +439,9 @@ Precedence falls out of source order: themes are imported at the top of app.css 
 
 `--shape-border-width` follows the same pattern, with one limitation worth knowing: Tailwind's `border` utility emits a literal `1px`, not a token, so border width cannot be driven globally the way radius can. Only `.shaped-border` and the `[data-ui=…]` rules respond.
 
-**The Typeface Handoff Rule.** Four themes switch the default typeface to a non-Inter stack: Blueprint (serif), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
+**The Typeface Handoff Rule.** Five themes switch the default typeface to a non-Inter stack: Blueprint (IBM Plex Sans), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
 
-A theme font must be **loaded** as well as named. `index.html` carries the single Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
+A theme font must be **loaded** as well as named. `index.html` carries the single Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New and Harbour/Sunset spent theirs in the platform default sans. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
 
 **The One Focus Indicator Rule.** Focus is drawn by exactly one thing: the global `*:focus-visible` outline in app.css, built on `--color-ring`, which re-points per theme _and_ per colour mode. Components must not set `focus-visible:outline-none` and substitute their own ring. `UiButton` used to, replacing it with `ring-<hue>-300` — a 300-weight tint that measured 1.66:1 against the page on Default and 2.08:1 on Brutalist, where WCAG 1.4.11 requires 3:1. A theme that needs a different ring overrides `--color-ring`; it must clear 3:1 against its own `--color-background` in both modes, and against any border colour the ring commonly sits beside. Two themes need a mode-specific override for this reason: Brutalist (yellow is 1.21:1 on its light page, so light mode uses magenta) and Terminal (whose "light" surface is a mid-grey `#d4d4d8`, so it rings at `primary-800` rather than the `primary-600` default).
 
@@ -427,7 +456,7 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 **Body Font:** Inter (with Tajawal, Cairo as RTL Arabic fallbacks; Rubik as CJK/Unicode supplement)
 **Display Font:** Inter — same family, heavy weight, tighter tracking
 **Mono Font:** JetBrains Mono (code blocks, terminal theme body text)
-**Theme Fonts:** Space Grotesk (Brutalist), Nunito + Fraunces (Ghibli), Rubik (Febin/Sunset) — all loaded from the single `index.html` font request
+**Theme Fonts:** Space Grotesk (Brutalist), Nunito + Fraunces (Ghibli), IBM Plex Sans (Blueprint), Rubik (Harbour/Sunset) — all loaded from the single `index.html` font request
 
 **Character:** Inter provides dense, precise information density without reading as clinical. At small sizes (0.75–0.875rem) it stays clean; at display sizes (2.25–3.75rem, 800 weight, −0.02em tracking) it acquires a commanding authority. The RTL fallback chain (Tajawal → Cairo) preserves the system's structural feel in Arabic.
 
@@ -441,7 +470,7 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 
 ### Named Rules
 
-**The Same-Family Rule.** Display, headline, title, body, and label are all Inter. No mix of display typefaces within a single theme variant. Theme-level typeface changes (Blueprint to serif, Terminal to mono) apply uniformly — the hierarchy stays intact, only the voice changes.
+**The Same-Family Rule.** Display, headline, title, body, and label are all Inter. No mix of display typefaces within a single theme variant. Theme-level typeface changes (Blueprint to IBM Plex Sans, Terminal to mono) apply uniformly — the hierarchy stays intact, only the voice changes.
 
 **The Mono Containment Rule.** JetBrains Mono is for code, terminal output, and the Terminal theme body. It must not appear in prose contexts in non-Terminal themes. Use `font-mono` as a targeted utility, not a default. Brutalist used to violate this by setting mono as `--font-sans`; it now uses Space Grotesk and leaves mono to `--font-mono`.
 
@@ -477,7 +506,7 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 
 _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)`) and dip on press (`scale(0.97)`) with a cubic-bezier expo deceleration. The animation is disabled under `prefers-reduced-motion`.
 
-- **Shape:** `rounded-lg` → `--radius-lg` (default 0.5rem; 0 in Blueprint/Brutalist; up to 1.125rem in Ghibli and 1rem in Febin)
+- **Shape:** `rounded-lg` → `--radius-lg` (default 0.5rem; 0 in Blueprint/Brutalist; up to 1.125rem in Ghibli and 1rem in Harbour)
 - **Primary:** `bg-primary-500 text-white` · hover `bg-primary-600` · active `bg-primary-700` · focus ring `ring-primary-300`
 - **Secondary:** `bg-secondary-500 text-white` · hover `bg-secondary-600` · active `bg-secondary-700`
 - **Accent:** `bg-accent-500 text-white` · hover `bg-accent-600`
@@ -610,7 +639,7 @@ motion-reduce:active:scale-100
 
 ### Shadow Glows (theme-dependent)
 
-Available in: Ocean, Forest, Sunset, Rose, Terminal (dark only), Febin  
+Available in: Ocean, Forest, Sunset, Rose, Terminal (dark only), Harbour  
 Disabled in: Blueprint (`none`), Brutalist (no variable set)
 
 ```
@@ -619,13 +648,24 @@ Disabled in: Blueprint (`none`), Brutalist (no variable set)
 --shadow-glow-accent:    0 0 24px rgb(accent-500 / 0.3)
 ```
 
-### Blueprint-Exclusive Token
+### Blueprint-Exclusive Tokens
 
 ```css
---blueprint-grid-major: rgb(160 140 90 / 0.3) /* major grid lines */
-  --blueprint-grid-minor: rgb(160 140 90 / 0.12) /* minor grid lines */;
+--blueprint-grid-major: rgb(37 87 214 / 0.14); /* 96px structural module */
+--blueprint-grid-minor: rgb(37 87 214 / 0.06); /* 12px snap grid */
+--blueprint-mark: rgb(37 87 214 / 0.55); /* corner registration marks */
+--blueprint-rule: rgb(37 87 214 / 0.18); /* the inset drawing frame */
+--blueprint-hatch: repeating-linear-gradient(…); /* 45° section poché */
 ```
 
-These are applied via SVG `background-image` on `:root.theme-blueprint`. Do not replicate this pattern in other themes.
+Theme-local, like Ghibli's `--font-display`: they are not part of the semantic system and only rules inside `themes/blueprint.css` consume them. All five are redefined in the `.dark` block, where the palette inverts to the cyanotype. Do not replicate this pattern in other themes.
+
+### The Page-Wash Rule
+
+Three themes paint the page from `:root` rather than `body` — Blueprint's drafting grid, Harbour's four-layer wash, Ghibli's three-point painterly wash — so that the body's background transition cannot wipe it during mount. Anything set on `:root` is behind everything, which means **every full-viewport surface above it has to be made transparent, or the wash is invisible**. Ghibli shipped this way: it had a wash and rendered a flat page.
+
+All six layout roots now use the same class, `bg-background min-h-screen` (or `h-screen` for docs). Two of them previously wrote `bg-surface-50 dark:bg-surface-950` — the same two colours `--color-background` already resolves to, spelled out — which meant a theme had to know about two conventions to clear one thing.
+
+Each wash theme clears it with a **two-class** selector, `.bg-background.min-h-screen` / `.h-screen`. Deliberately not `.bg-background` alone: that would also catch the login form's "or" divider label, where the opaque background is exactly what punches a hole in the rule behind it. Two classes also mean no `!important` is needed — `:root.theme-x .bg-background.min-h-screen` outranks the utility on specificity.
 
 <!-- SIDECAR END -->

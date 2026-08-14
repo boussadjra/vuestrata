@@ -47,8 +47,14 @@ const FEATURE_ICON_CLASSES = [
           </p>
         </div>
 
+        <!-- `text-muted-foreground`, not `text-surface-500`. This is 14px body
+             copy, so it needs 4.5:1 on whatever surface it lands on, and the
+             ramp step that satisfies that is theme-dependent: surface-500
+             measured 3.98:1 on Blueprint light, 3.91:1 on the default dark ramp
+             and 1.36:1 on Terminal. `muted-foreground` is the token defined to
+             clear AA in both modes on every theme. -->
         <div
-          class="border-surface-200/80 bg-surface-50/82 dark:border-surface-800 dark:bg-surface-900/68 text-surface-500 rounded-[calc(var(--shape-radius)+0.125rem)] border px-4 py-3 text-sm shadow-(--shadow-soft)"
+          class="border-surface-200/80 bg-surface-50/82 dark:border-surface-800 dark:bg-surface-900/68 text-muted-foreground rounded-[calc(var(--shape-radius)+0.125rem)] border px-4 py-3 text-sm shadow-(--shadow-soft)"
         >
           {{ t('features_section_note') }}
         </div>

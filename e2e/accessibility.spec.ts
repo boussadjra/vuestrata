@@ -163,6 +163,14 @@ test.describe('Accessibility — theme and colour-mode matrix', () => {
     // Light, low-saturation ramps where muted text is most at risk.
     { theme: 'ghibli', dark: false },
     { theme: 'brutalist', dark: true },
+    // The two themes that supply an entire second surface ramp for dark mode
+    // rather than letting semantic.css flip the light one. Blueprint's dark
+    // ramp is a Prussian-blue cyanotype whose mid steps are the only thing
+    // standing between muted text and its background; Harbour lays four gradient
+    // layers under translucent cards, so declared colours are not the rendered
+    // ones. Neither is covered by auditing the default ramp.
+    { theme: 'blueprint', dark: true },
+    { theme: 'harbour', dark: false },
   ]
 
   for (const { theme, dark } of combinations) {

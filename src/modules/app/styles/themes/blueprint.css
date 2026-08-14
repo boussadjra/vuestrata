@@ -1,336 +1,420 @@
 /*
- * Blueprint theme — Vintage Technical Schematic on Aged Squared Paper
- * Evokes yellowed quadrille notebook pages, sepia drafting ink,
- * hand-drawn engineering schematics with precise grid lines.
- * WCAG AA: primary-600 on surface-50 ≥ 5.2:1, surface-900 on surface-50 ≥ 12:1
- * Dark mode: surface-900 (#e8dfc8) on surface-950 (#11100a) ≥ 11:1
+ * Blueprint theme — the contemporary drawing set.
+ *
  * Apply by adding class="theme-blueprint" to <html>
+ *
+ * ── What changed in the modernisation ──────────────────────────────────────
+ *  1. It was not blue. The theme called "Blueprint" ran sepia ink on yellowed
+ *     parchment — a *vintage paper* theme, not a blueprint. Blue was demoted to
+ *     `secondary`, so the one colour the name promises never appeared on a
+ *     primary button, a link, a focus ring or the first chart series. Primary is
+ *     now the azure a plotter actually lays down; the palette around it is a
+ *     material board (verdigris copper, Corten terracotta) rather than an ink
+ *     collection.
+ *  2. The motifs were paper motifs, not architecture. A torn-paper `clip-path`
+ *     ribbon across the top of every card is a scrapbook device. The patterns
+ *     here are four conventions from real drawing sets, listed at the bottom of
+ *     this file: the modular sheet grid, section hatch (poché), registration
+ *     marks, and construction lines.
+ *  3. Bookman Old Style is a 1936 bookface. Working drawings are lettered in a
+ *     technical grotesque — DIN, Univers, and their descendants. IBM Plex Sans
+ *     is drawn on an engineering grid and is the closest thing on the project's
+ *     font request.
+ *  4. Rounding was only half-zeroed. `--radius-*` was 0 but `--shape-radius-*`
+ *     — the scale cards, buttons and inputs actually round from — was left at
+ *     the system default, so the theme fought it back with `border-radius: 0
+ *     !important` on each element in turn. The tokens are set once now and the
+ *     per-element overrides are gone. Same fix as Brutalist; see the
+ *     Zero-Radius Contract in DESIGN.md.
+ *
+ * Contrast: foreground (surface-900) on background ≈ 14.6:1;
+ * muted-foreground (surface-600) on `muted` ≈ 5.5:1;
+ * primary-solid (primary-600) with white text ≈ 6.2:1;
+ * ring ≈ 6.2:1 light / 5.8:1 dark.
  */
 :root.theme-blueprint {
-  /* Primary — Dark Sepia Ink (high contrast on cream) */
-  --color-primary-50: #faf5eb;
-  --color-primary-100: #f2e6d0;
-  --color-primary-200: #e4cb9e;
-  --color-primary-300: #d2a96a;
-  --color-primary-400: #b8863e;
-  --color-primary-500: #8c6420;
-  --color-primary-600: #6e4e18;
-  --color-primary-700: #553c13;
-  --color-primary-800: #3d2b0e;
-  --color-primary-900: #2c1e09;
-  --color-primary-950: #1a1105;
+  /* Primary — plotter azure. One family from 50 to 950. */
+  --color-primary-50: #eef4ff;
+  --color-primary-100: #dbe7fe;
+  --color-primary-200: #bed3fd;
+  --color-primary-300: #92b7fb;
+  --color-primary-400: #5f93f6;
+  --color-primary-500: #3b73ed;
+  --color-primary-600: #2557d6;
+  --color-primary-700: #1e44ad;
+  --color-primary-800: #1d3b8a;
+  --color-primary-900: #1d366e;
+  --color-primary-950: #132244;
 
-  /* Secondary — Blueprint Blue (annotation ink) */
-  --color-secondary-50: #eef3fa;
-  --color-secondary-100: #d5e2f2;
-  --color-secondary-200: #adc6e6;
-  --color-secondary-300: #7da4d4;
-  --color-secondary-400: #5484bf;
-  --color-secondary-500: #3a66a0;
-  --color-secondary-600: #2d5083;
-  --color-secondary-700: #233d66;
-  --color-secondary-800: #1c314f;
-  --color-secondary-900: #152540;
-  --color-secondary-950: #0d1728;
+  /* Secondary — verdigris. Oxidised copper roofing and patinated zinc. */
+  --color-secondary-50: #edfaf7;
+  --color-secondary-100: #cff2ec;
+  --color-secondary-200: #a1e4da;
+  --color-secondary-300: #6bcec2;
+  --color-secondary-400: #3bb0a4;
+  --color-secondary-500: #1f9187;
+  --color-secondary-600: #16746e;
+  --color-secondary-700: #155c58;
+  --color-secondary-800: #154a48;
+  --color-secondary-900: #153e3c;
+  --color-secondary-950: #062523;
 
-  /* Accent — Aged Red Ink (corrections & highlights) */
-  --color-accent-50: #fdf3f0;
-  --color-accent-100: #f9e0d8;
-  --color-accent-200: #f2c1b0;
-  --color-accent-300: #e69878;
-  --color-accent-400: #d4714a;
-  --color-accent-500: #b65530;
-  --color-accent-600: #943f22;
-  --color-accent-700: #73311a;
-  --color-accent-800: #582616;
-  --color-accent-900: #431d12;
-  --color-accent-950: #2a100a;
+  /*
+   * Accent — Corten steel and terracotta.
+   *
+   * Held at hue ≈ 16°, deliberately between `danger` (0°) and `warning` (32°):
+   * far enough from both that an accent chip never reads as an error or a
+   * caution, close enough to the weathering-steel orange that it still looks
+   * like a material rather than a status.
+   */
+  --color-accent-50: #fdf4f0;
+  --color-accent-100: #fbe4da;
+  --color-accent-200: #f6c6b1;
+  --color-accent-300: #eda183;
+  --color-accent-400: #e07a53;
+  --color-accent-500: #cd5a2f;
+  --color-accent-600: #ad4522;
+  --color-accent-700: #8b361d;
+  --color-accent-800: #702e1b;
+  --color-accent-900: #5c2818;
+  --color-accent-950: #33130b;
 
-  /* Surface — Aged Yellowed Parchment */
-  --color-surface-50: #f8f3e6;
-  --color-surface-100: #f2ebd6;
-  --color-surface-200: #e8ddbf;
-  --color-surface-300: #d9ca9f;
-  --color-surface-400: #c0ac78;
-  --color-surface-500: #9a8856;
-  --color-surface-600: #766840;
-  --color-surface-700: #574c2f;
-  --color-surface-800: #3c3520;
-  --color-surface-900: #272215;
-  --color-surface-950: #15120b;
+  /* Surface — drawing stock. Cool white paper down to navy drafting ink. */
+  --color-surface-50: #f7f9fc;
+  --color-surface-100: #eef2f8;
+  --color-surface-200: #dde5ef;
+  --color-surface-300: #c3d0e0;
+  --color-surface-400: #93a4bb;
+  --color-surface-500: #6b7d96;
+  --color-surface-600: #52627a;
+  --color-surface-700: #3d4a5e;
+  --color-surface-800: #2b3646;
+  --color-surface-900: #1c2534;
+  --color-surface-950: #0d141f;
 
-  /* Typography — vintage print stack */
-  --font-sans: 'Bookman Old Style', 'Palatino Linotype', 'Book Antiqua', Garamond, Georgia, serif;
+  /*
+   * Chart series — a material board, not eight steps off the brand ramps.
+   *
+   * The semantic default reaches for `info-500` (sky) at slot 3 while slots 1
+   * and 5 are already this theme's azure and verdigris. Three cool blues in one
+   * legend is not a legend. These alternate warm and cool and step through
+   * lightness, so adjacent series stay separable in greyscale.
+   */
+  --color-chart-1: var(--color-primary-600);
+  --color-chart-2: var(--color-accent-500);
+  --color-chart-3: var(--color-secondary-500);
+  --color-chart-4: var(--color-warning-600);
+  --color-chart-5: var(--color-surface-600);
+  --color-chart-6: var(--color-primary-300);
+  --color-chart-7: var(--color-accent-800);
+  --color-chart-8: var(--color-secondary-800);
 
-  /* Zero rounding — drafting precision, sharp corners only */
+  /* Typography — technical grotesque, lettered on an engineering grid.
+     Tajawal/Cairo trail it so Arabic resolves to the same faces the rest of
+     the RTL UI uses instead of whichever sans the OS happens to ship. */
+  --font-sans: 'IBM Plex Sans', 'Inter', 'Tajawal', 'Cairo', ui-sans-serif, system-ui, sans-serif;
+
+  /* Zero rounding — drafting precision, sharp corners only.
+     Both scales: `--radius-*` backs the Tailwind `rounded-*` utilities,
+     `--shape-radius-*` is what cards, buttons and inputs round from. Setting
+     only the first is what left every panel soft. `--shape-radius-full` is
+     left alone so avatars and pills stay circular. */
   --radius-sm: 0;
   --radius-md: 0;
   --radius-lg: 0;
   --radius-xl: 0;
   --radius-2xl: 0;
 
-  /* Flat shadows — paper stacking, no glossy effects */
-  --shadow-soft: 2px 2px 0 rgb(60 53 32 / 0.1);
-  --shadow-elevated: 3px 3px 0 rgb(60 53 32 / 0.15), 1px 1px 0 rgb(60 53 32 / 0.08);
-  --shadow-card: 2px 2px 0 rgb(60 53 32 / 0.12);
-  --shadow-card-hover: 4px 4px 0 rgb(60 53 32 / 0.18);
+  --shape-radius: 0;
+  --shape-radius-sm: 0;
+  --shape-radius-lg: 0;
+  --shape-radius-xl: 0;
+
+  /* Flat offsets, no blur — sheets stacked on a board, not objects casting
+     light. Mirrored under [dir='rtl'] below. */
+  --shadow-soft: 1px 1px 0 rgb(28 37 52 / 0.1);
+  --shadow-elevated: 3px 3px 0 rgb(28 37 52 / 0.14);
+  --shadow-card: 2px 2px 0 rgb(28 37 52 / 0.09);
+  --shadow-card-hover: 4px 4px 0 rgb(37 87 214 / 0.22);
   --shadow-glow-primary: none;
   --shadow-glow-secondary: none;
   --shadow-glow-accent: none;
 
-  /* Grid tones */
-  --blueprint-grid-major: rgb(160 140 90 / 0.3);
-  --blueprint-grid-minor: rgb(160 140 90 / 0.12);
+  /* ── Theme-local drafting tokens ────────────────────────────────────────
+     Not part of the semantic system; only the rules in this file consume them,
+     the same way Ghibli owns `--font-display`. */
+  --blueprint-grid-major: rgb(37 87 214 / 0.14);
+  --blueprint-grid-minor: rgb(37 87 214 / 0.06);
+  --blueprint-mark: rgb(37 87 214 / 0.55);
+  --blueprint-rule: rgb(37 87 214 / 0.18);
+  --blueprint-hatch: repeating-linear-gradient(
+    45deg,
+    rgb(37 87 214 / 0.14) 0 1px,
+    transparent 1px 7px
+  );
 }
 
-/* ─── Dark Mode — high-contrast aged parchment ─────────── */
+/* ─── Dark mode — the cyanotype ──────────────────────────────
+ *
+ * The reprographic original: white line work on Prussian blue. Same ramp
+ * direction as light mode — semantic.css performs the dark flip, and a theme
+ * that flips as well lands back where it started (see the Dark-Ramp Direction
+ * Rule in DESIGN.md).
+ */
 :root.theme-blueprint.dark {
-  --shadow-soft: 2px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow-elevated: 3px 3px 0 rgb(0 0 0 / 0.4);
-  --shadow-card: 2px 2px 0 rgb(0 0 0 / 0.35);
-  --shadow-card-hover: 4px 4px 0 rgb(0 0 0 / 0.45);
+  --color-surface-50: #eaf2fb;
+  --color-surface-100: #d5e5f6;
+  --color-surface-200: #bbd3ea;
+  --color-surface-300: #9dbedd;
+  /*
+   * `#749dc4`, not the `#6690b9` this ramp reached first.
+   *
+   * `:root.dark` points `--color-muted-foreground` at surface-400, and the
+   * dark card/muted surface is surface-800 (#1a2d40). The darker value measured
+   * 4.18:1 there — under AA for the 10–14px labels that token exists to carry.
+   * This lands at 4.88:1 on surface-800 and 6.5:1 on the page.
+   */
+  --color-surface-400: #749dc4;
+  --color-surface-500: #527ba4;
+  --color-surface-600: #3b5f82;
+  --color-surface-700: #2a4560;
+  --color-surface-800: #1a2d40;
+  --color-surface-900: #11202f;
+  --color-surface-950: #08131f;
 
-  /* Dark-mode grid tones */
-  --blueprint-grid-major: rgb(178 161 110 / 0.18);
-  --blueprint-grid-minor: rgb(178 161 110 / 0.07);
+  /* surface-800 on the surface-900 card is ~1.3:1 — a border that is not
+     visibly a border. One step lighter keeps the line readable. */
+  --color-border: var(--color-surface-700);
+  --color-sidebar-border: var(--color-surface-700);
+
+  /* The chart palette has to be restated here: `:root.dark` in semantic.css
+     re-points every slot to a lighter step, and it is imported after the
+     themes, so a light-mode-only override silently disappears on mode switch. */
+  --color-chart-1: var(--color-primary-400);
+  --color-chart-2: var(--color-accent-400);
+  --color-chart-3: var(--color-secondary-400);
+  --color-chart-4: var(--color-warning-400);
+  --color-chart-5: var(--color-surface-400);
+  --color-chart-6: var(--color-primary-200);
+  --color-chart-7: var(--color-accent-200);
+  --color-chart-8: var(--color-secondary-200);
+
+  --shadow-soft: 1px 1px 0 rgb(0 0 0 / 0.35);
+  --shadow-elevated: 3px 3px 0 rgb(0 0 0 / 0.45);
+  --shadow-card: 2px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-card-hover: 4px 4px 0 rgb(95 147 246 / 0.3);
+
+  --blueprint-grid-major: rgb(146 183 251 / 0.16);
+  --blueprint-grid-minor: rgb(146 183 251 / 0.06);
+  --blueprint-mark: rgb(146 183 251 / 0.6);
+  --blueprint-rule: rgb(146 183 251 / 0.22);
+  --blueprint-hatch: repeating-linear-gradient(
+    45deg,
+    rgb(146 183 251 / 0.16) 0 1px,
+    transparent 1px 7px
+  );
 }
 
-/* ─── Graph Paper Grid Background ───────────────────────── */
-/* Pin grid to html (:root) so body transitions cannot wipe it on mount/reload */
+/* Hard offsets have a direction, and it is not the same one in RTL. */
+:root.theme-blueprint[dir='rtl'] {
+  --shadow-soft: -1px 1px 0 rgb(28 37 52 / 0.1);
+  --shadow-elevated: -3px 3px 0 rgb(28 37 52 / 0.14);
+  --shadow-card: -2px 2px 0 rgb(28 37 52 / 0.09);
+  --shadow-card-hover: -4px 4px 0 rgb(37 87 214 / 0.22);
+}
+
+:root.theme-blueprint.dark[dir='rtl'] {
+  --shadow-soft: -1px 1px 0 rgb(0 0 0 / 0.35);
+  --shadow-elevated: -3px 3px 0 rgb(0 0 0 / 0.45);
+  --shadow-card: -2px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-card-hover: -4px 4px 0 rgb(95 147 246 / 0.3);
+}
+
+/* ─── Pattern 1: the modular sheet grid ──────────────────────
+ *
+ * Two scales, as on any drawing sheet: a 12px snap grid for construction and a
+ * 96px structural module over it. Pinned to :root rather than body so the body
+ * background transition cannot wipe it during mount.
+ */
 :root.theme-blueprint {
-  background-color: var(--color-surface-50) !important;
+  background-color: var(--color-surface-50);
   background-image:
     linear-gradient(var(--blueprint-grid-major) 1px, transparent 1px),
     linear-gradient(90deg, var(--blueprint-grid-major) 1px, transparent 1px),
     linear-gradient(var(--blueprint-grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--blueprint-grid-minor) 1px, transparent 1px) !important;
+    linear-gradient(90deg, var(--blueprint-grid-minor) 1px, transparent 1px);
   background-size:
-    100px 100px,
-    100px 100px,
-    20px 20px,
-    20px 20px !important;
-  background-attachment: fixed !important;
-  background-position:
-    0 0,
-    0 0,
-    0 0,
-    0 0 !important;
+    96px 96px,
+    96px 96px,
+    12px 12px,
+    12px 12px;
+  background-attachment: fixed;
 }
 
 :root.theme-blueprint.dark {
-  background-color: var(--color-surface-950) !important;
+  background-color: var(--color-surface-950);
 }
 
+/*
+ * Every layout root paints `bg-background` over the full viewport, which sits
+ * above the grid and hides it completely. The two-class selector is deliberate:
+ * `.bg-background` alone would also catch the login form's "or" divider label,
+ * which needs an opaque background to punch a hole in the rule behind it.
+ */
 :root.theme-blueprint body,
 :root.theme-blueprint #app,
-:root.theme-blueprint .min-h-screen,
-:root.theme-blueprint .h-screen,
-:root.theme-blueprint main {
-  background-color: transparent !important;
+:root.theme-blueprint main,
+:root.theme-blueprint .bg-background.min-h-screen,
+:root.theme-blueprint .bg-background.h-screen {
+  background-color: transparent;
+  background-image: none;
 }
 
-/* Ensure layout sections that have default Tailwind surface classes allow grid to peek through
-   unless they are specifically styled as elements like cards */
-:root.theme-blueprint
-  section:not(.card):not(.bg-white):not(.bg-surface-100):not(.dark\:bg-surface-900) {
-  background-color: transparent !important;
+/* ─── Type — technical lettering ─────────────────────────────
+ * Drawings are lettered in caps at a consistent tracking. Applied to headings
+ * and buttons only: all-caps body copy is a legibility cost with no drafting
+ * precedent (drawing *notes* are sentence case). */
+:root.theme-blueprint h1,
+:root.theme-blueprint h2,
+:root.theme-blueprint h3 {
+  letter-spacing: 0.005em;
+  font-weight: 600;
 }
 
-:root.theme-blueprint.dark body {
-  color: var(--color-surface-50) !important;
-}
-
-/* ─── Torn Paper Top Edge on Cards & Sections ───────────── */
+/* ─── Pattern 2: registration marks + the drawing frame ──────
+ *
+ * Every plotted sheet carries corner crop marks and a border set in from the
+ * paper edge. `::before` draws the four L-marks as eight 1px gradient strips;
+ * `::after` is the inset frame line.
+ */
 :root.theme-blueprint .card,
-:root.theme-blueprint [data-ui='card'],
-:root.theme-blueprint section.card,
-:root.theme-blueprint .card.rounded-2xl {
+:root.theme-blueprint [data-ui='card'] {
   position: relative;
-  border: 2px solid var(--color-surface-300);
-  border-radius: 0 !important;
-  background: var(--color-surface-50);
+  background: var(--color-card);
+  border: 1px solid var(--color-border-strong);
 }
 
-/* Sections keep their own layout, only get a torn top accent if they have borders/cards */
-:root.theme-blueprint section.card {
-  position: relative;
-}
-
-/* Torn paper ribbon across the top */
 :root.theme-blueprint .card::before,
-:root.theme-blueprint [data-ui='card']::before,
-:root.theme-blueprint section.card::before,
-:root.theme-blueprint .card.rounded-2xl::before {
+:root.theme-blueprint [data-ui='card']::before {
   content: '';
   position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  height: 9px;
-  z-index: 2;
-  pointer-events: none;
-  background: var(--color-surface-50);
-  opacity: 1;
-  clip-path: polygon(
-    0% 0%,
-    2% 60%,
-    4% 30%,
-    6% 70%,
-    8% 20%,
-    10% 55%,
-    12% 10%,
-    14% 65%,
-    16% 25%,
-    18% 80%,
-    20% 35%,
-    22% 60%,
-    24% 15%,
-    26% 70%,
-    28% 40%,
-    30% 75%,
-    32% 20%,
-    34% 55%,
-    36% 30%,
-    38% 80%,
-    40% 10%,
-    42% 65%,
-    44% 35%,
-    46% 70%,
-    48% 25%,
-    50% 60%,
-    52% 15%,
-    54% 75%,
-    56% 40%,
-    58% 65%,
-    60% 20%,
-    62% 55%,
-    64% 30%,
-    66% 80%,
-    68% 10%,
-    70% 70%,
-    72% 35%,
-    74% 60%,
-    76% 25%,
-    78% 75%,
-    80% 15%,
-    82% 55%,
-    84% 40%,
-    86% 70%,
-    88% 20%,
-    90% 65%,
-    92% 30%,
-    94% 80%,
-    96% 45%,
-    98% 60%,
-    100% 0%,
-    100% 100%,
-    0% 100%
-  );
-}
-
-/* Subtle torn shadow under the top edge for depth */
-:root.theme-blueprint .card::after,
-:root.theme-blueprint [data-ui='card']::after,
-:root.theme-blueprint section.card::after,
-:root.theme-blueprint .card.rounded-2xl::after {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: 0;
-  right: 0;
-  height: 3px;
+  inset: 6px;
   z-index: 1;
   pointer-events: none;
-  background: linear-gradient(180deg, rgb(0 0 0 / 0.1), transparent);
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(var(--blueprint-mark) 0 0), linear-gradient(var(--blueprint-mark) 0 0),
+    linear-gradient(var(--blueprint-mark) 0 0), linear-gradient(var(--blueprint-mark) 0 0),
+    linear-gradient(var(--blueprint-mark) 0 0), linear-gradient(var(--blueprint-mark) 0 0),
+    linear-gradient(var(--blueprint-mark) 0 0), linear-gradient(var(--blueprint-mark) 0 0);
+  background-size:
+    9px 1px,
+    1px 9px,
+    9px 1px,
+    1px 9px,
+    9px 1px,
+    1px 9px,
+    9px 1px,
+    1px 9px;
+  background-position:
+    top left,
+    top left,
+    top right,
+    top right,
+    bottom left,
+    bottom left,
+    bottom right,
+    bottom right;
 }
 
-:root.theme-blueprint.dark .card,
-:root.theme-blueprint.dark [data-ui='card'],
-:root.theme-blueprint.dark section.card {
-  background: var(--color-surface-900);
-  border-color: var(--color-surface-700);
+:root.theme-blueprint .card::after,
+:root.theme-blueprint [data-ui='card']::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid var(--blueprint-rule);
 }
 
-:root.theme-blueprint.dark .card::before,
-:root.theme-blueprint.dark [data-ui='card']::before,
-:root.theme-blueprint.dark section.card::before,
-:root.theme-blueprint.dark .card.rounded-2xl::before {
-  background: var(--color-surface-950);
-  opacity: 1;
+:root.theme-blueprint .card:hover,
+:root.theme-blueprint [data-ui='card']:hover {
+  border-color: var(--color-primary-400);
+  transform: none;
 }
 
-:root.theme-blueprint.dark .card::after,
-:root.theme-blueprint.dark [data-ui='card']::after,
-:root.theme-blueprint.dark section.card::after,
-:root.theme-blueprint.dark .card.rounded-2xl::after {
-  background: linear-gradient(180deg, rgb(0 0 0 / 0.5), transparent);
-}
-
-/* Improve dark-mode form readability and accessibility */
-:root.theme-blueprint.dark label,
-:root.theme-blueprint.dark p,
-:root.theme-blueprint.dark small,
-:root.theme-blueprint.dark .text-muted,
-:root.theme-blueprint.dark [class*='text-surface-'] {
-  color: var(--color-surface-100);
-}
-
-:root.theme-blueprint.dark input:not([type='checkbox']):not([type='radio']),
-:root.theme-blueprint.dark select,
-:root.theme-blueprint.dark textarea {
-  color: var(--color-surface-100);
-  caret-color: var(--color-primary-400);
-}
-
-/* ─── Sidebar & Header — aged paper ──────────────────────── */
+/* ─── Pattern 3: section hatch (poché) ───────────────────────
+ *
+ * 45° hatch marks cut material in a section drawing. Used on the two surfaces
+ * that read as "cut through" in a UI: the header's bottom edge and table
+ * headers.
+ */
 :root.theme-blueprint header {
-  background: var(--color-surface-100) !important;
-  border-bottom: 2px solid var(--color-surface-300) !important;
+  background-color: var(--color-surface-100);
+  background-image: var(--blueprint-hatch);
+  background-size: 100% 6px;
+  background-position: bottom;
+  background-repeat: repeat-x;
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 :root.theme-blueprint aside {
-  background: var(--color-surface-100) !important;
-  border-right: 2px solid var(--color-surface-300) !important;
+  background-color: var(--color-surface-100);
+  border-inline-end: 1px solid var(--color-border-strong);
 }
 
-:root.theme-blueprint.dark header {
-  background: var(--color-surface-900) !important;
-  border-bottom-color: var(--color-surface-700) !important;
-}
-
+:root.theme-blueprint.dark header,
 :root.theme-blueprint.dark aside {
-  background: var(--color-surface-900) !important;
-  border-right-color: var(--color-surface-700) !important;
+  background-color: var(--color-surface-900);
 }
 
-/* ─── Buttons — sharp, stamped look ─────────────────────── */
-:root.theme-blueprint button,
-:root.theme-blueprint .btn,
-:root.theme-blueprint [data-ui='button'] {
-  border-radius: 0 !important;
+:root.theme-blueprint thead {
+  background-image: var(--blueprint-hatch);
+}
+
+/* ─── Buttons — stamped title-block lettering ────────────────
+ * Scoped to real buttons rather than every `button` element, so icon-only
+ * controls and the sidebar's nav triggers keep their own type treatment. */
+:root.theme-blueprint [data-ui='button'],
+:root.theme-blueprint .btn {
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
-/* ─── Inputs — dashed technical field borders ────────────── */
-:root.theme-blueprint input:not([type='checkbox']):not([type='radio']),
-:root.theme-blueprint select,
-:root.theme-blueprint textarea {
-  border-radius: 0 !important;
+/* ─── Pattern 4: construction lines ──────────────────────────
+ *
+ * Dashed is the orthographic convention for a line that is not yet an object —
+ * hidden edges, setting-out lines. An input at rest is a field to be filled;
+ * on focus the construction line resolves into an object line.
+ */
+:root.theme-blueprint input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-blueprint select:not(.unstyled-input),
+:root.theme-blueprint textarea:not(.unstyled-input) {
   border-style: dashed;
   border-color: var(--color-surface-400);
   background: var(--color-surface-50);
 }
 
-:root.theme-blueprint.dark input:not([type='checkbox']):not([type='radio']),
-:root.theme-blueprint.dark select,
-:root.theme-blueprint.dark textarea {
-  border-color: var(--color-surface-700);
+:root.theme-blueprint input:not([type='checkbox']):not([type='radio']):not(.unstyled-input):focus,
+:root.theme-blueprint select:not(.unstyled-input):focus,
+:root.theme-blueprint textarea:not(.unstyled-input):focus {
+  border-style: solid;
+  border-color: var(--color-primary-500);
+}
+
+:root.theme-blueprint.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-blueprint.dark select:not(.unstyled-input),
+:root.theme-blueprint.dark textarea:not(.unstyled-input) {
+  border-color: var(--color-surface-600);
   background: var(--color-surface-900);
 }
 
-/* ─── Scrollbar — parchment tones ────────────────────────── */
+/* ─── Selection & scrollbar ──────────────────────────────────*/
+:root.theme-blueprint ::selection {
+  background: rgb(37 87 214 / 0.22);
+}
+
 :root.theme-blueprint ::-webkit-scrollbar-thumb {
   background: var(--color-surface-400);
   border-radius: 0;

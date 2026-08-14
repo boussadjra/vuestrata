@@ -10,7 +10,7 @@
  *     inversions cancelled and the page stayed cream. Dark mode now keeps the
  *     ramp pointing the same way as every other theme (50 light → 950 dark)
  *     and simply supplies night colours at the dark end. This is the same
- *     shape Febin uses.
+ *     shape Harbour uses.
  *  2. The ramps were spliced. primary-50…400 were stock Tailwind green
  *     (#4ade80 at 400) bolted onto a muted forest green from 500 down, so the
  *     ramp jumped hue and chroma mid-way — and since semantic.css reaches for
@@ -153,7 +153,7 @@
 /* ─── Page wash ──────────────────────────────────────────── */
 /*
  * Pinned to :root rather than body so the body transition cannot wipe it on
- * mount, matching the Blueprint/Febin pattern already in this folder.
+ * mount, matching the Blueprint/Harbour pattern already in this folder.
  */
 :root.theme-ghibli {
   background-color: var(--color-surface-50);
@@ -172,9 +172,18 @@
     radial-gradient(ellipse 55% 40% at 100% 95%, rgb(133 71 39 / 0.24), transparent 72%);
 }
 
+/*
+ * Every layout root paints `bg-background` over the full viewport, which sits
+ * above the wash and hid it completely — this theme shipped its painterly
+ * three-point wash to a flat page. The two-class selector is deliberate:
+ * `.bg-background` alone would also catch the login form's "or" divider label,
+ * which needs an opaque background to punch a hole in the rule behind it.
+ */
 :root.theme-ghibli body,
 :root.theme-ghibli #app,
-:root.theme-ghibli main {
+:root.theme-ghibli main,
+:root.theme-ghibli .bg-background.min-h-screen,
+:root.theme-ghibli .bg-background.h-screen {
   background-color: transparent;
   background-image: none;
 }

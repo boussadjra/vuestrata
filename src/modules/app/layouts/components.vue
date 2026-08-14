@@ -69,7 +69,7 @@ const isActive = (to: string) => route.path === to
 </script>
 
 <template>
-  <div class="bg-surface-50 dark:bg-surface-950 text-foreground flex min-h-screen flex-col">
+  <div class="bg-background text-foreground flex min-h-screen flex-col">
     <SkipLink />
     <div class="flex flex-1">
       <!-- Mobile sidebar toggle -->

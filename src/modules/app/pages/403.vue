@@ -6,7 +6,7 @@ const router = useRouter()
 </script>
 
 <template>
-  <div class="bg-surface-50 dark:bg-surface-950 flex min-h-screen items-center justify-center">
+  <div class="bg-background flex min-h-screen items-center justify-center">
     <div class="max-w-md px-6 text-center">
       <div
         class="bg-destructive-subtle mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl"

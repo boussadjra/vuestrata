@@ -71,3 +71,47 @@ describe('useTheme', () => {
     expect(localStorage.getItem('vuestrata-theme')).toBe('brutalist')
   })
 })
+
+/**
+ * Renaming a theme must not throw away a preference the user actually set.
+ *
+ * A stored theme name passes `THEME_PATTERN` whether or not a theme by that
+ * name still exists, so without the alias map the old value survives
+ * validation, resolves to no registered theme, and drops the user back to
+ * Default with nothing to explain it. Delete this block when THEME_ALIASES is
+ * emptied.
+ */
+describe('renamed themes', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+    document.documentElement.className = ''
+  })
+
+  afterEach(() => {
+    stopThemeSync?.()
+    stopThemeSync = undefined
+    document.documentElement.className = ''
+  })
+
+  it('translates a stored legacy name and writes the new one back', async () => {
+    localStorage.setItem('vuestrata-theme', 'febin')
+
+    const { useTheme, useThemeSync } = await import('@/composables/useTheme')
+    stopThemeSync = useThemeSync()
+    const { currentThemeName } = useTheme()
+    await nextTick()
+
+    expect(currentThemeName.value).toBe('harbour')
+    expect(document.documentElement.classList.contains('theme-harbour')).toBe(true)
+    // Written back, so the translation runs once rather than on every load.
+    expect(localStorage.getItem('vuestrata-theme')).toBe('harbour')
+  })
+
+  it('leaves a name that was never renamed alone', async () => {
+    localStorage.setItem('vuestrata-theme', 'ghibli')
+
+    const { useTheme } = await import('@/composables/useTheme')
+    expect(useTheme().currentThemeName.value).toBe('ghibli')
+  })
+})

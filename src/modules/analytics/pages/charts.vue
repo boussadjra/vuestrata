@@ -25,7 +25,6 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { useI18n } from 'vue-i18n'
 
 import BaseChart from '@/components/ui/BaseChart.vue'
-import { useTheme } from '@/composables/useTheme'
 
 import { useChartColors, withAlpha } from '../composables/useChartColors'
 
@@ -49,7 +48,6 @@ use([
   TitleComponent,
 ])
 
-const { isDark } = useTheme()
 const { t } = useI18n()
 // Series colours come from the categorical chart tokens, so every chart on
 // this page draws from one palette that is separable in greyscale and flips
@@ -58,13 +56,28 @@ const { seriesColor } = useChartColors()
 const cPrimary = computed(() => seriesColor(0))
 const cSecondary = computed(() => seriesColor(4))
 const cAccent = computed(() => seriesColor(1))
+const cTertiary = computed(() => seriesColor(2))
 
-const textColor = computed(() => (isDark.value ? '#94a3b8' : '#64748b'))
-const axisLineColor = computed(() => (isDark.value ? '#334155' : '#e2e8f0'))
-const splitColor = computed(() => (isDark.value ? '#1e293b' : '#f1f5f9'))
-const tooltipBg = computed(() => (isDark.value ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.95)'))
-const tooltipBorder = computed(() => (isDark.value ? '#334155' : '#e2e8f0'))
-const tooltipText = computed(() => (isDark.value ? '#f8fafc' : '#0f172a'))
+/*
+ * Chart chrome — axis labels, gridlines, tooltip surface.
+ *
+ * These used to be `isDark ? '#94a3b8' : '#64748b'` pairs: the DEFAULT theme's
+ * slate ramp, written as literals. A canvas cannot use CSS classes, so a
+ * hardcoded literal here is not "a fallback" — it is the only value the chart
+ * will ever draw, on all ten themes. Every axis on this page rendered in
+ * Tailwind slate whether the app was set to Blueprint, Ghibli or Terminal,
+ * which is most of what "the theme isn't applied on the charts page" was.
+ *
+ * `useThemeColors` resolves the same semantic tokens the rest of the app uses
+ * and re-reads them on every theme and colour-mode change.
+ */
+const { foreground, mutedForeground, border, elevated } = useThemeColors()
+const textColor = mutedForeground
+const axisLineColor = border
+const splitColor = border
+const tooltipBg = elevated
+const tooltipBorder = border
+const tooltipText = foreground
 
 function tooltip(trigger: 'axis' | 'item' = 'axis') {
   return {
@@ -80,7 +93,10 @@ function tooltip(trigger: 'axis' | 'item' = 'axis') {
 // === Area / Line ===
 const areaLine = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
-  tooltip: { ...tooltip(), axisPointer: { type: 'cross', label: { backgroundColor: '#64748b' } } },
+  tooltip: {
+    ...tooltip(),
+    axisPointer: { type: 'cross', label: { backgroundColor: mutedForeground.value } },
+  },
   legend: { top: 0, textStyle: { color: textColor.value } },
   grid: { left: '2%', right: '3%', bottom: '3%', top: '14%', containLabel: true },
   xAxis: {
@@ -204,7 +220,10 @@ const stackedBar = computed<EChartsOption>(() => ({
       type: 'bar',
       stack: 'total',
       data: [150, 212, 261, 200],
-      itemStyle: { color: '#f59e0b' },
+      // Slot 3, not a literal amber. The literal collided with slot 5 on any
+      // theme whose fifth chart token is the warning ramp — two identical
+      // series in one legend.
+      itemStyle: { color: cTertiary.value },
     },
     {
       name: 'Services',
@@ -235,7 +254,9 @@ const donut = computed<EChartsOption>(() => ({
       avoidLabelOverlap: false,
       itemStyle: {
         borderRadius: 10,
-        borderColor: isDark.value ? '#1e293b' : '#fff',
+        // The separator is the CARD surface cutting between segments, which is
+        // what keeps a donut readable when two slices are close in hue.
+        borderColor: elevated.value,
         borderWidth: 3,
       },
       label: { show: false },
@@ -252,7 +273,7 @@ const donut = computed<EChartsOption>(() => ({
         { value: 42, name: 'Organic', itemStyle: { color: cPrimary.value } },
         { value: 28, name: 'Paid', itemStyle: { color: cSecondary.value } },
         { value: 18, name: 'Referral', itemStyle: { color: cAccent.value } },
-        { value: 12, name: 'Social', itemStyle: { color: '#f59e0b' } },
+        { value: 12, name: 'Social', itemStyle: { color: cTertiary.value } },
       ],
     },
   ],
@@ -276,9 +297,7 @@ const radar = computed<EChartsOption>(() => ({
     axisName: { color: textColor.value },
     splitArea: {
       areaStyle: {
-        color: isDark.value
-          ? ['rgba(30,41,59,0.4)', 'rgba(30,41,59,0.2)']
-          : ['rgba(241,245,249,0.5)', 'rgba(255,255,255,0.5)'],
+        color: [withAlpha(border.value, 0.5), withAlpha(border.value, 0.22)],
       },
     },
     splitLine: { lineStyle: { color: splitColor.value } },
@@ -377,7 +396,7 @@ const gauge = computed<EChartsOption>(() => ({
       itemStyle: { color: cPrimary.value },
       progress: { show: true, width: 18 },
       pointer: { show: false },
-      axisLine: { lineStyle: { width: 18, color: [[1, isDark.value ? '#1e293b' : '#e2e8f0']] } },
+      axisLine: { lineStyle: { width: 18, color: [[1, border.value]] } },
       axisTick: { show: false },
       splitLine: { show: false },
       axisLabel: { show: false },
@@ -405,16 +424,20 @@ const treemap = computed<EChartsOption>(() => ({
       roam: false,
       nodeClick: false,
       breadcrumb: { show: false },
-      label: { show: true, color: '#fff', fontSize: 12, fontWeight: 600 },
-      itemStyle: { borderColor: isDark.value ? '#1e293b' : '#fff', borderWidth: 2, gapWidth: 2 },
+      // `elevated`, not white. Treemap labels sit ON the series fill, and the
+      // series tokens are the ramp's DARK steps in light mode and its LIGHT
+      // steps in dark mode — so a fixed white label is legible in one mode and
+      // invisible in the other. `elevated` inverts with them.
+      label: { show: true, color: elevated.value, fontSize: 12, fontWeight: 600 },
+      itemStyle: { borderColor: elevated.value, borderWidth: 2, gapWidth: 2 },
       levels: [{ itemStyle: { borderWidth: 0, gapWidth: 3 }, upperLabel: { show: false } }],
       data: [
         { name: 'AWS', value: 4200, itemStyle: { color: cPrimary.value } },
         { name: 'GCP', value: 2800, itemStyle: { color: cAccent.value } },
-        { name: 'Azure', value: 1900, itemStyle: { color: '#f59e0b' } },
+        { name: 'Azure', value: 1900, itemStyle: { color: cTertiary.value } },
         { name: 'Vercel', value: 1200, itemStyle: { color: cSecondary.value } },
-        { name: 'Cloudflare', value: 900, itemStyle: { color: '#06b6d4' } },
-        { name: 'Other', value: 600, itemStyle: { color: '#64748b' } },
+        { name: 'Cloudflare', value: 900, itemStyle: { color: seriesColor(5) } },
+        { name: 'Other', value: 600, itemStyle: { color: seriesColor(7) } },
       ],
     },
   ],
@@ -466,9 +489,7 @@ const heatmap = computed<EChartsOption>(() => ({
     splitArea: {
       show: true,
       areaStyle: {
-        color: isDark.value
-          ? ['rgba(30,41,59,0.3)', 'transparent']
-          : ['rgba(241,245,249,0.5)', 'transparent'],
+        color: [withAlpha(border.value, 0.4), 'transparent'],
       },
     },
   },
@@ -487,9 +508,10 @@ const heatmap = computed<EChartsOption>(() => ({
     left: 'center',
     bottom: 0,
     inRange: {
-      color: isDark.value
-        ? ['#1e293b', withAlpha(cPrimary.value, 0.5), cPrimary.value]
-        : [withAlpha(cPrimary.value, 0.05), withAlpha(cPrimary.value, 0.4), cPrimary.value],
+      // Three stops of one hue at increasing alpha. Alpha composites over the
+      // card in either colour mode, so this needs no light/dark branch — the
+      // branch it replaced pinned the dark low end to Tailwind slate-800.
+      color: [withAlpha(cPrimary.value, 0.08), withAlpha(cPrimary.value, 0.45), cPrimary.value],
     },
     textStyle: { color: textColor.value },
   },

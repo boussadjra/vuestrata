@@ -7,6 +7,7 @@ import {
   APPEARANCE_KEYS,
   SUPPORTED_LOCALES,
   applyAppearance,
+  normalizeThemeName,
   type SupportedLocale,
 } from '~/plugins/appearance'
 import type { ThemeName, IconProvider } from '~/types'
@@ -38,6 +39,12 @@ export const useAppStore = defineStore('app', () => {
   // Defaults come from the validated env boundary, not raw import.meta.env —
   // appConfig has already checked these against their allowlists.
   const theme = useAppStorage<ThemeName>(APPEARANCE_KEYS.theme, appConfig.theme)
+  // Translate a stored name that has since been renamed, and write the new one
+  // back so this runs exactly once per browser. See THEME_ALIASES in
+  // plugins/appearance.ts — without it a rename silently drops the user's saved
+  // theme back to Default.
+  const normalizedTheme = normalizeThemeName(theme.value) as ThemeName
+  if (normalizedTheme !== theme.value) theme.value = normalizedTheme
   const isDark = useAppStorage<boolean>(APPEARANCE_KEYS.dark, () => {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(prefers-color-scheme: dark)').matches

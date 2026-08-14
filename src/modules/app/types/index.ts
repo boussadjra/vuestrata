@@ -82,7 +82,7 @@ export type ThemeName =
   | 'rose'
   | 'terminal'
   | 'blueprint'
-  | 'febin'
+  | 'harbour'
   | (string & {})
 
 export interface ThemeConfig {

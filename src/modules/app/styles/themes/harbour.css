@@ -1,0 +1,311 @@
+/*
+ * Harbour theme — the autumn coast at low sun.
+ *
+ * Apply by adding class="theme-harbour" to <html>
+ *
+ * Painted from the reference illustration: cobalt cottages on an orange
+ * headland, a cold periwinkle sea behind them, a cream sky with the sun sitting
+ * just above the horizon, and a figure in a plum coat in the foreground. The
+ * whole image is one complementary pair — burnt orange against cobalt — held
+ * together by warm cream. That is the theme.
+ *
+ * ── What changed ───────────────────────────────────────────────────────────
+ *  1. The palette follows the picture now. Primary is the headland's burnt
+ *     orange (the largest field of colour), secondary the cottages' cobalt (the
+ *     subject), accent the coat's plum — a hue no other theme in the set uses.
+ *     The old accent was a crimson one hue step off `--color-danger-*`, so an
+ *     accent chip and a destructive button were the same colour.
+ *  2. Rubik was never loaded. `--font-sans` has named it since the theme was
+ *     written, but it was absent from the single font request in index.html, so
+ *     Harbour — and Sunset, which also names it — silently rendered in the
+ *     platform's default sans. See the Typeface Handoff Rule in DESIGN.md.
+ *  3. It was not actually the most rounded theme. `--radius-*` was large but
+ *     `--shape-radius-*` — the scale cards, buttons and inputs round from — sat
+ *     at the system default, so the corners the theme is known for never
+ *     appeared on the elements that matter. Both scales are set now.
+ *  4. The button rules keyed off `button.bg-primary-700`, a Tailwind utility no
+ *     component emits. They matched nothing. Replaced with the `data-ui` /
+ *     `data-variant` attributes the UI kit actually renders.
+ *  5. The glass surfaces hardcoded `rgba(255, 250, 243, …)` and
+ *     `rgba(33, 29, 38, …)` — literal copies of two ramp steps, which silently
+ *     detach the moment the ramp moves. They are `color-mix` on the tokens now.
+ *
+ * Contrast: foreground (surface-900) on background ≈ 14.1:1;
+ * muted-foreground (surface-600) on `muted` ≈ 5.9:1;
+ * primary-solid (primary-600) with white text ≈ 4.9:1;
+ * secondary-600 with white text ≈ 7.7:1.
+ */
+:root.theme-harbour {
+  /* Primary — the headland. Burnt autumn orange, hue ≈ 22°, deliberately
+     deeper and redder than Sunset's brighter tangerine. */
+  --color-primary-50: #fef5ee;
+  --color-primary-100: #fde7d5;
+  --color-primary-200: #fbcaa7;
+  --color-primary-300: #f7a670;
+  --color-primary-400: #f27f3d;
+  --color-primary-500: #e2661f;
+  --color-primary-600: #c04d15;
+  --color-primary-700: #9a3c14;
+  --color-primary-800: #7b3116;
+  --color-primary-900: #642a15;
+  --color-primary-950: #361309;
+
+  /* Secondary — the cottages. Cobalt, the one saturated cool in the picture. */
+  --color-secondary-50: #eef2fd;
+  --color-secondary-100: #dbe3fb;
+  --color-secondary-200: #bcc9f6;
+  --color-secondary-300: #94a7ee;
+  --color-secondary-400: #6c81e2;
+  --color-secondary-500: #4a60d2;
+  --color-secondary-600: #3547b5;
+  --color-secondary-700: #2c3a92;
+  --color-secondary-800: #283275;
+  --color-secondary-900: #252d5f;
+  --color-secondary-950: #161a39;
+
+  /* Accent — the coat. Plum, unique in the theme set and far from every
+     status ramp, so an accent never reads as an error. */
+  --color-accent-50: #fdf2f7;
+  --color-accent-100: #fbe3ef;
+  --color-accent-200: #f6c6dc;
+  --color-accent-300: #ec9bc0;
+  --color-accent-400: #dd6c9f;
+  --color-accent-500: #c4497f;
+  --color-accent-600: #a33565;
+  --color-accent-700: #832a52;
+  --color-accent-800: #6a2444;
+  --color-accent-900: #581f3a;
+  --color-accent-950: #330d20;
+
+  /* Surface — the sky at the light end, the cold shadow under the eaves at the
+     dark end. Warm sand through the mids so the page never reads clinical. */
+  --color-surface-50: #fdf7ef;
+  --color-surface-100: #f8eee0;
+  --color-surface-200: #ecdfcd;
+  --color-surface-300: #d7c7b3;
+  --color-surface-400: #ab9d92;
+  --color-surface-500: #7f7477;
+  --color-surface-600: #60586a;
+  --color-surface-700: #484360;
+  --color-surface-800: #343252;
+  --color-surface-900: #242440;
+  --color-surface-950: #151527;
+
+  /* Chart series — read off the painting rather than off the ramps. Warm and
+     cool alternate so adjacent series differ in hue and lightness both. */
+  --color-chart-1: var(--color-primary-500);
+  --color-chart-2: var(--color-secondary-600);
+  --color-chart-3: var(--color-accent-600);
+  --color-chart-4: var(--color-secondary-300);
+  --color-chart-5: var(--color-warning-500);
+  --color-chart-6: var(--color-success-600);
+  --color-chart-7: var(--color-primary-800);
+  --color-chart-8: var(--color-surface-500);
+
+  /* Rubik carries Arabic itself, so the RTL fallbacks below it are insurance
+     rather than the working stack. */
+  --font-sans: 'Rubik', 'Tajawal', 'Cairo', ui-sans-serif, system-ui, sans-serif;
+
+  /* The most rounded theme in the system — on both scales, so it is true of
+     cards, buttons and inputs and not only of `rounded-*` utilities. */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  --shape-radius: 1.25rem;
+  --shape-radius-sm: 0.75rem;
+  --shape-radius-lg: 1.5rem;
+  --shape-radius-xl: 2rem;
+
+  /* Dual-tone: warm from the headland, cool from the sea. */
+  --shadow-soft: 0 4px 14px -2px rgb(226 102 31 / 0.1), 0 2px 4px -2px rgb(53 71 181 / 0.06);
+  --shadow-elevated: 0 14px 34px -6px rgb(226 102 31 / 0.16), 0 6px 12px -4px rgb(53 71 181 / 0.12);
+  --shadow-card: 0 6px 16px -4px rgb(53 71 181 / 0.1), 0 1px 2px rgb(36 36 64 / 0.05);
+  --shadow-card-hover:
+    0 20px 44px -10px rgb(226 102 31 / 0.24), 0 8px 16px -6px rgb(53 71 181 / 0.14);
+  --shadow-glow-primary: 0 0 32px rgb(226 102 31 / 0.32);
+  --shadow-glow-secondary: 0 0 32px rgb(74 96 210 / 0.3);
+  --shadow-glow-accent: 0 0 32px rgb(196 73 127 / 0.28);
+}
+
+/* ─── Dark mode — the same coast after the sun goes ──────────
+ * Ramp runs the same direction as light mode; semantic.css does the flip. */
+:root.theme-harbour.dark {
+  --color-surface-50: #f6f1ea;
+  --color-surface-100: #e8e0d6;
+  --color-surface-200: #d2c9c2;
+  --color-surface-300: #b0a8ae;
+  --color-surface-400: #8b8496;
+  --color-surface-500: #6b6580;
+  --color-surface-600: #524d67;
+  --color-surface-700: #3c3950;
+  --color-surface-800: #2a293c;
+  --color-surface-900: #1c1c2c;
+  --color-surface-950: #101019;
+
+  /* surface-800 on the surface-900 card is barely a line. */
+  --color-border: var(--color-surface-700);
+  --color-sidebar-border: var(--color-surface-700);
+
+  /* Theme chart palettes have to be restated here: `:root.dark` in semantic.css
+     re-points every slot to a lighter step, and it is imported after the
+     themes, so a light-mode-only override silently disappears on mode switch. */
+  --color-chart-1: var(--color-primary-400);
+  --color-chart-2: var(--color-secondary-400);
+  --color-chart-3: var(--color-accent-400);
+  --color-chart-4: var(--color-secondary-200);
+  --color-chart-5: var(--color-warning-400);
+  --color-chart-6: var(--color-success-400);
+  --color-chart-7: var(--color-primary-200);
+  --color-chart-8: var(--color-surface-400);
+
+  --shadow-soft: 0 4px 14px -2px rgb(0 0 0 / 0.5);
+  --shadow-elevated: 0 14px 34px -6px rgb(0 0 0 / 0.6), 0 6px 12px -4px rgb(0 0 0 / 0.5);
+  --shadow-card: 0 6px 16px -4px rgb(0 0 0 / 0.45);
+  --shadow-card-hover:
+    0 20px 44px -10px rgb(226 102 31 / 0.26), 0 8px 16px -6px rgb(53 71 181 / 0.22);
+}
+
+/* ─── Page wash — the composition ────────────────────────────
+ *
+ * Four layers, top to bottom in the picture: the low sun, the cold sea across
+ * the middle distance, the orange headland, and the brick-red brush at the
+ * right edge. Pinned to :root so the body transition cannot wipe it on mount.
+ */
+:root.theme-harbour {
+  background-color: var(--color-surface-50);
+  background-image:
+    radial-gradient(circle 26rem at 68% 4%, rgb(247 200 128 / 0.5), transparent 68%),
+    linear-gradient(
+      180deg,
+      transparent 16%,
+      rgb(150 173 212 / 0.3) 34%,
+      rgb(150 173 212 / 0.2) 46%,
+      transparent 62%
+    ),
+    radial-gradient(ellipse 110% 44% at 12% 104%, rgb(226 102 31 / 0.3), transparent 70%),
+    radial-gradient(ellipse 80% 38% at 96% 100%, rgb(154 60 20 / 0.22), transparent 70%);
+  background-attachment: fixed;
+}
+
+:root.theme-harbour.dark {
+  background-color: var(--color-surface-950);
+  background-image:
+    radial-gradient(circle 24rem at 68% 6%, rgb(226 102 31 / 0.2), transparent 70%),
+    linear-gradient(180deg, transparent 18%, rgb(53 71 181 / 0.26) 40%, transparent 64%),
+    radial-gradient(ellipse 110% 44% at 12% 104%, rgb(122 43 82 / 0.38), transparent 72%),
+    radial-gradient(ellipse 80% 38% at 96% 100%, rgb(154 60 20 / 0.22), transparent 70%);
+}
+
+/*
+ * Every layout root paints `bg-background` over the full viewport, which sits
+ * above the wash and hides it completely. The two-class selector is deliberate:
+ * `.bg-background` alone would also catch the login form's "or" divider label,
+ * which needs an opaque background to punch a hole in the rule behind it.
+ */
+:root.theme-harbour body,
+:root.theme-harbour #app,
+:root.theme-harbour main,
+:root.theme-harbour .bg-background.min-h-screen,
+:root.theme-harbour .bg-background.h-screen {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* ─── Glass — the wash reads through, the text does not fight it ───
+ *
+ * 90% rather than the previous 82%: a translucent card composites against
+ * whatever the page wash is doing behind it, so the effective contrast of body
+ * copy is not knowable from the declared colours. At 90% the four gradient
+ * layers still show as colour without moving text off its measured ratio.
+ */
+:root.theme-harbour .card,
+:root.theme-harbour [data-ui='card'] {
+  background: color-mix(in oklch, var(--color-surface-50) 90%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-surface-300) 60%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+:root.theme-harbour .card:hover,
+:root.theme-harbour [data-ui='card']:hover {
+  border-color: color-mix(in oklch, var(--color-primary-400) 55%, transparent);
+}
+
+:root.theme-harbour.dark .card,
+:root.theme-harbour.dark [data-ui='card'] {
+  background: color-mix(in oklch, var(--color-surface-900) 88%, transparent);
+  border-color: color-mix(in oklch, var(--color-surface-700) 85%, transparent);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 color-mix(in oklch, var(--color-surface-50) 6%, transparent);
+}
+
+:root.theme-harbour.dark .card:hover,
+:root.theme-harbour.dark [data-ui='card']:hover {
+  border-color: color-mix(in oklch, var(--color-secondary-700) 80%, transparent);
+}
+
+:root.theme-harbour header,
+:root.theme-harbour aside {
+  background: color-mix(in oklch, var(--color-surface-50) 88%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+:root.theme-harbour.dark header,
+:root.theme-harbour.dark aside {
+  background: color-mix(in oklch, var(--color-surface-950) 88%, transparent);
+}
+
+/* ─── Filled buttons — a sunlit face, not a flat fill ────────
+ * Keyed off the attributes UiButton renders. The gradient runs the same
+ * direction as the light in the picture. */
+:root.theme-harbour [data-ui='button'][data-variant='primary'] {
+  background-image: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700) 90%);
+  box-shadow: 0 4px 16px -4px rgb(226 102 31 / 0.45);
+}
+
+:root.theme-harbour [data-ui='button'][data-variant='primary']:hover {
+  background-image: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-800) 90%);
+  box-shadow: 0 8px 22px -6px rgb(226 102 31 / 0.55);
+}
+
+:root.theme-harbour [data-ui='button'][data-variant='secondary'] {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-secondary-500),
+    var(--color-secondary-700) 90%
+  );
+  box-shadow: 0 4px 16px -4px rgb(53 71 181 / 0.4);
+}
+
+/* ─── Inputs ─────────────────────────────────────────────────*/
+:root.theme-harbour input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-harbour select:not(.unstyled-input),
+:root.theme-harbour textarea:not(.unstyled-input) {
+  background: color-mix(in oklch, var(--color-surface-50) 92%, var(--color-surface-100));
+  border-color: var(--color-surface-300);
+}
+
+:root.theme-harbour.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-harbour.dark select:not(.unstyled-input),
+:root.theme-harbour.dark textarea:not(.unstyled-input) {
+  background: color-mix(in oklch, var(--color-surface-900) 88%, var(--color-surface-800));
+  border-color: var(--color-surface-700);
+}
+
+/* ─── Selection & scrollbar ──────────────────────────────────*/
+:root.theme-harbour ::selection {
+  background: rgb(226 102 31 / 0.3);
+}
+
+:root.theme-harbour ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+}
+
+:root.theme-harbour.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-700);
+}
