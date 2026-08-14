@@ -87,6 +87,9 @@ describe('useShape', () => {
     expect(localStorage.getItem('vuestrata-shape-radius')).toBe('large')
     expect(localStorage.getItem('vuestrata-shape-border')).toBe('bold')
     expect(localStorage.getItem('vuestrata-shape-shadow')).toBe('elevated')
+    expect(document.documentElement.classList.contains('shape-radius-large')).toBe(true)
+    expect(document.documentElement.classList.contains('shape-border-bold')).toBe(true)
+    expect(document.documentElement.classList.contains('shape-shadow-elevated')).toBe(true)
   })
 
   it('should restore shape settings from storage', async () => {
@@ -101,5 +104,8 @@ describe('useShape', () => {
     expect(radius.value).toBe('small')
     expect(border.value).toBe('medium')
     expect(shadow.value).toBe('subtle')
+    expect(document.documentElement.classList.contains('shape-radius-small')).toBe(true)
+    expect(document.documentElement.classList.contains('shape-border-medium')).toBe(true)
+    expect(document.documentElement.classList.contains('shape-shadow-subtle')).toBe(true)
   })
 })

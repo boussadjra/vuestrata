@@ -26,9 +26,10 @@ import App from './App.vue'
 // Local styles
 import '@/styles/app.css'
 
-// Apply persisted dark/theme/locale to <html> before any Vue code runs so the
-// first paint already matches the user's preferences (no FOUC). After mount,
-// `useThemeSync` (in App.vue) keeps the same DOM in sync with the store.
+// Apply persisted dark/theme/locale/shape to <html> before any Vue code runs
+// so the first paint already matches the user's preferences (no FOUC). After
+// mount, `useThemeSync` / `useShapeSync` (in App.vue) keep the same DOM in
+// sync with the store.
 bootstrapTheme()
 
 // Vuestrata relies on app/schema validation rather than browser-native HTML
