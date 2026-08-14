@@ -2,7 +2,7 @@
 import { createColumnHelper } from '@tanstack/vue-table'
 import { useI18n } from 'vue-i18n'
 
-import { UiButton, UiDataGrid, UiSelect } from '@/components/ui'
+import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
 import { useDataTable, type DataTableQueryState } from '@/composables/useDataTable'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
@@ -287,21 +287,14 @@ function permLabel(perm: string): string {
 
 <template>
   <div class="mx-auto max-w-7xl space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
-          {{ t('users_title') }}
-        </h1>
-        <p class="text-muted-foreground mt-1">{{ t('users_subtitle') }}</p>
-      </div>
-      <div class="flex gap-3">
+    <UiPageHeader :title="t('users_title')" :description="t('users_subtitle')">
+      <template #actions>
         <UiButton v-if="can('users:create')" variant="primary" @click="showInviteDialog = true">
           <span :class="[resolveIcon('user-plus'), 'h-4 w-4']" />
           {{ t('users_invite') }}
         </UiButton>
-      </div>
-    </div>
+      </template>
+    </UiPageHeader>
 
     <!-- Role legend -->
     <div class="flex flex-wrap gap-2">

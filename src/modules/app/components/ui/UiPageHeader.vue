@@ -15,12 +15,12 @@ defineProps<PageHeaderProps>()
     navigate by heading, so a consistent, correct outline is functional, not
     cosmetic.
   -->
-  <header class="flex flex-wrap items-start justify-between gap-4">
+  <header class="flex flex-wrap items-start justify-between gap-4 p-4">
     <div class="min-w-0">
       <h1 class="text-foreground text-2xl font-extrabold tracking-tight sm:text-3xl">
         {{ title }}
       </h1>
-      <p v-if="description" class="text-muted-foreground mt-1 text-sm">{{ description }}</p>
+      <p v-if="description" class="text-muted-foreground mt-2 text-sm">{{ description }}</p>
       <slot name="meta" />
     </div>
 

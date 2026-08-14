@@ -2,7 +2,7 @@
 import { createColumnHelper } from '@tanstack/vue-table'
 import { useI18n } from 'vue-i18n'
 
-import { UiButton, UiDataGrid } from '@/components/ui'
+import { UiButton, UiDataGrid, UiPageHeader } from '@/components/ui'
 import { useDataTable } from '@/composables/useDataTable'
 import { resolveIcon } from '~/config/icon-provider'
 
@@ -387,18 +387,14 @@ function exportCSV() {
 
 <template>
   <div class="mx-auto max-w-7xl space-y-6">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
-          {{ t('tables_title') }}
-        </h1>
-        <p class="text-muted-foreground mt-1">{{ t('tables_subtitle') }}</p>
-      </div>
-      <UiButton variant="secondary" @click="exportCSV">
-        <span :class="[resolveIcon('download'), 'h-4 w-4']" />
-        {{ t('tables_export_csv') }}
-      </UiButton>
-    </div>
+    <UiPageHeader :title="t('tables_title')" :description="t('tables_subtitle')">
+      <template #actions>
+        <UiButton variant="secondary" @click="exportCSV">
+          <span :class="[resolveIcon('download'), 'h-4 w-4']" />
+          {{ t('tables_export_csv') }}
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
     <!-- Features badges -->
     <div class="flex flex-wrap gap-2">

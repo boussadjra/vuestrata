@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import { UiButton, UiSwitch } from '@/components/ui'
+import { UiButton, UiPageHeader, UiSwitch } from '@/components/ui'
 import { useShape } from '@/composables/useShape'
 import type { ShapeRadius, ShapeBorder, ShapeShadow } from '@/composables/useShape'
 import { useTheme } from '@/composables/useTheme'
@@ -86,9 +86,8 @@ function switchIconProvider(p: IconProvider) {
 </script>
 
 <template>
-  <div class="animate-fade-in mx-auto max-w-3xl px-4 py-10">
-    <h1 class="mb-2 text-3xl font-bold">{{ t('settings_title') }}</h1>
-    <p class="text-muted-foreground mb-10">{{ t('settings_subtitle') }}</p>
+  <div class="animate-fade-in mx-auto max-w-3xl space-y-10">
+    <UiPageHeader :title="t('settings_title')" :description="t('settings_subtitle')" />
 
     <div class="space-y-8">
       <!-- Appearance -->

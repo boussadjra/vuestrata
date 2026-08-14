@@ -50,7 +50,7 @@ onMounted(() => {
         ref="mainRef"
         tabindex="-1"
         :aria-label="t('a11y_main_content')"
-        class="flex-1 p-4 focus:outline-none lg:p-6"
+        class="flex-1 px-4 py-6 focus:outline-none lg:px-6 lg:py-8"
       >
         <RouterView />
       </main>

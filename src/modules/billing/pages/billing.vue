@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { UiPageHeader } from '@/components/ui'
 import { useNotificationStore } from '@/stores/notification'
 import type { BillingInterval, PlanTier } from '@/types'
 import { resolveIcon } from '~/config/icon-provider'
@@ -65,13 +66,7 @@ const usagePercent = (current: number, limit: number) =>
 
 <template>
   <div class="mx-auto max-w-7xl space-y-8">
-    <!-- Header -->
-    <div>
-      <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
-        {{ t('billing_title') }}
-      </h1>
-      <p class="text-muted-foreground mt-1">{{ t('billing_subtitle') }}</p>
-    </div>
+    <UiPageHeader :title="t('billing_title')" :description="t('billing_subtitle')" />
 
     <!-- Loading State -->
     <div v-if="billing.isLoading" class="flex items-center justify-center py-20">

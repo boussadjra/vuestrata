@@ -24,6 +24,7 @@ import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useI18n } from 'vue-i18n'
 
+import { UiPageHeader } from '@/components/ui'
 import BaseChart from '@/components/ui/BaseChart.vue'
 
 import { useChartColors, withAlpha } from '../composables/useChartColors'
@@ -528,12 +529,7 @@ const heatmap = computed<EChartsOption>(() => ({
 
 <template>
   <div class="mx-auto max-w-7xl space-y-6">
-    <div>
-      <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
-        {{ t('charts_title') }}
-      </h1>
-      <p class="text-muted-foreground mt-1">{{ t('charts_subtitle') }}</p>
-    </div>
+    <UiPageHeader :title="t('charts_title')" :description="t('charts_subtitle')" />
 
     <!-- Area Line + Stacked Bar -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

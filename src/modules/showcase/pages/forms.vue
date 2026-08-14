@@ -3,7 +3,7 @@ import { useTextField, useCheckbox, useNumberField } from '@formwerk/core'
 import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 
-import { UiButton } from '@/components/ui'
+import { UiButton, UiPageHeader } from '@/components/ui'
 import { useNotificationStore } from '@/stores/notification'
 import { resolveIcon } from '~/config/icon-provider'
 
@@ -132,12 +132,7 @@ async function handleProfileSubmit() {
 
 <template>
   <div class="mx-auto max-w-7xl space-y-8">
-    <div>
-      <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
-        {{ t('forms_title') }}
-      </h1>
-      <p class="text-muted-foreground mt-1">{{ t('forms_subtitle') }}</p>
-    </div>
+    <UiPageHeader :title="t('forms_title')" :description="t('forms_subtitle')" />
 
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
       <!-- Contact Form -->

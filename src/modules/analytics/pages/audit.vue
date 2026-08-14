@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { UiPageHeader } from '@/components/ui'
 import { resolveIcon } from '@/config/icon-provider'
 import type { IconName } from '@/types'
 
@@ -132,12 +133,7 @@ const uniqueActions = computed(() => [...new Set(entries.value.map((e) => e.acti
 
 <template>
   <div class="mx-auto max-w-7xl space-y-6">
-    <div>
-      <h1 class="text-surface-900 text-3xl font-extrabold tracking-tight dark:text-white">
-        {{ t('audit_title') }}
-      </h1>
-      <p class="text-muted-foreground mt-1">{{ t('audit_subtitle') }}</p>
-    </div>
+    <UiPageHeader :title="t('audit_title')" :description="t('audit_subtitle')" />
 
     <!-- Stats -->
     <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
