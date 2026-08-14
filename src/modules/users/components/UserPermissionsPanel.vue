@@ -14,6 +14,22 @@ const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
 
+function permLabel(perm: string): string {
+  const key = `perm_${perm.replaceAll(':', '_')}`
+  const translated = t(key)
+  if (translated !== key) return translated
+  return perm
+    .split(':')
+    .map((part) => part.replaceAll('_', ' '))
+    .join(' ')
+}
+
+function permNamespaceLabel(ns: string): string {
+  const key = `perm_ns_${ns}`
+  const translated = t(key)
+  return translated !== key ? translated : ns
+}
+
 const authStore = useAuthStore()
 const { updatePermissions, isPending } = useUpdatePermissionsMutation()
 
@@ -97,7 +113,7 @@ async function submit() {
             {{ t('users_permissions_title') }}
           </h2>
           <p class="text-muted-foreground mt-0.5 text-sm">
-            {{ user.name }} · <span class="capitalize">{{ user.role }}</span>
+            {{ user.name }} · {{ t(`role_${user.role}`) }}
           </p>
         </div>
         <UiButton variant="ghost" size="sm" icon aria-label="Close" @click="$emit('close')">
@@ -111,7 +127,7 @@ async function submit() {
         role="status"
         class="bg-warning-subtle text-warning-800 dark:text-warning-200 mx-6 mt-4 rounded-lg px-4 py-2 text-sm"
       >
-        {{ t('users_permissions_self_warning') }}
+        {{ t('users_permissions_self_warning', { permission: permLabel('users:read') }) }}
       </div>
 
       <!-- Server error -->
@@ -127,7 +143,7 @@ async function submit() {
       <div class="flex-1 overflow-y-auto px-6 py-4">
         <div v-for="ns in namespaces" :key="ns" class="mb-4">
           <h3 class="text-muted-foreground mb-2 text-xs font-semibold tracking-widest uppercase">
-            {{ ns }}
+            {{ permNamespaceLabel(ns) }}
           </h3>
           <div class="space-y-1">
             <label
@@ -147,13 +163,13 @@ async function submit() {
                 @update:model-value="setPermission(perm as Permission, $event)"
               />
               <span class="text-foreground flex-1 text-sm">
-                {{ perm }}
+                {{ permLabel(perm) }}
               </span>
               <span
                 v-if="roleDefaults.has(perm)"
                 class="bg-info-subtle text-info-700 dark:text-info-300 rounded px-1.5 py-0.5 text-xs"
               >
-                default
+                {{ t('users_permission_default') }}
               </span>
             </label>
           </div>

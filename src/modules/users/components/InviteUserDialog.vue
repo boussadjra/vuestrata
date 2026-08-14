@@ -17,9 +17,11 @@ const name = ref('')
 const role = ref<Role>('member')
 const fieldErrors = ref<{ email?: string; name?: string; server?: string }>({})
 
-const roleOptions = Object.values(ROLE_DEFINITIONS)
-  .filter((r) => r.name !== 'guest')
-  .map((r) => ({ value: r.name as Role, label: r.label }))
+const roleOptions = computed(() =>
+  Object.values(ROLE_DEFINITIONS)
+    .filter((r) => r.name !== 'guest')
+    .map((r) => ({ value: r.name as Role, label: t(`role_${r.name}`) })),
+)
 
 function readInputValue(event: Event | undefined, selector: string, fallback = ''): string {
   const formElement = event?.currentTarget

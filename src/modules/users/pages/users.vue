@@ -6,7 +6,7 @@ import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
 import { useDataTable, type DataTableQueryState } from '@/composables/useDataTable'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
-import { ROLE_DEFINITIONS, getRegisteredPermissions } from '@/lib/rbac'
+import { ROLE_DEFINITIONS, getRegisteredPermissions, resolveRolePermissions } from '@/lib/rbac'
 import { useNotificationStore } from '@/stores/notification'
 import type { IconName } from '@/types'
 import type { User, Role, BuiltinPermission } from '@/types'
@@ -31,10 +31,12 @@ const canAssignRoles = can('roles:assign')
 const canUpdateUsers = can('users:update')
 const showActionsColumn = canAssignRoles || canUpdateUsers
 
-const roleOptions: { value: Role; label: string }[] = Object.values(ROLE_DEFINITIONS).map((r) => ({
-  value: r.name,
-  label: r.label,
-}))
+const roleOptions = computed(() =>
+  Object.values(ROLE_DEFINITIONS).map((r) => ({
+    value: r.name,
+    label: t(`role_${r.name}`),
+  })),
+)
 
 const columnHelper = createColumnHelper<User>()
 const serverUsers = ref<User[]>([])
@@ -69,7 +71,7 @@ const columns = [
       if (editingUserId.value === row.original.id) {
         return h(UiSelect, {
           modelValue: editingRole.value,
-          options: roleOptions,
+          options: roleOptions.value,
           'onUpdate:modelValue': setEditingRole,
         })
       }
@@ -79,14 +81,14 @@ const columns = [
         {
           class: [roleColor[row.original.role], 'rounded-full px-2.5 py-1 text-xs font-semibold'],
         },
-        row.original.role,
+        t(`role_${row.original.role}`),
       )
     },
     meta: {
       label: t('users_col_role'),
       filter: {
         variant: 'select',
-        options: roleOptions,
+        options: roleOptions.value,
       },
       width: '10rem',
     },
@@ -246,7 +248,10 @@ async function saveRole(user: User) {
     notifications.add({
       type: 'success',
       title: t('users_role_updated'),
-      message: `${user.name} → ${editingRole.value}`,
+      message: t('users_role_updated_detail', {
+        name: user.name,
+        role: t(`role_${editingRole.value}`),
+      }),
     })
   } catch {
     notifications.add({
@@ -278,10 +283,22 @@ const providerIconName: Record<string, IconName> = {
   microsoft: 'monitor',
 }
 
-const allPermissions = [...getRegisteredPermissions()] as BuiltinPermission[]
+const allPermissions = computed(() => {
+  const perms = new Set<string>([
+    ...resolveRolePermissions('super_admin'),
+    ...getRegisteredPermissions(),
+  ])
+  return [...perms].sort() as BuiltinPermission[]
+})
 
 function permLabel(perm: string): string {
-  return t(`perm_${perm.replace(':', '_')}`)
+  const key = `perm_${perm.replaceAll(':', '_')}`
+  const translated = t(key)
+  if (translated !== key) return translated
+  return perm
+    .split(':')
+    .map((part) => part.replaceAll('_', ' '))
+    .join(' ')
 }
 </script>
 
@@ -303,7 +320,9 @@ function permLabel(perm: string): string {
         :key="roleDef.name"
         :class="[roleColor[roleDef.name], 'rounded-full px-3 py-1 text-xs font-semibold']"
       >
-        {{ roleDef.label }} — {{ roleDef.permissions.length }} perms
+        {{ t(`role_${roleDef.name}`) }}
+        ·
+        {{ t('users_perm_count', { count: roleDef.permissions.length }) }}
       </span>
     </div>
 
@@ -345,7 +364,7 @@ function permLabel(perm: string): string {
                 :key="roleDef.name"
                 class="text-muted-foreground px-3 py-2 text-center font-semibold"
               >
-                {{ roleDef.label }}
+                {{ t(`role_${roleDef.name}`) }}
               </th>
             </tr>
           </thead>

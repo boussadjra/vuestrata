@@ -224,7 +224,10 @@ export default defineConfig({
 
       fullInstall: true,
 
-      include: [fileURLToPath(new URL('./src/modules/app/locales/**', import.meta.url))],
+      include: [
+        fileURLToPath(new URL('./src/modules/app/locales/**', import.meta.url)),
+        fileURLToPath(new URL('./src/modules/**/i18n/**', import.meta.url)),
+      ],
     }),
   ],
 
