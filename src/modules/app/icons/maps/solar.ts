@@ -23,7 +23,9 @@ export const solarIconMap: IconMap = {
   search: 'i-solar-magnifer-bold',
   close: 'i-solar-close-circle-linear',
   'close-circle': 'i-solar-close-circle-bold',
-  check: 'i-solar-check-read-linear',
+  // Solar has no standalone `check-*`; `unread` is the single tick, `check-read` is the double tick.
+  check: 'i-solar-unread-linear',
+  checks: 'i-solar-check-read-linear',
   'check-circle': 'i-solar-check-circle-bold',
   'info-circle': 'i-solar-info-circle-bold',
   'danger-triangle': 'i-solar-danger-triangle-bold',

@@ -24,6 +24,7 @@ export const phosphorIconMap: IconMap = {
   close: 'i-ph-x-bold',
   'close-circle': 'i-ph-x-circle-bold',
   check: 'i-ph-check-bold',
+  checks: 'i-ph-checks-bold',
   'check-circle': 'i-ph-check-circle-bold',
   'info-circle': 'i-ph-info-bold',
   'danger-triangle': 'i-ph-warning-bold',

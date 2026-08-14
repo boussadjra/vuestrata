@@ -221,6 +221,8 @@
   "common_search_commands": "Search commands...",
   "common_search_label": "Search",
   "common_select": "Select...",
+  "common_select_all_rows": "Select all rows",
+  "common_select_row": "Select row",
   "common_select_year": "Select year",
   "common_selected": "selected",
   "common_share": "Share",

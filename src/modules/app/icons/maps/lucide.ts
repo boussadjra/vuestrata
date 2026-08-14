@@ -24,6 +24,7 @@ export const lucideIconMap: IconMap = {
   close: 'i-lucide-x',
   'close-circle': 'i-lucide-x-circle',
   check: 'i-lucide-check',
+  checks: 'i-lucide-check-check',
   'check-circle': 'i-lucide-check-circle',
   'info-circle': 'i-lucide-info',
   'danger-triangle': 'i-lucide-alert-triangle',

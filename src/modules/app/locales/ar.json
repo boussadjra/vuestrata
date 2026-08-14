@@ -221,6 +221,8 @@
   "common_search_commands": "ابحث في الأوامر...",
   "common_search_label": "بحث",
   "common_select": "اختر...",
+  "common_select_all_rows": "تحديد كل الصفوف",
+  "common_select_row": "تحديد الصف",
   "common_select_year": "اختر سنة",
   "common_selected": "محدد",
   "common_share": "النسبة",

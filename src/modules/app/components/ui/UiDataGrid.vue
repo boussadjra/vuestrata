@@ -453,12 +453,14 @@ function getRowClasses(row: Row<TData>): string[] {
         >
           <div
             v-if="selectable"
-            class="border-surface-200 dark:border-surface-700 flex items-center justify-center border-r px-3 py-3"
+            class="border-surface-200 dark:border-surface-700 flex items-center justify-center px-3 py-3"
             role="columnheader"
             data-ui="data-grid-select-all"
           >
             <UiCheckbox
-              label=""
+              size="sm"
+              checked-icon="checks"
+              :aria-label="t('common_select_all_rows')"
               :model-value="selectAllState"
               @update:model-value="toggleAllPageRows"
             />
@@ -590,12 +592,13 @@ function getRowClasses(row: Row<TData>): string[] {
           >
             <div
               v-if="selectable"
-              class="border-surface-100 dark:border-surface-800 flex items-center justify-center border-r px-3"
+              class="border-surface-100 dark:border-surface-800 flex items-center justify-center px-3 py-3"
               role="cell"
               data-ui="data-grid-row-select"
             >
               <UiCheckbox
-                label=""
+                size="sm"
+                :aria-label="t('common_select_row')"
                 :disabled="!virtualRow.data.getCanSelect()"
                 :model-value="getRowSelectionState(virtualRow.data)"
                 @update:model-value="toggleRowSelection(virtualRow.data, $event)"
@@ -636,7 +639,9 @@ function getRowClasses(row: Row<TData>): string[] {
             >
               <div class="flex items-center justify-center" data-ui="data-grid-select-all">
                 <UiCheckbox
-                  label=""
+                  size="sm"
+                  checked-icon="checks"
+                  :aria-label="t('common_select_all_rows')"
                   :model-value="selectAllState"
                   @update:model-value="toggleAllPageRows"
                 />
@@ -785,14 +790,15 @@ function getRowClasses(row: Row<TData>): string[] {
 
               <td
                 v-if="selectable"
-                class="border-surface-100 dark:border-surface-800 border-b px-3 py-2 align-middle"
+                class="border-surface-100 dark:border-surface-800 w-12 border-b px-3 py-3 align-middle"
               >
                 <div
-                  class="flex min-h-9 items-center justify-center"
+                  class="flex items-center justify-center"
                   data-ui="data-grid-row-select"
                 >
                   <UiCheckbox
-                    label=""
+                    size="sm"
+                    :aria-label="t('common_select_row')"
                     :disabled="!row.getCanSelect()"
                     :model-value="getRowSelectionState(row)"
                     @update:model-value="toggleRowSelection(row, $event)"

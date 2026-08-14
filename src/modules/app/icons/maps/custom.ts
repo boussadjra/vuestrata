@@ -36,6 +36,7 @@ const ICON_NAMES: IconName[] = [
   'close',
   'close-circle',
   'check',
+  'checks',
   'check-circle',
   'info-circle',
   'danger-triangle',

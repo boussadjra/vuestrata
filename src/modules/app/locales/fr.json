@@ -221,6 +221,8 @@
   "common_search_commands": "Rechercher des commandes...",
   "common_search_label": "Rechercher",
   "common_select": "Sélectionner...",
+  "common_select_all_rows": "Sélectionner toutes les lignes",
+  "common_select_row": "Sélectionner la ligne",
   "common_select_year": "Choisir une année",
   "common_selected": "sélectionné(s)",
   "common_share": "Part",

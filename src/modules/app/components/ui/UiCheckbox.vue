@@ -9,6 +9,9 @@ const props = withDefaults(
   defineProps<
     CheckboxProps & {
       provider?: 'reka'
+      ariaLabel?: string
+      /** Icon shown when checked. Select-all uses `checks` (double mark). */
+      checkedIcon?: 'check' | 'checks'
     }
   >(),
   {
@@ -18,6 +21,7 @@ const props = withDefaults(
     falseValue: undefined,
     indeterminate: undefined,
     size: 'md',
+    checkedIcon: 'check',
   },
 )
 
@@ -46,6 +50,21 @@ const isIndeterminate = computed(
   () => props.indeterminate === true || props.modelValue === 'indeterminate',
 )
 
+/**
+ * Reka only mounts the indicator when `checked` is set. Formwerk `inputProps`
+ * do not keep that in sync for controlled table cells, so a selected row was
+ * painted as a solid square with no mark.
+ */
+const visuallyChecked = computed(() => {
+  if (typeof props.modelValue === 'boolean') return props.modelValue
+  if (typeof props.checked === 'boolean') return props.checked
+  return Boolean(isChecked.value)
+})
+
+const rekaChecked = computed(() => (isIndeterminate.value ? 'indeterminate' : visuallyChecked.value))
+
+const hasVisibleLabel = computed(() => Boolean(props.label))
+
 const sizeMap: Record<string, string> = {
   sm: 'h-4 w-4',
   md: 'h-5 w-5',
@@ -59,11 +78,11 @@ const indicatorSizeMap: Record<string, string> = {
 }
 
 const checkboxClasses = computed(() => [
-  'inline-flex items-center justify-center rounded border-2 transition-colors',
+  'inline-flex shrink-0 items-center justify-center overflow-hidden rounded border-2 transition-colors',
   displayError.value
     ? invalidCheckboxClass
     : 'border-surface-300 dark:border-surface-600 focus-visible:ring-primary-300',
-  isChecked.value ? 'bg-primary-700 border-primary-700' : '',
+  isIndeterminate.value || visuallyChecked.value ? 'bg-primary-700 border-primary-700' : '',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
   'disabled:opacity-50 disabled:cursor-not-allowed',
   sizeMap[props.size],
@@ -71,26 +90,35 @@ const checkboxClasses = computed(() => [
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
-    <div class="inline-flex items-center gap-2">
+  <div :class="hasVisibleLabel || displayError ? 'flex flex-col gap-1' : 'contents'">
+    <div :class="hasVisibleLabel ? 'inline-flex items-center gap-2' : 'contents'">
       <CheckboxRoot
         v-bind="inputProps"
+        :checked="rekaChecked"
         :class="checkboxClasses"
+        :aria-label="ariaLabel || undefined"
         data-ui="checkbox"
         :data-provider="provider"
         @click="emitToggle"
         @keydown.space.prevent="emitToggle"
       >
-        <CheckboxIndicator class="flex items-center justify-center text-white">
+        <CheckboxIndicator
+          class="flex items-center justify-center text-white"
+          :force-mount="rekaChecked !== false"
+        >
           <span
             v-if="isIndeterminate"
-            :class="[resolveIcon('minus-circle'), indicatorSizeMap[size]]"
+            class="bg-white h-0.5 w-2.5 rounded-full"
+            aria-hidden="true"
           />
-          <span v-else :class="[resolveIcon('check'), indicatorSizeMap[size]]" />
+          <span
+            v-else
+            :class="[resolveIcon(checkedIcon), 'text-white', indicatorSizeMap[size]]"
+          />
         </CheckboxIndicator>
       </CheckboxRoot>
       <span
-        v-if="label"
+        v-if="hasVisibleLabel"
         v-bind="labelProps"
         class="cursor-pointer text-sm select-none"
         @click="handleLabelClick"

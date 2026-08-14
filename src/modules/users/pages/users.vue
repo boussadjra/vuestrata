@@ -333,6 +333,7 @@ function permLabel(perm: string): string {
       <UiDataGrid
         :table="table"
         selectable
+        :show-column-filters="false"
         :loading="loading"
         :loading-text="t('users_loading')"
         :search-placeholder="t('users_search')"
