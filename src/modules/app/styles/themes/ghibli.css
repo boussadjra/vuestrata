@@ -1,87 +1,257 @@
 /*
- * Ghibli theme — warm pastels, soft rounded, earthy & whimsical
+ * Ghibli theme — warm hand-painted daylight, and a real forest night.
+ *
  * Apply by adding class="theme-ghibli" to <html>
+ *
+ * ── What changed in the modernisation ──────────────────────────────────────
+ *  1. Dark mode was not dark. The old `.dark` block INVERTED the surface ramp
+ *     (surface-950 → #fdfbf7). semantic.css already inverts — it maps
+ *     `--color-background` onto `surface-950` in dark mode — so the two
+ *     inversions cancelled and the page stayed cream. Dark mode now keeps the
+ *     ramp pointing the same way as every other theme (50 light → 950 dark)
+ *     and simply supplies night colours at the dark end. This is the same
+ *     shape Febin uses.
+ *  2. The ramps were spliced. primary-50…400 were stock Tailwind green
+ *     (#4ade80 at 400) bolted onto a muted forest green from 500 down, so the
+ *     ramp jumped hue and chroma mid-way — and since semantic.css reaches for
+ *     `primary-400` for the dark-mode focus ring, this theme's ring was
+ *     neon. Same splice on accent (Tailwind sky over muted blue). Both ramps
+ *     are now single families end to end.
+ *  3. Georgia (1996, screen-safe) headed the font stack for *everything*.
+ *     Body copy is now Nunito — warm, rounded, and readable at UI sizes — and
+ *     the serif moves to headings via `--font-display` (Fraunces), which is
+ *     what the old "Typography — Serif accent" comment described but the
+ *     stack did not do.
+ *  4. Dark mode had no shadow overrides, so it inherited warm brown at 3–10%
+ *     opacity: invisible on any dark surface.
+ *
+ * Contrast: foreground (surface-50) on dark background ≈ 16.8:1;
+ * muted-foreground (surface-400) on dark `muted` ≈ 6.0:1;
+ * primary-solid (primary-600) with white text ≈ 6.6:1.
  */
 :root.theme-ghibli {
-  /* Primary — Forest green */
-  --color-primary-50: #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-200: #bbf7d0;
-  --color-primary-300: #86efac;
-  --color-primary-400: #4ade80;
-  --color-primary-500: #4d7c5b;
-  --color-primary-600: #3d6549;
-  --color-primary-700: #2d4e37;
-  --color-primary-800: #1e3726;
-  --color-primary-900: #142216;
-  --color-primary-950: #0a1209;
+  /* Primary — forest green, one family from 50 to 950 */
+  --color-primary-50: #f1f7f1;
+  --color-primary-100: #dfeade;
+  --color-primary-200: #bed6bd;
+  --color-primary-300: #96bd97;
+  --color-primary-400: #6d9e72;
+  --color-primary-500: #4f8058;
+  --color-primary-600: #3d6646;
+  --color-primary-700: #305038;
+  --color-primary-800: #263f2c;
+  --color-primary-900: #1c2e21;
+  --color-primary-950: #101b13;
 
-  /* Secondary — Warm terracotta */
-  --color-secondary-50: #fdf8f1;
-  --color-secondary-100: #faecd8;
-  --color-secondary-200: #f4d5ae;
-  --color-secondary-300: #edb97d;
-  --color-secondary-400: #e59b52;
-  --color-secondary-500: #c97c3a;
-  --color-secondary-600: #a86230;
-  --color-secondary-700: #884c28;
-  --color-secondary-800: #6e3e24;
-  --color-secondary-900: #5a3420;
-  --color-secondary-950: #331b10;
+  /* Secondary — warm terracotta */
+  --color-secondary-50: #fdf6ef;
+  --color-secondary-100: #f9e8d8;
+  --color-secondary-200: #f1cfae;
+  --color-secondary-300: #e6b07f;
+  --color-secondary-400: #d98f55;
+  --color-secondary-500: #c4713a;
+  --color-secondary-600: #a55a2e;
+  --color-secondary-700: #854727;
+  --color-secondary-800: #6a3a23;
+  --color-secondary-900: #56301f;
+  --color-secondary-950: #2f1810;
 
-  /* Accent — Sky blue */
-  --color-accent-50: #f0f9ff;
-  --color-accent-100: #e0f2fe;
-  --color-accent-200: #bae6fd;
-  --color-accent-300: #7dd3fc;
-  --color-accent-400: #38bdf8;
-  --color-accent-500: #5b9bbf;
-  --color-accent-600: #4a7fa0;
-  --color-accent-700: #3a6380;
-  --color-accent-800: #2d4d63;
-  --color-accent-900: #213a4d;
-  --color-accent-950: #122130;
+  /* Accent — the sky over the meadow */
+  --color-accent-50: #f0f6fa;
+  --color-accent-100: #dcebf3;
+  --color-accent-200: #b9d6e6;
+  --color-accent-300: #8fbcd4;
+  --color-accent-400: #6aa1c0;
+  --color-accent-500: #4f86a8;
+  --color-accent-600: #3f6c8a;
+  --color-accent-700: #33566e;
+  --color-accent-800: #2b4557;
+  --color-accent-900: #253a48;
+  --color-accent-950: #14222b;
 
-  /* Surface — Warm cream, but neutral enough for readable UI chrome */
-  --color-surface-50: #fdfbf7;
-  --color-surface-100: #faf5ed;
-  --color-surface-200: #f2e9d8;
-  --color-surface-300: #dfd0bc;
-  --color-surface-400: #ac9578;
-  --color-surface-500: #816c57;
-  --color-surface-600: #635141;
-  --color-surface-700: #4a3d31;
-  --color-surface-800: #342b23;
-  --color-surface-900: #241d18;
-  --color-surface-950: #161310;
+  /* Surface — warm cream, neutral enough at the mid steps to stay readable */
+  --color-surface-50: #fdfaf4;
+  --color-surface-100: #f7f1e6;
+  --color-surface-200: #ece2d1;
+  --color-surface-300: #d6c8b0;
+  --color-surface-400: #b0a087;
+  --color-surface-500: #877866;
+  --color-surface-600: #695c4d;
+  --color-surface-700: #4f453a;
+  --color-surface-800: #392f27;
+  --color-surface-900: #27201a;
+  --color-surface-950: #171310;
 
-  /* Typography — Serif accent */
-  --font-sans: 'Georgia', 'Rubik', 'Inter', ui-serif, serif;
+  /* Typography. `--font-display` is a theme-local token (the same way Blueprint
+     defines `--blueprint-grid-*`); the heading rule below is its only consumer. */
+  --font-sans: 'Nunito', 'Tajawal', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  /* Fraunces is Latin-only. Font fallback is per-glyph, so naming the Arabic
+     faces after it keeps Latin headings on Fraunces while Arabic resolves to
+     the same Tajawal/Cairo the rest of the RTL UI uses — rather than to
+     whichever serif the OS happens to ship. */
+  --font-display: 'Fraunces', 'Tajawal', 'Cairo', Georgia, ui-serif, serif;
 
   /* Soft rounded corners */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.5rem;
+  --radius-sm: 0.625rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.125rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.75rem;
 
-  /* Gentle shadows */
-  --shadow-soft: 0 2px 12px -2px rgb(101 67 33 / 0.08);
-  --shadow-elevated: 0 8px 28px -4px rgb(101 67 33 / 0.1);
-  --shadow-card: 0 2px 6px rgb(101 67 33 / 0.04), 0 1px 3px rgb(101 67 33 / 0.03);
-  --shadow-card-hover: 0 12px 32px -8px rgb(101 67 33 / 0.1);
+  /* Cards, buttons and inputs round from the SHAPE scale in app.css, not from
+     `--radius-*`, so the softness has to be stated there too. Equal specificity
+     with the `:root.shape-radius-*` presets, which are defined later — so a
+     user who picks a shape preference still overrides this. */
+  --shape-radius: 1.125rem;
+  --shape-radius-sm: 0.75rem;
+  --shape-radius-lg: 1.375rem;
+  --shape-radius-xl: 1.75rem;
+
+  /* Gentle warm shadows */
+  --shadow-soft: 0 2px 12px -2px rgb(87 62 38 / 0.09);
+  --shadow-elevated: 0 10px 32px -6px rgb(87 62 38 / 0.14);
+  --shadow-card: 0 2px 8px -2px rgb(87 62 38 / 0.06), 0 1px 2px rgb(87 62 38 / 0.04);
+  --shadow-card-hover: 0 14px 34px -10px rgb(87 62 38 / 0.16);
+  --shadow-glow-primary: 0 0 28px rgb(109 158 114 / 0.28);
+  --shadow-glow-secondary: 0 0 28px rgb(217 143 85 / 0.28);
+}
+
+/* ─── Dark Mode — the forest at night ────────────────────── */
+/*
+ * Same ramp direction as light mode. semantic.css does the flip; a theme that
+ * flips as well ends up back where it started (which is exactly what this
+ * theme used to do).
+ */
+:root.theme-ghibli.dark {
+  --color-surface-50: #f3f5ef;
+  --color-surface-100: #e8ebe4;
+  --color-surface-200: #d5dbd3;
+  --color-surface-300: #bcc6bd;
+  --color-surface-400: #9aa89e;
+  --color-surface-500: #75857a;
+  --color-surface-600: #55645a;
+  --color-surface-700: #3a463c;
+  --color-surface-800: #26302a;
+  --color-surface-900: #1a211a;
+  --color-surface-950: #10150f;
+
+  /* surface-800 on surface-900 is ~1.2:1 — technically a border, visually not
+     one. surface-700 keeps the line soft without letting it disappear. */
+  --color-border: var(--color-surface-700);
+  --color-sidebar-border: var(--color-surface-700);
+
+  /* Warm shadows are for a warm surface. On the night palette they need to be
+     shadow-coloured. */
+  --shadow-soft: 0 2px 12px -2px rgb(0 0 0 / 0.45);
+  --shadow-elevated: 0 10px 32px -6px rgb(0 0 0 / 0.6);
+  --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.4);
+  --shadow-card-hover: 0 14px 34px -10px rgb(0 0 0 / 0.55);
+  --shadow-glow-primary: 0 0 28px rgb(109 158 114 / 0.22);
+  --shadow-glow-secondary: 0 0 28px rgb(217 143 85 / 0.22);
+}
+
+/* ─── Page wash ──────────────────────────────────────────── */
+/*
+ * Pinned to :root rather than body so the body transition cannot wipe it on
+ * mount, matching the Blueprint/Febin pattern already in this folder.
+ */
+:root.theme-ghibli {
+  background-color: var(--color-surface-50);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgb(143 188 212 / 0.22), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgb(109 158 114 / 0.16), transparent 72%),
+    radial-gradient(ellipse 60% 45% at 100% 92%, rgb(217 143 85 / 0.14), transparent 70%);
+  background-attachment: fixed;
 }
 
 :root.theme-ghibli.dark {
-  --color-surface-50: #241d18;
-  --color-surface-100: #2d251f;
-  --color-surface-200: #3a3028;
-  --color-surface-300: #514337;
-  --color-surface-400: #6f5d4b;
-  --color-surface-500: #947a62;
-  --color-surface-600: #bea387;
-  --color-surface-700: #ddd0be;
-  --color-surface-800: #efe7da;
-  --color-surface-900: #faf5ed;
-  --color-surface-950: #fdfbf7;
+  background-color: var(--color-surface-950);
+  background-image:
+    radial-gradient(ellipse 85% 55% at 50% 0%, rgb(63 108 138 / 0.3), transparent 72%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgb(48 80 56 / 0.42), transparent 74%),
+    radial-gradient(ellipse 55% 40% at 100% 95%, rgb(133 71 39 / 0.24), transparent 72%);
+}
+
+:root.theme-ghibli body,
+:root.theme-ghibli #app,
+:root.theme-ghibli main {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* ─── Type — serif headings over a rounded sans body ─────── */
+:root.theme-ghibli h1,
+:root.theme-ghibli h2,
+:root.theme-ghibli h3,
+:root.theme-ghibli h4,
+:root.theme-ghibli blockquote {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ─── Cards — soft, warm, gently lifting ─────────────────── */
+:root.theme-ghibli .card,
+:root.theme-ghibli [data-ui='card'] {
+  background: color-mix(in oklch, var(--color-surface-50) 88%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-surface-300) 55%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+:root.theme-ghibli .card:hover,
+:root.theme-ghibli [data-ui='card']:hover {
+  border-color: color-mix(in oklch, var(--color-primary-400) 45%, transparent);
+}
+
+:root.theme-ghibli.dark .card,
+:root.theme-ghibli.dark [data-ui='card'] {
+  background: color-mix(in oklch, var(--color-surface-900) 82%, transparent);
+  border-color: color-mix(in oklch, var(--color-surface-700) 80%, transparent);
+}
+
+:root.theme-ghibli.dark .card:hover,
+:root.theme-ghibli.dark [data-ui='card']:hover {
+  border-color: color-mix(in oklch, var(--color-primary-700) 75%, transparent);
+}
+
+/* ─── Chrome — daylight and dusk, both translucent ───────── */
+:root.theme-ghibli header,
+:root.theme-ghibli aside {
+  background: color-mix(in oklch, var(--color-surface-50) 85%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+:root.theme-ghibli.dark header,
+:root.theme-ghibli.dark aside {
+  background: color-mix(in oklch, var(--color-surface-950) 82%, transparent);
+}
+
+/* ─── Inputs ─────────────────────────────────────────────── */
+:root.theme-ghibli input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-ghibli select:not(.unstyled-input),
+:root.theme-ghibli textarea:not(.unstyled-input) {
+  background: color-mix(in oklch, var(--color-surface-50) 92%, var(--color-surface-100));
+  border-color: var(--color-surface-300);
+}
+
+:root.theme-ghibli.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-ghibli.dark select:not(.unstyled-input),
+:root.theme-ghibli.dark textarea:not(.unstyled-input) {
+  background: color-mix(in oklch, var(--color-surface-900) 88%, var(--color-surface-800));
+  border-color: var(--color-surface-700);
+}
+
+/* ─── Selection & scrollbar ──────────────────────────────── */
+:root.theme-ghibli ::selection {
+  background: rgb(109 158 114 / 0.32);
+}
+
+:root.theme-ghibli ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+}
+
+:root.theme-ghibli.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-700);
 }

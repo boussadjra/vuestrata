@@ -80,17 +80,25 @@
   --color-primary-400: #34d399;
   --color-primary-500: #10b981;
 
-  --color-surface-50: #1c1c16;
-  --color-surface-100: #24241c;
-  --color-surface-200: #2e2e26;
-  --color-surface-300: #454539;
-  --color-surface-400: #5c5c4a;
+  /*
+   * This ramp used to run backwards — `surface-50` dark, `surface-950` light.
+   * semantic.css already performs the dark-mode inversion for every theme
+   * (`--color-background` → `surface-950`, `--color-foreground` → `surface-50`),
+   * so inverting here too cancelled it out and Forest's dark mode rendered on a
+   * near-white #fafaf5 page. Same direction as light mode now; only the colours
+   * at the dark end change. See "The Dark-Ramp Direction Rule" in DESIGN.md.
+   */
+  --color-surface-50: #fafaf5;
+  --color-surface-100: #f3f3ec;
+  --color-surface-200: #e5e5d8;
+  --color-surface-300: #d1d1be;
+  --color-surface-400: #a3a38c;
   --color-surface-500: #7a7a64;
-  --color-surface-600: #a3a38c;
-  --color-surface-700: #d1d1be;
-  --color-surface-800: #e5e5d8;
-  --color-surface-900: #f3f3ec;
-  --color-surface-950: #fafaf5;
+  --color-surface-600: #5c5c4a;
+  --color-surface-700: #454539;
+  --color-surface-800: #2e2e26;
+  --color-surface-900: #24241c;
+  --color-surface-950: #1c1c16;
 
   --shadow-soft: 0 2px 10px -2px rgb(16 185 129 / 0.12);
   --shadow-elevated: 0 10px 30px -5px rgb(16 185 129 / 0.18);

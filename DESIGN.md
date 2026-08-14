@@ -199,7 +199,7 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 | ------------- | --------------------------------------- | ------------------------------------------- |
 | **Default**   | Teal on slate                           | Precise, professional, neutral              |
 | **Blueprint** | Sepia ink on aged parchment             | Drafting board nostalgia, gridded precision |
-| **Brutalist** | Pure B&W with electric yellow           | Uncompromising, raw, zero decoration        |
+| **Brutalist** | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration        |
 | **Febin**     | Coral/orange on warm sunrise surface    | Vibrant twilight, painterly warmth          |
 | **Forest**    | Emerald + warm gold on olive            | Grounded, natural, earthy abundance         |
 | **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene             |
@@ -214,10 +214,10 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 | --------- | ----------- | ------------- | ---------- | ---------- | --------- | ----------------- |
 | Default   | `#29a07d`   | `#9b8c74`     | `#cc62b3`  | `#f8fafc`  | 0.375rem  | Inter             |
 | Blueprint | `#8c6420`   | `#3a66a0`     | `#b65530`  | `#f8f3e6`  | 0         | Bookman Old Style |
-| Brutalist | `#171717`   | `#eab308`     | `#ef4444`  | `#fafafa`  | 0         | JetBrains Mono    |
+| Brutalist | `#303030`   | `#d9c200`     | `#ff1a75`  | `#fafafa`  | 0         | Space Grotesk     |
 | Febin     | `#dd7c55`   | `#597ba8`     | `#f23d4e`  | `#fffcf8`  | 0.75rem   | Rubik             |
 | Forest    | `#10b981`   | `#c9b210`     | `#14b8a6`  | `#fafaf5`  | 0.625rem  | Inter             |
-| Ghibli    | `#4d7c5b`   | `#c97c3a`     | `#5b9bbf`  | `#fdfbf7`  | 0.75rem   | Georgia           |
+| Ghibli    | `#4f8058`   | `#c4713a`     | `#4f86a8`  | `#fdfaf4`  | 0.875rem  | Nunito / Fraunces |
 | Ocean     | `#6366f1`   | `#06b6d4`     | `#8b5cf6`  | `#f8fafc`  | 0.5rem    | Inter             |
 | Rose      | `#f43f5e`   | `#a855f7`     | `#d946ef`  | `#fafafa`  | 0.5rem    | Inter             |
 | Sunset    | `#f97316`   | `#f43f5e`     | `#eab308`  | `#fafaf9`  | 0.5rem    | Rubik             |
@@ -257,17 +257,25 @@ A vintage technical drawing on yellowed quadrille paper. Dark sepia ink for prim
 ---
 
 **Brutalist** — _The Manifesto_
-Pure black on white. No rounding. No softness. Electric yellow (#eab308) is the single decoration. Hard offset shadows (4px 4px 0 black). Monospace type (JetBrains Mono) used for everything — body, labels, headings. No glows. Dark mode replaces primary black with phosphor green (#00ff00) on a near-black surface, converting the theme into a terminal variant.
+Neo-brutalism. Pure black ink on true-neutral paper, black 2px borders on every drawn element, hard offset shadows at zero blur and full opacity, zero rounding. Electric yellow (#ffe600) and electric magenta (#ff1a75) are the only decoration. No glows, no gradients — the page background is flat colour. Space Grotesk carries body and headings. Dark mode is the same theme with the lights off: white and yellow on true black, with the offset shadows inverted to a light tone so they still read.
 
-| Token           | Value                                      | Notes                               |
-| --------------- | ------------------------------------------ | ----------------------------------- |
-| Primary-500     | `#171717`                                  | Near-black                          |
-| Secondary-500   | `#eab308`                                  | Electric yellow — the single accent |
-| Accent-500      | `#ef4444`                                  | Hot red                             |
-| Radius          | 0 everywhere                               | Structural rejection of softness    |
-| Shadow style    | Hard offset (4–6px, 0 blur, 25–30% black)  | Constructivist                      |
-| Font            | JetBrains Mono, Courier New                | Mono body text — intentional        |
-| Dark mode delta | Primary becomes `#00ff00` (phosphor green) | Mode-switching personality          |
+| Token           | Value                                                      | Notes                                       |
+| --------------- | ---------------------------------------------------------- | ------------------------------------------- |
+| Primary-500     | `#303030`                                                  | Monochrome ink, graded 50→950               |
+| Secondary-500   | `#d9c200` (signature step is 400, `#ffe600`)               | Electric yellow                             |
+| Accent-500      | `#ff1a75`                                                  | Electric magenta — moved off red, see below |
+| Surface-50/950  | `#fafafa` / `#000000`                                      | True neutral, no blue cast                  |
+| Radius          | 0 everywhere, incl. the `--shape-radius-*` scale           | Structural rejection of softness            |
+| Border          | `--color-border` → black; `--shape-border-width` → 2px     | The border IS the design                    |
+| Shadow style    | Hard offset (3–7px, 0 blur, 100% opacity), mirrored in RTL | Constructivist                              |
+| Font            | Space Grotesk                                              | Mono is confined to `--font-mono`           |
+| Dark mode delta | Filled controls → yellow; borders → grey; shadows → light  | Same identity, inverted                     |
+
+Three deliberate departures from the previous version:
+
+- **Accent left red.** The old `#ef4444` sat one hue step from `--color-danger-*`, so an accent chip and a destructive button were the same colour, and `--color-chart-2` collided with the danger palette. Magenta is distinct from every other ramp in the system.
+- **Dark mode dropped the phosphor green.** `#00ff00` was the Terminal theme's identity, not this one — it turned Brutalist into a second Terminal on mode switch rather than a dark Brutalist.
+- **The radius and border tokens are set on the SHAPE scale too.** Cards, buttons, inputs and the auth panel round themselves from `--shape-radius`, not `--radius-*`, so zeroing only the latter left every panel soft. The `:root.shape-*` presets still override, so a user's explicit shape preference keeps working.
 
 ---
 
@@ -302,17 +310,25 @@ Emerald primary (#10b981) with warm gold secondary (#c9b210) and teal accent (#1
 ---
 
 **Ghibli** — _The Animated Clearing_
-Earthy forest green (#4d7c5b), warm terracotta secondary (#c97c3a), muted sky blue accent (#5b9bbf). Warm cream surfaces (#fdfbf7). The largest rounding in serif themes (sm=0.5rem, 2xl=1.5rem). Georgia heads the font stack — the only theme that defaults to serif. Shadows are the gentlest in the system (warm brown-tinted, low opacity). This theme is intentionally whimsical without being playful.
+Forest green (#4f8058), warm terracotta secondary (#c4713a), meadow-sky accent (#4f86a8). Warm cream surfaces (#fdfaf4) under a soft three-point painterly wash. The largest rounding in the system after Febin. Nunito carries body and UI; Fraunces carries headings — the serif is an accent, not the default. Shadows are the gentlest in the system. Dark mode is a real forest night: deep green-black surfaces (#10150f) with warm parchment text.
 
-| Token         | Value                         | Notes                  |
-| ------------- | ----------------------------- | ---------------------- |
-| Primary-500   | `#4d7c5b`                     | Muted forest green     |
-| Secondary-500 | `#c97c3a`                     | Warm terracotta        |
-| Accent-500    | `#5b9bbf`                     | Muted sky blue         |
-| Surface-50    | `#fdfbf7`                     | Warm cream             |
-| Radius-md     | 0.75rem                       | Soft, hand-drawn feel  |
-| Shadow style  | Warm brown-tinted, ultra-soft | Gentle depth           |
-| Font          | Georgia → Rubik → serif       | Only serif-first theme |
+| Token         | Value                                           | Notes                                   |
+| ------------- | ----------------------------------------------- | --------------------------------------- |
+| Primary-500   | `#4f8058`                                       | Forest green, one family across 50→950  |
+| Secondary-500 | `#c4713a`                                       | Warm terracotta                         |
+| Accent-500    | `#4f86a8`                                       | Meadow sky                              |
+| Surface-50    | `#fdfaf4`                                       | Warm cream                              |
+| Surface-950   | `#171310` light / `#10150f` dark                | Dark mode supplies its own night ramp   |
+| Radius-md     | 0.875rem (`--shape-radius` 1.125rem)            | Soft, hand-drawn feel                   |
+| Shadow style  | Warm brown-tinted light, true dark in dark mode | Gentle depth                            |
+| Body font     | Nunito                                          | Rounded, warm, readable at UI sizes     |
+| Display font  | Fraunces (`--font-display`)                     | Theme-local token; h1–h4 and blockquote |
+
+Three deliberate departures from the previous version:
+
+- **Dark mode is now actually dark.** The old `.dark` block inverted the surface ramp (`--color-surface-950` → `#fdfbf7`), but `semantic.css` already inverts — it maps `--color-background` onto `surface-950` in dark mode. The two inversions cancelled and the page stayed cream. The dark ramp now runs the same direction as every other theme and supplies night colours at the dark end.
+- **The ramps were spliced and are now continuous.** `primary-50…400` were stock Tailwind green (`#4ade80` at 400) bolted onto a muted forest green from 500 down, jumping hue and chroma mid-ramp. Because `semantic.css` reaches for `primary-400` as the dark-mode focus ring, this theme's ring was neon. Accent had the same splice (Tailwind sky over muted blue).
+- **The serif moved to where a serif belongs.** Georgia headed the stack for _everything_, including 12px UI labels. Fraunces now handles display sizes and Nunito handles the rest — which is what the original "serif accent" comment described but the stack did not do.
 
 ---
 
@@ -383,7 +399,26 @@ Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/hig
 
 **The Zero-Radius Contract.** Blueprint and Brutalist set all radii to `0`. Components must not hardcode `rounded-*` class names with fixed values; they must derive rounding from `var(--radius-*)` tokens so shape responds correctly to theme.
 
-**The Typeface Handoff Rule.** Three themes switch the default typeface to a non-Inter stack: Blueprint (serif), Brutalist (monospace), Terminal (monospace), Ghibli (Georgia serif). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
+There are **two** rounding scales, and anything that wants to change shape globally has to set both.
+
+- `--radius-*` (app.css `@theme`) backs Tailwind's `rounded-sm`/`rounded-lg`/`rounded-full`. About 160 call sites across 64 components round themselves this way.
+- `--shape-radius-*` (app.css `:root`) backs the user-facing shape preference, consumed via `rounded-[var(--shape-radius)]`, `.shaped-radius`, and the `[data-ui=…]` rules. About 50 call sites.
+
+A **theme** that sets only `--radius-*` will not change the shape of a single card. A **shape preset** that sets only `--shape-radius-*` reaches barely a quarter of the app — which is why picking "sharp" used to leave most of the UI soft. Both the theme blocks and the `:root.shape-radius-*` presets now write both scales.
+
+Precedence falls out of source order: themes are imported at the top of app.css and the presets are defined further down, at equal specificity, so a user's explicit shape choice overrides the theme's default. `shape-radius-medium` deliberately adds no class (see `state/shape.ts`), which is what lets each theme keep its own radii until the user actually picks something.
+
+`--shape-border-width` follows the same pattern, with one limitation worth knowing: Tailwind's `border` utility emits a literal `1px`, not a token, so border width cannot be driven globally the way radius can. Only `.shaped-border` and the `[data-ui=…]` rules respond.
+
+**The Typeface Handoff Rule.** Four themes switch the default typeface to a non-Inter stack: Blueprint (serif), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
+
+A theme font must be **loaded** as well as named. `index.html` carries the single Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
+
+**The One Focus Indicator Rule.** Focus is drawn by exactly one thing: the global `*:focus-visible` outline in app.css, built on `--color-ring`, which re-points per theme _and_ per colour mode. Components must not set `focus-visible:outline-none` and substitute their own ring. `UiButton` used to, replacing it with `ring-<hue>-300` — a 300-weight tint that measured 1.66:1 against the page on Default and 2.08:1 on Brutalist, where WCAG 1.4.11 requires 3:1. A theme that needs a different ring overrides `--color-ring`; it must clear 3:1 against its own `--color-background` in both modes, and against any border colour the ring commonly sits beside. Two themes need a mode-specific override for this reason: Brutalist (yellow is 1.21:1 on its light page, so light mode uses magenta) and Terminal (whose "light" surface is a mid-grey `#d4d4d8`, so it rings at `primary-800` rather than the `primary-600` default).
+
+Menu, listbox and calendar items are the documented exception: headless-UI roving focus is indicated by `data-highlighted` state, and `outline-none` on those is correct.
+
+**The Dark-Ramp Direction Rule.** A theme's `.dark` block must keep the surface ramp pointing the same way as its light block — `50` light, `950` dark. `semantic.css` performs the inversion once for every theme by re-pointing `--color-background` at `surface-950`, `--color-foreground` at `surface-50`, and so on. A theme that also inverts its ramp cancels that out and ships a light "dark" mode. Supply night _colours_ at the dark end; never reverse the ordering.
 
 ---
 
@@ -392,6 +427,7 @@ Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/hig
 **Body Font:** Inter (with Tajawal, Cairo as RTL Arabic fallbacks; Rubik as CJK/Unicode supplement)
 **Display Font:** Inter — same family, heavy weight, tighter tracking
 **Mono Font:** JetBrains Mono (code blocks, terminal theme body text)
+**Theme Fonts:** Space Grotesk (Brutalist), Nunito + Fraunces (Ghibli), Rubik (Febin/Sunset) — all loaded from the single `index.html` font request
 
 **Character:** Inter provides dense, precise information density without reading as clinical. At small sizes (0.75–0.875rem) it stays clean; at display sizes (2.25–3.75rem, 800 weight, −0.02em tracking) it acquires a commanding authority. The RTL fallback chain (Tajawal → Cairo) preserves the system's structural feel in Arabic.
 
@@ -407,7 +443,7 @@ Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/hig
 
 **The Same-Family Rule.** Display, headline, title, body, and label are all Inter. No mix of display typefaces within a single theme variant. Theme-level typeface changes (Blueprint to serif, Terminal to mono) apply uniformly — the hierarchy stays intact, only the voice changes.
 
-**The Mono Containment Rule.** JetBrains Mono is for code, terminal output, and the Terminal theme body. It must not appear in prose contexts in non-Terminal themes. Use `font-mono` as a targeted utility, not a default.
+**The Mono Containment Rule.** JetBrains Mono is for code, terminal output, and the Terminal theme body. It must not appear in prose contexts in non-Terminal themes. Use `font-mono` as a targeted utility, not a default. Brutalist used to violate this by setting mono as `--font-sans`; it now uses Space Grotesk and leaves mono to `--font-mono`.
 
 ---
 
@@ -441,7 +477,7 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 
 _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)`) and dip on press (`scale(0.97)`) with a cubic-bezier expo deceleration. The animation is disabled under `prefers-reduced-motion`.
 
-- **Shape:** `rounded-lg` → `--radius-lg` (default 0.5rem; 0 in Blueprint/Brutalist; up to 1rem in Febin/Ghibli)
+- **Shape:** `rounded-lg` → `--radius-lg` (default 0.5rem; 0 in Blueprint/Brutalist; up to 1.125rem in Ghibli and 1rem in Febin)
 - **Primary:** `bg-primary-500 text-white` · hover `bg-primary-600` · active `bg-primary-700` · focus ring `ring-primary-300`
 - **Secondary:** `bg-secondary-500 text-white` · hover `bg-secondary-600` · active `bg-secondary-700`
 - **Accent:** `bg-accent-500 text-white` · hover `bg-accent-600`

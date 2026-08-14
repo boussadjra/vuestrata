@@ -62,22 +62,22 @@ const sizeClasses: Record<string, string> = {
 
 const variantClasses: Record<string, string> = {
   primary:
-    'bg-primary-700 text-white shadow-[var(--shadow-soft)] hover:bg-primary-800 hover:shadow-[var(--shadow-card)] active:bg-primary-900 focus-visible:ring-primary-300',
+    'bg-primary-700 text-white shadow-[var(--shadow-soft)] hover:bg-primary-800 hover:shadow-[var(--shadow-card)] active:bg-primary-900',
   secondary:
-    'bg-secondary-700 text-white shadow-[var(--shadow-soft)] hover:bg-secondary-800 hover:shadow-[var(--shadow-card)] active:bg-secondary-900 focus-visible:ring-secondary-300',
+    'bg-secondary-700 text-white shadow-[var(--shadow-soft)] hover:bg-secondary-800 hover:shadow-[var(--shadow-card)] active:bg-secondary-900',
   accent:
-    'bg-accent-700 text-white shadow-[var(--shadow-soft)] hover:bg-accent-800 hover:shadow-[var(--shadow-card)] active:bg-accent-900 focus-visible:ring-accent-300',
+    'bg-accent-700 text-white shadow-[var(--shadow-soft)] hover:bg-accent-800 hover:shadow-[var(--shadow-card)] active:bg-accent-900',
   ghost: 'bg-transparent text-foreground hover:bg-muted',
   destructive:
-    'bg-danger-700 text-white shadow-[var(--shadow-soft)] hover:bg-danger-800 hover:shadow-[var(--shadow-card)] active:bg-danger-900 focus-visible:ring-danger-300',
+    'bg-danger-700 text-white shadow-[var(--shadow-soft)] hover:bg-danger-800 hover:shadow-[var(--shadow-card)] active:bg-danger-900',
 }
 
 const activeVariantClasses: Record<string, string> = {
-  primary: 'bg-primary-800 text-white hover:bg-primary-900 focus-visible:ring-primary-300',
-  secondary: 'bg-secondary-800 text-white hover:bg-secondary-900 focus-visible:ring-secondary-300',
-  accent: 'bg-accent-800 text-white hover:bg-accent-900 focus-visible:ring-accent-300',
+  primary: 'bg-primary-800 text-white hover:bg-primary-900',
+  secondary: 'bg-secondary-800 text-white hover:bg-secondary-900',
+  accent: 'bg-accent-800 text-white hover:bg-accent-900',
   ghost: 'bg-muted text-foreground',
-  destructive: 'bg-danger-800 text-white hover:bg-danger-900 focus-visible:ring-danger-300',
+  destructive: 'bg-danger-800 text-white hover:bg-danger-900',
 }
 
 const touchHitArea: Record<string, string> = {
@@ -105,7 +105,17 @@ const classes = computed(() => {
     'btn inline-flex items-center justify-center gap-2 rounded-[var(--shape-radius-sm)] font-medium',
     needsPositionContext.value ? 'relative' : '',
     'transition duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-900',
+    /*
+     * No `focus-visible:outline-none` here.
+     *
+     * This used to cancel app.css's global `*:focus-visible` outline — the one
+     * app-wide focus indicator, built on `--color-ring`, which re-points per
+     * theme AND per colour mode — and replace it with a `ring-<hue>-300`.
+     * A 300-weight ring is a tint: it measured 1.66:1 against the page on the
+     * default theme and 2.08:1 on Brutalist, well under the 3:1 that
+     * WCAG 1.4.11 requires of a focus indicator. `--color-ring` clears 3:1 on
+     * every theme in both modes, so the button now just uses it.
+     */
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
     isLink.value && (props.disabled || props.loading) ? 'pointer-events-none opacity-50' : '',
     !props.block && !props.loading ? 'hover:scale-[1.02] active:scale-[0.97]' : '',
@@ -127,6 +137,12 @@ const commonAttrs = computed(() => ({
   'aria-label': props.ariaLabel || undefined,
   'data-ui': 'button',
   'data-provider': 'reka',
+  /*
+   * Themes need to tell a filled button from a ghost one. The variant is
+   * otherwise only visible as a bundle of Tailwind classes, which a theme
+   * stylesheet cannot match on without hardcoding this component's internals.
+   */
+  'data-variant': props.variant,
 }))
 
 function onClick(e: MouseEvent) {

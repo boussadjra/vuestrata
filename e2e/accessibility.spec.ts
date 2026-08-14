@@ -64,6 +64,29 @@ async function gotoAndSettle(page: Page, path: string): Promise<void> {
   // Formwerk wires label associations in a post-mount effect; let in-flight
   // work settle before inspecting the DOM.
   await page.waitForLoadState('networkidle')
+
+  /*
+   * Wait for entrance animations to finish before auditing.
+   *
+   * `networkidle` says nothing about CSS animations. The home hero reveals its
+   * code lines with staggered `animation-delay`s running to 1.3s, fading
+   * opacity 0 → 1, so an audit that starts earlier samples half-faded text and
+   * reports colour-contrast failures for colours that exist for a few hundred
+   * milliseconds and are never the rendered result (e.g. #96c5b9 — primary-600
+   * part-way composited onto the page). The settled colours pass.
+   *
+   * Only finite animations are awaited: `float`, `pulse-glow` and friends loop
+   * forever, so waiting on every animation would hang.
+   */
+  await page.waitForFunction(
+    () =>
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .every((a) => a.playState === 'finished' || a.playState === 'idle'),
+    null,
+    { timeout: 10_000 },
+  )
 }
 
 async function audit(page: Page, tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']) {

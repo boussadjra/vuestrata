@@ -139,7 +139,10 @@ defineProps<{
   display: inline-block;
   width: 1.5rem;
   text-align: right;
-  color: var(--color-surface-400);
+  /* `surface-400` measured 2.45:1 here — this is 10.4px text, so it needs 4.5:1.
+     `muted-foreground` is the token built for de-emphasised text and is defined
+     to clear AA on every surface it lands on, in both colour modes. */
+  color: var(--color-muted-foreground);
   font-size: 0.65rem;
   user-select: none;
   flex-shrink: 0;
@@ -165,19 +168,30 @@ defineProps<{
   }
 }
 
+/*
+ * `html.dark .tok-*`, NOT `:global(html.dark) .tok-*`.
+ *
+ * Scoped styles append `[data-v-…]` to the last compound only, so an ancestor
+ * that lives outside the component already works unwrapped. Wrapping the
+ * ancestor in `:global()` made the compiler emit `html.dark { color: … }` —
+ * the `.tok-*` descendant was dropped entirely, so none of these six rules
+ * ever applied and each one instead set a colour on <html>. It went unnoticed
+ * because every theme's primary-600 was merely darker than intended on the
+ * preview card, rather than illegible.
+ */
 .tok-tag {
   color: var(--color-primary-600);
 }
 
-:global(html.dark) .tok-tag {
+html.dark .tok-tag {
   color: var(--color-primary-400);
 }
 
 .tok-attr {
-  color: var(--color-accent-600);
+  color: var(--color-accent-700);
 }
 
-:global(html.dark) .tok-attr {
+html.dark .tok-attr {
   color: var(--color-accent-400);
 }
 
@@ -185,23 +199,23 @@ defineProps<{
   color: var(--color-secondary-700);
 }
 
-:global(html.dark) .tok-str {
+html.dark .tok-str {
   color: var(--color-secondary-300);
 }
 
 .tok-key {
-  color: var(--color-primary-500);
+  color: var(--color-primary-700);
 }
 
-:global(html.dark) .tok-key {
+html.dark .tok-key {
   color: var(--color-primary-400);
 }
 
 .tok-fn {
-  color: var(--color-accent-600);
+  color: var(--color-accent-700);
 }
 
-:global(html.dark) .tok-fn {
+html.dark .tok-fn {
   color: var(--color-accent-400);
 }
 
@@ -209,7 +223,7 @@ defineProps<{
   color: var(--color-surface-800);
 }
 
-:global(html.dark) .tok-var {
+html.dark .tok-var {
   color: var(--color-surface-200);
 }
 

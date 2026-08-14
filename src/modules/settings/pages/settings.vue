@@ -34,11 +34,19 @@ const locales = [
   { code: 'ar', labelKey: 'settings_locale_arabic', flag: '🇸🇦' },
 ]
 
+/*
+ * Literal pixel radii, NOT `rounded-sm`/`rounded-xl`/etc.
+ *
+ * The named utilities resolve through `--radius-*`, which is the very scale
+ * these swatches exist to preview — so once a preset is applied they all
+ * collapse to whatever is currently selected and every option looks identical.
+ * A preview of a choice cannot be rendered in the units that choice controls.
+ */
 const radiusOptions: { value: ShapeRadius; labelKey: string; preview: string }[] = [
-  { value: 'none', labelKey: 'settings_radius_sharp', preview: 'rounded-none' },
-  { value: 'small', labelKey: 'settings_radius_subtle', preview: 'rounded' },
-  { value: 'medium', labelKey: 'settings_radius_rounded', preview: 'rounded-xl' },
-  { value: 'large', labelKey: 'settings_radius_soft', preview: 'rounded-2xl' },
+  { value: 'none', labelKey: 'settings_radius_sharp', preview: 'rounded-[0px]' },
+  { value: 'small', labelKey: 'settings_radius_subtle', preview: 'rounded-[3px]' },
+  { value: 'medium', labelKey: 'settings_radius_rounded', preview: 'rounded-[8px]' },
+  { value: 'large', labelKey: 'settings_radius_soft', preview: 'rounded-[14px]' },
 ]
 
 const borderOptions: { value: ShapeBorder; labelKey: string; preview: string }[] = [
@@ -134,7 +142,7 @@ function switchIconProvider(p: IconProvider) {
               :class="[
                 'flex flex-col items-center gap-2 px-3 py-3.5 text-xs font-medium transition-all duration-200',
                 shapeRadius === opt.value
-                  ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-xl shadow-md ring-2 ring-offset-2'
+                  ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 rounded-xl shadow-md ring-2 ring-offset-2'
                   : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 rounded-xl border',
               ]"
               @click="setRadius(opt.value)"
@@ -159,7 +167,7 @@ function switchIconProvider(p: IconProvider) {
               :class="[
                 'flex flex-col items-center gap-2 rounded-xl px-3 py-3.5 text-xs font-medium transition-all duration-200',
                 shapeBorder === opt.value
-                  ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 shadow-md ring-2 ring-offset-2'
+                  ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
                   : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
               ]"
               @click="setBorder(opt.value)"
@@ -187,7 +195,7 @@ function switchIconProvider(p: IconProvider) {
               :class="[
                 'flex flex-col items-center gap-2 rounded-xl px-3 py-3.5 text-xs font-medium transition-all duration-200',
                 shapeShadow === opt.value
-                  ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 shadow-md ring-2 ring-offset-2'
+                  ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
                   : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
               ]"
               @click="setShadow(opt.value)"
@@ -219,7 +227,7 @@ function switchIconProvider(p: IconProvider) {
             :class="[
               'flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-200',
               locale === loc.code
-                ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 shadow-md ring-2 ring-offset-2'
+                ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
                 : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
             ]"
             @click="switchLocale(loc.code)"
@@ -245,7 +253,7 @@ function switchIconProvider(p: IconProvider) {
             :class="[
               'flex flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-200',
               currentThemeName === th.name
-                ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 shadow-md ring-2 ring-offset-2'
+                ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
                 : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
             ]"
             @click="switchTheme(th.name)"
@@ -271,7 +279,7 @@ function switchIconProvider(p: IconProvider) {
             :class="[
               'flex flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-200',
               appStore.iconProvider === ip.value
-                ? 'ring-primary-500 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 shadow-md ring-2 ring-offset-2'
+                ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
                 : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
             ]"
             @click="switchIconProvider(ip.value)"

@@ -57,6 +57,17 @@
   --color-surface-900: #0a0a0c;
   --color-surface-950: #050506;
 
+  /*
+   * `primary-800`, not the `primary-600` that semantic.css defaults to.
+   *
+   * This theme's "light" mode is not light — `surface-50` is #d4d4d8, a mid
+   * grey, because the palette is modelled on a terminal window. A 600-weight
+   * ring lands at 2.55:1 against that page, under the 3:1 WCAG 1.4.11 asks of
+   * a focus indicator. 800 gives 5.2:1 on the page and 4.4:1 on the darker
+   * inset surfaces the ring can also sit against.
+   */
+  --color-ring: var(--color-primary-800);
+
   /* Typography — Monospace */
   --font-sans: 'SF Mono', 'Menlo', 'JetBrains Mono', ui-monospace, monospace;
 

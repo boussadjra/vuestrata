@@ -1,49 +1,118 @@
 /*
- * Brutalist theme — high contrast, sharp edges, monospace typography
+ * Brutalist theme — Neo-Brutalism: flat saturated colour, drawn black borders,
+ * hard offset shadows, zero rounding.
+ *
  * Apply by adding class="theme-brutalist" to <html>
+ *
+ * ── What changed in the modernisation ──────────────────────────────────────
+ *  1. It now has a surface ramp. It never did, so it inherited Default's cool
+ *     blue-slate greys — the single least brutalist colour family available.
+ *     The ramp here is true neutral, ending at literal #000000.
+ *  2. `--font-sans` named 'JetBrains Mono', which index.html never loaded, so
+ *     the theme actually rendered in Courier New. Body copy is now Space
+ *     Grotesk (the grotesque this style is built on) and JetBrains Mono is
+ *     loaded and left to `--font-mono`, where DESIGN.md's Mono Containment
+ *     Rule says it belongs.
+ *  3. Accent moved from red to magenta. The old hot red sat one hue step from
+ *     `--color-danger-*`, so an accent chip and a destructive button read as
+ *     the same colour — and `--color-chart-2` (accent) collided with the
+ *     danger palette. Magenta is distinct from every other ramp in the system
+ *     and is squarely inside the neo-brutalist palette.
+ *  4. Dark mode dropped the #00ff00 phosphor green. That was the Terminal
+ *     theme's identity, not this one; Brutalist in dark is now white and
+ *     electric yellow on true black — the same theme with the lights off,
+ *     rather than a different theme.
+ *
+ * Contrast: foreground (surface-900) on background (surface-50) ≈ 17:1;
+ * dark foreground (surface-50) on #000 ≈ 20:1; accent-600 on white ≈ 4.9:1.
  */
 :root.theme-brutalist {
-  /* Primary — Pure black/white contrast */
-  --color-primary-50: #fafafa;
-  --color-primary-100: #f5f5f5;
-  --color-primary-200: #e5e5e5;
-  --color-primary-300: #d4d4d4;
-  --color-primary-400: #a3a3a3;
-  --color-primary-500: #171717;
-  --color-primary-600: #0a0a0a;
-  --color-primary-700: #000000;
-  --color-primary-800: #000000;
-  --color-primary-900: #000000;
+  /* Primary — monochrome, graded rather than five identical blacks */
+  --color-primary-50: #f6f6f6;
+  --color-primary-100: #ebebeb;
+  --color-primary-200: #d6d6d6;
+  --color-primary-300: #b0b0b0;
+  --color-primary-400: #757575;
+  --color-primary-500: #303030;
+  --color-primary-600: #1a1a1a;
+  --color-primary-700: #0d0d0d;
+  --color-primary-800: #070707;
+  --color-primary-900: #030303;
   --color-primary-950: #000000;
 
-  /* Secondary — Electric yellow */
-  --color-secondary-50: #fefce8;
-  --color-secondary-100: #fef9c3;
-  --color-secondary-200: #fef08a;
-  --color-secondary-300: #fde047;
-  --color-secondary-400: #facc15;
-  --color-secondary-500: #eab308;
-  --color-secondary-600: #ca8a04;
-  --color-secondary-700: #a16207;
-  --color-secondary-800: #854d0e;
-  --color-secondary-900: #713f12;
-  --color-secondary-950: #422006;
+  /*
+   * Secondary — electric yellow. Was #eab308, an amber; this is the flat,
+   * high-chroma yellow the style actually uses.
+   *
+   * The dark end is pulled further down than the hue alone wants: UiButton's
+   * `secondary` variant is `bg-secondary-700 text-white`, with the white
+   * hardcoded, so step 700 has to clear 4.5:1 against white on its own.
+   * #856f00 gives 4.9:1. Step 600 carries `--color-chart-5` on a light canvas
+   * and needs 3:1 — #a68c00 gives 3.3:1.
+   */
+  --color-secondary-50: #fffdea;
+  --color-secondary-100: #fffac2;
+  --color-secondary-200: #fff487;
+  --color-secondary-300: #ffec3d;
+  --color-secondary-400: #ffe600;
+  --color-secondary-500: #d9c200;
+  --color-secondary-600: #a68c00;
+  --color-secondary-700: #856f00;
+  --color-secondary-800: #6b5900;
+  --color-secondary-900: #574900;
+  --color-secondary-950: #302700;
 
-  /* Accent — Hot red */
-  --color-accent-50: #fef2f2;
-  --color-accent-100: #fee2e2;
-  --color-accent-200: #fecaca;
-  --color-accent-300: #fca5a5;
-  --color-accent-400: #f87171;
-  --color-accent-500: #ef4444;
-  --color-accent-600: #dc2626;
-  --color-accent-700: #b91c1c;
-  --color-accent-800: #991b1b;
-  --color-accent-900: #7f1d1d;
-  --color-accent-950: #450a0a;
+  /* Accent — electric magenta (see note 3 above) */
+  --color-accent-50: #fff0f6;
+  --color-accent-100: #ffdcea;
+  --color-accent-200: #ffb3d1;
+  --color-accent-300: #ff7fb2;
+  --color-accent-400: #ff4a92;
+  --color-accent-500: #ff1a75;
+  --color-accent-600: #e00058;
+  --color-accent-700: #b30046;
+  --color-accent-800: #8a0037;
+  --color-accent-900: #66002a;
+  --color-accent-950: #380016;
 
-  /* Typography — Monospace */
-  --font-sans: 'JetBrains Mono', 'Courier New', ui-monospace, monospace;
+  /* Surface — true neutral, no blue cast, bottoming out at literal black */
+  --color-surface-50: #fafafa;
+  --color-surface-100: #f4f4f4;
+  --color-surface-200: #e4e4e4;
+  --color-surface-300: #c8c8c8;
+  --color-surface-400: #9a9a9a;
+  --color-surface-500: #6f6f6f;
+  --color-surface-600: #545454;
+  --color-surface-700: #3d3d3d;
+  --color-surface-800: #262626;
+  --color-surface-900: #141414;
+  --color-surface-950: #000000;
+
+  /*
+   * Borders are the theme. A brutalist border is a drawn line, not a tonal
+   * separation, so `--color-border` points at black instead of the surface-200
+   * the other themes use. `--shape-border-width` (app.css) is the *user's*
+   * density control and is left alone; the weight comes from the element rules
+   * further down instead.
+   */
+  --color-border: var(--color-surface-950);
+  --color-border-strong: var(--color-surface-950);
+  --color-input: var(--color-surface-950);
+
+  /*
+   * Magenta, and NOT the electric yellow.
+   *
+   * Yellow is the obvious brutalist choice and it is the right one in dark
+   * mode, but on this theme's near-white page it measures 1.21:1 — WCAG 1.4.11
+   * asks a focus indicator for 3:1 against what sits next to it. Magenta gives
+   * 4.8:1 against the page AND 4.3:1 against the black borders it will often
+   * sit beside, so the ring reads on either. The yellow comes back in dark
+   * mode, where it is 16.6:1 on black.
+   */
+  --color-ring: var(--color-accent-600);
+
+  /* Typography — Space Grotesk. Mono stays on --font-mono (see note 2). */
+  --font-sans: 'Space Grotesk', 'Inter', 'Tajawal', ui-sans-serif, system-ui, sans-serif;
 
   /* Sharp corners */
   --radius-sm: 0;
@@ -52,26 +121,277 @@
   --radius-xl: 0;
   --radius-2xl: 0;
 
-  /* Hard shadows */
-  --shadow-soft: 2px 2px 0 rgb(0 0 0 / 0.15);
-  --shadow-elevated: 4px 4px 0 rgb(0 0 0 / 0.25);
-  --shadow-card: 3px 3px 0 rgb(0 0 0 / 0.2);
-  --shadow-card-hover: 6px 6px 0 rgb(0 0 0 / 0.3);
+  /*
+   * `--radius-*` is not enough. Cards, buttons, inputs and the auth panel all
+   * round themselves from the SHAPE system instead (`rounded-[var(--shape-radius)]`),
+   * which is a separate `:root` scale in app.css — so the theme's zero radius
+   * never reached them and every panel stayed soft.
+   *
+   * Zeroing the shape tokens here rather than forcing `border-radius: 0` at
+   * each call site also keeps the user's shape preference working: the
+   * `:root.shape-radius-*` presets have equal specificity and are defined
+   * later in app.css, so an explicit choice still wins and this only supplies
+   * the default. `--shape-radius-full` is deliberately untouched — squaring it
+   * would flatten avatars and status dots into unreadable blocks.
+   */
+  --shape-radius: 0;
+  --shape-radius-sm: 0;
+  --shape-radius-lg: 0;
+  --shape-radius-xl: 0;
+
+  /* Same reasoning, and same escape hatch: `:root.shape-border-*` still wins
+     for a user who has picked a density. A hairline is not a brutalist line. */
+  --shape-border-width: 2px;
+
+  /* Hard offset shadows — zero blur, full opacity. The old versions were
+     15–30% black, which reads as a soft drop shadow, not a stamped offset. */
+  --shadow-soft: 3px 3px 0 0 var(--color-surface-950);
+  --shadow-elevated: 6px 6px 0 0 var(--color-surface-950);
+  --shadow-card: 4px 4px 0 0 var(--color-surface-950);
+  --shadow-card-hover: 7px 7px 0 0 var(--color-surface-950);
+  --shadow-glow-primary: none;
+  --shadow-glow-secondary: none;
+  --shadow-glow-accent: none;
 }
 
+/*
+ * An offset shadow encodes a light source. In RTL the whole layout mirrors, so
+ * a shadow falling to the right lands on the wrong side of every element.
+ */
+:root.theme-brutalist[dir='rtl'] {
+  --shadow-soft: -3px 3px 0 0 var(--color-surface-950);
+  --shadow-elevated: -6px 6px 0 0 var(--color-surface-950);
+  --shadow-card: -4px 4px 0 0 var(--color-surface-950);
+  --shadow-card-hover: -7px 7px 0 0 var(--color-surface-950);
+}
+
+/* ─── Dark Mode — same theme, lights off ─────────────────── */
 :root.theme-brutalist.dark {
   /*
-   * The neon primary is light enough that white text on it fails contrast.
-   * Filled controls in this theme take dark text instead.
+   * Filled controls invert to electric yellow. `--color-primary-600` is
+   * near-black, which is invisible against a black page, so the semantic
+   * aliases are re-pointed rather than the primary ramp being flipped —
+   * `--color-primary-*` still has to read as monochrome for charts.
    */
+  --color-primary-solid: var(--color-secondary-400);
+  --color-primary-solid-hover: var(--color-secondary-300);
   --color-primary-foreground: #000000;
 
-  --color-primary-500: #00ff00;
-  --color-primary-600: #00cc00;
-  --color-primary-700: #009900;
+  /*
+   * On a monochrome ramp the two ends are the same hue, so lightness is the
+   * only thing carrying meaning — and which end reads as "the brand ink"
+   * swaps with the mode. Light mode's near-black 200–400 are invisible on a
+   * black page, and components reach for them directly (HeroCodePreview's
+   * syntax tokens use `--color-primary-400`, which was landing at 4:1 on the
+   * card behind it). Only the light end moves; 500–950 stay black so
+   * `--color-sidebar-accent` and friends still read as dark fills.
+   */
+  --color-primary-200: #ededed;
+  --color-primary-300: #e0e0e0;
+  --color-primary-400: #d6d6d6;
 
-  --shadow-soft: 2px 2px 0 rgb(0 255 0 / 0.1);
-  --shadow-elevated: 4px 4px 0 rgb(0 255 0 / 0.15);
-  --shadow-card: 3px 3px 0 rgb(0 255 0 / 0.12);
-  --shadow-card-hover: 6px 6px 0 rgb(0 255 0 / 0.2);
+  --color-link: var(--color-secondary-300);
+  --color-link-hover: var(--color-secondary-200);
+
+  /* On black, the yellow is the strongest signal available: 16.6:1 against
+     the page and 3.5:1 against the grey borders it sits beside. */
+  --color-ring: var(--color-secondary-400);
+
+  /* Black borders on a black page draw nothing. */
+  --color-border: var(--color-surface-500);
+  --color-border-strong: var(--color-surface-400);
+  --color-input: var(--color-surface-400);
+
+  /*
+   * `--color-chart-1` deliberately does NOT get overridden to the yellow.
+   * `--color-chart-5` is already `secondary-300` (#ffec3d), so pointing series
+   * 1 at `secondary-400` (#ffe600) put two indistinguishable yellows in the
+   * same legend — visible on the charts page as "Product A" and "Services"
+   * reading as one colour. The semantic default (`primary-400`) is fine here
+   * now that the monochrome light end is lifted for dark mode above.
+   *
+   * Series 7 still needs a nudge: its default is `primary-200` (#ededed),
+   * which sits a hair from series 1's `primary-400` (#d6d6d6). Dropping to a
+   * mid grey keeps the two separable by lightness, which is how a monochrome
+   * palette is supposed to distinguish anything.
+   */
+  --color-chart-7: var(--color-surface-500);
+
+  /* Light offsets, since a black offset is invisible. Hover moves to yellow so
+     the interaction still has somewhere brighter to go. */
+  --shadow-soft: 3px 3px 0 0 var(--color-surface-300);
+  --shadow-elevated: 6px 6px 0 0 var(--color-surface-300);
+  --shadow-card: 4px 4px 0 0 var(--color-surface-300);
+  --shadow-card-hover: 7px 7px 0 0 var(--color-secondary-400);
+}
+
+:root.theme-brutalist.dark[dir='rtl'] {
+  --shadow-soft: -3px 3px 0 0 var(--color-surface-300);
+  --shadow-elevated: -6px 6px 0 0 var(--color-surface-300);
+  --shadow-card: -4px 4px 0 0 var(--color-surface-300);
+  --shadow-card-hover: -7px 7px 0 0 var(--color-secondary-400);
+}
+
+/* ─── Page ───────────────────────────────────────────────── */
+/*
+ * Flat colour, no gradient. app.css paints the body with a radial primary
+ * wash; on a monochrome primary that is a grey smear, and gradients are the
+ * one thing this style rejects outright.
+ */
+:root.theme-brutalist body {
+  background-image: none;
+  background-color: var(--color-surface-50);
+}
+
+:root.theme-brutalist.dark body {
+  background-image: none;
+  background-color: var(--color-surface-950);
+}
+
+/* ─── Type ───────────────────────────────────────────────── */
+:root.theme-brutalist h1,
+:root.theme-brutalist h2,
+:root.theme-brutalist h3,
+:root.theme-brutalist h4 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* ─── Cards — drawn box + stamped offset ─────────────────── */
+:root.theme-brutalist .card,
+:root.theme-brutalist [data-ui='card'],
+:root.theme-brutalist [data-ui='dialog'],
+:root.theme-brutalist [data-ui='popover'],
+:root.theme-brutalist [data-ui='command-palette'] {
+  border: 2px solid var(--color-border) !important;
+  background: var(--color-card);
+  box-shadow: var(--shadow-card) !important;
+}
+
+/*
+ * `translate` rather than `transform`: app.css already animates `transform`
+ * on cards (and scales buttons on :active), and overwriting it here would
+ * cancel that. `translate` is its own property and composes with it.
+ */
+:root.theme-brutalist .card:hover,
+:root.theme-brutalist [data-ui='card']:hover {
+  box-shadow: var(--shadow-card-hover) !important;
+  border-color: var(--color-border) !important;
+  translate: -3px -3px;
+}
+
+:root.theme-brutalist[dir='rtl'] .card:hover,
+:root.theme-brutalist[dir='rtl'] [data-ui='card']:hover {
+  translate: 3px -3px;
+}
+
+/* ─── Buttons — press pushes the element into its own shadow ─ */
+:root.theme-brutalist [data-ui='button'],
+:root.theme-brutalist .btn {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Only filled buttons get the stamped treatment. Ghost buttons stay flat —
+   otherwise every icon in the header sprouts a border and a shadow. */
+:root.theme-brutalist [data-ui='button']:not([data-variant='ghost']) {
+  border: 2px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+:root.theme-brutalist [data-ui='button']:not([data-variant='ghost']):active {
+  box-shadow: none;
+  translate: 3px 3px;
+}
+
+:root.theme-brutalist[dir='rtl'] [data-ui='button']:not([data-variant='ghost']):active {
+  translate: -3px 3px;
+}
+
+/*
+ * In dark mode the primary fill is `bg-primary-700` — near-black on a black
+ * page, so the CTA loses all presence. The fill itself can't move: UiButton
+ * hardcodes `text-white` on that variant, and white on yellow is ~1.3:1. The
+ * offset shadow is the one part that can carry the colour.
+ */
+:root.theme-brutalist.dark [data-ui='button'][data-variant='primary'] {
+  box-shadow: 3px 3px 0 0 var(--color-secondary-400);
+}
+
+:root.theme-brutalist.dark[dir='rtl'] [data-ui='button'][data-variant='primary'] {
+  box-shadow: -3px 3px 0 0 var(--color-secondary-400);
+}
+
+:root.theme-brutalist.dark [data-ui='button'][data-variant='primary']:active {
+  box-shadow: none;
+}
+
+/* ─── Border colour ──────────────────────────────────────── */
+/*
+ * Re-pointing `--color-border` only reaches components that use `border-border`.
+ * A large number of them hardcode `border-surface-200` / `border-surface-300`
+ * instead (semantic.css's own header notes the ~330 call sites this system was
+ * introduced to replace), so on this theme — where the border IS the design —
+ * they have to be caught directly.
+ *
+ * `.shaped-border` is the semantic hook: every form control in the app carries
+ * it. The attribute selector picks up the containers that still hardcode a
+ * ramp step, such as the auth panel. Both defer to `var(--color-border)`, so
+ * they re-point correctly in dark mode.
+ */
+:root.theme-brutalist .shaped-border,
+:root.theme-brutalist [class*='border-surface-'] {
+  border-color: var(--color-border);
+}
+
+/* ─── Inputs ─────────────────────────────────────────────── */
+:root.theme-brutalist input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-brutalist select:not(.unstyled-input),
+:root.theme-brutalist textarea:not(.unstyled-input) {
+  border: 2px solid var(--color-input);
+  background: var(--color-card);
+}
+
+:root.theme-brutalist.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-brutalist.dark select:not(.unstyled-input),
+:root.theme-brutalist.dark textarea:not(.unstyled-input) {
+  background: var(--color-surface-900);
+}
+
+/* ─── Chrome ─────────────────────────────────────────────── */
+:root.theme-brutalist header {
+  background: var(--color-surface-50);
+  border-bottom: 2px solid var(--color-border) !important;
+}
+
+:root.theme-brutalist aside {
+  background: var(--color-surface-50);
+  border-inline-end: 2px solid var(--color-border) !important;
+}
+
+:root.theme-brutalist.dark header,
+:root.theme-brutalist.dark aside {
+  background: var(--color-surface-950);
+}
+
+/* ─── Focus — a block, not a hairline ────────────────────── */
+:root.theme-brutalist *:focus-visible {
+  outline: 3px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: 0;
+}
+
+/* ─── Selection & scrollbar ──────────────────────────────── */
+:root.theme-brutalist ::selection {
+  background: var(--color-secondary-400);
+  color: #000000;
+}
+
+:root.theme-brutalist ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-950);
+  border-radius: 0;
+}
+
+:root.theme-brutalist.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-400);
 }

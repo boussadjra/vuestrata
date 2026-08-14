@@ -171,13 +171,42 @@
   --shape-shadow-hover: var(--shadow-card-hover);
 }
 
-/* Radius presets */
+/* Radius presets
+ *
+ * Each preset drives TWO scales, and it has to drive both to be believed.
+ *
+ *  - `--shape-radius-*` is this system's own scale. Only elements that opted
+ *    in consume it (`rounded-[var(--shape-radius)]`, `.shaped-radius`, and the
+ *    `[data-ui=…]` rules below) — about 50 call sites.
+ *  - `--radius-*` is the Tailwind scale behind `rounded-sm`/`rounded-lg`/etc.
+ *    Roughly 160 call sites across 64 components round themselves that way,
+ *    and before these presets touched it, picking "sharp" left every one of
+ *    them soft. That is the bug: the preference looked broken because it only
+ *    reached the quarter of the app that had opted in.
+ *
+ * Themes also set `--radius-*`, but they are imported at the top of this file
+ * and these presets carry equal specificity, so source order puts the user's
+ * explicit choice ahead of the theme's default. `shape-radius-medium` adds no
+ * class at all (see state/shape.ts), which is what lets each theme keep its
+ * own radii until the user actually picks something.
+ */
 :root.shape-radius-none {
   --shape-radius: 0;
   --shape-radius-sm: 0;
   --shape-radius-lg: 0;
   --shape-radius-xl: 0;
   --shape-radius-full: 0;
+
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  /* Squares the pills, avatars and status dots too. That is what "none" says,
+     and `--shape-radius-full: 0` above has always declared the intent — it
+     simply had no consumer. */
+  --radius-full: 0;
 }
 :root.shape-radius-small {
   --shape-radius: 0.25rem;
@@ -185,6 +214,13 @@
   --shape-radius-lg: 0.375rem;
   --shape-radius-xl: 0.5rem;
   --shape-radius-full: 9999px;
+
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
 }
 /* shape-radius-medium is the default — no override needed */
 :root.shape-radius-large {
@@ -193,6 +229,13 @@
   --shape-radius-lg: 1.5rem;
   --shape-radius-xl: 2rem;
   --shape-radius-full: 9999px;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
 }
 
 /* Border width presets */

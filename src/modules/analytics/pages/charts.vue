@@ -515,18 +515,14 @@ const heatmap = computed<EChartsOption>(() => ({
 
     <!-- Area Line + Stacked Bar -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="areaLine"
           :title="t('charts_revenue_expenses')"
           :description="t('charts_revenue_expenses_desc')"
         />
       </div>
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="stackedBar"
           :title="t('charts_quarterly')"
@@ -537,18 +533,14 @@ const heatmap = computed<EChartsOption>(() => ({
 
     <!-- Donut + Radar -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="donut"
           :title="t('charts_traffic')"
           description="Donut chart with emphasis labels"
         />
       </div>
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="radar"
           :title="t('charts_department')"
@@ -559,18 +551,14 @@ const heatmap = computed<EChartsOption>(() => ({
 
     <!-- Scatter + Gauge -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="scatter"
           :title="t('charts_price_sales')"
           description="Scatter plot with size mapped to rating"
         />
       </div>
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="gauge"
           :title="t('charts_system_health')"
@@ -599,18 +587,14 @@ const heatmap = computed<EChartsOption>(() => ({
 
     <!-- Treemap + Heatmap -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="treemap"
           :title="t('charts_infra_costs')"
           description="Treemap showing cloud spend distribution"
         />
       </div>
-      <div
-        class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 min-w-0 rounded-2xl border bg-white/90 p-5 shadow-sm"
-      >
+      <div class="card min-w-0 p-5">
         <BaseChart
           :option="heatmap"
           :title="t('charts_heatmap')"
