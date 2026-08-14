@@ -147,6 +147,21 @@ describe('trend semantics', () => {
   })
 })
 
+describe('comparison windows are range keys, not English copy', () => {
+  it('sends 7d / 30d / 90d so the view can translate the window', async () => {
+    // "previous 7 days" cannot be localized, the same trap as a pre-formatted
+    // "$45,231". The schema is an enum; this assertion documents the intent.
+    for (const range of ['7d', '30d', '90d'] as const) {
+      const stats = dashboardStatsSchema.parse((await get(`/dashboard/stats?range=${range}`)).body)
+
+      for (const kpi of stats.kpis) {
+        expect(kpi.trend.comparedTo, `${kpi.id} range=${range}`).toBe(range)
+        expect(kpi.trend.comparedTo).not.toMatch(/previous \d+ days/)
+      }
+    }
+  })
+})
+
 describe('money is never pre-formatted', () => {
   it('sends minor-unit integers plus a currency code', async () => {
     // A pre-formatted "$45,231" cannot be summed, compared, or localized, and

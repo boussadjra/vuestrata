@@ -12,6 +12,7 @@ const props = defineProps<{
   data: SystemHealth | undefined
   loading: boolean
   error: boolean
+  updating?: boolean
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
@@ -36,6 +37,12 @@ const STATUS: Record<SystemHealth['services'][number]['status'], { icon: IconNam
     outage: { icon: 'close-circle', tone: 'text-destructive' },
   }
 
+function healthStatus(status: SystemHealth['services'][number]['status']): string {
+  if (status === 'degraded') return t('dash_health_status_degraded')
+  if (status === 'outage') return t('dash_health_status_outage')
+  return t('dash_health_status_operational')
+}
+
 /** The worst status wins — one outage means the system is not "operational". */
 const overall = computed(() => {
   if (services.value.some((service) => service.status === 'outage')) return 'outage'
@@ -49,6 +56,7 @@ const overall = computed(() => {
     :title="t('dash_health_title')"
     :loading="loading"
     :error="error"
+    :updating="updating"
     :empty="isEmpty"
     content-class="min-h-56"
     @retry="emit('retry')"
@@ -60,7 +68,7 @@ const overall = computed(() => {
           aria-hidden="true"
         />
         <span :class="[STATUS[overall].tone, 'font-medium']">
-          {{ t(`dash_health_status_${overall}`) }}
+          {{ healthStatus(overall) }}
         </span>
       </span>
     </template>
@@ -76,9 +84,11 @@ const overall = computed(() => {
           aria-hidden="true"
         />
         <span class="min-w-0 flex-1">
-          <span class="text-foreground block truncate text-sm font-medium">{{ service.name }}</span>
+          <span class="text-foreground block text-sm leading-snug font-medium">{{
+            service.name
+          }}</span>
           <span class="text-muted-foreground block text-xs">
-            {{ t(`dash_health_status_${service.status}`) }} ·
+            {{ healthStatus(service.status) }} ·
             {{ t('dash_health_uptime', { value: percent(service.uptimePercent, 2) }) }}
           </span>
         </span>

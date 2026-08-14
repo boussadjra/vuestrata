@@ -14,8 +14,8 @@ const props = withDefaults(defineProps<CardProps>(), {
 })
 
 const classes = computed(() => [
-  'card shaped-border border border-surface-200 dark:border-surface-700',
-  'bg-white dark:bg-surface-800 transition-all duration-200',
+  'card shaped-border border-border border',
+  'bg-card transition-all duration-200',
   props.hoverable ? 'shaped-shadow-hover cursor-pointer' : 'shaped-shadow',
 ])
 </script>

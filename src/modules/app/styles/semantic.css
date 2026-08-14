@@ -73,10 +73,20 @@
    * that (popovers, dropdowns, dialogs). Keeping them distinct is what lets a
    * dialog read as above a card without every component inventing its own
    * `bg-white dark:bg-surface-900`.
+   *
+   * Card and elevated are LIFTED from `surface-50`, not a literal white.
+   * White cards on Terminal's mid-grey page or Ghibli's cream wash read as a
+   * leftover from a different theme. Relative color stays in the active ramp:
+   * default's already-light 50 clips to near-white; Terminal's charcoal 50
+   * becomes a lighter charcoal. The first declaration is the fallback where
+   * `oklch(from …)` is unsupported — same colour as the page, never a stray
+   * `#ffffff`.
    */
   --color-background: var(--color-surface-50);
-  --color-card: #ffffff;
-  --color-elevated: #ffffff;
+  --color-card: var(--color-surface-50);
+  --color-card: oklch(from var(--color-surface-50) min(1, calc(l + 0.04)) c h);
+  --color-elevated: var(--color-surface-50);
+  --color-elevated: oklch(from var(--color-surface-50) min(1, calc(l + 0.07)) c h);
   --color-muted: var(--color-surface-100);
 
   /* ── Foregrounds ─────────────────────────────────────────────────────────
@@ -103,9 +113,11 @@
    * chips).
    *
    * `primary-500` is the brand display weight and lands around 3.3:1 against
-   * white — enough for a non-text UI element (WCAG 1.4.11 asks 3:1) but short
-   * of the 4.5:1 that text on it requires. `primary-600` clears both, so a
-   * filled button and its label are legible on every theme.
+   * a light label — enough for a non-text UI element (WCAG 1.4.11 asks 3:1)
+   * but short of the 4.5:1 that text on it requires. `primary-600` clears
+   * that pair on the default teal ramp. It does NOT on every theme: Sunset's
+   * orange-600 and Forest/Terminal's emerald-600 sit at ~3.5:1 with a light
+   * label. Those themes re-point `--color-primary-solid` to a darker step.
    *
    * Keep using `primary-500` for decoration that carries no text: slider fills,
    * status dots, focus glows.
@@ -113,8 +125,15 @@
   --color-primary-solid: var(--color-primary-600);
   --color-primary-solid-hover: var(--color-primary-700);
 
-  /* Text that sits ON a filled colour block. */
-  --color-primary-foreground: #ffffff;
+  /*
+   * Text that sits ON a filled colour block. Lifted from `surface-50` so a
+   * cream or mist page does not grow a detached white label. On already-light
+   * 50s the relative color clips to near-white (the previous `#ffffff`).
+   * Themes whose solid fill is too light for this pair (Sunset, Forest,
+   * Terminal) override the solid, the foreground, or both.
+   */
+  --color-primary-foreground: var(--color-surface-50);
+  --color-primary-foreground: oklch(from var(--color-surface-50) min(1, calc(l + 0.08)) c h);
   --color-destructive-foreground: #ffffff;
   --color-success-foreground: #ffffff;
   --color-warning-foreground: var(--color-surface-950);
@@ -168,6 +187,29 @@
    * BOTH hue and lightness, which keeps them separable in greyscale and for
    * the ~8% of men with a colour-vision deficiency.
    */
+  --color-chart-1: var(--color-primary-600);
+  --color-chart-2: var(--color-accent-500);
+  --color-chart-3: var(--color-info-500);
+  --color-chart-4: var(--color-warning-500);
+  --color-chart-5: var(--color-secondary-600);
+  --color-chart-6: var(--color-success-600);
+  --color-chart-7: var(--color-primary-300);
+  --color-chart-8: var(--color-accent-800);
+}
+
+/*
+ * Chart slots also live on `:root`, not only inside `@theme`.
+ *
+ * `useThemeColors` reads these via getComputedStyle. Tailwind v4 does not
+ * emit unused `@theme` keys, so `--color-chart-3` through `8` were missing
+ * in light mode and every series past 2 fell back to the default palette.
+ * Dark mode already declared them on `:root.dark`, which is why it worked.
+ *
+ * Specificity: `:root.theme-*` (two classes) still wins over this, so
+ * Harbour and Blueprint keep their own palettes. `:root.dark` below
+ * re-points the same eight slots for the mode flip.
+ */
+:root {
   --color-chart-1: var(--color-primary-600);
   --color-chart-2: var(--color-accent-500);
   --color-chart-3: var(--color-info-500);

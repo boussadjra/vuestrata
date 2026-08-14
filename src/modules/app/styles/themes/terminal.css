@@ -78,6 +78,15 @@
   --radius-xl: 0.5rem;
   --radius-2xl: 0.625rem;
 
+  /*
+   * Emerald-600 with a light label is ~3.8:1. Step 700 clears 5.2:1 against
+   * `primary-50` (this page's "light" end is mid-grey `#d4d4d8`, which fails
+   * as a chip label). Dark mode re-points the pair to the vivid phosphor fill.
+   */
+  --color-primary-solid: var(--color-primary-700);
+  --color-primary-solid-hover: var(--color-primary-800);
+  --color-primary-foreground: var(--color-primary-50);
+
   /* Minimal shadows — terminals are flat */
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.2);
   --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.4);
@@ -102,8 +111,6 @@
   --color-input: var(--color-surface-500);
   --color-sidebar-foreground: var(--color-surface-100);
   --color-sidebar-border: var(--color-surface-700);
-  /* Vivid green fill: white text fails contrast on it, dark text clears it. */
-  --color-primary-foreground: #04140b;
 
   /* In dark mode, make the green more vibrant */
   --color-primary-400: #4ade80;
@@ -115,6 +122,14 @@
   --color-surface-800: #0c0c0e;
   --color-surface-900: #060608;
   --color-surface-950: #020203;
+
+  /*
+   * Vivid phosphor fill (`primary-600` above) with near-black page ink.
+   * A light label on this green fails; `surface-950` on it is 6.3:1.
+   */
+  --color-primary-solid: var(--color-primary-600);
+  --color-primary-solid-hover: var(--color-primary-500);
+  --color-primary-foreground: var(--color-surface-950);
 
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.6);

@@ -11,6 +11,7 @@ const props = defineProps<{
   data: Funnel | undefined
   loading: boolean
   error: boolean
+  updating?: boolean
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
@@ -21,6 +22,15 @@ const chart = useChartColors()
 
 const stages = computed(() => props.data?.stages ?? [])
 const isEmpty = computed(() => stages.value.length === 0)
+
+function stageLabel(stage: { key: string; label: string }): string {
+  if (stage.key === 'visited') return t('dash_funnel_stage_visited')
+  if (stage.key === 'signed-up') return t('dash_funnel_stage_signed_up')
+  if (stage.key === 'activated') return t('dash_funnel_stage_activated')
+  if (stage.key === 'trialled') return t('dash_funnel_stage_trialled')
+  if (stage.key === 'subscribed') return t('dash_funnel_stage_subscribed')
+  return stage.label
+}
 
 /**
  * Rendered as a semantic list with proportional bars rather than an ECharts
@@ -47,6 +57,7 @@ const rows = computed(() =>
     :description="t('dash_funnel_desc')"
     :loading="loading"
     :error="error"
+    :updating="updating"
     :empty="isEmpty"
     content-class="min-h-64"
     @retry="emit('retry')"
@@ -54,7 +65,7 @@ const rows = computed(() =>
     <ol class="space-y-3">
       <li v-for="(row, index) in rows" :key="row.key" class="space-y-1.5">
         <div class="flex items-baseline justify-between gap-3 text-sm">
-          <span class="text-foreground font-medium">{{ row.label }}</span>
+          <span class="text-foreground font-medium">{{ stageLabel(row) }}</span>
           <!--
             Both figures use `muted-foreground`. `subtle-foreground` is a
             decorative step — it does not clear AA at body size, and this
@@ -76,14 +87,14 @@ const rows = computed(() =>
           role="img"
           :aria-label="
             t('dash_funnel_stage_label', {
-              stage: row.label,
+              stage: stageLabel(row),
               count: number(row.count),
               share: percent(row.conversionFromTop),
             })
           "
         >
           <div
-            class="h-full rounded-full transition-[width] duration-500"
+            class="h-full rounded-full transition-[width] duration-200"
             :style="{ width: `${row.conversionFromTop}%`, backgroundColor: row.color }"
           />
         </div>

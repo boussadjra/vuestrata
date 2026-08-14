@@ -1,6 +1,7 @@
 /*
  * Forest theme — rich emerald greens with golden accents, natural & grounded
- * WCAG AA compliant: primary-600+ on white ≥ 4.5:1 contrast
+ * WCAG AA: primary-700 on this ramp's cream surface-50 ≥ 4.5:1 for filled
+ * controls (600 with a light label is ~3.8:1).
  * Apply by adding class="theme-forest" to <html>
  */
 :root.theme-forest {
@@ -74,6 +75,14 @@
   --shadow-glow-primary: 0 0 24px rgb(16 185 129 / 0.3);
   --shadow-glow-secondary: 0 0 24px rgb(201 178 16 / 0.3);
   --shadow-glow-accent: 0 0 24px rgb(20 184 166 / 0.3);
+
+  /*
+   * Emerald-600 with a light label is ~3.8:1 — the same miss Terminal light
+   * has, from the same Tailwind emerald. Step 700 on this ramp's cream
+   * `surface-50` is 5.2:1.
+   */
+  --color-primary-solid: var(--color-primary-700);
+  --color-primary-solid-hover: var(--color-primary-800);
 }
 
 :root.theme-forest.dark {

@@ -16,6 +16,11 @@ export interface PanelProps {
   empty?: boolean
   emptyTitle?: string
   emptyDescription?: string
+  /**
+   * A refetch after the first result. Content stays visible; the region is
+   * marked busy so assistive technology knows the figures may change.
+   */
+  updating?: boolean
   /** Height reserved for the skeleton, so the layout does not jump on load. */
   contentClass?: string
 }
@@ -24,6 +29,7 @@ const props = withDefaults(defineProps<PanelProps>(), {
   loading: false,
   error: false,
   empty: false,
+  updating: false,
   contentClass: 'min-h-48',
 })
 
@@ -48,9 +54,16 @@ const state = computed(() => {
 </script>
 
 <template>
+  <!--
+    Theme files (Harbour glass, Blueprint marks, Brutalist offset) key off
+    `[data-ui='card']`. Panels are the dashboard's cards; without the
+    attribute they stayed on `bg-card` and never picked up the theme.
+  -->
   <section
     :aria-labelledby="headingId"
-    class="border-border bg-card flex h-full flex-col rounded-[var(--shape-radius)] border shadow-(--shadow-card)"
+    :aria-busy="state === 'loading' || updating || undefined"
+    data-ui="card"
+    class="border-border bg-card flex h-full min-w-0 flex-col rounded-[var(--shape-radius)] border shadow-(--shadow-card)"
   >
     <div class="border-border flex items-start justify-between gap-3 border-b p-4">
       <div class="min-w-0">
@@ -80,7 +93,7 @@ const state = computed(() => {
         :description="t('common_error_body')"
       >
         <template #action>
-          <UiButton variant="ghost" size="sm" @click="$emit('retry')">
+          <UiButton variant="ghost" size="sm" :loading="updating" @click="$emit('retry')">
             {{ t('common_retry') }}
           </UiButton>
         </template>

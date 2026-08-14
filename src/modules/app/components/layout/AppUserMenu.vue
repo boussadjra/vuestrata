@@ -60,7 +60,10 @@ function go(to: string) {
         </span>
       </span>
       <span
-        :class="[resolveIcon('chevron-down'), 'text-muted-foreground h-4 w-4 shrink-0']"
+        :class="[
+          resolveIcon('chevron-down'),
+          'text-muted-foreground hidden h-4 w-4 shrink-0 sm:block',
+        ]"
         aria-hidden="true"
       />
     </DropdownMenuTrigger>

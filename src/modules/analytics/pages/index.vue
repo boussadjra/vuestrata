@@ -72,7 +72,7 @@ const greeting = computed(() =>
 </script>
 
 <template>
-  <div class="mx-auto max-w-7xl space-y-6">
+  <div class="mx-auto max-w-7xl min-w-0 space-y-6">
     <UiPageHeader :title="t('sidebar_dashboard')" :description="greeting">
       <template #actions>
         <DashboardFilterBar v-model="filters" />
@@ -83,6 +83,8 @@ const greeting = computed(() =>
       :data="stats.data.value"
       :loading="stats.isPending.value"
       :error="stats.isError.value"
+      :updating="stats.isFetching.value"
+      @retry="stats.refetch()"
     />
 
     <!--
@@ -93,12 +95,13 @@ const greeting = computed(() =>
       page gating everything behind one flag — one slow or failing endpoint
       should degrade its own card, not blank the whole board.
     -->
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-12 [&>*]:min-w-0">
       <div class="lg:col-span-8">
         <RevenueTrendPanel
           :data="activity.data.value"
           :loading="activity.isPending.value"
           :error="activity.isError.value"
+          :updating="activity.isFetching.value"
           @retry="activity.refetch()"
         />
       </div>
@@ -107,6 +110,7 @@ const greeting = computed(() =>
           :data="breakdown.data.value"
           :loading="breakdown.isPending.value"
           :error="breakdown.isError.value"
+          :updating="breakdown.isFetching.value"
           @retry="breakdown.refetch()"
         />
       </div>
@@ -116,6 +120,7 @@ const greeting = computed(() =>
           :data="funnel.data.value"
           :loading="funnel.isPending.value"
           :error="funnel.isError.value"
+          :updating="funnel.isFetching.value"
           @retry="funnel.refetch()"
         />
       </div>
@@ -124,6 +129,7 @@ const greeting = computed(() =>
           :data="team.data.value"
           :loading="team.isPending.value"
           :error="team.isError.value"
+          :updating="team.isFetching.value"
           @retry="team.refetch()"
         />
       </div>
@@ -133,6 +139,7 @@ const greeting = computed(() =>
           :data="recent.data.value"
           :loading="recent.isPending.value"
           :error="recent.isError.value"
+          :updating="recent.isFetching.value"
           @retry="recent.refetch()"
         />
       </div>
@@ -141,6 +148,7 @@ const greeting = computed(() =>
           :data="attention.data.value"
           :loading="attention.isPending.value"
           :error="attention.isError.value"
+          :updating="attention.isFetching.value"
           @retry="attention.refetch()"
         />
       </div>
@@ -150,6 +158,7 @@ const greeting = computed(() =>
           :data="upcoming.data.value"
           :loading="upcoming.isPending.value"
           :error="upcoming.isError.value"
+          :updating="upcoming.isFetching.value"
           @retry="upcoming.refetch()"
         />
       </div>
@@ -158,6 +167,7 @@ const greeting = computed(() =>
           :data="health.data.value"
           :loading="health.isPending.value"
           :error="health.isError.value"
+          :updating="health.isFetching.value"
           @retry="health.refetch()"
         />
       </div>

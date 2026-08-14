@@ -860,11 +860,11 @@ html.dark ::-webkit-scrollbar-thumb {
 /* ===========================
    Theme: Default — clean, modern, gradient accents
    =========================== */
-/* Cards — subtle lift on hover */
+/* Cards — token surface; hover lift is only for `.card` (UiCard), not panels */
 .card,
 [data-ui='card'] {
-  background: color-mix(in oklch, var(--color-surface-50) 94%, white);
-  border: 1px solid color-mix(in oklch, var(--color-surface-200) 90%, white);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--shape-radius);
   box-shadow: var(--shape-shadow);
   transition:
@@ -873,20 +873,13 @@ html.dark ::-webkit-scrollbar-thumb {
     transform 0.25s ease,
     border-color 0.25s ease;
 }
-.card:hover,
-[data-ui='card']:hover {
+.card:hover {
   box-shadow: var(--shape-shadow-hover);
-  border-color: color-mix(in oklch, var(--color-primary-200) 54%, var(--color-surface-300));
+  border-color: color-mix(in oklch, var(--color-primary-200) 54%, var(--color-border));
   transform: translateY(-1px);
 }
-html.dark .card,
-html.dark [data-ui='card'] {
-  background: color-mix(in oklch, var(--color-surface-800) 92%, black);
-  border-color: color-mix(in oklch, var(--color-surface-700) 92%, black);
-}
-html.dark .card:hover,
-html.dark [data-ui='card']:hover {
-  border-color: color-mix(in oklch, var(--color-primary-700) 42%, var(--color-surface-600));
+html.dark .card:hover {
+  border-color: color-mix(in oklch, var(--color-primary-700) 42%, var(--color-border));
 }
 
 /* Buttons — default refinement */

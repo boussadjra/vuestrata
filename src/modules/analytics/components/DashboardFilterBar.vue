@@ -22,12 +22,25 @@ const filters = defineModel<DashboardFilters>({ required: true })
 
 const { t } = useI18n()
 
+function rangeLabel(range: DashboardRange): string {
+  if (range === '30d') return t('dash_range_30d')
+  if (range === '90d') return t('dash_range_90d')
+  return t('dash_range_7d')
+}
+
+function segmentLabel(segment: DashboardSegment): string {
+  if (segment === 'enterprise') return t('dash_segment_enterprise')
+  if (segment === 'new') return t('dash_segment_new')
+  if (segment === 'returning') return t('dash_segment_returning')
+  return t('dash_segment_all')
+}
+
 const rangeOptions = computed(() =>
-  DASHBOARD_RANGES.map((range) => ({ label: t(`dash_range_${range}`), value: range })),
+  DASHBOARD_RANGES.map((range) => ({ label: rangeLabel(range), value: range })),
 )
 
 const segmentOptions = computed(() =>
-  DASHBOARD_SEGMENTS.map((segment) => ({ label: t(`dash_segment_${segment}`), value: segment })),
+  DASHBOARD_SEGMENTS.map((segment) => ({ label: segmentLabel(segment), value: segment })),
 )
 
 function setRange(value: string | string[]) {
@@ -47,13 +60,18 @@ function setSegment(value: string | number | Array<string | number>) {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2">
+  <div class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+    <!--
+      Column on a phone, row from `sm`. A wrapping row that is sized by its
+      content never wraps — the box grows, and the page scrolls sideways.
+    -->
     <!--
       A labelled group, not three loose buttons: without the group label a
       screen reader announces "7 days, button" with no indication of what the
       choice controls.
     -->
     <UiToggleGroup
+      class="w-full sm:w-auto"
       :model-value="filters.range"
       :options="rangeOptions"
       :aria-label="t('dash_filter_range')"
@@ -63,7 +81,7 @@ function setSegment(value: string | number | Array<string | number>) {
     <UiSelect
       :model-value="filters.segment"
       :options="segmentOptions"
-      class="min-w-40"
+      class="w-full min-w-0 sm:w-56"
       :aria-label="t('dash_filter_segment')"
       @update:model-value="setSegment"
     />

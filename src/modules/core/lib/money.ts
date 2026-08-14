@@ -32,6 +32,25 @@ export function money(amount: number, currency = 'USD'): Money {
 }
 
 /**
+ * Minor units per major unit.
+ *
+ * `useFormatters().currency` and the dashboard charts both assume this ratio.
+ * Zero-decimal currencies (JPY, …) are not in the demo payloads; if they
+ * arrive, formatting has to learn ISO-4217 exponents rather than this constant.
+ */
+const MINOR_PER_MAJOR = 100
+
+/** Chart scales and `Intl` formatting use major units; storage stays integer cents. */
+export function toMajorUnits(minorUnits: number): number {
+  return minorUnits / MINOR_PER_MAJOR
+}
+
+/** Inverse of `toMajorUnits`, rounded back to an integer minor unit. */
+export function toMinorUnits(majorUnits: number): number {
+  return Math.round(majorUnits * MINOR_PER_MAJOR)
+}
+
+/**
  * Sum amounts that share a currency.
  *
  * Throws on a mixed-currency list rather than adding the numbers: silently

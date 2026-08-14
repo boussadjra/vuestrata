@@ -1,6 +1,7 @@
 import { http, HttpResponse, delay } from 'msw'
 
 import {
+  DASHBOARD_RANGES,
   activityFeedSchema,
   activitySeriesSchema,
   attentionItemsSchema,
@@ -44,12 +45,18 @@ const SEGMENT_WEIGHT: Record<string, number> = {
   enterprise: 0.34,
 }
 
-function readFilters(request: Request): { days: number; weight: number } {
+function parseRange(raw: string | null): DashboardRange {
+  const value = raw ?? '7d'
+  return (DASHBOARD_RANGES as readonly string[]).includes(value) ? (value as DashboardRange) : '7d'
+}
+
+function readFilters(request: Request): { days: number; weight: number; range: DashboardRange } {
   const url = new URL(request.url)
-  const range = (url.searchParams.get('range') ?? '7d') as DashboardRange
+  const range = parseRange(url.searchParams.get('range'))
   const segment = url.searchParams.get('segment') ?? 'all'
   return {
-    days: RANGE_DAYS[range] ?? 7,
+    range,
+    days: RANGE_DAYS[range],
     weight: SEGMENT_WEIGHT[segment] ?? 1,
   }
 }
@@ -109,7 +116,7 @@ function percentChange(doubleWindow: number[], windowSize: number): number {
 function trendFor(
   doubleWindow: number[],
   windowSize: number,
-  comparedTo: string,
+  comparedTo: DashboardRange,
   higherIsBetter = true,
 ) {
   const changePercent = percentChange(doubleWindow, windowSize)
@@ -135,8 +142,7 @@ export const dashboardHandlers = [
     await delay(220)
     if (!isValidToken(request)) return unauthorized()
 
-    const { days, weight } = readFilters(request)
-    const comparedTo = `previous ${days} days`
+    const { days, weight, range } = readFilters(request)
 
     // Twice the window, so each metric can be compared against the equivalent
     // preceding period rather than against its own first half.
@@ -160,25 +166,25 @@ export const dashboardHandlers = [
             value: current(revenue).reduce((sum, n) => sum + n, 0),
             format: 'currency',
             currency: CURRENCY,
-            trend: trendFor(revenue, days, comparedTo),
+            trend: trendFor(revenue, days, range),
           },
           {
             id: 'activeUsers',
             value: activeUsers.at(-1) ?? 0,
             format: 'number',
-            trend: trendFor(activeUsers, days, comparedTo),
+            trend: trendFor(activeUsers, days, range),
           },
           {
             id: 'newSignups',
             value: current(signups).reduce((sum, n) => sum + n, 0),
             format: 'number',
-            trend: trendFor(signups, days, comparedTo),
+            trend: trendFor(signups, days, range),
           },
           {
             id: 'churnRate',
             value: churn.at(-1) ?? 0,
             format: 'percent',
-            trend: trendFor(churn, days, comparedTo, false),
+            trend: trendFor(churn, days, range, false),
           },
         ],
       }),

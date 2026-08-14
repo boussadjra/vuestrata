@@ -12,6 +12,7 @@ const props = defineProps<{
   data: UpcomingEvents | undefined
   loading: boolean
   error: boolean
+  updating?: boolean
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
@@ -28,6 +29,13 @@ const KIND_ICONS: Record<UpcomingEvents['events'][number]['kind'], IconName> = {
   maintenance: 'settings',
   meeting: 'users',
 }
+
+function eventKindLabel(kind: UpcomingEvents['events'][number]['kind']): string {
+  if (kind === 'release') return t('dash_event_kind_release')
+  if (kind === 'review') return t('dash_event_kind_review')
+  if (kind === 'maintenance') return t('dash_event_kind_maintenance')
+  return t('dash_event_kind_meeting')
+}
 </script>
 
 <template>
@@ -36,6 +44,7 @@ const KIND_ICONS: Record<UpcomingEvents['events'][number]['kind'], IconName> = {
     :description="t('dash_upcoming_desc')"
     :loading="loading"
     :error="error"
+    :updating="updating"
     :empty="isEmpty"
     :empty-title="t('dash_upcoming_empty_title')"
     content-class="min-h-56"
@@ -66,14 +75,14 @@ const KIND_ICONS: Record<UpcomingEvents['events'][number]['kind'], IconName> = {
               ]"
               aria-hidden="true"
             />
-            <span class="truncate">{{ event.title }}</span>
+            <span class="line-clamp-2">{{ event.title }}</span>
           </span>
           <time :datetime="event.startsAt" class="text-muted-foreground mt-0.5 block text-xs">
             {{ dateTime(event.startsAt) }} · {{ relativeTime(event.startsAt) }}
           </time>
         </span>
 
-        <span class="sr-only">{{ t(`dash_event_kind_${event.kind}`) }}</span>
+        <span class="sr-only">{{ eventKindLabel(event.kind) }}</span>
       </li>
     </ol>
   </UiPanel>

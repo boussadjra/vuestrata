@@ -1,5 +1,7 @@
 import { useI18n } from 'vue-i18n'
 
+import { toMajorUnits } from '~/lib/money'
+
 /**
  * Locale-aware value formatting.
  *
@@ -43,7 +45,7 @@ export function useFormatters() {
           maximumFractionDigits: compact ? 1 : 2,
         }),
     ) as Intl.NumberFormat
-    return formatter.format(minorUnits / 100)
+    return formatter.format(toMajorUnits(minorUnits))
   }
 
   function number(value: number, compact = false): string {

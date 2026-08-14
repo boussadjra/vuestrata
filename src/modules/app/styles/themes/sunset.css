@@ -1,6 +1,7 @@
 /*
  * Sunset theme — warm amber/orange with deep rose accents, vibrant & energetic
- * WCAG AA compliant: primary-600+ on white ≥ 4.5:1 contrast
+ * WCAG AA: primary-700 on this ramp's cream surface-50 ≥ 4.5:1 for filled
+ * controls (600 with a light label is ~3.6:1).
  * Apply by adding class="theme-sunset" to <html>
  */
 :root.theme-sunset {
@@ -75,6 +76,14 @@
   --shadow-glow-primary: 0 0 24px rgb(249 115 22 / 0.3);
   --shadow-glow-secondary: 0 0 24px rgb(244 63 94 / 0.3);
   --shadow-glow-accent: 0 0 24px rgb(234 179 8 / 0.3);
+
+  /*
+   * Orange-600 with a light label is ~3.6:1. Step 700 on this ramp's cream
+   * `surface-50` is 5.0:1. Dark text on 600 looked closer to the hue and
+   * still failed (4.4:1).
+   */
+  --color-primary-solid: var(--color-primary-700);
+  --color-primary-solid-hover: var(--color-primary-800);
 }
 
 :root.theme-sunset.dark {

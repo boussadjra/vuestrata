@@ -15,7 +15,7 @@ export interface TrendDeltaProps {
    * churn is not, so tying colour to the arrow would be wrong half the time.
    */
   isImprovement: boolean
-  /** e.g. "previous 7 days". Announced so the number has a reference point. */
+  /** Already-localized comparison window. Announced so the number has a reference point. */
   comparedTo?: string
   size?: 'sm' | 'md'
 }
@@ -45,13 +45,19 @@ const iconName = computed(() => {
  * unavailable to a screen-reader user, and colour alone is not a permissible
  * carrier of meaning (WCAG 1.4.1). This states it in words.
  */
-const accessibleLabel = computed(() =>
-  t('dash_trend_label', {
+const accessibleLabel = computed(() => {
+  const direction =
+    props.direction === 'up'
+      ? t('dash_trend_up')
+      : props.direction === 'down'
+        ? t('dash_trend_down')
+        : t('dash_trend_flat')
+  return t('dash_trend_label', {
     change: signedPercent(props.changePercent),
-    direction: t(`dash_trend_${props.direction}`),
+    direction,
     comparedTo: props.comparedTo ?? '',
-  }).trim(),
-)
+  }).trim()
+})
 </script>
 
 <template>

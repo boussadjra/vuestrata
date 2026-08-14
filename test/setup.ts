@@ -32,6 +32,10 @@ if (!globalThis.ResizeObserver) {
   globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver
 }
 
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn()
+}
+
 // Reset Pinia + core/lib runtime backends + createGlobalState containers
 // before every test so cross-suite leakage of mutable state cannot occur.
 beforeEach(async () => {

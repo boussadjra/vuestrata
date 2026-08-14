@@ -101,6 +101,12 @@ test.describe('Built artifact smoke tests', () => {
 
     await expect(page).toHaveURL(/\/dashboard(?:\/|$)/)
     await expect(page.locator('h1').first()).toBeVisible()
+    // Constructed i18n keys (`t('dash_compared_' + range)`) ship as the key
+    // itself under `@intlify/unplugin-vue-i18n`. This is the assertion unit
+    // tests cannot make: they load JSON directly and always "pass".
+    await expect(page.getByText('previous 7 days').first()).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('main')).not.toContainText('dash_compared_')
+    await expect(page.getByRole('link', { name: 'Invite a teammate' })).toBeVisible()
   })
 })
 

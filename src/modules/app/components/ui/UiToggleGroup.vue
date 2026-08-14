@@ -55,7 +55,7 @@ function itemClasses(option: ToggleGroupOption) {
       {{ label }}
     </label>
     <div
-      class="btns-wrapper border-border inline-flex overflow-hidden rounded-md border"
+      class="btns-wrapper border-border flex w-full overflow-hidden rounded-md border"
       role="group"
       :data-provider="provider"
       data-ui="togglegroup"

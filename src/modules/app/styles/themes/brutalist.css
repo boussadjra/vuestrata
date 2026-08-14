@@ -175,7 +175,7 @@
    */
   --color-primary-solid: var(--color-secondary-400);
   --color-primary-solid-hover: var(--color-secondary-300);
-  --color-primary-foreground: #000000;
+  --color-primary-foreground: var(--color-surface-950);
 
   /*
    * On a monochrome ramp the two ends are the same hue, so lightness is the
@@ -273,15 +273,13 @@
  * on cards (and scales buttons on :active), and overwriting it here would
  * cancel that. `translate` is its own property and composes with it.
  */
-:root.theme-brutalist .card:hover,
-:root.theme-brutalist [data-ui='card']:hover {
+:root.theme-brutalist .card:hover {
   box-shadow: var(--shadow-card-hover) !important;
   border-color: var(--color-border) !important;
   translate: -3px -3px;
 }
 
-:root.theme-brutalist[dir='rtl'] .card:hover,
-:root.theme-brutalist[dir='rtl'] [data-ui='card']:hover {
+:root.theme-brutalist[dir='rtl'] .card:hover {
   translate: 3px -3px;
 }
 

@@ -22,6 +22,21 @@ export const i18n = createI18n({
   messages: { en, fr, ar },
 })
 
+// Locale JSON is compiled once into this singleton. Vite can HMR the JSON
+// module without recreating `i18n`, which is how new keys (dash_compared_*,
+// dash_source_*, …) shipped as the key itself until a full restart.
+if (import.meta.hot) {
+  import.meta.hot.accept('../locales/en.json', (mod) => {
+    if (mod?.default) i18n.global.mergeLocaleMessage('en', mod.default)
+  })
+  import.meta.hot.accept('../locales/fr.json', (mod) => {
+    if (mod?.default) i18n.global.mergeLocaleMessage('fr', mod.default)
+  })
+  import.meta.hot.accept('../locales/ar.json', (mod) => {
+    if (mod?.default) i18n.global.mergeLocaleMessage('ar', mod.default)
+  })
+}
+
 export function getI18n() {
   return i18n
 }

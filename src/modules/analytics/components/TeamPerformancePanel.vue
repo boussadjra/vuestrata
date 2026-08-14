@@ -13,6 +13,7 @@ const props = defineProps<{
   data: TeamPerformance | undefined
   loading: boolean
   error: boolean
+  updating?: boolean
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
@@ -31,7 +32,7 @@ const option = computed<EChartsOption>(() => ({
   xAxis: {
     type: 'value',
     max: 100,
-    axisLabel: { ...chart.axisLabel.value, formatter: '{value}%' },
+    axisLabel: { ...chart.axisLabel.value, formatter: (value: number) => percent(value, 0) },
     splitLine: chart.splitLine.value,
   },
   yAxis: {
@@ -88,6 +89,7 @@ const dataRows = computed(() =>
     :description="t('dash_team_desc')"
     :loading="loading"
     :error="error"
+    :updating="updating"
     :empty="isEmpty"
     content-class="min-h-64"
     @retry="emit('retry')"

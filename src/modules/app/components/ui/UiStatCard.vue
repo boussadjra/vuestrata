@@ -27,10 +27,12 @@ const headingId = useId()
     A <section> with an accessible name, not a bare <div>. Screen-reader users
     navigate by landmark and heading; a wall of unnamed divs is one
     undifferentiated blob. `aria-labelledby` points at the metric's own label so
-    the region announces as e.g. "Revenue, region".
+    the region announces as e.g. "Revenue, region". `data-ui="card"` is what
+    theme files select for glass, marks, and offset shadows.
   -->
   <section
     :aria-labelledby="headingId"
+    data-ui="card"
     class="border-border bg-card flex flex-col gap-2 rounded-[var(--shape-radius)] border p-4 shadow-(--shadow-card)"
   >
     <p :id="headingId" class="text-muted-foreground text-sm font-medium">{{ label }}</p>
@@ -42,7 +44,7 @@ const headingId = useId()
 
     <template v-else>
       <p class="text-foreground text-2xl font-bold tabular-nums">{{ value }}</p>
-      <div class="flex min-h-5 items-center gap-2">
+      <div class="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-0.5">
         <UiTrendDelta
           v-if="trend"
           :change-percent="trend.changePercent"
@@ -51,7 +53,7 @@ const headingId = useId()
           :compared-to="trend.comparedTo"
           size="sm"
         />
-        <span v-if="hint" class="text-muted-foreground truncate text-xs">{{ hint }}</span>
+        <span v-if="hint" class="text-muted-foreground text-xs">{{ hint }}</span>
       </div>
     </template>
 

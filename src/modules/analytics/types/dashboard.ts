@@ -32,6 +32,23 @@ export { type Money } from '~/lib/money'
 export { moneySchema }
 
 /**
+ * The dashboard's filter state.
+ *
+ * Every endpoint takes the same pair, so changing the range or segment refetches
+ * the whole board consistently instead of leaving panels on different windows.
+ */
+export const DASHBOARD_RANGES = ['7d', '30d', '90d'] as const
+export type DashboardRange = (typeof DASHBOARD_RANGES)[number]
+
+export const DASHBOARD_SEGMENTS = ['all', 'new', 'returning', 'enterprise'] as const
+export type DashboardSegment = (typeof DASHBOARD_SEGMENTS)[number]
+
+export interface DashboardFilters {
+  range: DashboardRange
+  segment: DashboardSegment
+}
+
+/**
  * A metric's movement against the previous comparable period.
  *
  * `direction` is carried explicitly rather than derived from the sign of
@@ -43,8 +60,13 @@ export const trendSchema = z.object({
   changePercent: z.number(),
   direction: z.enum(['up', 'down', 'flat']),
   isImprovement: z.boolean(),
-  /** Human-readable comparison window, e.g. "vs. previous 7 days". */
-  comparedTo: z.string(),
+  /**
+   * Which window this change is against. A range key, not display text —
+   * "previous 7 days" is English and cannot be translated. The view renders
+   * `t('dash_compared_7d')` as a string literal (constructed keys are dropped
+   * by the i18n compiler and ship as the key).
+   */
+  comparedTo: z.enum(DASHBOARD_RANGES),
   /** Sparkline points, oldest first. */
   history: z.array(z.number()),
 })
@@ -75,9 +97,11 @@ export type DashboardStats = z.infer<typeof dashboardStatsSchema>
 export const activityPointSchema = z.object({
   date: isoDate,
   activeUsers: z.number().int().nonnegative(),
+  /** Daily revenue in minor units (cents). Charts must plot `toMajorUnits`. */
   revenue: z.number().int().nonnegative(),
   sessions: z.number().int().nonnegative(),
 })
+export type ActivityPoint = z.infer<typeof activityPointSchema>
 
 export const activitySeriesSchema = z.object({
   currency: z.string().length(3),
@@ -195,22 +219,3 @@ export const systemHealthSchema = z.object({
   ),
 })
 export type SystemHealth = z.infer<typeof systemHealthSchema>
-
-// ─── Request parameters ───────────────────────────────────────────────────────
-
-/**
- * The dashboard's filter state.
- *
- * Every endpoint takes the same pair, so changing the range or segment refetches
- * the whole board consistently instead of leaving panels on different windows.
- */
-export const DASHBOARD_RANGES = ['7d', '30d', '90d'] as const
-export type DashboardRange = (typeof DASHBOARD_RANGES)[number]
-
-export const DASHBOARD_SEGMENTS = ['all', 'new', 'returning', 'enterprise'] as const
-export type DashboardSegment = (typeof DASHBOARD_SEGMENTS)[number]
-
-export interface DashboardFilters {
-  range: DashboardRange
-  segment: DashboardSegment
-}

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import type { EChartsOption } from 'echarts'
 import VChart from 'vue-echarts'
 
@@ -62,6 +63,25 @@ const chartRole = computed(() => (accessibleName.value ? 'img' : undefined))
 const chartAriaHidden = computed(() => (accessibleName.value ? undefined : 'true'))
 
 const hasTable = computed(() => (props.dataRows?.length ?? 0) > 0)
+
+/**
+ * Canvas tweening is JavaScript, not CSS. `motion.css` can stop every
+ * `transition-*` and `animate-*` utility; it cannot stop ECharts drawing a
+ * pie as a one-second expansion. WCAG 2.3.3: if the user asked for less
+ * motion, the chart appears in its final state.
+ */
+const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+
+const chartOption = computed<EChartsOption>(() => {
+  if (!prefersReducedMotion.value) return props.option
+  return {
+    ...props.option,
+    animation: false,
+    animationDuration: 0,
+    animationDurationUpdate: 0,
+    stateAnimation: { duration: 0 },
+  }
+})
 </script>
 
 <template>
@@ -80,7 +100,7 @@ const hasTable = computed(() => (props.dataRows?.length ?? 0) > 0)
         points at the data table so a user can jump straight to the numbers.
       -->
       <VChart
-        :option="option"
+        :option="chartOption"
         :init-options="{ renderer: 'canvas' }"
         :loading="loading"
         autoresize
@@ -94,28 +114,31 @@ const hasTable = computed(() => (props.dataRows?.length ?? 0) > 0)
 
     <!--
       Visually hidden, NOT `display: none` — hidden content is removed from the
-      accessibility tree entirely, which would defeat the purpose. `sr-only`
-      keeps it reachable by screen readers and by keyboard users tabbing
-      through, while taking no visual space.
+      accessibility tree entirely, which would defeat the purpose. `sr-only` on
+      a WRAPPER (not the table) keeps the 1px clip; a `sr-only` table with
+      `whitespace-nowrap` still inflated `scrollWidth` by ~16px on a 320px
+      viewport.
     -->
-    <table v-if="hasTable" :id="`${chartId}-table`" class="sr-only">
-      <caption>
-        {{
-          dataCaption || title
-        }}
-      </caption>
-      <thead>
-        <tr>
-          <th v-for="column in dataColumns" :key="column" scope="col">{{ column }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in dataRows" :key="row.label">
-          <th scope="row">{{ row.label }}</th>
-          <td v-for="(value, index) in row.values" :key="index">{{ value }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-if="hasTable" class="sr-only">
+      <table :id="`${chartId}-table`">
+        <caption>
+          {{
+            dataCaption || title
+          }}
+        </caption>
+        <thead>
+          <tr>
+            <th v-for="column in dataColumns" :key="column" scope="col">{{ column }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in dataRows" :key="row.label">
+            <th scope="row">{{ row.label }}</th>
+            <td v-for="(value, index) in row.values" :key="index">{{ value }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <slot />
   </figure>

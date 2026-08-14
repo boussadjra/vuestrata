@@ -12,6 +12,7 @@ const props = defineProps<{
   data: ActivityFeed | undefined
   loading: boolean
   error: boolean
+  updating?: boolean
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
@@ -34,6 +35,20 @@ const TYPE_ICONS: Record<ActivityFeed['items'][number]['type'], IconName> = {
  * Status is carried by a text badge, never by colour alone.
  * WCAG 1.4.1: colour must not be the only visual means of conveying meaning.
  */
+function activityTypeLabel(type: ActivityFeed['items'][number]['type']): string {
+  if (type === 'payment') return t('dash_activity_type_payment')
+  if (type === 'signup') return t('dash_activity_type_signup')
+  if (type === 'upgrade') return t('dash_activity_type_upgrade')
+  if (type === 'refund') return t('dash_activity_type_refund')
+  return t('dash_activity_type_cancellation')
+}
+
+function activityStatusLabel(status: ActivityFeed['items'][number]['status']): string {
+  if (status === 'succeeded') return t('common_status_succeeded')
+  if (status === 'pending') return t('common_status_pending')
+  return t('common_status_failed')
+}
+
 const STATUS_VARIANT: Record<
   ActivityFeed['items'][number]['status'],
   'success' | 'warning' | 'error'
@@ -50,6 +65,7 @@ const STATUS_VARIANT: Record<
     :description="t('dash_activity_desc')"
     :loading="loading"
     :error="error"
+    :updating="updating"
     :empty="isEmpty"
     :empty-title="t('dash_activity_empty_title')"
     :empty-description="t('dash_activity_empty_body')"
@@ -68,7 +84,7 @@ const STATUS_VARIANT: Record<
       label explain what the stop is once you land on it.
     -->
     <div
-      class="overflow-x-auto focus-visible:outline-none"
+      class="min-w-0 overflow-x-auto focus-visible:outline-none"
       tabindex="0"
       role="region"
       :aria-label="t('dash_activity_title')"
@@ -114,14 +130,14 @@ const STATUS_VARIANT: Record<
                 <span class="min-w-0">
                   <span class="text-foreground block truncate font-medium">{{ item.actor }}</span>
                   <span class="text-muted-foreground block text-xs">
-                    {{ t(`dash_activity_type_${item.type}`) }}
+                    {{ activityTypeLabel(item.type) }}
                   </span>
                 </span>
               </span>
             </th>
             <td class="px-4 py-3">
               <UiBadge :variant="STATUS_VARIANT[item.status]" size="sm">
-                {{ t(`common_status_${item.status}`) }}
+                {{ activityStatusLabel(item.status) }}
               </UiBadge>
             </td>
             <td class="text-foreground px-4 py-3 text-end tabular-nums">

@@ -87,7 +87,7 @@ const guestAction = computed(() => {
   >
     <div
       :class="[
-        'flex h-16 w-full items-center justify-between gap-3 px-4 lg:px-6',
+        'flex h-16 w-full min-w-0 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6',
         showBrand ? 'mx-auto max-w-400' : '',
       ]"
     >
@@ -165,12 +165,12 @@ const guestAction = computed(() => {
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <div class="flex items-center gap-1.5 sm:gap-2">
+      <div class="flex min-w-0 items-center gap-1 sm:gap-2">
+        <div class="flex min-w-0 items-center gap-1 sm:gap-2">
           <AppCommandPalette v-if="authStore.isAuthenticated" />
 
           <UiSelect
-            class="min-w-35"
+            class="max-w-28 min-w-0 sm:max-w-none sm:min-w-35"
             v-model="currentLocale"
             :options="localeOptions"
             :aria-label="t('header_locale_label')"

@@ -5,14 +5,17 @@ import { useI18n } from 'vue-i18n'
 import { UiPanel } from '@/components/ui'
 import BaseChart from '@/components/ui/BaseChart.vue'
 import { useFormatters } from '@/composables/useFormatters'
+import { toMinorUnits } from '~/lib/money'
 
 import { useChartColors, withAlpha } from '../composables/useChartColors'
+import { activityChartSeries, REVENUE_Y_AXIS, USERS_Y_AXIS } from '../lib/activity-chart'
 import type { ActivitySeries } from '../types/dashboard'
 
 const props = defineProps<{
   data: ActivitySeries | undefined
   loading: boolean
   error: boolean
+  updating?: boolean
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
@@ -23,14 +26,43 @@ const chart = useChartColors()
 
 const points = computed(() => props.data?.points ?? [])
 const isEmpty = computed(() => points.value.length === 0)
+const currencyCode = computed(() => props.data?.currency ?? 'USD')
 
 const labels = computed(() => points.value.map((point) => date(point.date)))
+const series = computed(() => activityChartSeries(points.value))
+
+function formatMoneyTick(majorUnits: number): string {
+  return currency(toMinorUnits(majorUnits), currencyCode.value, true)
+}
+
+function formatTooltip(params: unknown): string {
+  const items = (Array.isArray(params) ? params : [params]) as Array<{
+    seriesIndex?: number
+    marker?: string
+    seriesName?: string
+    name?: string
+    axisValueLabel?: string
+    value?: unknown
+  }>
+  if (items.length === 0) return ''
+  const header = String(items[0]?.axisValueLabel ?? items[0]?.name ?? '')
+  const rows = items.map((item) => {
+    const raw = typeof item.value === 'number' ? item.value : 0
+    const formatted =
+      item.seriesIndex === REVENUE_Y_AXIS
+        ? currency(toMinorUnits(raw), currencyCode.value)
+        : number(raw)
+    return `${item.marker ?? ''}${item.seriesName ?? ''}: ${formatted}`
+  })
+  return [header, ...rows].join('<br/>')
+}
 
 const option = computed<EChartsOption>(() => ({
   backgroundColor: 'transparent',
-  tooltip: { trigger: 'axis', ...chart.tooltip.value },
+  tooltip: { trigger: 'axis', ...chart.tooltip.value, formatter: formatTooltip },
   legend: { top: 0, ...chart.legend.value },
-  grid: { left: '2%', right: '3%', bottom: '3%', top: '18%', containLabel: true },
+  // Dual axes need room on both sides; `containLabel` grows the grid around ticks.
+  grid: { left: '2%', right: '2%', bottom: '3%', top: '18%', containLabel: true },
   xAxis: {
     type: 'category',
     boundaryGap: false,
@@ -39,11 +71,24 @@ const option = computed<EChartsOption>(() => ({
     axisTick: { show: false },
     axisLine: chart.axisLine.value,
   },
+  // Dual axis, not a split chart: the overlay is the point of this panel
+  // (does revenue move with activity?). Independent scales keep each series
+  // readable; splitting would spend a second panel on the same question.
   yAxis: [
     {
       type: 'value',
-      axisLabel: { ...chart.axisLabel.value, formatter: (value: number) => number(value, true) },
+      position: 'left',
+      axisLabel: { ...chart.axisLabel.value, formatter: (value: number) => formatMoneyTick(value) },
       splitLine: chart.splitLine.value,
+      axisLine: { show: false },
+    },
+    {
+      type: 'value',
+      position: 'right',
+      alignTicks: true,
+      axisLabel: { ...chart.axisLabel.value, formatter: (value: number) => number(value, true) },
+      // One set of gridlines — a second would imply the scales share a unit.
+      splitLine: { show: false },
       axisLine: { show: false },
     },
   ],
@@ -51,9 +96,10 @@ const option = computed<EChartsOption>(() => ({
     {
       name: t('dash_metric_revenue'),
       type: 'line',
+      yAxisIndex: REVENUE_Y_AXIS,
       smooth: 0.35,
       showSymbol: false,
-      data: points.value.map((point) => point.revenue),
+      data: series.value.revenueMajor,
       itemStyle: { color: chart.seriesColor(0) },
       lineStyle: { width: 3 },
       areaStyle: {
@@ -73,9 +119,10 @@ const option = computed<EChartsOption>(() => ({
     {
       name: t('dash_metric_active_users'),
       type: 'line',
+      yAxisIndex: USERS_Y_AXIS,
       smooth: 0.35,
       showSymbol: false,
-      data: points.value.map((point) => point.activeUsers),
+      data: series.value.activeUsers,
       itemStyle: { color: chart.seriesColor(2) },
       // A dashed line distinguishes the series without relying on colour,
       // which matters in greyscale and for colour-vision deficiency.
@@ -99,7 +146,7 @@ const summary = computed(() => {
     days: points.value.length,
     direction: t(change >= 0 ? 'dash_trend_up' : 'dash_trend_down'),
     change: Math.abs(change).toFixed(1),
-    latest: currency(last.revenue, props.data?.currency ?? 'USD'),
+    latest: currency(last.revenue, currencyCode.value),
   })
 })
 
@@ -112,7 +159,7 @@ const dataColumns = computed(() => [
 const dataRows = computed(() =>
   points.value.map((point) => ({
     label: date(point.date, { day: 'numeric', month: 'short', year: 'numeric' }),
-    values: [currency(point.revenue, props.data?.currency ?? 'USD'), number(point.activeUsers)],
+    values: [currency(point.revenue, currencyCode.value), number(point.activeUsers)],
   })),
 )
 </script>
@@ -123,6 +170,7 @@ const dataRows = computed(() =>
     :description="t('dash_revenue_trend_desc')"
     :loading="loading"
     :error="error"
+    :updating="updating"
     :empty="isEmpty"
     content-class="min-h-80"
     @retry="emit('retry')"

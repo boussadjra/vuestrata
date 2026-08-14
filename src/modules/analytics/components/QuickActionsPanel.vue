@@ -38,11 +38,19 @@ const ACTIONS: QuickAction[] = [
 const visibleActions = computed(() =>
   ACTIONS.filter((action) => !action.permission || can(action.permission)),
 )
+
+function actionLabel(key: string): string {
+  if (key === 'invite_user') return t('dash_action_invite_user')
+  if (key === 'view_billing') return t('dash_action_view_billing')
+  if (key === 'explore_charts') return t('dash_action_explore_charts')
+  if (key === 'review_audit') return t('dash_action_review_audit')
+  return t('dash_action_open_settings')
+}
 </script>
 
 <template>
   <UiPanel :title="t('dash_quick_actions_title')" content-class="min-h-0">
-    <ul class="grid grid-cols-1 gap-2 xl:grid-cols-2">
+    <ul class="grid grid-cols-1 gap-2">
       <li v-for="action in visibleActions" :key="action.key">
         <RouterLink
           :to="action.to"
@@ -52,7 +60,7 @@ const visibleActions = computed(() =>
             :class="[resolveIcon(action.icon), 'text-muted-foreground h-4 w-4 shrink-0']"
             aria-hidden="true"
           />
-          <span class="text-foreground truncate">{{ t(`dash_action_${action.key}`) }}</span>
+          <span class="text-foreground min-w-0 leading-snug">{{ actionLabel(action.key) }}</span>
         </RouterLink>
       </li>
     </ul>

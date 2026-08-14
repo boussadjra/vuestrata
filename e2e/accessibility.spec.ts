@@ -151,8 +151,11 @@ test.describe('Accessibility — authenticated pages', () => {
  * tokens on top of them, so a contrast pass on the default light theme says
  * nothing about the other nineteen combinations. Auditing all ten themes in
  * both modes on every page would be far too slow for CI, so this covers the
- * highest-signal combinations: the default theme in both modes, plus the two
- * themes whose ramps sit closest to their surfaces.
+ * highest-signal combinations: the default theme in both modes, the two
+ * themes whose ramps sit closest to their surfaces, the two that supply a
+ * second dark-mode surface ramp, and the three saturated-fill combos
+ * (Sunset light, Terminal light, Forest dark) whose primary solid plus label
+ * is the contrast trap.
  */
 test.describe('Accessibility — theme and colour-mode matrix', () => {
   const combinations = [
@@ -171,6 +174,13 @@ test.describe('Accessibility — theme and colour-mode matrix', () => {
     // ones. Neither is covered by auditing the default ramp.
     { theme: 'blueprint', dark: true },
     { theme: 'harbour', dark: false },
+    // Saturated fills whose primary-600 + light label fails AA. These three
+    // re-point `--color-primary-solid` (and Terminal's label) in their theme
+    // files; leaving them out of the matrix is how the dashboard chip shipped
+    // under 4.5:1.
+    { theme: 'sunset', dark: false },
+    { theme: 'terminal', dark: false },
+    { theme: 'forest', dark: true },
   ]
 
   for (const { theme, dark } of combinations) {
