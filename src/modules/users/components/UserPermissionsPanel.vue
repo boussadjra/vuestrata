@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import { UiButton, UiCheckbox } from '@/components/ui'
+import { usePermissionLabels } from '@/composables/usePermissionLabels'
 import { getRegisteredPermissions, getRolePermissions } from '@/lib/rbac'
 import type { BuiltinPermission } from '@/lib/rbac/types'
 import { useAuthStore } from '@/stores/auth'
@@ -13,22 +14,7 @@ const props = defineProps<{ user: User }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
-
-function permLabel(perm: string): string {
-  const key = `perm_${perm.replaceAll(':', '_')}`
-  const translated = t(key)
-  if (translated !== key) return translated
-  return perm
-    .split(':')
-    .map((part) => part.replaceAll('_', ' '))
-    .join(' ')
-}
-
-function permNamespaceLabel(ns: string): string {
-  const key = `perm_ns_${ns}`
-  const translated = t(key)
-  return translated !== key ? translated : ns
-}
+const { permLabel, permNamespaceLabel } = usePermissionLabels()
 
 const authStore = useAuthStore()
 const { updatePermissions, isPending } = useUpdatePermissionsMutation()

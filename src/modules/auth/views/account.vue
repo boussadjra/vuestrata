@@ -20,13 +20,16 @@ import {
   UiTextField,
 } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
+import { usePermissionLabels } from '@/composables/usePermissionLabels'
 import { resolveIcon } from '@/config/icon-provider'
+import { getRolePermissions } from '@/lib/rbac'
 import { useAuthStore } from '@/stores/auth'
 
 import { getAuthAdapter } from '../composables/useAuth'
 
 const { t } = useI18n()
 const { dateTime } = useFormatters()
+const { permLabel, permNamespaceLabel, compareLabels } = usePermissionLabels()
 const authStore = useAuthStore()
 
 const user = computed(() => authStore.user)
@@ -41,7 +44,32 @@ const adapter = getAuthAdapter()
  */
 const capabilities = computed(() => adapter.capabilities)
 
-const permissions = computed(() => user.value?.permissions ?? [])
+/**
+ * Same fallback as the RBAC checks: an explicit list wins, otherwise the
+ * role's defaults. Grouped by namespace so a long grant list can be scanned
+ * as "what I can do in Users / Billing" rather than a pile of tokens.
+ */
+const permissionGroups = computed(() => {
+  const current = user.value
+  if (!current) return []
+
+  const granted = current.permissions ?? getRolePermissions(current.role)
+  const grouped = new Map<string, string[]>()
+  for (const permission of granted) {
+    const ns = permission.includes(':') ? permission.slice(0, permission.indexOf(':')) : permission
+    const bucket = grouped.get(ns)
+    if (bucket) bucket.push(permission)
+    else grouped.set(ns, [permission])
+  }
+
+  return [...grouped.entries()]
+    .map(([ns, perms]) => ({
+      ns,
+      label: permNamespaceLabel(ns),
+      perms: [...perms].sort((a, b) => compareLabels(permLabel(a), permLabel(b))),
+    }))
+    .sort((a, b) => compareLabels(a.label, b.label))
+})
 </script>
 
 <template>
@@ -148,13 +176,16 @@ const permissions = computed(() => user.value?.permissions ?? [])
         </h2>
         <p class="text-muted-foreground mt-1 text-sm">{{ t('account_permissions_body') }}</p>
 
-        <ul v-if="permissions.length" class="mt-4 flex flex-wrap gap-1.5">
-          <li v-for="permission in permissions" :key="permission">
-            <UiBadge variant="default" size="sm">
-              <span class="font-mono text-xs">{{ permission }}</span>
-            </UiBadge>
-          </li>
-        </ul>
+        <div v-if="permissionGroups.length" class="mt-4 space-y-4">
+          <section v-for="group in permissionGroups" :key="group.ns">
+            <h3 class="text-muted-foreground mb-1.5 text-xs font-semibold">{{ group.label }}</h3>
+            <ul class="flex flex-wrap gap-1.5">
+              <li v-for="permission in group.perms" :key="permission">
+                <UiBadge variant="default" size="sm">{{ permLabel(permission) }}</UiBadge>
+              </li>
+            </ul>
+          </section>
+        </div>
         <p v-else class="text-muted-foreground mt-4 text-sm">
           {{ t('account_permissions_empty') }}
         </p>

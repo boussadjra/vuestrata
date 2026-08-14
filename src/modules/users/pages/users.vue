@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
 import { useDataTable, type DataTableQueryState } from '@/composables/useDataTable'
+import { usePermissionLabels } from '@/composables/usePermissionLabels'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
 import { ROLE_DEFINITIONS, getRegisteredPermissions, resolveRolePermissions } from '@/lib/rbac'
@@ -19,6 +20,7 @@ import UserPermissionsPanel from '../components/UserPermissionsPanel.vue'
 const { can } = useRbac()
 const notifications = useNotificationStore()
 const { t } = useI18n()
+const { permLabel } = usePermissionLabels()
 
 const editingUserId = ref<string | null>(null)
 const editingRole = ref<Role>('member')
@@ -290,16 +292,6 @@ const allPermissions = computed(() => {
   ])
   return [...perms].sort() as BuiltinPermission[]
 })
-
-function permLabel(perm: string): string {
-  const key = `perm_${perm.replaceAll(':', '_')}`
-  const translated = t(key)
-  if (translated !== key) return translated
-  return perm
-    .split(':')
-    .map((part) => part.replaceAll('_', ' '))
-    .join(' ')
-}
 </script>
 
 <template>
