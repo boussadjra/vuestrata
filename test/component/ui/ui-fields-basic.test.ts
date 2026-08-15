@@ -469,6 +469,9 @@ describe('Formwerk Basic Fields', () => {
         props: { name: 'align', label: 'Alignment', options },
       })
       expect(wrapper.find('[data-ui="togglegroup"]').exists()).toBe(true)
+      expect(wrapper.find('[data-ui="togglegroup"]').classes()).toContain(
+        'h-[var(--control-height)]',
+      )
       expect(wrapper.text()).toContain('Left')
       expect(wrapper.text()).toContain('Center')
       expect(wrapper.text()).toContain('Right')

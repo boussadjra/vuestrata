@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiButton, UiEmptyState, UiStatCard } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 
+import { useDashboardI18n } from '../composables/useDashboardI18n'
+import { kpiComparedTo, kpiTitle } from '../lib/dashboard-labels'
 import type { DashboardStats, Kpi } from '../types/dashboard'
 
 const props = defineProps<{
@@ -16,7 +16,7 @@ const props = defineProps<{
 
 defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { currency, number, percent } = useFormatters()
 
 /** Placeholder count while loading, so the row does not collapse and reflow. */
@@ -42,21 +42,8 @@ function formatValue(kpi: Kpi): string {
  * `comparedTo` is a range key (`7d`), not copy. Translating here keeps
  * `UiStatCard` / `UiTrendDelta` as display-string components.
  */
-function kpiLabel(id: Kpi['id']): string {
-  if (id === 'activeUsers') return t('dash_kpi_activeUsers')
-  if (id === 'newSignups') return t('dash_kpi_newSignups')
-  if (id === 'churnRate') return t('dash_kpi_churnRate')
-  return t('dash_kpi_revenue')
-}
-
 function comparisonLabel(kpi: Kpi): string {
-  // Literals, not `t('dash_compared_' + range)`. `@intlify/unplugin-vue-i18n`
-  // compiles messages at build time; a constructed key is missing from that
-  // map and ships as the label (`dash_compared_7d` on the live board).
-  const range = kpi.trend.comparedTo
-  if (range === '30d') return t('dash_compared_30d')
-  if (range === '90d') return t('dash_compared_90d')
-  return t('dash_compared_7d')
+  return kpiComparedTo(kpi.trend.comparedTo)
 }
 
 function displayTrend(kpi: Kpi) {
@@ -73,7 +60,7 @@ function displayTrend(kpi: Kpi) {
       <UiStatCard
         v-for="index in SKELETON_COUNT"
         :key="index"
-        :label="t('common_loading')"
+        :label="dt('common_loading')"
         value=""
         loading
       />
@@ -87,12 +74,12 @@ function displayTrend(kpi: Kpi) {
       <UiEmptyState
         variant="error"
         size="sm"
-        :title="t('common_error_title')"
-        :description="t('common_error_body')"
+        :title="dt('common_error_title')"
+        :description="dt('common_error_body')"
       >
         <template #action>
           <UiButton variant="ghost" size="sm" :loading="updating" @click="$emit('retry')">
-            {{ t('common_retry') }}
+            {{ dt('common_retry') }}
           </UiButton>
         </template>
       </UiEmptyState>
@@ -102,7 +89,7 @@ function displayTrend(kpi: Kpi) {
       v-else
       v-for="kpi in kpis"
       :key="kpi.id"
-      :label="kpiLabel(kpi.id)"
+      :label="kpiTitle(kpi.id)"
       :value="formatValue(kpi)"
       :hint="comparisonLabel(kpi)"
       :trend="displayTrend(kpi)"

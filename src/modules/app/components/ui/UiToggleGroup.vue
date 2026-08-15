@@ -24,18 +24,24 @@ const emit = defineEmits<{ 'update:modelValue': [value: string | string[]] }>()
 
 const { isSelected, toggleValue } = useUiToggleGroup(props, emit)
 
+const wrapperSizeClasses: Record<string, string> = {
+  sm: 'h-9',
+  md: 'h-[var(--control-height)]',
+  lg: 'h-12',
+}
+
 const sizeClasses: Record<string, string> = {
-  sm: 'px-2 py-1 text-xs',
-  md: 'px-3 py-2 text-sm min-h-[44px] min-w-[44px] lg:min-h-8 lg:min-w-8 lg:py-1.5',
-  lg: 'px-4 py-2 text-base',
+  sm: 'px-2 text-xs',
+  md: 'min-w-11 px-3 text-sm leading-5',
+  lg: 'px-4 text-base',
 }
 
 function itemClasses(option: ToggleGroupOption) {
   return [
-    'inline-flex items-center justify-center font-medium transition-colors',
+    'flex h-full items-center justify-center font-medium transition-colors',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2',
     'disabled:opacity-50 disabled:cursor-not-allowed',
-    'border-border border-e last:border-e-0',
+    'border-surface-300 dark:border-surface-600 border-e last:border-e-0',
     // Semantic tokens rather than ramp steps: the selected fill needs a
     // foreground the THEME chooses (brutalist's neon primary takes dark text,
     // where white fails contrast), and the unselected state must stay legible
@@ -55,7 +61,10 @@ function itemClasses(option: ToggleGroupOption) {
       {{ label }}
     </label>
     <div
-      class="btns-wrapper border-border flex w-full overflow-hidden rounded-md border"
+      :class="[
+        'btns-wrapper shaped-border shaped-radius-sm border-surface-300 dark:border-surface-600 flex w-full overflow-hidden border',
+        wrapperSizeClasses[size],
+      ]"
       role="group"
       :data-provider="provider"
       data-ui="togglegroup"

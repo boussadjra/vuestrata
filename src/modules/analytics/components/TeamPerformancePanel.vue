@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { useI18n } from 'vue-i18n'
 
 import { UiPanel } from '@/components/ui'
 import BaseChart from '@/components/ui/BaseChart.vue'
 import { useFormatters } from '@/composables/useFormatters'
 
 import { useChartColors } from '../composables/useChartColors'
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import type { TeamPerformance } from '../types/dashboard'
 
 const props = defineProps<{
@@ -18,7 +18,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { number, percent } = useFormatters()
 const chart = useChartColors()
 
@@ -45,7 +45,7 @@ const option = computed<EChartsOption>(() => ({
   },
   series: [
     {
-      name: t('dash_team_efficiency'),
+      name: dt('dash_team_efficiency'),
       type: 'bar',
       barWidth: 14,
       data: [...teams.value].reverse().map((team, index) => ({
@@ -61,7 +61,7 @@ const summary = computed(() => {
   const sorted = [...teams.value].sort((a, b) => b.efficiency - a.efficiency)
   const best = sorted[0]!
   const worst = sorted.at(-1)!
-  return t('dash_team_summary', {
+  return dt('dash_team_summary', {
     best: best.name,
     bestValue: percent(best.efficiency),
     worst: worst.name,
@@ -70,9 +70,9 @@ const summary = computed(() => {
 })
 
 const dataColumns = computed(() => [
-  t('dash_team_label'),
-  t('dash_team_completed'),
-  t('dash_team_efficiency'),
+  dt('dash_team_label'),
+  dt('dash_team_completed'),
+  dt('dash_team_efficiency'),
 ])
 
 const dataRows = computed(() =>
@@ -85,8 +85,8 @@ const dataRows = computed(() =>
 
 <template>
   <UiPanel
-    :title="t('dash_team_title')"
-    :description="t('dash_team_desc')"
+    :title="dt('dash_team_title')"
+    :description="dt('dash_team_desc')"
     :loading="loading"
     :error="error"
     :updating="updating"
@@ -100,7 +100,7 @@ const dataRows = computed(() =>
       :summary="summary"
       :data-columns="dataColumns"
       :data-rows="dataRows"
-      :data-caption="t('dash_team_title')"
+      :data-caption="dt('dash_team_title')"
     />
   </UiPanel>
 </template>

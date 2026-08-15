@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { useFormatters } from '@/composables/useFormatters'
+import { getI18n } from '@/plugins/i18n'
 import { resolveIcon } from '~/config/icon-provider'
 
 export interface TrendDeltaProps {
@@ -22,7 +21,6 @@ export interface TrendDeltaProps {
 
 const props = withDefaults(defineProps<TrendDeltaProps>(), { size: 'md' })
 
-const { t } = useI18n()
 const { signedPercent } = useFormatters()
 
 const toneClass = computed(() => {
@@ -46,17 +44,20 @@ const iconName = computed(() => {
  * carrier of meaning (WCAG 1.4.1). This states it in words.
  */
 const accessibleLabel = computed(() => {
+  const t = getI18n().global.t
   const direction =
     props.direction === 'up'
-      ? t('dash_trend_up')
+      ? String(t('dash_trend_up'))
       : props.direction === 'down'
-        ? t('dash_trend_down')
-        : t('dash_trend_flat')
-  return t('dash_trend_label', {
-    change: signedPercent(props.changePercent),
-    direction,
-    comparedTo: props.comparedTo ?? '',
-  }).trim()
+        ? String(t('dash_trend_down'))
+        : String(t('dash_trend_flat'))
+  return String(
+    t('dash_trend_label', {
+      change: signedPercent(props.changePercent),
+      direction,
+      comparedTo: props.comparedTo ?? '',
+    }),
+  ).trim()
 })
 </script>
 

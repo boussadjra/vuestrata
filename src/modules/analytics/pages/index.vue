@@ -3,7 +3,6 @@ import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { useI18n } from 'vue-i18n'
 
 import { UiPageHeader } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
@@ -19,6 +18,7 @@ import RevenueTrendPanel from '../components/RevenueTrendPanel.vue'
 import SystemHealthPanel from '../components/SystemHealthPanel.vue'
 import TeamPerformancePanel from '../components/TeamPerformancePanel.vue'
 import UpcomingEventsPanel from '../components/UpcomingEventsPanel.vue'
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import {
   useActivitySeriesQuery,
   useAttentionItemsQuery,
@@ -44,7 +44,7 @@ use([
   LegendComponent,
 ])
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const authStore = useAuthStore()
 
 /**
@@ -67,13 +67,15 @@ const upcoming = useUpcomingEventsQuery(filters)
 const health = useSystemHealthQuery(filters)
 
 const greeting = computed(() =>
-  authStore.user?.name ? t('dash_welcome_named', { name: authStore.user.name }) : t('dash_welcome'),
+  authStore.user?.name
+    ? dt('dash_welcome_named', { name: authStore.user.name })
+    : dt('dash_welcome'),
 )
 </script>
 
 <template>
   <div class="mx-auto max-w-7xl min-w-0 space-y-6">
-    <UiPageHeader :title="t('sidebar_dashboard')" :description="greeting">
+    <UiPageHeader :title="dt('sidebar_dashboard')" :description="greeting">
       <template #actions>
         <DashboardFilterBar v-model="filters" />
       </template>

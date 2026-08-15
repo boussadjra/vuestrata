@@ -165,87 +165,85 @@ const guestAction = computed(() => {
         </div>
       </div>
 
-      <div class="flex min-w-0 items-center gap-1 sm:gap-2">
-        <div class="flex min-w-0 items-center gap-1 sm:gap-2">
-          <AppCommandPalette v-if="authStore.isAuthenticated" />
+      <div class="app-header-toolbar flex min-w-0 items-center gap-1 sm:gap-2">
+        <AppCommandPalette v-if="authStore.isAuthenticated" />
 
-          <UiSelect
-            class="max-w-28 min-w-0 sm:max-w-none sm:min-w-35"
-            v-model="currentLocale"
-            :options="localeOptions"
-            :aria-label="t('header_locale_label')"
+        <UiSelect
+          class="max-w-28 min-w-0 sm:max-w-none sm:min-w-35"
+          v-model="currentLocale"
+          :options="localeOptions"
+          :aria-label="t('header_locale_label')"
+        />
+
+        <UiButton
+          to="/docs"
+          variant="ghost"
+          size="md"
+          class="hidden sm:inline-flex"
+          :aria-current="isDocsRoute ? 'page' : undefined"
+        >
+          <span
+            :class="[
+              resolveIcon('document'),
+              isDocsRoute ? 'text-primary-500 dark:text-primary-300' : 'text-muted-foreground',
+              'h-5 w-5',
+            ]"
           />
+          <span class="hidden md:inline">{{ t('common_documentation') }}</span>
+        </UiButton>
+        <UiButton
+          to="/docs"
+          variant="ghost"
+          size="md"
+          icon
+          :aria-label="t('common_documentation')"
+          :aria-current="isDocsRoute ? 'page' : undefined"
+          :class="['sm:hidden', isDocsRoute ? 'text-primary-700 dark:text-primary-300' : '']"
+        >
+          <span
+            :class="[
+              resolveIcon('document'),
+              isDocsRoute ? 'text-primary-500 dark:text-primary-300' : 'text-muted-foreground',
+              'h-5 w-5',
+            ]"
+          />
+        </UiButton>
 
+        <UiButton
+          variant="ghost"
+          size="md"
+          icon
+          :aria-label="isDark ? t('common_switch_light_mode') : t('common_switch_dark_mode')"
+          @click="toggleDark()"
+        >
+          <span v-if="isDark" :class="[resolveIcon('sun'), 'text-warning-400 h-5 w-5']" />
+          <span v-else :class="[resolveIcon('moon'), 'text-primary-500 h-5 w-5']" />
+        </UiButton>
+
+        <template v-if="authStore.isAuthenticated">
           <UiButton
-            to="/docs"
-            variant="ghost"
-            size="md"
-            class="hidden sm:inline-flex"
-            :aria-current="isDocsRoute ? 'page' : undefined"
-          >
-            <span
-              :class="[
-                resolveIcon('document'),
-                isDocsRoute ? 'text-primary-500 dark:text-primary-300' : 'text-muted-foreground',
-                'h-5 w-5',
-              ]"
-            />
-            <span class="hidden md:inline">{{ t('common_documentation') }}</span>
-          </UiButton>
-          <UiButton
-            to="/docs"
+            v-if="!isDashboardRoute"
+            to="/dashboard"
             variant="ghost"
             size="md"
             icon
-            :aria-label="t('common_documentation')"
-            :aria-current="isDocsRoute ? 'page' : undefined"
-            :class="['sm:hidden', isDocsRoute ? 'text-primary-700 dark:text-primary-300' : '']"
+            :aria-label="t('sidebar_dashboard')"
           >
-            <span
-              :class="[
-                resolveIcon('document'),
-                isDocsRoute ? 'text-primary-500 dark:text-primary-300' : 'text-muted-foreground',
-                'h-5 w-5',
-              ]"
-            />
+            <span :class="[resolveIcon('chart'), 'text-primary-500 h-5 w-5']" />
           </UiButton>
-
+          <AppUserMenu />
+        </template>
+        <template v-else>
           <UiButton
-            variant="ghost"
-            size="md"
-            icon
-            :aria-label="isDark ? t('common_switch_light_mode') : t('common_switch_dark_mode')"
-            @click="toggleDark()"
+            :to="guestAction.to"
+            :variant="guestAction.variant"
+            size="sm"
+            :class="['px-4', guestAction.className]"
           >
-            <span v-if="isDark" :class="[resolveIcon('sun'), 'text-warning-400 h-5 w-5']" />
-            <span v-else :class="[resolveIcon('moon'), 'text-primary-500 h-5 w-5']" />
+            <span :class="[resolveIcon(guestAction.icon), 'h-4 w-4']" />
+            {{ guestAction.label }}
           </UiButton>
-
-          <template v-if="authStore.isAuthenticated">
-            <UiButton
-              v-if="!isDashboardRoute"
-              to="/dashboard"
-              variant="ghost"
-              size="md"
-              icon
-              :aria-label="t('sidebar_dashboard')"
-            >
-              <span :class="[resolveIcon('chart'), 'text-primary-500 h-5 w-5']" />
-            </UiButton>
-            <AppUserMenu />
-          </template>
-          <template v-else>
-            <UiButton
-              :to="guestAction.to"
-              :variant="guestAction.variant"
-              size="sm"
-              :class="['px-4', guestAction.className]"
-            >
-              <span :class="[resolveIcon(guestAction.icon), 'h-4 w-4']" />
-              {{ guestAction.label }}
-            </UiButton>
-          </template>
-        </div>
+        </template>
       </div>
     </div>
   </header>

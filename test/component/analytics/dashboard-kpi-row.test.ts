@@ -42,6 +42,7 @@ describe('DashboardKpiRow', () => {
 
     expect(wrapper.text()).toContain('previous 7 days')
     expect(wrapper.text()).toContain('Active users')
+    expect(wrapper.text()).not.toContain('dash_compared_')
     expect(wrapper.text()).not.toMatch(/\b7d\b/)
   })
 

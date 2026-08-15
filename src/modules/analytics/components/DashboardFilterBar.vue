@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiSelect, UiToggleGroup } from '@/components/ui'
 
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import {
   DASHBOARD_RANGES,
   DASHBOARD_SEGMENTS,
@@ -20,19 +19,19 @@ import {
  */
 const filters = defineModel<DashboardFilters>({ required: true })
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 
 function rangeLabel(range: DashboardRange): string {
-  if (range === '30d') return t('dash_range_30d')
-  if (range === '90d') return t('dash_range_90d')
-  return t('dash_range_7d')
+  if (range === '30d') return dt('dash_range_30d')
+  if (range === '90d') return dt('dash_range_90d')
+  return dt('dash_range_7d')
 }
 
 function segmentLabel(segment: DashboardSegment): string {
-  if (segment === 'enterprise') return t('dash_segment_enterprise')
-  if (segment === 'new') return t('dash_segment_new')
-  if (segment === 'returning') return t('dash_segment_returning')
-  return t('dash_segment_all')
+  if (segment === 'enterprise') return dt('dash_segment_enterprise')
+  if (segment === 'new') return dt('dash_segment_new')
+  if (segment === 'returning') return dt('dash_segment_returning')
+  return dt('dash_segment_all')
 }
 
 const rangeOptions = computed(() =>
@@ -60,7 +59,7 @@ function setSegment(value: string | number | Array<string | number>) {
 </script>
 
 <template>
-  <div class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+  <div class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch">
     <!--
       Column on a phone, row from `sm`. A wrapping row that is sized by its
       content never wraps — the box grows, and the page scrolls sideways.
@@ -74,15 +73,15 @@ function setSegment(value: string | number | Array<string | number>) {
       class="w-full sm:w-auto"
       :model-value="filters.range"
       :options="rangeOptions"
-      :aria-label="t('dash_filter_range')"
+      :aria-label="dt('dash_filter_range')"
       @update:model-value="setRange"
     />
 
     <UiSelect
       :model-value="filters.segment"
       :options="segmentOptions"
-      class="w-full min-w-0 sm:w-56"
-      :aria-label="t('dash_filter_segment')"
+      class="w-full min-w-0 sm:h-[var(--control-height)] sm:w-56"
+      :aria-label="dt('dash_filter_segment')"
       @update:model-value="setSegment"
     />
   </div>

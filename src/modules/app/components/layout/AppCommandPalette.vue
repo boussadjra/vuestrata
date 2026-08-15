@@ -75,37 +75,42 @@ function navigate(path: string) {
     A real button rather than a decorative div: the shortcut is a convenience,
     not the only way in. Touch users and anyone who never learns the chord still
     need a control they can activate.
-  -->
-  <button
-    type="button"
-    class="border-border bg-card text-muted-foreground hover:text-foreground hover:border-border-strong hidden w-44 shrink items-center gap-2 rounded-[var(--shape-radius-sm)] border px-2.5 py-1.5 text-sm transition-colors md:inline-flex lg:w-56"
-    :aria-label="t('command_palette_open')"
-    :aria-keyshortcuts="'Meta+K Control+K'"
-    data-testid="command-palette-trigger"
-    @click="open = true"
-  >
-    <span :class="[resolveIcon('search'), 'h-4 w-4 shrink-0']" aria-hidden="true" />
-    <span class="flex-1 text-start">{{ t('command_palette_placeholder') }}</span>
-    <kbd
-      class="border-border bg-muted ms-auto shrink-0 rounded border px-1.5 py-0.5 font-sans text-[11px]"
-      aria-hidden="true"
-    >
-      ⌘K
-    </kbd>
-  </button>
 
-  <UiDialog
-    v-model:open="open"
-    :title="t('command_palette_title')"
-    :description="t('command_palette_description')"
-    content-class="max-w-xl p-0"
-  >
-    <UiCommandPalette
-      v-model="query"
-      :items="items"
-      :placeholder="t('command_palette_placeholder')"
-      :empty-text="t('command_palette_empty')"
-      @select="navigate"
-    />
-  </UiDialog>
+    One root so the dialog is not a second flex item in the header toolbar —
+    that is what sat the search field off the locale select's baseline.
+  -->
+  <div class="hidden h-[var(--control-height)] items-stretch md:inline-flex">
+    <button
+      type="button"
+      class="border-surface-300 dark:border-surface-600 bg-card text-muted-foreground hover:text-foreground hover:border-surface-400 dark:hover:border-surface-500 shaped-border shaped-radius-sm inline-flex h-full w-44 items-center gap-2 border px-3 text-sm leading-5 transition-colors lg:w-56"
+      :aria-label="t('command_palette_open')"
+      :aria-keyshortcuts="'Meta+K Control+K'"
+      data-testid="command-palette-trigger"
+      @click="open = true"
+    >
+      <span :class="[resolveIcon('search'), 'h-4 w-4 shrink-0']" aria-hidden="true" />
+      <span class="flex-1 text-start">{{ t('command_palette_placeholder') }}</span>
+      <kbd
+        class="border-border bg-muted ms-auto shrink-0 rounded border px-1.5 py-0.5 font-sans text-[11px]"
+        aria-hidden="true"
+      >
+        ⌘K
+      </kbd>
+    </button>
+
+    <UiDialog
+      v-model:open="open"
+      :title="t('command_palette_title')"
+      :description="t('command_palette_description')"
+      content-class="max-w-xl p-0"
+    >
+      <UiCommandPalette
+        v-model="query"
+        :items="items"
+        :placeholder="t('command_palette_placeholder')"
+        :empty-text="t('command_palette_empty')"
+        @select="navigate"
+      />
+    </UiDialog>
+  </div>
 </template>

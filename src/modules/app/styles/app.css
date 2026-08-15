@@ -169,6 +169,19 @@
   --shape-border-width: 1px;
   --shape-shadow: var(--shadow-card);
   --shape-shadow-hover: var(--shadow-card-hover);
+
+  /*
+   * Shared height for compact form controls that sit on one row (select,
+   * toggle group, and anything that must match them). 44px below `lg` is the
+   * WCAG 2.5.5 AAA target; 40px from `lg` is the DESIGN.md input height.
+   */
+  --control-height: 2.75rem;
+}
+
+@media (width >= 64rem) {
+  :root {
+    --control-height: 2.5rem;
+  }
 }
 
 /* Radius presets
@@ -304,6 +317,7 @@
 [data-ui='numberfield'],
 [data-ui='combobox'],
 [data-ui='select'],
+[data-ui='togglegroup'],
 [data-ui='date-field'],
 [data-ui='date-picker'],
 [data-ui='datetime-picker'],
@@ -903,6 +917,28 @@ button:active,
 .btn:active,
 [data-ui='button']:active {
   transform: scale(0.985);
+}
+
+/*
+ * Header toolbar: search, locale, and icon buttons must share one height.
+ * Unlayered so this beats Tailwind `min-h-[44px]` / `lg:min-h-9` on buttons.
+ */
+.app-header-toolbar [data-ui='select'],
+.app-header-toolbar [data-ui='button'],
+.app-header-toolbar [data-testid='command-palette-trigger'] {
+  box-sizing: border-box;
+  height: var(--control-height);
+  max-height: var(--control-height);
+  min-height: var(--control-height);
+}
+
+.app-header-toolbar [data-ui='button']:hover,
+.app-header-toolbar [data-ui='button']:active,
+.app-header-toolbar [data-ui='select']:hover,
+.app-header-toolbar [data-ui='select']:active,
+.app-header-toolbar [data-testid='command-palette-trigger']:hover,
+.app-header-toolbar [data-testid='command-palette-trigger']:active {
+  transform: none;
 }
 
 /* Inputs — consistent styling */

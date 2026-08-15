@@ -10,9 +10,10 @@ import type { RevenueBreakdown } from '@/modules/analytics/types/dashboard'
 const SAMPLE: RevenueBreakdown = {
   currency: 'USD',
   segments: [
-    { key: 'subscriptions', label: 'Subscriptions', amount: 2_400_000, share: 48 },
-    { key: 'services', label: 'Services', amount: 1_600_000, share: 32 },
-    { key: 'other', label: 'Other', amount: 1_000_000, share: 20 },
+    { key: 'subscriptions', label: 'Subscriptions', amount: 2_400_000, share: 52.8 },
+    { key: 'enterprise', label: 'Enterprise', amount: 1_320_000, share: 29.0 },
+    { key: 'one-time', label: 'One-time', amount: 590_000, share: 13.0 },
+    { key: 'add-ons', label: 'Add-ons', amount: 230_000, share: 5.1 },
   ],
 }
 
@@ -71,9 +72,12 @@ describe('RevenueBreakdownPanel', () => {
     const wrapper = mountPanel()
     const items = wrapper.findAll('li')
 
-    expect(items).toHaveLength(3)
+    expect(items).toHaveLength(4)
     expect(wrapper.text()).toContain('Subscriptions')
-    expect(wrapper.text()).toContain('Services')
+    expect(wrapper.text()).toContain('Enterprise')
+    expect(wrapper.text()).toContain('One-time')
+    expect(wrapper.text()).toContain('Add-ons')
+    expect(wrapper.text()).not.toContain('dash_source_')
     expect(wrapper.find('ul').attributes('aria-hidden')).toBe('true')
   })
 })

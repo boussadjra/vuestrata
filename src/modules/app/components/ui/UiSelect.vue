@@ -135,7 +135,7 @@ function onValueChange(value: string | number | Array<string | number>) {
 }
 
 const triggerClasses = computed(() => [
-  'shaped-border shaped-radius-sm inline-flex w-full min-h-11 min-w-0 items-center justify-between border px-3 py-2 text-sm',
+  'shaped-border shaped-radius-sm inline-flex h-[var(--control-height)] w-full min-w-0 items-center justify-between border px-3 text-sm leading-5',
   'bg-card text-foreground',
   displayError.value ? invalidSelectTriggerClass : 'border-surface-300 dark:border-surface-600',
   'hover:border-surface-400 dark:hover:border-surface-500',

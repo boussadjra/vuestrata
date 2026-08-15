@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiBadge, UiPanel } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 import { resolveIcon } from '~/config/icon-provider'
 import type { IconName } from '~/types'
 
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import type { ActivityFeed } from '../types/dashboard'
 
 const props = defineProps<{
@@ -17,7 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { currency, dateTime, relativeTime } = useFormatters()
 
 const items = computed(() => props.data?.items ?? [])
@@ -36,17 +35,17 @@ const TYPE_ICONS: Record<ActivityFeed['items'][number]['type'], IconName> = {
  * WCAG 1.4.1: colour must not be the only visual means of conveying meaning.
  */
 function activityTypeLabel(type: ActivityFeed['items'][number]['type']): string {
-  if (type === 'payment') return t('dash_activity_type_payment')
-  if (type === 'signup') return t('dash_activity_type_signup')
-  if (type === 'upgrade') return t('dash_activity_type_upgrade')
-  if (type === 'refund') return t('dash_activity_type_refund')
-  return t('dash_activity_type_cancellation')
+  if (type === 'payment') return dt('dash_activity_type_payment')
+  if (type === 'signup') return dt('dash_activity_type_signup')
+  if (type === 'upgrade') return dt('dash_activity_type_upgrade')
+  if (type === 'refund') return dt('dash_activity_type_refund')
+  return dt('dash_activity_type_cancellation')
 }
 
 function activityStatusLabel(status: ActivityFeed['items'][number]['status']): string {
-  if (status === 'succeeded') return t('common_status_succeeded')
-  if (status === 'pending') return t('common_status_pending')
-  return t('common_status_failed')
+  if (status === 'succeeded') return dt('common_status_succeeded')
+  if (status === 'pending') return dt('common_status_pending')
+  return dt('common_status_failed')
 }
 
 const STATUS_VARIANT: Record<
@@ -61,14 +60,14 @@ const STATUS_VARIANT: Record<
 
 <template>
   <UiPanel
-    :title="t('dash_activity_title')"
-    :description="t('dash_activity_desc')"
+    :title="dt('dash_activity_title')"
+    :description="dt('dash_activity_desc')"
     :loading="loading"
     :error="error"
     :updating="updating"
     :empty="isEmpty"
-    :empty-title="t('dash_activity_empty_title')"
-    :empty-description="t('dash_activity_empty_body')"
+    :empty-title="dt('dash_activity_empty_title')"
+    :empty-description="dt('dash_activity_empty_body')"
     content-class="min-h-64 p-0"
     @retry="emit('retry')"
   >
@@ -87,27 +86,27 @@ const STATUS_VARIANT: Record<
       class="min-w-0 overflow-x-auto focus-visible:outline-none"
       tabindex="0"
       role="region"
-      :aria-label="t('dash_activity_title')"
+      :aria-label="dt('dash_activity_title')"
     >
       <table class="w-full text-sm">
         <caption class="sr-only">
           {{
-            t('dash_activity_title')
+            dt('dash_activity_title')
           }}
         </caption>
         <thead>
           <tr class="border-border border-b">
             <th scope="col" class="text-muted-foreground px-4 py-2 text-start font-medium">
-              {{ t('dash_activity_event') }}
+              {{ dt('dash_activity_event') }}
             </th>
             <th scope="col" class="text-muted-foreground px-4 py-2 text-start font-medium">
-              {{ t('common_status') }}
+              {{ dt('common_status') }}
             </th>
             <th scope="col" class="text-muted-foreground px-4 py-2 text-end font-medium">
-              {{ t('common_amount') }}
+              {{ dt('common_amount') }}
             </th>
             <th scope="col" class="text-muted-foreground px-4 py-2 text-end font-medium">
-              {{ t('common_when') }}
+              {{ dt('common_when') }}
             </th>
           </tr>
         </thead>

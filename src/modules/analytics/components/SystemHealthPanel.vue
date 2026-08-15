@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiPanel } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 import { resolveIcon } from '~/config/icon-provider'
 import type { IconName } from '~/types'
 
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import type { SystemHealth } from '../types/dashboard'
 
 const props = defineProps<{
@@ -17,7 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { number, percent } = useFormatters()
 
 const services = computed(() => props.data?.services ?? [])
@@ -38,9 +37,9 @@ const STATUS: Record<SystemHealth['services'][number]['status'], { icon: IconNam
   }
 
 function healthStatus(status: SystemHealth['services'][number]['status']): string {
-  if (status === 'degraded') return t('dash_health_status_degraded')
-  if (status === 'outage') return t('dash_health_status_outage')
-  return t('dash_health_status_operational')
+  if (status === 'degraded') return dt('dash_health_status_degraded')
+  if (status === 'outage') return dt('dash_health_status_outage')
+  return dt('dash_health_status_operational')
 }
 
 /** The worst status wins — one outage means the system is not "operational". */
@@ -53,7 +52,7 @@ const overall = computed(() => {
 
 <template>
   <UiPanel
-    :title="t('dash_health_title')"
+    :title="dt('dash_health_title')"
     :loading="loading"
     :error="error"
     :updating="updating"
@@ -89,11 +88,11 @@ const overall = computed(() => {
           }}</span>
           <span class="text-muted-foreground block text-xs">
             {{ healthStatus(service.status) }} ·
-            {{ t('dash_health_uptime', { value: percent(service.uptimePercent, 2) }) }}
+            {{ dt('dash_health_uptime', { value: percent(service.uptimePercent, 2) }) }}
           </span>
         </span>
         <span class="text-muted-foreground shrink-0 text-xs tabular-nums">
-          {{ t('dash_health_latency', { ms: number(service.latencyMs) }) }}
+          {{ dt('dash_health_latency', { ms: number(service.latencyMs) }) }}
         </span>
       </li>
     </ul>

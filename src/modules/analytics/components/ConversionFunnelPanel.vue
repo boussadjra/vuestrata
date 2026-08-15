@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiPanel } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 
 import { useChartColors } from '../composables/useChartColors'
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import type { Funnel } from '../types/dashboard'
 
 const props = defineProps<{
@@ -16,7 +15,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { number, percent } = useFormatters()
 const chart = useChartColors()
 
@@ -24,11 +23,11 @@ const stages = computed(() => props.data?.stages ?? [])
 const isEmpty = computed(() => stages.value.length === 0)
 
 function stageLabel(stage: { key: string; label: string }): string {
-  if (stage.key === 'visited') return t('dash_funnel_stage_visited')
-  if (stage.key === 'signed-up') return t('dash_funnel_stage_signed_up')
-  if (stage.key === 'activated') return t('dash_funnel_stage_activated')
-  if (stage.key === 'trialled') return t('dash_funnel_stage_trialled')
-  if (stage.key === 'subscribed') return t('dash_funnel_stage_subscribed')
+  if (stage.key === 'visited') return dt('dash_funnel_stage_visited')
+  if (stage.key === 'signed-up') return dt('dash_funnel_stage_signed_up')
+  if (stage.key === 'activated') return dt('dash_funnel_stage_activated')
+  if (stage.key === 'trialled') return dt('dash_funnel_stage_trialled')
+  if (stage.key === 'subscribed') return dt('dash_funnel_stage_subscribed')
   return stage.label
 }
 
@@ -53,8 +52,8 @@ const rows = computed(() =>
 
 <template>
   <UiPanel
-    :title="t('dash_funnel_title')"
-    :description="t('dash_funnel_desc')"
+    :title="dt('dash_funnel_title')"
+    :description="dt('dash_funnel_desc')"
     :loading="loading"
     :error="error"
     :updating="updating"
@@ -86,7 +85,7 @@ const rows = computed(() =>
           class="bg-muted h-2.5 w-full overflow-hidden rounded-full"
           role="img"
           :aria-label="
-            t('dash_funnel_stage_label', {
+            dt('dash_funnel_stage_label', {
               stage: stageLabel(row),
               count: number(row.count),
               share: percent(row.conversionFromTop),
@@ -100,7 +99,7 @@ const rows = computed(() =>
         </div>
 
         <p v-if="index > 0 && row.dropOff > 0" class="text-muted-foreground text-xs">
-          {{ t('dash_funnel_dropoff', { percent: percent(row.dropOff) }) }}
+          {{ dt('dash_funnel_dropoff', { percent: percent(row.dropOff) }) }}
         </p>
       </li>
     </ol>

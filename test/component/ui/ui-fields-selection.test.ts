@@ -154,7 +154,7 @@ describe('Formwerk Selection & Compound Fields', () => {
       })
       expect(wrapper.text()).toContain('Country')
       expect(wrapper.find('[data-ui="select"]').exists()).toBe(true)
-      expect(wrapper.find('[data-ui="select"]').classes()).toContain('min-h-11')
+      expect(wrapper.find('[data-ui="select"]').classes()).toContain('h-[var(--control-height)]')
       expect(wrapper.find('[data-ui="select"]').classes()).not.toContain('min-w-45')
     })
 

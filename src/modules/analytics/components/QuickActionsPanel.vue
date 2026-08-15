@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiPanel } from '@/components/ui'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '~/config/icon-provider'
 import type { IconName, Permission } from '~/types'
+
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 
 /**
  * Shortcuts to the tasks a dashboard user most often starts.
@@ -17,7 +17,7 @@ import type { IconName, Permission } from '~/types'
  * disabled: a disabled control invites the user to work out why, and there is
  * no answer they can act on.
  */
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { can } = useRbac()
 
 interface QuickAction {
@@ -40,16 +40,16 @@ const visibleActions = computed(() =>
 )
 
 function actionLabel(key: string): string {
-  if (key === 'invite_user') return t('dash_action_invite_user')
-  if (key === 'view_billing') return t('dash_action_view_billing')
-  if (key === 'explore_charts') return t('dash_action_explore_charts')
-  if (key === 'review_audit') return t('dash_action_review_audit')
-  return t('dash_action_open_settings')
+  if (key === 'invite_user') return dt('dash_action_invite_user')
+  if (key === 'view_billing') return dt('dash_action_view_billing')
+  if (key === 'explore_charts') return dt('dash_action_explore_charts')
+  if (key === 'review_audit') return dt('dash_action_review_audit')
+  return dt('dash_action_open_settings')
 }
 </script>
 
 <template>
-  <UiPanel :title="t('dash_quick_actions_title')" content-class="min-h-0">
+  <UiPanel :title="dt('dash_quick_actions_title')" content-class="min-h-0">
     <ul class="grid grid-cols-1 gap-2">
       <li v-for="action in visibleActions" :key="action.key">
         <RouterLink

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { useI18n } from 'vue-i18n'
 
 import { UiPanel } from '@/components/ui'
 import BaseChart from '@/components/ui/BaseChart.vue'
@@ -8,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { toMinorUnits } from '~/lib/money'
 
 import { useChartColors, withAlpha } from '../composables/useChartColors'
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import { activityChartSeries, REVENUE_Y_AXIS, USERS_Y_AXIS } from '../lib/activity-chart'
 import type { ActivitySeries } from '../types/dashboard'
 
@@ -20,7 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { currency, number, date } = useFormatters()
 const chart = useChartColors()
 
@@ -94,7 +94,7 @@ const option = computed<EChartsOption>(() => ({
   ],
   series: [
     {
-      name: t('dash_metric_revenue'),
+      name: dt('dash_metric_revenue'),
       type: 'line',
       yAxisIndex: REVENUE_Y_AXIS,
       smooth: 0.35,
@@ -117,7 +117,7 @@ const option = computed<EChartsOption>(() => ({
       },
     },
     {
-      name: t('dash_metric_active_users'),
+      name: dt('dash_metric_active_users'),
       type: 'line',
       yAxisIndex: USERS_Y_AXIS,
       smooth: 0.35,
@@ -142,18 +142,18 @@ const summary = computed(() => {
   const first = points.value[0]!
   const last = points.value.at(-1)!
   const change = first.revenue === 0 ? 0 : ((last.revenue - first.revenue) / first.revenue) * 100
-  return t('dash_revenue_trend_summary', {
+  return dt('dash_revenue_trend_summary', {
     days: points.value.length,
-    direction: t(change >= 0 ? 'dash_trend_up' : 'dash_trend_down'),
+    direction: dt(change >= 0 ? 'dash_trend_up' : 'dash_trend_down'),
     change: Math.abs(change).toFixed(1),
     latest: currency(last.revenue, currencyCode.value),
   })
 })
 
 const dataColumns = computed(() => [
-  t('common_date'),
-  t('dash_metric_revenue'),
-  t('dash_metric_active_users'),
+  dt('common_date'),
+  dt('dash_metric_revenue'),
+  dt('dash_metric_active_users'),
 ])
 
 const dataRows = computed(() =>
@@ -166,8 +166,8 @@ const dataRows = computed(() =>
 
 <template>
   <UiPanel
-    :title="t('dash_revenue_trend_title')"
-    :description="t('dash_revenue_trend_desc')"
+    :title="dt('dash_revenue_trend_title')"
+    :description="dt('dash_revenue_trend_desc')"
     :loading="loading"
     :error="error"
     :updating="updating"
@@ -181,7 +181,7 @@ const dataRows = computed(() =>
       :summary="summary"
       :data-columns="dataColumns"
       :data-rows="dataRows"
-      :data-caption="t('dash_revenue_trend_title')"
+      :data-caption="dt('dash_revenue_trend_title')"
     />
   </UiPanel>
 </template>

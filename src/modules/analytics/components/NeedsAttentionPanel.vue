@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiPanel } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 import { resolveIcon } from '~/config/icon-provider'
 import type { IconName } from '~/types'
 
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import type { AttentionItems } from '../types/dashboard'
 
 const props = defineProps<{
@@ -17,24 +16,24 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { number } = useFormatters()
 
 const items = computed(() => props.data?.items ?? [])
 const isEmpty = computed(() => items.value.length === 0)
 
 function attentionTitle(titleKey: string): string {
-  if (titleKey === 'dash_attention_failed_payments') return t('dash_attention_failed_payments')
-  if (titleKey === 'dash_attention_pending_invites') return t('dash_attention_pending_invites')
-  if (titleKey === 'dash_attention_expiring_trials') return t('dash_attention_expiring_trials')
-  if (titleKey === 'dash_attention_audit_review') return t('dash_attention_audit_review')
+  if (titleKey === 'dash_attention_failed_payments') return dt('dash_attention_failed_payments')
+  if (titleKey === 'dash_attention_pending_invites') return dt('dash_attention_pending_invites')
+  if (titleKey === 'dash_attention_expiring_trials') return dt('dash_attention_expiring_trials')
+  if (titleKey === 'dash_attention_audit_review') return dt('dash_attention_audit_review')
   return titleKey
 }
 
 function severityLabel(severity: AttentionItems['items'][number]['severity']): string {
-  if (severity === 'critical') return t('dash_severity_critical')
-  if (severity === 'warning') return t('dash_severity_warning')
-  return t('dash_severity_info')
+  if (severity === 'critical') return dt('dash_severity_critical')
+  if (severity === 'warning') return dt('dash_severity_warning')
+  return dt('dash_severity_info')
 }
 
 const SEVERITY: Record<
@@ -61,14 +60,14 @@ const SEVERITY: Record<
 
 <template>
   <UiPanel
-    :title="t('dash_attention_title')"
-    :description="t('dash_attention_desc')"
+    :title="dt('dash_attention_title')"
+    :description="dt('dash_attention_desc')"
     :loading="loading"
     :error="error"
     :updating="updating"
     :empty="isEmpty"
-    :empty-title="t('dash_attention_empty_title')"
-    :empty-description="t('dash_attention_empty_body')"
+    :empty-title="dt('dash_attention_empty_title')"
+    :empty-description="dt('dash_attention_empty_body')"
     content-class="min-h-64"
     @retry="emit('retry')"
   >

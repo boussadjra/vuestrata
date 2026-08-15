@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { UiPanel } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 import { resolveIcon } from '~/config/icon-provider'
 import type { IconName } from '~/types'
 
+import { useDashboardI18n } from '../composables/useDashboardI18n'
 import type { UpcomingEvents } from '../types/dashboard'
 
 const props = defineProps<{
@@ -17,7 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-const { t } = useI18n()
+const { dt } = useDashboardI18n()
 const { date, dateTime, relativeTime } = useFormatters()
 
 const events = computed(() => props.data?.events ?? [])
@@ -31,22 +30,22 @@ const KIND_ICONS: Record<UpcomingEvents['events'][number]['kind'], IconName> = {
 }
 
 function eventKindLabel(kind: UpcomingEvents['events'][number]['kind']): string {
-  if (kind === 'release') return t('dash_event_kind_release')
-  if (kind === 'review') return t('dash_event_kind_review')
-  if (kind === 'maintenance') return t('dash_event_kind_maintenance')
-  return t('dash_event_kind_meeting')
+  if (kind === 'release') return dt('dash_event_kind_release')
+  if (kind === 'review') return dt('dash_event_kind_review')
+  if (kind === 'maintenance') return dt('dash_event_kind_maintenance')
+  return dt('dash_event_kind_meeting')
 }
 </script>
 
 <template>
   <UiPanel
-    :title="t('dash_upcoming_title')"
-    :description="t('dash_upcoming_desc')"
+    :title="dt('dash_upcoming_title')"
+    :description="dt('dash_upcoming_desc')"
     :loading="loading"
     :error="error"
     :updating="updating"
     :empty="isEmpty"
-    :empty-title="t('dash_upcoming_empty_title')"
+    :empty-title="dt('dash_upcoming_empty_title')"
     content-class="min-h-56"
     @retry="emit('retry')"
   >
