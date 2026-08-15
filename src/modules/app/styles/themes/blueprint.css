@@ -343,6 +343,16 @@
   transform: none;
 }
 
+/*
+ * Registration marks and the inset drawing frame assume a rectangular sheet.
+ * The tabbed silhouette already clips them into a broken rectangle, so drop
+ * them rather than leave three L-marks and a cut frame.
+ */
+:root.theme-blueprint [data-ui='card'][data-shape='tabbed']::before,
+:root.theme-blueprint [data-ui='card'][data-shape='tabbed']::after {
+  content: none;
+}
+
 /* ─── Pattern 3: section hatch (poché) ───────────────────────
  *
  * 45° hatch marks cut material in a section drawing. Used on the two surfaces

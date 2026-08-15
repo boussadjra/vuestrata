@@ -1,3 +1,5 @@
+import type { IconName } from '~/types'
+
 import { dashboardT } from '../composables/useDashboardI18n'
 import type { DashboardRange, Kpi } from '../types/dashboard'
 
@@ -8,6 +10,14 @@ export function kpiTitle(id: Kpi['id']): string {
   if (id === 'newSignups') return dashboardT('dash_kpi_newSignups')
   if (id === 'churnRate') return dashboardT('dash_kpi_churnRate')
   return dashboardT('dash_kpi_revenue')
+}
+
+/** Decorative mark for the KPI tab. The accessible name is `kpiTitle`. */
+export function kpiIcon(id: Kpi['id']): IconName {
+  if (id === 'activeUsers') return 'users'
+  if (id === 'newSignups') return 'user-plus'
+  if (id === 'churnRate') return 'trend-up'
+  return 'dollar'
 }
 
 export function kpiComparedTo(range: DashboardRange): string {

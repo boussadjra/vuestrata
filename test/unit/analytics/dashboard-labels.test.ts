@@ -6,6 +6,7 @@ import {
 } from '@/modules/analytics/composables/useDashboardI18n'
 import {
   kpiComparedTo,
+  kpiIcon,
   kpiTitle,
   revenueSourceLabel,
 } from '@/modules/analytics/lib/dashboard-labels'
@@ -24,6 +25,10 @@ describe('dashboard i18n', () => {
   it('translates KPI and revenue labels instead of returning keys', () => {
     expect(kpiComparedTo('7d')).toBe('previous 7 days')
     expect(kpiTitle('revenue')).toBe('Revenue')
+    expect(kpiIcon('revenue')).toBe('dollar')
+    expect(kpiIcon('activeUsers')).toBe('users')
+    expect(kpiIcon('newSignups')).toBe('user-plus')
+    expect(kpiIcon('churnRate')).toBe('trend-up')
     expect(revenueSourceLabel('subscriptions', 'Subscriptions')).toBe('Subscriptions')
     expect(kpiComparedTo('7d')).not.toContain('dash_compared_')
     expect(revenueSourceLabel('one-time', 'One-time')).not.toContain('dash_source_')

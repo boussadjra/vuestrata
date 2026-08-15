@@ -342,6 +342,18 @@
   box-shadow: var(--shape-shadow);
 }
 
+/*
+ * Folder-tab stat cards clip themselves to a single path. Rectangular
+ * border, radius, and box-shadow would square the notch; the shell drop-shadow
+ * follows the clipped silhouette instead.
+ */
+:root [data-ui='card'][data-shape='tabbed'] {
+  border-style: none !important;
+  border-width: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 /* Keyframes */
 @keyframes fade-in {
   from {

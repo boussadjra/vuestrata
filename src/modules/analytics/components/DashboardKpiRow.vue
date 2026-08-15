@@ -3,7 +3,7 @@ import { UiButton, UiEmptyState, UiStatCard } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 
 import { useDashboardI18n } from '../composables/useDashboardI18n'
-import { kpiComparedTo, kpiTitle } from '../lib/dashboard-labels'
+import { kpiComparedTo, kpiIcon, kpiTitle } from '../lib/dashboard-labels'
 import type { DashboardStats, Kpi } from '../types/dashboard'
 
 const props = defineProps<{
@@ -91,6 +91,7 @@ function displayTrend(kpi: Kpi) {
       :key="kpi.id"
       :label="kpiTitle(kpi.id)"
       :value="formatValue(kpi)"
+      :icon="kpiIcon(kpi.id)"
       :hint="comparisonLabel(kpi)"
       :trend="displayTrend(kpi)"
     />

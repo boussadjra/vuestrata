@@ -11,6 +11,18 @@ describe('UiPanel / UiStatCard theme hook', () => {
 
     const stat = mount(UiStatCard, { props: { label: 'Revenue', value: '$48.5K' } })
     expect(stat.find('section').attributes('data-ui')).toBe('card')
+    expect(stat.find('section').attributes('data-shape')).toBe('tabbed')
+  })
+
+  it('hides a decorative metric icon from assistive technology', () => {
+    const stat = mount(UiStatCard, {
+      props: { label: 'Revenue', value: '$48.5K', icon: 'dollar' },
+    })
+
+    const icon = stat.find('[aria-hidden="true"]')
+    expect(icon.exists()).toBe(true)
+    expect(stat.find('section').text()).toContain('Revenue')
+    expect(stat.find('section').text()).toContain('$48.5K')
   })
 
   it('marks the region busy while a refetch is in flight, without blanking it', () => {
