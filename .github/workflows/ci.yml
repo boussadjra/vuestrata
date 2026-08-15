@@ -22,7 +22,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
@@ -44,7 +44,7 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
@@ -61,13 +61,13 @@ jobs:
         # and integration suites could rot without anyone noticing.
         suite: [unit, component, integration]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
       - run: vp run test:${{ matrix.suite }} -- --coverage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-${{ matrix.suite }}
@@ -94,7 +94,7 @@ jobs:
             auth_adapter: jwt
             api_url: https://api.vuestrata.invalid
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
@@ -115,7 +115,7 @@ jobs:
       - name: Verify bundle invariants
         run: node scripts/build/verify-bundle.mjs --mode=${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.target }}
           path: dist/
@@ -128,7 +128,7 @@ jobs:
     # spending browser time on it.
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
@@ -146,7 +146,7 @@ jobs:
           E2E_TARGET: preview
         run: vp run test:e2e -- --project=chromium
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
