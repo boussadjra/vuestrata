@@ -51,7 +51,7 @@
     "@shikijs/primitive": "^4.4.2",
     "@shikijs/themes": "^4.4.2",
     "@tanstack/vue-query": "^5.101.4",
-    "@tanstack/vue-table": "^8.21.3",
+    "@tanstack/vue-table": "^9.1.2",
     "@vueuse/core": "^14.4.0",
     "axe-core": "^4.13.0",
     "beautiful-mermaid": "^1.1.3",
