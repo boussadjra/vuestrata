@@ -21,6 +21,7 @@ import {
 import { useFormatters } from '@/composables/useFormatters'
 
 import { useProjectsQuery } from '../composables/useProjects'
+import { projectHealthVariant } from '../presentation'
 import { PROJECT_HEALTHS, type ProjectFilters, type ProjectHealth } from '../types'
 
 const { t } = useI18n()
@@ -41,12 +42,6 @@ const healthOptions = computed(() => [
   { label: t('common_all'), value: 'all' },
   ...PROJECT_HEALTHS.map((value) => ({ label: t(`projects_health_${value}`), value })),
 ])
-
-const HEALTH_VARIANT: Record<ProjectHealth, 'success' | 'warning' | 'error'> = {
-  on_track: 'success',
-  at_risk: 'warning',
-  off_track: 'error',
-}
 </script>
 
 <template>
@@ -99,7 +94,7 @@ const HEALTH_VARIANT: Record<ProjectHealth, 'success' | 'warning' | 'error'> = {
                 {{ project.name }}
               </RouterLink>
             </h2>
-            <UiBadge :variant="HEALTH_VARIANT[project.health]" size="sm">
+            <UiBadge :variant="projectHealthVariant(project.health)" size="sm">
               {{ t(`projects_health_${project.health}`) }}
             </UiBadge>
           </div>

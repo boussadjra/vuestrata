@@ -23,7 +23,8 @@ import {
 import { useLocales } from '@/composables/useLocales'
 
 import { useTeamQuery } from '../composables/useTeam'
-import { TEAM_DEPARTMENTS, type TeamDepartment, type TeamFilters, type TeamMember } from '../types'
+import { memberLocalTime, teamStatusVariant } from '../presentation'
+import { TEAM_DEPARTMENTS, type TeamDepartment, type TeamFilters } from '../types'
 
 const { t } = useI18n()
 const { current: locale } = useLocales()
@@ -58,30 +59,9 @@ const groups = computed(() =>
   })).filter((group) => group.members.length > 0),
 )
 
-const STATUS_VARIANT: Record<TeamMember['status'], 'success' | 'warning' | 'default'> = {
-  available: 'success',
-  busy: 'warning',
-  away: 'default',
-  on_leave: 'default',
-}
-
-/**
- * The member's current local time.
- *
- * The single most useful thing a distributed-team directory can show, and one
- * `Intl` call: it answers "can I ping them now" without any mental arithmetic.
- * Falls back to nothing rather than to a wrong time if the zone is unknown.
- */
+/** Bound to the active locale here so the template can call it per member. */
 function localTime(timezone: string): string | null {
-  try {
-    return new Intl.DateTimeFormat(locale.value, {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: timezone,
-    }).format(new Date())
-  } catch {
-    return null
-  }
+  return memberLocalTime(timezone, locale.value)
 }
 </script>
 
@@ -157,7 +137,7 @@ function localTime(timezone: string): string | null {
               <p class="text-muted-foreground truncate text-sm">{{ member.title }}</p>
 
               <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                <UiBadge :variant="STATUS_VARIANT[member.status]" size="sm">
+                <UiBadge :variant="teamStatusVariant(member.status)" size="sm">
                   {{ t(`team_status_${member.status}`) }}
                 </UiBadge>
                 <!-- Local time answers "is it reasonable to ping them" without

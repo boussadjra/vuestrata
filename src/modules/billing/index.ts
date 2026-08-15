@@ -70,8 +70,16 @@ export default billingModule
 export { PLANS } from './composables/constants'
 export { useBilling } from './composables/useBilling'
 export { useBillingQuery } from './composables/useBillingQuery'
+export { useBillingActions } from './composables/useBillingActions'
 export { useSubscribeMutation } from './composables/useSubscribeMutation'
 export { useCancelSubscriptionMutation } from './composables/useCancelSubscriptionMutation'
 export { useUpdatePaymentMethodMutation } from './composables/useUpdatePaymentMethodMutation'
+export {
+  isUnlimited,
+  tierAccentClass,
+  usageMetricViews,
+  usagePercent,
+  usageSeverity,
+} from './presentation'
 export { billingModuleKeys } from './query-keys'
 export type { Plan, BillingInterval, Subscription, PlanTier } from './types'

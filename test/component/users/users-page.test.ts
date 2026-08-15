@@ -1,6 +1,10 @@
 /**
- * Component tests for the Users page.
- * Tests invite dialog and permissions panel interaction.
+ * Component tests for user management.
+ *
+ * The behaviour under test belongs to `UsersScreen` — the invite dialog and the
+ * permissions panel are feature UI, reachable without a router. The route page
+ * is covered separately, and only for what a route adapter is responsible for:
+ * rendering the right screen.
  */
 import 'fake-indexeddb/auto'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -150,6 +154,28 @@ vi.mock('~/modules/users', async (importOriginal) => {
   }
 })
 
+// `UsersScreen` reaches its server state through the feature composables
+// directly, not through the module barrel, so the mocks have to sit on the same
+// modules the screen imports.
+vi.mock('~/modules/users/composables/useUsersQuery', () => ({
+  useUsersQuery: () => ({
+    users: computed(() => mockUsers),
+    meta: computed(() => ({ total: mockUsers.length, page: 1, pageSize: 5, totalPages: 1 })),
+    isLoading: computed(() => false),
+    isFetching: computed(() => false),
+    error: computed(() => null),
+    refetch: vi.fn(),
+  }),
+}))
+
+vi.mock('~/modules/users/composables/useUpdateRoleMutation', () => ({
+  useUpdateRoleMutation: () => ({
+    updateRole: vi.fn().mockResolvedValue(undefined),
+    isPending: computed(() => false),
+    error: computed(() => null),
+  }),
+}))
+
 // Mock composables used directly by child components (InviteUserDialog, UserPermissionsPanel)
 vi.mock('~/modules/users/composables/useInviteUserMutation', () => ({
   useInviteUserMutation: () => ({
@@ -169,23 +195,22 @@ vi.mock('~/modules/users/composables/useUpdatePermissionsMutation', () => ({
   }),
 }))
 
+import UsersScreen from '@/modules/users/components/UsersScreen.vue'
 import UsersPage from '@/modules/users/pages/users.vue'
 
-function mountPage() {
+function mountScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: '/', component: UsersPage }],
-  })
   const pinia = createPinia()
 
   setActivePinia(pinia)
   const auth = useAuthStore()
   auth.setAuth(mockSuperAdmin, 'tok', 'rtok')
 
-  return mount(UsersPage, {
+  // No router: the screen must not need one. If it ever reaches for
+  // `useRoute()` this mount is where that shows up.
+  return mount(UsersScreen, {
     global: {
-      plugins: [[VueQueryPlugin, { queryClient }], router, pinia],
+      plugins: [[VueQueryPlugin, { queryClient }], pinia],
       stubs: {
         UiDataGrid: UiDataGridStub,
         UserPermissionsPanel: UserPermissionsPanelStub,
@@ -194,7 +219,7 @@ function mountPage() {
   })
 }
 
-describe('Users Page — invite dialog', () => {
+describe('UsersScreen — invite dialog', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
@@ -208,20 +233,20 @@ describe('Users Page — invite dialog', () => {
   })
 
   it('invite button is visible for super_admin', () => {
-    const wrapper = mountPage()
+    const wrapper = mountScreen()
     const button = wrapper.findAll('button').find((b) => b.text().includes('Invite'))
     expect(button?.exists()).toBe(true)
   })
 
   it('clicking invite button shows InviteUserDialog', async () => {
-    const wrapper = mountPage()
+    const wrapper = mountScreen()
     const button = wrapper.findAll('button').find((b) => b.text().includes('Invite'))
     await button!.trigger('click')
     expect(wrapper.find('[aria-labelledby="invite-dialog-title"]').exists()).toBe(true)
   })
 
   it('InviteUserDialog closes on cancel', async () => {
-    const wrapper = mountPage()
+    const wrapper = mountScreen()
     const button = wrapper.findAll('button').find((b) => b.text().includes('Invite'))
     await button!.trigger('click')
     const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel')
@@ -230,7 +255,7 @@ describe('Users Page — invite dialog', () => {
   })
 })
 
-describe('Users Page — permissions panel', () => {
+describe('UsersScreen — permissions panel', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
@@ -244,23 +269,63 @@ describe('Users Page — permissions panel', () => {
   })
 
   it('permissions panel is hidden by default', () => {
-    const wrapper = mountPage()
+    const wrapper = mountScreen()
     expect(wrapper.find('[aria-labelledby="permissions-panel-title"]').exists()).toBe(false)
   })
 
+  // Driven through the row action rather than by assigning to the component's
+  // internals: the selection is not part of the screen's contract, and a test
+  // that writes to it passes even if the button is gone.
   it('selecting a user opens UserPermissionsPanel', async () => {
-    const wrapper = mountPage()
-    ;(wrapper.vm as unknown as { selectedUser: User | null }).selectedUser = mockUsers[1]!
+    const wrapper = mountScreen()
+    const permissionsButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Permissions')
+
+    expect(permissionsButton).toBeDefined()
+    await permissionsButton!.trigger('click')
     await nextTick()
+
     expect(wrapper.find('[aria-labelledby="permissions-panel-title"]').exists()).toBe(true)
   })
 
   it('UserPermissionsPanel closes on Cancel', async () => {
-    const wrapper = mountPage()
-    ;(wrapper.vm as unknown as { selectedUser: User | null }).selectedUser = mockUsers[1]!
+    const wrapper = mountScreen()
+    const permissionsButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Permissions')
+    await permissionsButton!.trigger('click')
     await nextTick()
+
     const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel')
     await cancelBtn!.trigger('click')
     expect(wrapper.find('[aria-labelledby="permissions-panel-title"]').exists()).toBe(false)
+  })
+})
+
+/**
+ * The route page's own responsibility, and its only one: it must render the
+ * users screen. Everything the screen does is covered above, without a router.
+ */
+describe('Users route page', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('renders UsersScreen', () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: UsersPage }],
+    })
+
+    const wrapper = mount(UsersPage, {
+      global: {
+        plugins: [router, createPinia()],
+        stubs: { UsersScreen: true },
+      },
+    })
+
+    expect(wrapper.findComponent({ name: 'UsersScreen' }).exists()).toBe(true)
   })
 })

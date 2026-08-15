@@ -1,67 +1,65 @@
 <script setup lang="ts">
+/**
+ * Billing.
+ *
+ * The route has no inputs — `/dashboard/billing` means one thing — so this page
+ * composes the billing feature directly. What it does *not* do is implement it:
+ * the subscribe/cancel workflow and its feedback live in `useBillingActions`,
+ * and the quota rules in `presentation.ts`, so an upgrade prompt raised from
+ * somewhere else behaves identically.
+ */
 import { useI18n } from 'vue-i18n'
 
 import { UiPageHeader } from '@/components/ui'
-import { useNotificationStore } from '@/stores/notification'
-import type { BillingInterval, PlanTier } from '@/types'
+import { useFormatters } from '@/composables/useFormatters'
+import type { BillingInterval } from '@/types'
 import { resolveIcon } from '~/config/icon-provider'
-import { useBilling, PLANS } from '~/modules/billing'
+
+// Relative, like every other module's pages: the barrel is the module's public
+// API for *other* modules, not a way for it to import itself.
+import { PLANS } from '../composables/constants'
+import { useBillingActions } from '../composables/useBillingActions'
+import { useBillingQuery } from '../composables/useBillingQuery'
+import { tierAccentClass, usageMetricViews, type UsageMetricId } from '../presentation'
 
 const { t } = useI18n()
+const { currency } = useFormatters()
 
-const billing = useBilling()
-const notifications = useNotificationStore()
+// Destructured, so the template binds to top-level refs and Vue unwraps them.
+const { usage, invoices, paymentMethods, isSubscribed, currentTier, isLoading, error, refetch } =
+  useBillingQuery()
+const { subscribe, cancelSubscription, isSubscribing } = useBillingActions()
+
 const billingInterval = ref<BillingInterval>('monthly')
 
-const tierColors: Record<PlanTier, string> = {
-  free: 'bg-surface-400',
-  starter: 'bg-accent-500',
-  pro: 'bg-primary-500',
-  enterprise: 'bg-secondary-500',
+const USAGE_LABEL_KEY: Record<UsageMetricId, string> = {
+  users: 'billing_usage_users',
+  storage: 'billing_usage_storage',
+  apiCalls: 'billing_usage_api_calls',
 }
 
-const formatCurrency = (amountCents: number) => `$${(amountCents / 100).toFixed(2)}`
-const formatPrice = (priceDollars: number) =>
-  priceDollars === 0 ? t('common_free') : `$${priceDollars}`
+/** Fill colour by urgency, so the threshold lives in one place. */
+const SEVERITY_BAR_CLASS = {
+  normal: 'bg-primary-500',
+  warning: 'bg-warning-500',
+  critical: 'bg-destructive',
+} as const
 
-async function handleSubscribe(planId: string) {
-  // The mutation's own pending state (exposed as `billing.isSubscribing`) is
-  // already the source of truth — no parallel local ref needed.
-  try {
-    await billing.subscribe(planId, billingInterval.value)
-    notifications.add({
-      type: 'success',
-      title: t('billing_subscribed'),
-      message: t('billing_plan_updated'),
-    })
-  } catch {
-    notifications.add({
-      type: 'error',
-      title: t('billing_error'),
-      message: t('billing_error_update'),
-    })
-  }
-}
+const usageMetrics = computed(() =>
+  usageMetricViews(usage.value).map((metric) => ({
+    ...metric,
+    label: t(USAGE_LABEL_KEY[metric.id]),
+    // Storage is measured in GB; the other two are plain counts. Branching on
+    // the metric's id rather than on its translated label.
+    reading:
+      metric.id === 'storage'
+        ? `${metric.current.toFixed(1)} / ${metric.limit} GB`
+        : `${metric.current.toLocaleString()} / ${metric.unlimited ? '∞' : metric.limit.toLocaleString()}`,
+  })),
+)
 
-async function handleCancel() {
-  try {
-    await billing.cancelSubscription()
-    notifications.add({
-      type: 'info',
-      title: t('billing_canceled'),
-      message: t('billing_cancel_msg'),
-    })
-  } catch {
-    notifications.add({
-      type: 'error',
-      title: t('billing_error'),
-      message: t('billing_error_cancel'),
-    })
-  }
-}
-
-const usagePercent = (current: number, limit: number) =>
-  limit <= 0 ? 0 : Math.min((current / limit) * 100, 100)
+/** Plan prices are whole currency units, not minor units like invoices. */
+const formatPrice = (priceUnits: number) => (priceUnits === 0 ? t('common_free') : `$${priceUnits}`)
 </script>
 
 <template>
@@ -69,20 +67,20 @@ const usagePercent = (current: number, limit: number) =>
     <UiPageHeader :title="t('billing_title')" :description="t('billing_subtitle')" />
 
     <!-- Loading State -->
-    <div v-if="billing.isLoading" class="flex items-center justify-center py-20">
+    <div v-if="isLoading" class="flex items-center justify-center py-20">
       <span :class="[resolveIcon('refresh'), 'text-primary-500 h-6 w-6 animate-spin']" />
       <span class="text-surface-500 ms-3">{{ t('common_loading') }}</span>
     </div>
 
     <!-- Error State -->
     <div
-      v-else-if="billing.error"
+      v-else-if="error"
       class="border-danger-200 dark:border-danger-800 bg-destructive-subtle rounded-2xl border p-6 text-center"
     >
-      <p class="text-destructive mb-3">{{ billing.error }}</p>
+      <p class="text-destructive mb-3">{{ error }}</p>
       <button
         class="bg-destructive text-destructive-foreground hover:bg-danger-700 rounded-xl px-4 py-2 text-sm transition"
-        @click="billing.fetchBillingData()"
+        @click="refetch()"
       >
         {{ t('common_retry') }}
       </button>
@@ -92,44 +90,30 @@ const usagePercent = (current: number, limit: number) =>
       <!-- Usage Overview -->
       <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div
-          v-for="(metric, key) in {
-            [t('billing_usage_users')]: billing.usage.users,
-            [t('billing_usage_storage')]: billing.usage.storage,
-            [t('billing_usage_api_calls')]: billing.usage.apiCalls,
-          }"
-          :key="key"
+          v-for="metric in usageMetrics"
+          :key="metric.id"
           class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-2xl border bg-white/90 p-6 shadow-sm"
         >
           <div class="mb-3 flex items-center justify-between">
-            <span class="text-muted-foreground text-sm font-semibold">{{ key }}</span>
-            <span class="text-muted-foreground text-xs">
-              {{
-                key === 'Storage'
-                  ? `${metric.current.toFixed(1)} / ${metric.limit} GB`
-                  : `${metric.current.toLocaleString()} / ${metric.limit < 0 ? '∞' : metric.limit.toLocaleString()}`
-              }}
-            </span>
+            <span class="text-muted-foreground text-sm font-semibold">{{ metric.label }}</span>
+            <span class="text-muted-foreground text-xs">{{ metric.reading }}</span>
           </div>
           <div class="bg-surface-100 dark:bg-surface-700 h-2.5 w-full overflow-hidden rounded-full">
+            <!--
+              An unlimited quota has no fill to show, so it gets a token sliver
+              rather than a bar that reads as "5% used".
+            -->
             <div
               class="h-full rounded-full transition-all duration-500"
-              :class="
-                usagePercent(metric.current, metric.limit) > 80
-                  ? 'bg-destructive'
-                  : usagePercent(metric.current, metric.limit) > 60
-                    ? 'bg-warning-500'
-                    : 'bg-primary-500'
-              "
-              :style="{
-                width: `${metric.limit < 0 ? 5 : usagePercent(metric.current, metric.limit)}%`,
-              }"
+              :class="SEVERITY_BAR_CLASS[metric.severity]"
+              :style="{ width: `${metric.unlimited ? 5 : metric.percent}%` }"
             />
           </div>
           <p class="text-muted-foreground mt-2 text-xs">
             {{
-              metric.limit < 0
+              metric.unlimited
                 ? t('common_unlimited')
-                : `${Math.round(usagePercent(metric.current, metric.limit))}% ${t('common_used')}`
+                : `${Math.round(metric.percent)}% ${t('common_used')}`
             }}
           </p>
         </div>
@@ -193,7 +177,7 @@ const usagePercent = (current: number, limit: number) =>
           <div
             :class="[
               'mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-white',
-              tierColors[plan.tier],
+              tierAccentClass(plan.tier),
             ]"
           >
             <span :class="[resolveIcon('star'), 'h-5 w-5']" />
@@ -228,18 +212,16 @@ const usagePercent = (current: number, limit: number) =>
             </li>
           </ul>
           <button
-            :disabled="billing.isSubscribing"
+            :disabled="isSubscribing"
             :class="[
               'w-full rounded-xl py-2.5 text-sm font-semibold transition-all',
               plan.highlighted
                 ? 'bg-primary-600 hover:bg-primary-500 text-white shadow-md'
                 : 'border-surface-200 dark:border-surface-700 text-foreground hover:bg-surface-100 dark:hover:bg-surface-800 border',
             ]"
-            @click="handleSubscribe(plan.id)"
+            @click="subscribe(plan.id, billingInterval)"
           >
-            {{
-              plan.tier === billing.currentTier ? t('billing_current_plan') : t('billing_upgrade')
-            }}
+            {{ plan.tier === currentTier ? t('billing_current_plan') : t('billing_upgrade') }}
           </button>
         </div>
       </div>
@@ -260,7 +242,7 @@ const usagePercent = (current: number, limit: number) =>
           </div>
           <div class="space-y-3">
             <div
-              v-for="pm in billing.paymentMethods"
+              v-for="pm in paymentMethods"
               :key="pm.id"
               :class="[
                 'flex items-center justify-between rounded-xl border p-4 transition-colors',
@@ -302,7 +284,7 @@ const usagePercent = (current: number, limit: number) =>
           </h2>
           <div class="space-y-3">
             <div
-              v-for="invoice in billing.invoices"
+              v-for="invoice in invoices"
               :key="invoice.id"
               class="border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-800/50 flex items-center justify-between rounded-xl border p-3 transition-colors"
             >
@@ -329,8 +311,10 @@ const usagePercent = (current: number, limit: number) =>
                   ]"
                   >{{ invoice.status }}</span
                 >
+                <!-- The invoice carries its own currency; formatting it as a
+                     hardcoded "$" was wrong for every other one. -->
                 <span class="text-surface-900 text-sm font-semibold tabular-nums dark:text-white">{{
-                  formatCurrency(invoice.amount)
+                  currency(invoice.amount, invoice.currency)
                 }}</span>
               </div>
             </div>
@@ -340,7 +324,7 @@ const usagePercent = (current: number, limit: number) =>
 
       <!-- Cancel Subscription -->
       <div
-        v-if="billing.isSubscribed"
+        v-if="isSubscribed"
         class="border-danger-200 dark:border-danger-800/40 bg-destructive-subtle flex items-center justify-between rounded-2xl border p-6"
       >
         <div>
@@ -353,7 +337,7 @@ const usagePercent = (current: number, limit: number) =>
         </div>
         <button
           class="border-danger-300 dark:border-danger-700 text-destructive hover:bg-danger-100 dark:hover:bg-danger-900/20 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-          @click="handleCancel"
+          @click="cancelSubscription"
         >
           {{ t('billing_cancel_plan') }}
         </button>

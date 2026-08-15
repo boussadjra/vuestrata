@@ -22,9 +22,10 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useLocales } from '@/composables/useLocales'
 import { useRouteParam } from '@/composables/useRouteParam'
 import { resolveIcon } from '@/config/icon-provider'
+import { isNotFoundError } from '~/lib/errors'
 
 import { useTeamMemberQuery } from '../composables/useTeam'
-import type { TeamMember } from '../types'
+import { memberLocalTime, teamStatusVariant } from '../presentation'
 
 const { t } = useI18n()
 const { date } = useFormatters()
@@ -35,31 +36,15 @@ const { item: member, isPending, isError, error, refetch } = useTeamMemberQuery(
 
 useBreadcrumbLabel(() => member.value?.name)
 
-const isNotFound = computed(() => {
-  const failure = (error.value as { status?: number; statusCode?: number } | null) ?? null
-  return failure?.status === 404 || failure?.statusCode === 404
-})
+const isNotFound = computed(() => isNotFoundError(error.value))
 
-const STATUS_VARIANT: Record<TeamMember['status'], 'success' | 'warning' | 'default'> = {
-  available: 'success',
-  busy: 'warning',
-  away: 'default',
-  on_leave: 'default',
-}
-
-const localTime = computed(() => {
-  if (!member.value) return null
-  try {
-    return new Intl.DateTimeFormat(locale.value, {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZoneName: 'short',
-      timeZone: member.value.timezone,
-    }).format(new Date())
-  } catch {
-    return null
-  }
-})
+// The zone name is worth the extra width here: the profile is where someone
+// checks whether a call at 16:00 is reasonable, and "CET" answers that.
+const localTime = computed(() =>
+  member.value
+    ? memberLocalTime(member.value.timezone, locale.value, { withZoneName: true })
+    : null,
+)
 </script>
 
 <template>
@@ -92,7 +77,7 @@ const localTime = computed(() => {
       <UiPageHeader :title="member.name" :description="member.title">
         <template #meta>
           <div class="mt-2 flex flex-wrap items-center gap-2">
-            <UiBadge :variant="STATUS_VARIANT[member.status]" size="sm">
+            <UiBadge :variant="teamStatusVariant(member.status)" size="sm">
               {{ t(`team_status_${member.status}`) }}
             </UiBadge>
             <UiBadge variant="secondary" size="sm">

@@ -18,6 +18,7 @@ import { useServerTable } from '@/composables/useServerTable'
 import { resolveIcon } from '@/config/icon-provider'
 
 import { useOrdersQuery } from '../composables/useOrders'
+import { orderItemCount, orderStatusVariant } from '../presentation'
 import {
   ORDER_CHANNELS,
   ORDER_STATUSES,
@@ -32,16 +33,6 @@ const { can } = useRbac()
 
 const status = ref<OrderStatus | 'all'>('all')
 const channel = ref<OrderChannel | 'all'>('all')
-
-const STATUS_VARIANT: Record<OrderStatus, 'success' | 'warning' | 'error' | 'default' | 'primary'> =
-  {
-    draft: 'default',
-    pending: 'warning',
-    paid: 'primary',
-    fulfilled: 'success',
-    cancelled: 'error',
-    refunded: 'error',
-  }
 
 const helper = createColumnHelper<Order>()
 const columns = computed(() => [
@@ -60,7 +51,7 @@ const columns = computed(() => [
     cell: ({ row }) =>
       h(TableStatusCell, {
         label: t(`orders_status_${row.original.status}`),
-        variant: STATUS_VARIANT[row.original.status],
+        variant: orderStatusVariant(row.original.status),
       }),
     meta: { label: t('common_status'), width: '9rem' },
   }),
@@ -72,7 +63,7 @@ const columns = computed(() => [
   helper.display({
     id: 'items',
     header: () => t('orders_col_items'),
-    cell: ({ row }) => row.original.lines.reduce((sum, line) => sum + line.quantity, 0),
+    cell: ({ row }) => orderItemCount(row.original),
     meta: { label: t('orders_col_items'), align: 'end', width: '7rem' },
   }),
   helper.accessor('total', {

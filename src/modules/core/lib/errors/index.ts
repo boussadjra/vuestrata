@@ -102,6 +102,22 @@ export function normalizeError(err: unknown): AppError {
   })
 }
 
+/**
+ * Was this failure a 404?
+ *
+ * A missing record is a route-level condition, not a transient error: the page
+ * must offer "back to the list" rather than "retry". Every record page needs
+ * the distinction, and each one used to re-derive it from a locally cast
+ * `{ status?, statusCode? }` shape — five copies of one rule, each free to
+ * forget that ofetch reports the code under `statusCode`.
+ *
+ * `null`/`undefined` is not a 404: no error means nothing failed.
+ */
+export function isNotFoundError(err: unknown): boolean {
+  if (err === null || err === undefined) return false
+  return normalizeError(err).status === 404
+}
+
 /** HTTP status code to user-friendly message */
 const STATUS_MESSAGES: Record<number, string> = {
   400: 'The request was invalid. Please check your input.',

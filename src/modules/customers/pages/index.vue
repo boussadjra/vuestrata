@@ -18,6 +18,7 @@ import { useServerTable } from '@/composables/useServerTable'
 import { resolveIcon } from '@/config/icon-provider'
 
 import { useCustomersQuery } from '../composables/useCustomers'
+import { customerStatusVariant } from '../presentation'
 import {
   CUSTOMER_PLANS,
   CUSTOMER_STATUSES,
@@ -32,17 +33,6 @@ const { can } = useRbac()
 
 const status = ref<CustomerStatus | 'all'>('all')
 const plan = ref<CustomerPlan | 'all'>('all')
-
-/**
- * The badge colour reinforces the label; it never carries the meaning alone
- * (WCAG 1.4.1). `TableStatusCell` always renders the text.
- */
-const STATUS_VARIANT: Record<CustomerStatus, 'success' | 'warning' | 'error' | 'default'> = {
-  active: 'success',
-  trial: 'warning',
-  prospect: 'default',
-  churned: 'error',
-}
 
 const helper = createColumnHelper<Customer>()
 
@@ -68,7 +58,7 @@ const columns = computed(() => [
     cell: ({ row }) =>
       h(TableStatusCell, {
         label: t(`customers_status_${row.original.status}`),
-        variant: STATUS_VARIANT[row.original.status],
+        variant: customerStatusVariant(row.original.status),
       }),
     meta: { label: t('common_status'), width: '9rem' },
   }),

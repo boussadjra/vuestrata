@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vite-plus/test'
 
-import { AppError, normalizeError, getStatusMessage } from '@/lib/errors'
+import { AppError, isNotFoundError, normalizeError, getStatusMessage } from '@/lib/errors'
 
 describe('AppError', () => {
   it('should create with default values', () => {
@@ -100,6 +100,34 @@ describe('normalizeError', () => {
   it('should normalize null/undefined', () => {
     expect(normalizeError(null).code).toBe('UNKNOWN_ERROR')
     expect(normalizeError(undefined).code).toBe('UNKNOWN_ERROR')
+  })
+})
+
+describe('isNotFoundError', () => {
+  it('recognises a 404 AppError', () => {
+    expect(isNotFoundError(new AppError({ message: 'Gone', status: 404 }))).toBe(true)
+  })
+
+  it('recognises an ofetch error reporting the code as statusCode', () => {
+    const err = Object.assign(new Error('Not Found'), { statusCode: 404 })
+    expect(isNotFoundError(err)).toBe(true)
+  })
+
+  it('recognises an ofetch error reporting the code as status', () => {
+    const err = Object.assign(new Error('Not Found'), { status: 404 })
+    expect(isNotFoundError(err)).toBe(true)
+  })
+
+  it('is false for other failures', () => {
+    expect(isNotFoundError(new AppError({ message: 'Boom', status: 500 }))).toBe(false)
+    expect(isNotFoundError(new Error('network'))).toBe(false)
+  })
+
+  // The record pages call this with `query.error.value`, which is null while
+  // the request is in flight and after it succeeds. No error is not a 404.
+  it('is false when there is no error', () => {
+    expect(isNotFoundError(null)).toBe(false)
+    expect(isNotFoundError(undefined)).toBe(false)
   })
 })
 

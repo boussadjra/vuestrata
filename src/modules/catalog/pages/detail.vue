@@ -30,19 +30,15 @@ import { useRbac } from '@/composables/useRbac'
 import { useRouteParam } from '@/composables/useRouteParam'
 import { resolveIcon } from '@/config/icon-provider'
 import { useNotificationStore } from '@/stores/notification'
+import { isNotFoundError } from '~/lib/errors'
 
 import {
   useCreateProductMutation,
   useProductQuery,
   useUpdateProductMutation,
 } from '../composables/useCatalog'
-import {
-  PRODUCT_CATEGORIES,
-  PRODUCT_STATUSES,
-  productDraftSchema,
-  stockLevelOf,
-  type StockLevel,
-} from '../types'
+import { stockVariant } from '../presentation'
+import { PRODUCT_CATEGORIES, PRODUCT_STATUSES, productDraftSchema, stockLevelOf } from '../types'
 
 const { t } = useI18n()
 const { can } = useRbac()
@@ -60,10 +56,7 @@ const updateProduct = useUpdateProductMutation()
 
 useBreadcrumbLabel(() => (isNew.value ? t('catalog_new') : (product.value?.name ?? null)))
 
-const isNotFound = computed(() => {
-  const failure = (error.value as { status?: number; statusCode?: number } | null) ?? null
-  return failure?.status === 404 || failure?.statusCode === 404
-})
+const isNotFound = computed(() => isNotFoundError(error.value))
 
 const isSaving = computed(() => createProduct.isPending.value || updateProduct.isPending.value)
 const saveError = computed(() => createProduct.error.value ?? updateProduct.error.value)
@@ -91,13 +84,6 @@ const categoryOptions = computed(() =>
 const statusOptions = computed(() =>
   PRODUCT_STATUSES.map((value) => ({ label: t(`catalog_status_${value}`), value })),
 )
-
-const STOCK_VARIANT: Record<StockLevel, 'success' | 'warning' | 'error' | 'default'> = {
-  ok: 'success',
-  low: 'warning',
-  out: 'error',
-  'not-stocked': 'default',
-}
 
 async function onSubmit(values: Record<string, unknown>) {
   const draft = productDraftSchema.parse(values)
@@ -154,7 +140,7 @@ async function onSubmit(values: Record<string, unknown>) {
       >
         <template v-if="product" #meta>
           <div class="mt-2 flex flex-wrap items-center gap-2">
-            <UiBadge :variant="STOCK_VARIANT[stockLevelOf(product)]" size="sm">
+            <UiBadge :variant="stockVariant(stockLevelOf(product))" size="sm">
               {{
                 product.stock === null
                   ? t('catalog_stock_not_stocked')

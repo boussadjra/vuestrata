@@ -14,9 +14,10 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useRbac } from '@/composables/useRbac'
 import { useRouteParam } from '@/composables/useRouteParam'
 import { resolveIcon } from '@/config/icon-provider'
+import { isNotFoundError } from '~/lib/errors'
 
 import { useCustomerQuery } from '../composables/useCustomers'
-import type { CustomerStatus } from '../types'
+import { customerStatusVariant } from '../presentation'
 
 const { t } = useI18n()
 const { can } = useRbac()
@@ -28,17 +29,9 @@ const { item: customer, isPending, isError, error, refetch } = useCustomerQuery(
 // "Customers → Northwind Logistics" instead of "Customers → CUS-1004".
 useBreadcrumbLabel(() => customer.value?.company)
 
-const isNotFound = computed(() => {
-  const status = (error.value as { status?: number; statusCode?: number } | null) ?? null
-  return status?.status === 404 || status?.statusCode === 404
-})
-
-const STATUS_VARIANT: Record<CustomerStatus, 'success' | 'warning' | 'error' | 'default'> = {
-  active: 'success',
-  trial: 'warning',
-  prospect: 'default',
-  churned: 'error',
-}
+// A missing record is a route-level condition, not a transient failure: this
+// URL will never resolve, so the page offers the list instead of "retry".
+const isNotFound = computed(() => isNotFoundError(error.value))
 
 /** Figures shown as a compact summary row above the detail panels. */
 const stats = computed(() => {
@@ -95,7 +88,7 @@ const stats = computed(() => {
       <UiPageHeader :title="customer.company" :description="customer.contactName">
         <template #meta>
           <div class="mt-2 flex flex-wrap items-center gap-2">
-            <UiBadge :variant="STATUS_VARIANT[customer.status]" size="sm">
+            <UiBadge :variant="customerStatusVariant(customer.status)" size="sm">
               {{ t(`customers_status_${customer.status}`) }}
             </UiBadge>
             <UiBadge variant="secondary" size="sm">

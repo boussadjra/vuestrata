@@ -23,6 +23,13 @@ vp run test:e2e
 - Do not introduce direct `pnpm`, `npm`, `yarn`, or `bun` commands into docs, CI, or scripts.
 - Keep `src/modules/core/lib/` framework-agnostic.
 - Preserve provider independence: provider components must not import each other.
+- Keep route pages thin. A page under `src/modules/*/pages/` is an inbound
+  adapter: it may depend on Vue Router, normalize route input, handle
+  route-level concerns (redirects, metadata, breadcrumbs, not-found, route
+  access) and compose a feature screen. Reusable feature or application logic
+  must live in the feature module and must not depend on route components or
+  raw router state. See
+  [docs/2.architecture/4.route-pages.md](docs/2.architecture/4.route-pages.md).
 
 ## Before Opening A PR
 

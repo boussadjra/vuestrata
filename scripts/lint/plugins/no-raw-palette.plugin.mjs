@@ -85,9 +85,18 @@ const INLINE_ALLOW_MARKER = 'lint-allow-raw-palette'
  * Lower a number when you migrate a file; delete the entry at zero. Never
  * raise one — that is what the rule exists to prevent.
  */
+/**
+ * The users entries below used to be one line: `src/modules/users/pages/users.vue`
+ * at 22. Splitting that page into a route adapter, a screen and a presentation
+ * module moved the same 22 violations into three files without changing one of
+ * them (20 + 1 + 1). Relocating a debt is not paying it — the total is
+ * unchanged on purpose, and each file is still a migration waiting to happen.
+ */
 const BASELINE = new Map([
   ['src/modules/showcase/pages/tables.vue', 25],
-  ['src/modules/users/pages/users.vue', 22],
+  ['src/modules/users/presentation.ts', 20],
+  ['src/modules/users/components/UsersScreen.vue', 1],
+  ['src/modules/users/components/RolePermissionMatrix.vue', 1],
 ])
 
 export function noRawPalettePlugin() {

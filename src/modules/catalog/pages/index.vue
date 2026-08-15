@@ -24,6 +24,7 @@ import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
 
 import { useProductsQuery } from '../composables/useCatalog'
+import { stockVariant } from '../presentation'
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_STATUSES,
@@ -32,7 +33,6 @@ import {
   type ProductCategory,
   type ProductFilters,
   type ProductStatus,
-  type StockLevel,
 } from '../types'
 
 const { t } = useI18n()
@@ -80,13 +80,6 @@ const statusOptions = computed(() => [
  * "Not stocked" and "Out of stock" are deliberately different: one is a
  * property of the product, the other a temporary condition to act on.
  */
-const STOCK_VARIANT: Record<StockLevel, 'success' | 'warning' | 'error' | 'default'> = {
-  ok: 'success',
-  low: 'warning',
-  out: 'error',
-  'not-stocked': 'default',
-}
-
 function stockLabel(product: Product): string {
   const level = stockLevelOf(product)
   if (level === 'not-stocked') return t('catalog_stock_not_stocked')
@@ -174,7 +167,7 @@ function stockLabel(product: Product): string {
                 </h2>
                 <p class="text-muted-foreground font-mono text-xs">{{ product.sku }}</p>
               </div>
-              <UiBadge :variant="STOCK_VARIANT[stockLevelOf(product)]" size="sm">
+              <UiBadge :variant="stockVariant(stockLevelOf(product))" size="sm">
                 {{ stockLabel(product) }}
               </UiBadge>
             </div>

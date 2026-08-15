@@ -14,9 +14,10 @@ import { useBreadcrumbLabel } from '@/composables/useBreadcrumbs'
 import { useFormatters } from '@/composables/useFormatters'
 import { useRouteParam } from '@/composables/useRouteParam'
 import { resolveIcon } from '@/config/icon-provider'
+import { isNotFoundError } from '~/lib/errors'
 
 import { useOrderQuery } from '../composables/useOrders'
-import type { OrderStatus } from '../types'
+import { orderStatusVariant } from '../presentation'
 
 const { t } = useI18n()
 const { currency, dateTime, number } = useFormatters()
@@ -26,20 +27,7 @@ const { item: order, isPending, isError, error, refetch } = useOrderQuery(id)
 
 useBreadcrumbLabel(() => order.value?.reference)
 
-const isNotFound = computed(() => {
-  const failure = (error.value as { status?: number; statusCode?: number } | null) ?? null
-  return failure?.status === 404 || failure?.statusCode === 404
-})
-
-const STATUS_VARIANT: Record<OrderStatus, 'success' | 'warning' | 'error' | 'default' | 'primary'> =
-  {
-    draft: 'default',
-    pending: 'warning',
-    paid: 'primary',
-    fulfilled: 'success',
-    cancelled: 'error',
-    refunded: 'error',
-  }
+const isNotFound = computed(() => isNotFoundError(error.value))
 
 const totals = computed(() => {
   const record = order.value
@@ -83,7 +71,7 @@ const totals = computed(() => {
       <UiPageHeader :title="order.reference" :description="order.customerName">
         <template #meta>
           <div class="mt-2 flex flex-wrap items-center gap-2">
-            <UiBadge :variant="STATUS_VARIANT[order.status]" size="sm">
+            <UiBadge :variant="orderStatusVariant(order.status)" size="sm">
               {{ t(`orders_status_${order.status}`) }}
             </UiBadge>
             <UiBadge variant="secondary" size="sm">

@@ -24,10 +24,10 @@ const router = useRouter()
 
 const folder = ref<MessageFolder>('inbox')
 
-const selectedId = computed(() => {
-  const value = route.query.thread
-  return typeof value === 'string' ? value : undefined
-})
+// The open thread lives in the URL, so it is route state and this page owns it.
+// Normalizing it here means the rest of the screen sees `string | undefined`
+// rather than the router's `string | null | (string | null)[]`.
+const selectedId = useRouteQueryParam('thread')
 
 const filters = computed<MessageFilters>(() => ({
   folder: folder.value,
