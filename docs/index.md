@@ -26,7 +26,11 @@ Composable app modules with explicit server-state and client-state ownership.
 ::
 
 ::card{title="Components" icon="code" to="/docs/components/overview"}
-Reka-based Ui wrappers with shared base components.
+Reka-based Ui wrappers; field behaviour lives in forms composables.
+::
+
+::card{title="Recipes" icon="document" to="/docs/recipes"}
+Scaffold a module, page, theme, component, or icon set — and the tasks still done by hand.
 ::
 
 ::card{title="Configuration" icon="settings" to="/docs/configuration/environment"}

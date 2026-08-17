@@ -131,6 +131,54 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Testing',
     description: 'Unit testing with Vitest and end-to-end testing with Playwright.',
   },
+  '/docs/9.recipes/index.md': {
+    title: 'Recipes',
+    description:
+      'Task-shaped guides for extending the template, with generators where they earn their place.',
+  },
+  '/docs/9.recipes/1.add-a-module.md': {
+    navTitle: 'Add a module',
+    title: 'Add a Module',
+    description:
+      'Scaffold a CRUD domain module, what the generator writes, and what is still yours to decide.',
+  },
+  '/docs/9.recipes/2.add-a-page.md': {
+    navTitle: 'Add a page',
+    title: 'Add a Page',
+    description:
+      'Add a page to an existing module, and why dropping a .vue file in pages/ is not enough.',
+  },
+  '/docs/9.recipes/3.add-a-theme.md': {
+    navTitle: 'Add a theme',
+    title: 'Add a Theme',
+    description: 'Scaffold a theme, the four files that must agree, and the import-order trap.',
+  },
+  '/docs/9.recipes/4.add-a-component.md': {
+    navTitle: 'Add a component',
+    title: 'Add a Component',
+    description:
+      'Scaffold a Ui* wrapper, the wrapper/composable split, and the colour rule that will reject your code.',
+  },
+  '/docs/9.recipes/5.add-an-icon-set.md': {
+    navTitle: 'Add an icon set',
+    title: 'Add an Icon Set',
+    description: 'Swap or add an icon provider without leaving gaps in the UI.',
+  },
+  '/docs/9.recipes/6.add-a-locale.md': {
+    navTitle: 'Add a locale',
+    title: 'Add a Locale',
+    description: 'Add a language across the shell catalog, every module, and the RTL plumbing.',
+  },
+  '/docs/9.recipes/7.add-a-permission.md': {
+    navTitle: 'Add a permission',
+    title: 'Add a Permission',
+    description: 'Declare a permission, grant it to roles, and guard routes and UI with it.',
+  },
+  '/docs/9.recipes/8.add-a-nav-group.md': {
+    navTitle: 'Add a nav group',
+    title: 'Add a Nav Group',
+    description: 'Add a sidebar section — and why modules cannot define their own.',
+  },
 }
 
 const markdownModules = import.meta.glob('/docs/**/*.md', {
