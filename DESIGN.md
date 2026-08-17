@@ -1,6 +1,6 @@
 ---
 name: Vuestrata
-description: A multi-theme Vue 3 enterprise starter — structured defaults, opinionated conventions, ten design personalities in one codebase.
+description: A multi-theme Vue 3 enterprise starter — structured defaults, opinionated conventions, eleven design personalities in one codebase.
 colors:
   # ── Default theme: Workshop Teal (primary) ──────────────────────────────
   workshop-teal-mist: '#eefbf5' # primary-50  — hover tints, input bg tints
@@ -129,7 +129,7 @@ Vuestrata is a workspace, not a canvas. Every visual decision starts from utilit
 
 The system rejects what PRODUCT.md calls the anti-references by name: Bootstrap admin dashboards with their accordion of padded boxes, Vercel-style marketing templates that prioritize whitespace over density, cluttered Material Design with competing elevation and ripple at every tier, and the generic SaaS dashboard aesthetic of blue gradients and star-rating widgets. Vuestrata is for developers who want production-grade structure, not a style show.
 
-Ten named themes extend this foundation without changing the architecture. Each theme overrides the same CSS custom-property vocabulary — colors, radii, shadows, typeface — so the layout and component structure remain constant. A screen that works in Default works in Terminal. The themes are not skins; they are first-class design personalities, each with its own aesthetic rationale.
+Eleven named themes extend this foundation without changing the architecture. Each theme overrides the same CSS custom-property vocabulary — colors, radii, shadows, typeface — so the layout and component structure remain constant. A screen that works in Default works in Terminal. The themes are not skins; they are first-class design personalities, each with its own aesthetic rationale.
 
 **Key Characteristics:**
 
@@ -138,7 +138,7 @@ Ten named themes extend this foundation without changing the architecture. Each 
 - Dense, information-first layouts with clear visual hierarchy
 - RTL-native: logical CSS properties throughout (`inset-inline`, `border-inline`, `ltr:`/`rtl:` utilities)
 - WCAG 2.1 AAA contrast target across all themes and modes
-- All 10 themes support both light and dark mode via `html.dark` class
+- All 11 themes support both light and dark mode via `html.dark` class
 - Motion respects `prefers-reduced-motion` at the component level
 
 ---
@@ -191,7 +191,7 @@ _The default palette is a craftsman's limited set — one working teal, one warm
 
 ### Theme Variants
 
-The theming engine works by overriding the same `--color-*`, `--radius-*`, `--shadow-*`, and `--font-sans` custom properties on `:root.<theme-class>`. Apply a theme with `class="theme-<name>"` on `<html>`. All 10 themes support `html.dark`.
+The theming engine works by overriding the same `--color-*`, `--radius-*`, `--shadow-*`, and `--font-sans` custom properties on `:root.<theme-class>`. Apply a theme with `class="theme-<name>"` on `<html>`. All 11 themes support `html.dark`.
 
 #### Character Cards
 
@@ -204,6 +204,7 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 | **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene           |
 | **Harbour**   | Burnt orange + cobalt on warm cream     | Painterly, complementary, autumn coast    |
 | **Ocean**     | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth    |
+| **Pro**       | Operator blue on cool paper             | Daylight SaaS console, restrained, quiet  |
 | **Rose**      | Rose pink + slate purple                | Sophisticated, modern, editorial          |
 | **Sunset**    | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration           |
 | **Terminal**  | Phosphor green on dark charcoal         | Developer-native, monospace, austere      |
@@ -219,6 +220,7 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 | Ghibli    | `#4f8058`   | `#c4713a`     | `#4f86a8`  | `#fdfaf4`  | 0.875rem  | Nunito / Fraunces |
 | Harbour   | `#e2661f`   | `#4a60d2`     | `#c4497f`  | `#fdf7ef`  | 0.75rem   | Rubik             |
 | Ocean     | `#6366f1`   | `#06b6d4`     | `#8b5cf6`  | `#f8fafc`  | 0.5rem    | Inter             |
+| Pro       | `#2d61f0`   | `#6a7588`     | `#2a9d93`  | `#f5f6f9`  | 0.5rem    | Plus Jakarta Sans |
 | Rose      | `#f43f5e`   | `#a855f7`     | `#d946ef`  | `#fafafa`  | 0.5rem    | Inter             |
 | Sunset    | `#f97316`   | `#f43f5e`     | `#eab308`  | `#fafaf9`  | 0.5rem    | Rubik             |
 | Terminal  | `#10b981`   | `#f59e0b`     | `#06b6d4`  | `#d4d4d8`  | 0.25rem   | SF Mono           |
@@ -362,7 +364,7 @@ Six deliberate departures from the previous version:
 ---
 
 **Ocean** — _The Deep Channel_
-Deep indigo primary (#6366f1), cyan secondary (#06b6d4), violet accent (#8b5cf6). The standard cool-slate surface (same as Default). Blue-tinted gaussian shadows with glow support enabled. Smooth radius (md=0.5rem). Inter type. This is the most "professional SaaS" personality in the set — the one to reach for in data-heavy dashboards.
+Deep indigo primary (#6366f1), cyan secondary (#06b6d4), violet accent (#8b5cf6). The standard cool-slate surface (same as Default). Blue-tinted gaussian shadows with glow support enabled. Smooth radius (md=0.5rem). Inter type. Saturated cool sibling of Pro — immersive, not the quiet operator console.
 
 | Token         | Value                         | Notes                        |
 | ------------- | ----------------------------- | ---------------------------- |
@@ -373,6 +375,22 @@ Deep indigo primary (#6366f1), cyan secondary (#06b6d4), violet accent (#8b5cf6)
 | Radius-md     | 0.5rem                        | Standard smooth              |
 | Shadow style  | Indigo-tinted gaussian + glow | Immersive depth              |
 | Font          | Inter / Rubik                 | Clean geometric              |
+
+---
+
+**Pro** — _The Operator Console_
+Daylight SaaS dashboard. Electric operator blue on cool blue-tinted paper. One accent does the interactive work; steel, hairline borders, and Plus Jakarta Sans do the rest. Modest rounding on both radius scales. Almost-flat gaussian shadows tinted with the blue. Dark mode is a navy night at the dark end of the same ramp — semantic.css performs the flip. No glass, no page wash, no button gradients.
+
+| Token         | Value                                            | Notes                                               |
+| ------------- | ------------------------------------------------ | --------------------------------------------------- |
+| Primary-500   | `#2d61f0`                                        | Operator blue, hue ≈ 225°; solid is 600 (`#1448e6`) |
+| Secondary-500 | `#6a7588`                                        | Cool steel — chrome, not a second accent            |
+| Accent-500    | `#2a9d93`                                        | Muted teal for charts; far from danger/warning      |
+| Surface-50    | `#f5f6f9` light / `#f5f6f9` dark ramp            | Cool paper; navy `#0b0e16` at 950                   |
+| Radius-md     | 0.5rem (`--shape-radius` 0.75rem)                | Modest dashboard rounding on both scales            |
+| Shadow style  | Blue-tinted gaussian, ≤12% opacity               | Almost-flat                                         |
+| Font          | Plus Jakarta Sans → Tajawal/Cairo                | Latin face; RTL falls through                       |
+| Charts        | Own 8-slot palette (blue / teal / amber / steel) | Adjacent slots differ in hue and lightness          |
 
 ---
 
@@ -424,7 +442,7 @@ Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/hig
 
 ### Theme Named Rules
 
-**The Consistent Architecture Rule.** All 10 themes override the same CSS custom properties. Components never query the theme name — they read tokens. A component that behaves correctly in Default will behave correctly in Terminal.
+**The Consistent Architecture Rule.** All 11 themes override the same CSS custom properties. Components never query the theme name — they read tokens. A component that behaves correctly in Default will behave correctly in Terminal.
 
 **The Zero-Radius Contract.** Blueprint and Brutalist set all radii to `0`. Components must not hardcode `rounded-*` class names with fixed values; they must derive rounding from `var(--radius-*)` tokens so shape responds correctly to theme.
 
@@ -439,7 +457,7 @@ Precedence falls out of source order: themes are imported at the top of app.css 
 
 `--shape-border-width` follows the same pattern, with one limitation worth knowing: Tailwind's `border` utility emits a literal `1px`, not a token, so border width cannot be driven globally the way radius can. Only `.shaped-border` and the `[data-ui=…]` rules respond.
 
-**The Typeface Handoff Rule.** Five themes switch the default typeface to a non-Inter stack: Blueprint (IBM Plex Sans), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
+**The Typeface Handoff Rule.** Six themes switch the default typeface to a non-Inter stack: Blueprint (IBM Plex Sans), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik), Pro (Plus Jakarta Sans). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
 
 A theme font must be **loaded** as well as named. `index.html` carries the single Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New and Harbour/Sunset spent theirs in the platform default sans. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
 
@@ -456,7 +474,7 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 **Body Font:** Inter (with Tajawal, Cairo as RTL Arabic fallbacks; Rubik as CJK/Unicode supplement)
 **Display Font:** Inter — same family, heavy weight, tighter tracking
 **Mono Font:** JetBrains Mono (code blocks, terminal theme body text)
-**Theme Fonts:** Space Grotesk (Brutalist), Nunito + Fraunces (Ghibli), IBM Plex Sans (Blueprint), Rubik (Harbour/Sunset) — all loaded from the single `index.html` font request
+**Theme Fonts:** Space Grotesk (Brutalist), Nunito + Fraunces (Ghibli), IBM Plex Sans (Blueprint), Rubik (Harbour/Sunset), Plus Jakarta Sans (Pro) — all loaded from the single `index.html` font request
 
 **Character:** Inter provides dense, precise information density without reading as clinical. At small sizes (0.75–0.875rem) it stays clean; at display sizes (2.25–3.75rem, 800 weight, −0.02em tracking) it acquires a commanding authority. The RTL fallback chain (Tajawal → Cairo) preserves the system's structural feel in Arabic.
 
@@ -470,7 +488,7 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 
 ### Named Rules
 
-**The Same-Family Rule.** Display, headline, title, body, and label are all Inter. No mix of display typefaces within a single theme variant. Theme-level typeface changes (Blueprint to IBM Plex Sans, Terminal to mono) apply uniformly — the hierarchy stays intact, only the voice changes.
+**The Same-Family Rule.** Display, headline, title, body, and label are all Inter. No mix of display typefaces within a single theme variant. Theme-level typeface changes (Blueprint to IBM Plex Sans, Terminal to mono, Pro to Plus Jakarta Sans) apply uniformly — the hierarchy stays intact, only the voice changes.
 
 **The Mono Containment Rule.** JetBrains Mono is for code, terminal output, and the Terminal theme body. It must not appear in prose contexts in non-Terminal themes. Use `font-mono` as a targeted utility, not a default. Brutalist used to violate this by setting mono as `--font-sans`; it now uses Space Grotesk and leaves mono to `--font-mono`.
 
@@ -571,7 +589,7 @@ _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)
 ### Do
 
 - **Use `--radius-*` tokens for all shape decisions.** Never hardcode `rounded-lg` or `rounded-full` with intent to be theme-agnostic — use the semantic token that maps to it so Blueprint and Brutalist (radius=0) behave correctly.
-- **Use `--color-primary-*` / `--color-surface-*` tokens for all color decisions.** Components that reference tokens work correctly in all 10 themes without modification.
+- **Use `--color-primary-*` / `--color-surface-*` tokens for all color decisions.** Components that reference tokens work correctly in all 11 themes without modification.
 - **Pair each interactive element with a visible, non-color-only focus indicator** (`ring-2 ring-primary-300 ring-offset-2`). This applies to all themes including high-contrast Terminal and Brutalist.
 - **Apply `aria-current="page"` to active navigation links** in addition to any visual active class. CSS alone is not sufficient for WCAG 4.1.2.
 - **Scale typography with `clamp()`** at display and headline sizes. Fixed rem values only for body, label, and title.

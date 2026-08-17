@@ -13,6 +13,7 @@ const builtinThemes: ThemeConfig[] = [
   { name: 'blueprint', label: 'Blueprint', cssClass: 'theme-blueprint' },
   { name: 'harbour', label: 'Harbour', cssClass: 'theme-harbour' },
   // gen:themes-start
+  { name: 'pro', label: 'Pro', cssClass: 'theme-pro' },
   // gen:themes-end
 ]
 

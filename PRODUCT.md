@@ -10,7 +10,7 @@ Frontend and fullstack developers scaffolding new Vue 3 enterprise applications.
 
 ## Product Purpose
 
-Vuestrata is a production-grade Vue 3 starter template built on four pillars: adapter-driven UI (runtime switching between Reka UI and Vuetify), a multi-theme engine (10 built-in themes, dark mode, custom theme support), typed data boundaries (ofetch + TanStack Query + typed query-key factories), and comprehensive testing infrastructure (Vitest + Playwright). Success looks like a developer cloning the repo and having a production-shaped app running — with auth, routing, themes, forms, and API mocking — in minutes, not hours.
+Vuestrata is a production-grade Vue 3 starter template built on four pillars: adapter-driven UI (runtime switching between Reka UI and Vuetify), a multi-theme engine (11 built-in themes, dark mode, custom theme support), typed data boundaries (ofetch + TanStack Query + typed query-key factories), and comprehensive testing infrastructure (Vitest + Playwright). Success looks like a developer cloning the repo and having a production-shaped app running — with auth, routing, themes, forms, and API mocking — in minutes, not hours.
 
 ## Brand Personality
 
@@ -28,7 +28,7 @@ Voice: direct, confident, no filler. Like a good API error message — it tells 
 ## Strategic Design Principles
 
 1. **Function-first density.** Information at the right density — not sparse (wasteful) and not packed (fatiguing). Every element earns screen real estate.
-2. **Theme-system integrity.** The default theme must look deliberate, not like a wireframe. All 10 built-in themes must demonstrate range, not just hue swaps.
+2. **Theme-system integrity.** The default theme must look deliberate, not like a wireframe. All 11 built-in themes must demonstrate range, not just hue swaps.
 3. **Developer-credibility signals.** Monospace type, clean borders, sharp radius — this is a tool for people who will inspect the source. It must hold up to scrutiny.
 4. **No decorative overreach.** Motion, color, and shadow serve communication. Never deployed for atmosphere alone.
 

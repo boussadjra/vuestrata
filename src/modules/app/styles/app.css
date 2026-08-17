@@ -9,6 +9,7 @@
 @import './themes/blueprint.css';
 @import './themes/harbour.css';
 /* gen:theme-imports-start */
+@import './themes/pro.css';
 /* gen:theme-imports-end */
 /* AFTER the themes: semantic tokens alias whichever ramp the active theme
    installed, and the single `:root.dark` block there gives every theme a real

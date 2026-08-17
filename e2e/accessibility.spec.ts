@@ -174,6 +174,9 @@ test.describe('Accessibility — theme and colour-mode matrix', () => {
     // ones. Neither is covered by auditing the default ramp.
     { theme: 'blueprint', dark: true },
     { theme: 'harbour', dark: false },
+    // Cool near-white paper with muted steel text: the classic "elegant grey
+    // on tinted white" miss. Pro's light ramp is that trap by design.
+    { theme: 'pro', dark: false },
     // Saturated fills whose primary-600 + light label fails AA. These three
     // re-point `--color-primary-solid` (and Terminal's label) in their theme
     // files; leaving them out of the matrix is how the dashboard chip shipped
