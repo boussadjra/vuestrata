@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(vp check)",
+      "Bash(vp lint)",
+      "Bash(vp fmt --check)",
+      "Bash(vp test --run)",
+      "Bash(vp run test:unit)",
+      "Bash(vp run test:component)",
+      "Bash(vp run test:integration)",
+      "Bash(vp run typecheck)",
+      "Bash(vp run typecheck:e2e)",
+      "Bash(vp exec vue-tsc --noEmit)",
+      "Bash(vp run gen --help)",
+      "Bash(vp toolchain)",
+      "Bash(node scripts/lint/run-custom-rules.mjs)",
+      "Bash(node scripts/docs/check-links.mjs)",
+      "Bash(node scripts/docs/check-links.mjs --quiet)",
+      "Bash(node scripts/msw/check-worker-version.mjs)",
+      "Bash(node scripts/build/verify-bundle.mjs *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git branch *)",
+      "Bash(git show *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "vp check",
+            "timeout": 180,
+            "statusMessage": "Running vp check"
+          }
+        ]
+      }
+    ]
+  }
+}
