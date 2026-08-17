@@ -1,0 +1,17 @@
+{
+  "account_permissions_body": "ممنوحة من دورك. الواجهة تعرضها؛ والخادم ما زال يفرض قواعده.",
+  "account_permissions_col_action": "الإجراء",
+  "account_permissions_col_grant": "الصلاحية",
+  "account_permissions_col_resource": "المورد",
+  "account_permissions_col_token": "الرمز",
+  "account_permissions_empty": "لا توجد صلاحيات صريحة — تُطبَّق الإعدادات الافتراضية لدورك.",
+  "account_permissions_search": "ابحث في الصلاحيات...",
+  "account_permissions_title": "الصلاحيات الفعلية",
+  "perm_action_assign": "تعيين",
+  "perm_action_create": "إنشاء",
+  "perm_action_delete": "حذف",
+  "perm_action_export": "تصدير",
+  "perm_action_manage": "إدارة",
+  "perm_action_read": "عرض",
+  "perm_action_update": "تعديل"
+}

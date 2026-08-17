@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n'
 
 import {
   humanizePermission,
+  permissionActionI18nKey,
+  permissionActionRank,
   permissionI18nKey,
   usePermissionLabels,
 } from '@/composables/usePermissionLabels'
@@ -48,5 +50,30 @@ describe('permission label helpers', () => {
 
     expect(permLabel('users:read')).toBe('users read')
     expect(permNamespaceLabel('users')).toBe('users')
+  })
+
+  it('maps a permission token to its action catalog key', () => {
+    expect(permissionActionI18nKey('users:read')).toBe('perm_action_read')
+  })
+
+  it('orders known actions in CRUD sequence', () => {
+    expect(permissionActionRank('users:read')).toBeLessThan(permissionActionRank('users:create'))
+    expect(permissionActionRank('users:create')).toBeLessThan(permissionActionRank('users:update'))
+    expect(permissionActionRank('users:delete')).toBeLessThan(permissionActionRank('users:manage'))
+  })
+
+  it('uses the action catalog label when the key exists', () => {
+    const { permActionLabel } = labelsFor({
+      perm_action_read: 'View',
+      perm_users_read: 'View Users',
+    })
+
+    expect(permActionLabel('users:read')).toBe('View')
+  })
+
+  it('falls back to the action segment when the action catalog has no entry', () => {
+    const { permActionLabel } = labelsFor({})
+
+    expect(permActionLabel('users:read')).toBe('Read')
   })
 })

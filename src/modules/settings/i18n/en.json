@@ -1,7 +1,5 @@
 {
   "settings_nav": "Settings",
-  "settings_title": "Application Settings",
-  "settings_subtitle": "Manage display preferences and feature flags",
   "settings_display": "Display",
   "settings_density": "Display Density",
   "settings_density_compact": "Compact",

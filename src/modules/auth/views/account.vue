@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Account — profile, security, and sessions.
+ * Account — identity, session security, and the grants the UI currently honors.
  *
  * Lives in the auth module because everything on it is an auth concern, and
  * because what it can offer depends on the configured adapter: the mock adapter
@@ -15,22 +15,32 @@ import {
   UiAvatar,
   UiBadge,
   UiButton,
-  UiCard,
+  UiEmptyState,
   UiPageHeader,
-  UiTextField,
+  UiPanel,
 } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
-import { usePermissionLabels } from '@/composables/usePermissionLabels'
 import { resolveIcon } from '@/config/icon-provider'
 import { getRolePermissions } from '@/lib/rbac'
 import { useAuthStore } from '@/stores/auth'
 
+import AccountGrantsGrid from '../components/AccountGrantsGrid.vue'
 import { getAuthAdapter } from '../composables/useAuth'
+import { accountT, ensureAccountMessages } from '../ensure-account-i18n'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { dateTime } = useFormatters()
-const { permLabel, permNamespaceLabel, compareLabels } = usePermissionLabels()
 const authStore = useAuthStore()
+
+ensureAccountMessages()
+const grantsTitle = computed(() => {
+  void locale.value
+  return accountT('account_permissions_title')
+})
+const grantsBody = computed(() => {
+  void locale.value
+  return accountT('account_permissions_body')
+})
 
 const user = computed(() => authStore.user)
 const adapter = getAuthAdapter()
@@ -44,163 +54,139 @@ const adapter = getAuthAdapter()
  */
 const capabilities = computed(() => adapter.capabilities)
 
-/**
- * Same fallback as the RBAC checks: an explicit list wins, otherwise the
- * role's defaults. Grouped by namespace so a long grant list can be scanned
- * as "what I can do in Users / Billing" rather than a pile of tokens.
- */
-const permissionGroups = computed(() => {
+const grantedTokens = computed(() => {
   const current = user.value
   if (!current) return []
-
-  const granted = current.permissions ?? getRolePermissions(current.role)
-  const grouped = new Map<string, string[]>()
-  for (const permission of granted) {
-    const ns = permission.includes(':') ? permission.slice(0, permission.indexOf(':')) : permission
-    const bucket = grouped.get(ns)
-    if (bucket) bucket.push(permission)
-    else grouped.set(ns, [permission])
-  }
-
-  return [...grouped.entries()]
-    .map(([ns, perms]) => ({
-      ns,
-      label: permNamespaceLabel(ns),
-      perms: [...perms].sort((a, b) => compareLabels(permLabel(a), permLabel(b))),
-    }))
-    .sort((a, b) => compareLabels(a.label, b.label))
+  return current.permissions ?? getRolePermissions(current.role)
 })
 </script>
 
 <template>
-  <div class="space-y-6">
-    <UiPageHeader :title="t('account_title')" :description="t('account_subtitle')" />
+  <div class="mx-auto max-w-5xl space-y-10">
+    <UiPageHeader :title="t('account_title')" :description="t('account_subtitle')">
+      <template #actions>
+        <UiButton to="/dashboard/settings" variant="ghost">
+          <span :class="[resolveIcon('settings'), 'h-4 w-4']" aria-hidden="true" />
+          {{ t('nav_settings') }}
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
-    <div v-if="user" class="grid gap-6 lg:grid-cols-3">
-      <UiCard class="flex flex-col items-center p-6 text-center">
-        <UiAvatar :src="user.avatar" :fallback="user.name" size="xl" />
-        <p class="text-foreground mt-4 font-semibold">{{ user.name }}</p>
-        <p class="text-muted-foreground text-sm">{{ user.email }}</p>
-        <UiBadge variant="secondary" size="sm" class="mt-3">{{ t(`role_${user.role}`) }}</UiBadge>
+    <template v-if="user">
+      <!--
+        Two peer panels, equal columns and stretched height. `items-start` plus
+        a custom identity card next to `UiPanel` was the staggered layout.
+        Identity is a person, not a form — the mail link is the copyable,
+        activatable version of the same facts.
+      -->
+      <div class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+        <UiPanel :title="t('account_profile_title')" content-class="min-h-0">
+          <div class="flex h-full min-h-0 flex-col gap-5 sm:flex-row sm:items-start">
+            <span class="shrink-0">
+              <UiAvatar :src="user.avatar" :fallback="user.name" size="lg" />
+            </span>
+            <div class="flex min-w-0 flex-1 flex-col">
+              <p class="text-foreground text-lg font-semibold">{{ user.name }}</p>
+              <a
+                :href="`mailto:${user.email}`"
+                class="text-link hover:text-link-hover mt-0.5 inline-block text-sm break-all hover:underline"
+              >
+                {{ user.email }}
+              </a>
+              <ul class="mt-3 flex flex-wrap items-center gap-2">
+                <li>
+                  <UiBadge variant="secondary" size="md">{{ t(`role_${user.role}`) }}</UiBadge>
+                </li>
+                <li>
+                  <UiBadge :variant="user.emailVerified ? 'success' : 'warning'" size="md">
+                    {{
+                      user.emailVerified
+                        ? t('account_email_verified')
+                        : t('account_email_unverified')
+                    }}
+                  </UiBadge>
+                </li>
+              </ul>
+              <p class="text-foreground mt-auto pt-4 text-sm">
+                {{ t('account_managed_externally') }}
+              </p>
+            </div>
+          </div>
+        </UiPanel>
 
-        <!--
-          Verification state is worth surfacing: an unverified address silently
-          fails password resets, and the user has no other way to find out.
-        -->
-        <UiBadge :variant="user.emailVerified ? 'success' : 'warning'" size="sm" class="mt-2">
-          {{ user.emailVerified ? t('account_email_verified') : t('account_email_unverified') }}
-        </UiBadge>
-      </UiCard>
-
-      <UiCard class="p-5 lg:col-span-2">
-        <h2 class="text-foreground text-base font-semibold">{{ t('account_profile_title') }}</h2>
-        <p class="text-muted-foreground mt-1 text-sm">{{ t('account_profile_body') }}</p>
-
-        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <UiPanel :title="t('account_security_title')" content-class="min-h-0">
           <!--
-            Disabled, not absent. The profile endpoint is a backend concern this
-            template does not ship, and rendering an editable form that silently
-            discards its input would be worse than showing the values read-only
-            and saying why.
+            A `<dl>` may only directly contain `<dt>`/`<dd>` pairs or `<div>`
+            groups, and each group may hold only the pair. The adapter name
+            belongs to the definition, so it lives in the `<dd>` — putting it
+            beside the pair produced `definition-list` and `dlitem` violations.
           -->
-          <UiTextField
-            :model-value="user.name"
-            :label="t('common_name')"
-            disabled
-            :description="t('account_managed_externally')"
-          />
-          <UiTextField
-            :model-value="user.email"
-            :label="t('common_email')"
-            disabled
-            :description="t('account_managed_externally')"
-          />
-        </div>
-      </UiCard>
-
-      <UiCard class="p-5 lg:col-span-2">
-        <h2 class="text-foreground text-base font-semibold">{{ t('account_security_title') }}</h2>
-
-        <!--
-          A `<dl>` may only directly contain `<dt>`/`<dd>` pairs or `<div>`
-          groups, and each group may hold only the pair. An earlier version put
-          the status badge beside the pair inside the group div, which reads
-          fine and produces two serious axe violations (`definition-list` and
-          `dlitem`). The badge belongs to the definition, so it lives in the
-          `<dd>` — which is also more accurate: "Disabled" IS the value.
-        -->
-        <dl class="mt-4 space-y-4 text-sm">
-          <div>
-            <dt class="text-foreground font-medium">{{ t('account_mfa') }}</dt>
-            <dd class="mt-1 flex flex-wrap items-center justify-between gap-2">
-              <span class="text-muted-foreground">
+          <dl class="divide-border divide-y text-sm">
+            <!--
+              The sentence is the definition. An Enabled/Disabled chip next to
+              it restated the same fact and made colour do work the words
+              already did.
+            -->
+            <div class="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
+              <dt class="text-foreground font-medium">{{ t('account_mfa') }}</dt>
+              <dd class="text-foreground">
                 {{ user.mfaEnabled ? t('account_mfa_on') : t('account_mfa_off') }}
-              </span>
-              <UiBadge :variant="user.mfaEnabled ? 'success' : 'warning'" size="sm">
-                {{ user.mfaEnabled ? t('account_enabled') : t('account_disabled') }}
-              </UiBadge>
-            </dd>
-          </div>
+              </dd>
+            </div>
 
-          <div>
-            <dt class="text-foreground font-medium">{{ t('account_transport') }}</dt>
-            <dd class="mt-1 flex flex-wrap items-center justify-between gap-2">
-              <span class="text-muted-foreground">
-                {{ t(`account_transport_${adapter.transport}`) }}
-              </span>
-              <UiBadge variant="default" size="sm">{{ adapter.name }}</UiBadge>
-            </dd>
-          </div>
+            <div class="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+              <dt class="text-foreground font-medium">{{ t('account_transport') }}</dt>
+              <dd
+                class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+              >
+                <span class="text-foreground">
+                  {{ t(`account_transport_${adapter.transport}`) }}
+                </span>
+                <UiBadge variant="default" size="md" class="w-fit shrink-0">
+                  {{ adapter.name }}
+                </UiBadge>
+              </dd>
+            </div>
 
-          <div v-if="user.lastLoginAt">
-            <dt class="text-foreground font-medium">{{ t('account_last_sign_in') }}</dt>
-            <dd class="text-muted-foreground mt-1">
-              <time :datetime="user.lastLoginAt">{{ dateTime(user.lastLoginAt) }}</time>
-            </dd>
-          </div>
-        </dl>
+            <div v-if="user.lastLoginAt" class="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
+              <dt class="text-foreground font-medium">{{ t('account_last_sign_in') }}</dt>
+              <dd class="text-foreground">
+                <time :datetime="user.lastLoginAt">{{ dateTime(user.lastLoginAt) }}</time>
+              </dd>
+            </div>
+          </dl>
 
-        <!--
-          Stated rather than silently omitted. A user who cannot find MFA needs
-          to know it is the deployment's auth provider that does not offer it,
-          not that they are looking in the wrong place.
-        -->
-        <UiAlert v-if="!capabilities.mfa" variant="info" class="mt-5">
-          {{ t('account_mfa_unsupported', { adapter: adapter.name }) }}
-        </UiAlert>
-      </UiCard>
+          <!--
+            Stated rather than silently omitted. A user who cannot find MFA needs
+            to know it is the deployment's auth provider that does not offer it,
+            not that they are looking in the wrong place.
+          -->
+          <UiAlert v-if="!capabilities.mfa" variant="info" class="mt-4">
+            {{ t('account_mfa_unsupported', { adapter: adapter.name }) }}
+          </UiAlert>
+        </UiPanel>
+      </div>
 
-      <UiCard class="p-5">
-        <h2 class="text-foreground text-base font-semibold">
-          {{ t('account_permissions_title') }}
-        </h2>
-        <p class="text-muted-foreground mt-1 text-sm">{{ t('account_permissions_body') }}</p>
+      <UiPanel
+        class="overflow-hidden"
+        :title="grantsTitle"
+        :description="grantsBody"
+        content-class="min-h-0 overflow-hidden p-0"
+      >
+        <AccountGrantsGrid :tokens="grantedTokens" />
+      </UiPanel>
+    </template>
 
-        <div v-if="permissionGroups.length" class="mt-4 space-y-4">
-          <section v-for="group in permissionGroups" :key="group.ns">
-            <h3 class="text-muted-foreground mb-1.5 text-xs font-semibold">{{ group.label }}</h3>
-            <ul class="flex flex-wrap gap-1.5">
-              <li v-for="permission in group.perms" :key="permission">
-                <UiBadge variant="default" size="sm">{{ permLabel(permission) }}</UiBadge>
-              </li>
-            </ul>
-          </section>
-        </div>
-        <p v-else class="text-muted-foreground mt-4 text-sm">
-          {{ t('account_permissions_empty') }}
-        </p>
-      </UiCard>
-
-      <UiCard class="p-5 lg:col-span-3">
-        <h2 class="text-foreground text-base font-semibold">{{ t('account_danger_title') }}</h2>
-        <p class="text-muted-foreground mt-1 text-sm">{{ t('account_danger_body') }}</p>
-        <div class="mt-4">
-          <UiButton to="/dashboard/settings" variant="ghost">
-            <span :class="[resolveIcon('settings'), 'h-4 w-4']" aria-hidden="true" />
-            {{ t('nav_settings') }}
-          </UiButton>
-        </div>
-      </UiCard>
-    </div>
+    <UiEmptyState
+      v-else
+      variant="error"
+      icon="shield-user"
+      :title="t('account_unavailable_title')"
+      :description="t('account_unavailable_body')"
+    >
+      <template #action>
+        <UiButton to="/auth/login" variant="primary">{{ t('auth_login') }}</UiButton>
+      </template>
+    </UiEmptyState>
   </div>
 </template>

@@ -1,0 +1,17 @@
+{
+  "account_permissions_body": "Granted by your role. The UI offers these; the API still enforces its own rules.",
+  "account_permissions_col_action": "Action",
+  "account_permissions_col_grant": "Grant",
+  "account_permissions_col_resource": "Resource",
+  "account_permissions_col_token": "Token",
+  "account_permissions_empty": "No explicit permissions — your role's defaults apply.",
+  "account_permissions_search": "Search grants...",
+  "account_permissions_title": "Effective permissions",
+  "perm_action_assign": "Assign",
+  "perm_action_create": "Create",
+  "perm_action_delete": "Delete",
+  "perm_action_export": "Export",
+  "perm_action_manage": "Manage",
+  "perm_action_read": "View",
+  "perm_action_update": "Edit"
+}

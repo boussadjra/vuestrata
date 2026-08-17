@@ -1,7 +1,5 @@
 {
   "settings_nav": "Paramètres",
-  "settings_title": "Paramètres de l'application",
-  "settings_subtitle": "Gérez les préférences d'affichage et les indicateurs de fonctionnalités",
   "settings_display": "Affichage",
   "settings_density": "Densité d'affichage",
   "settings_density_compact": "Compact",

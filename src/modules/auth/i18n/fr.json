@@ -1,0 +1,17 @@
+{
+  "account_permissions_body": "Accordées par votre rôle. L'interface les propose ; l'API applique toujours les siennes.",
+  "account_permissions_col_action": "Action",
+  "account_permissions_col_grant": "Droit",
+  "account_permissions_col_resource": "Ressource",
+  "account_permissions_col_token": "Jeton",
+  "account_permissions_empty": "Aucune permission explicite — les valeurs par défaut de votre rôle s'appliquent.",
+  "account_permissions_search": "Rechercher des droits...",
+  "account_permissions_title": "Permissions effectives",
+  "perm_action_assign": "Attribuer",
+  "perm_action_create": "Créer",
+  "perm_action_delete": "Supprimer",
+  "perm_action_export": "Exporter",
+  "perm_action_manage": "Gérer",
+  "perm_action_read": "Voir",
+  "perm_action_update": "Modifier"
+}
