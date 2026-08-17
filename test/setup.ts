@@ -36,6 +36,16 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn()
 }
 
+// jsdom implements no part of the Pointer Capture API. Reka's Select and
+// Slider primitives call these while handling pointerdown, so without the
+// stubs a component test that opens a listbox dies on
+// `target.hasPointerCapture is not a function` rather than on anything real.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = vi.fn(() => false)
+  Element.prototype.setPointerCapture = vi.fn()
+  Element.prototype.releasePointerCapture = vi.fn()
+}
+
 // Reset Pinia + core/lib runtime backends + createGlobalState containers
 // before every test so cross-suite leakage of mutable state cannot occur.
 beforeEach(async () => {
