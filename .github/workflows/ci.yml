@@ -50,6 +50,10 @@ jobs:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
       - run: vp exec vue-tsc --noEmit
+      # `e2e/` is excluded from tsconfig.json, so the line above never sees it.
+      # Without this the specs are only compiled by Playwright at run time —
+      # after build and unit tests have already reported green.
+      - run: vp exec tsc --noEmit -p tsconfig.e2e.json
 
   test:
     name: Tests (${{ matrix.suite }})

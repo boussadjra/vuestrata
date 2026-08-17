@@ -1,0 +1,18 @@
+{
+  // Playwright specs are excluded from the main tsconfig because they run in
+  // Node against a built app, not in the browser bundle — mixing them in would
+  // put `@playwright/test` globals and DOM-bundle types in the same program.
+  //
+  // Excluding them from the main config also excluded them from CI's
+  // `vue-tsc --noEmit`, so nothing type-checked `e2e/` at all: a spec could
+  // reference a helper that no longer exists and only fail when Playwright
+  // compiled it mid-run, after the build and unit jobs had already gone green.
+  // This config exists to close that gap. It is checked by `vp run typecheck:e2e`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Playwright's own types replace the Vite client/layout types the app uses.
+    "types": ["@playwright/test", "node"]
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"],
+  "exclude": ["dist", "node_modules"]
+}
