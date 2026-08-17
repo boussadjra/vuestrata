@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { useAppStorage } from '~/composables/useAppStorage'
 import { appConfig } from '~/config/app.config'
+import { ICON_PROVIDERS } from '~/lib/config/env.schema'
 import { createScopedLogger } from '~/lib/logger'
 import {
   APPEARANCE_KEYS,
@@ -13,8 +14,6 @@ import {
 import type { ThemeName, IconProvider } from '~/types'
 
 const appStoreLogger = createScopedLogger('app-store')
-
-const ICON_PROVIDERS: IconProvider[] = ['solar', 'lucide', 'phosphor']
 
 function isSupportedLocale(value: unknown): value is SupportedLocale {
   return typeof value === 'string' && (SUPPORTED_LOCALES as readonly string[]).includes(value)
@@ -53,7 +52,11 @@ export const useAppStore = defineStore('app', () => {
     'vuestrata-icon-provider',
     appConfig.iconProvider,
     {
-      validate: isAllowed(ICON_PROVIDERS),
+      // Explicit type argument: `ICON_PROVIDERS` is the narrow env-schema
+      // tuple, while the stored value is the wider `IconProvider` (a custom
+      // map can be registered at runtime). Widening T here keeps `validate`
+      // contravariant-compatible without loosening the allowlist itself.
+      validate: isAllowed<IconProvider>(ICON_PROVIDERS),
       fallback: appConfig.iconProvider,
     },
   )
