@@ -12,10 +12,17 @@
  * the active theme installed.
  *
  * ── Adding a theme ─────────────────────────────────────────────────────────
- * Define the five ramps (primary, secondary, accent, danger, surface) and you
- * get every semantic token for free, in both colour modes. Override an
- * individual semantic token only when the theme's character genuinely demands
- * it — do NOT restate the whole ramp.
+ * Define four ramps — primary, secondary, accent, surface — in both colour
+ * modes and you get every semantic token for free.
+ *
+ * `danger` is the fifth ramp these tokens read, but it is declared once for
+ * every theme in app.css: a destructive action should look destructive no
+ * matter which theme is active, so red is deliberately not themed. Override it
+ * in a theme file only if that theme's character genuinely demands a different
+ * warning hue.
+ *
+ * Override an individual semantic token only when the theme's character
+ * genuinely demands it — do NOT restate the whole ramp.
  */
 
 @theme {
