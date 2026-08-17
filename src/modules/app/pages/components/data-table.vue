@@ -1,152 +1,45 @@
 <script setup lang="ts">
-import { createColumnHelper } from '@tanstack/vue-table'
-
 import ComponentApiTable from '@/components/docs/ComponentApiTable.vue'
 import type { ApiPropRow, ApiEventRow, ApiSlotRow } from '@/components/docs/ComponentApiTable.vue'
 import ComponentDemo from '@/components/docs/ComponentDemo.vue'
 import ComponentPlayground from '@/components/docs/ComponentPlayground.vue'
 import type { PropDef } from '@/components/docs/ComponentPlayground.vue'
 import ComponentTestRunner from '@/components/docs/ComponentTestRunner.vue'
+import { teamMembers, type TeamMember } from '@/components/docs/demos/data-table-fixtures'
+import DataTableEmptyDemo from '@/components/docs/demos/DataTableEmptyDemo.vue'
+import DataTableErrorDemo from '@/components/docs/demos/DataTableErrorDemo.vue'
+import DataTableMinimalDemo from '@/components/docs/demos/DataTableMinimalDemo.vue'
+import DataTablePublicApiDemo from '@/components/docs/demos/DataTablePublicApiDemo.vue'
+import DataTableRichDemo from '@/components/docs/demos/DataTableRichDemo.vue'
+import DataTableSelectionDemo from '@/components/docs/demos/DataTableSelectionDemo.vue'
 import DataTableServerDemo from '@/components/docs/demos/DataTableServerDemo.vue'
-import { useDataTable, type ColumnDef } from '@/composables/useDataTable'
+import DataTableTreeDemo from '@/components/docs/demos/DataTableTreeDemo.vue'
+import DataTableTypedCellsDemo from '@/components/docs/demos/DataTableTypedCellsDemo.vue'
+import DataTableVirtualDemo from '@/components/docs/demos/DataTableVirtualDemo.vue'
+import { createColumns, useDataTable } from '@/composables/useDataTable'
 
-interface Person {
-  id: string
-  name: string
-  role: string
-  status: string
-  score: number
-  notes?: string
-}
-
-interface Task {
-  id: number
-  title: string
-  priority: string
-}
-
-const helper = createColumnHelper<Person>()
-const personColumns = [
-  helper.accessor('name', {
-    header: 'Name',
-    meta: {
-      label: 'Name',
-      filter: {
-        variant: 'text',
-        placeholder: 'Filter people',
-      },
-    },
+const playgroundCol = createColumns<TeamMember>()
+const playgroundColumns = [
+  playgroundCol.text('name', {
+    label: 'Name',
+    filter: { variant: 'text', placeholder: 'Filter people' },
   }),
-  helper.accessor('role', {
-    header: 'Role',
-    meta: {
-      label: 'Role',
-      filter: {
-        variant: 'select',
-        options: [
-          { label: 'Designer', value: 'Designer' },
-          { label: 'Engineer', value: 'Engineer' },
-          { label: 'Product', value: 'Product' },
-          { label: 'DevOps', value: 'DevOps' },
-          { label: 'QA', value: 'QA' },
-        ],
-      },
-    },
-  }),
-  helper.accessor('status', {
-    header: 'Status',
-    meta: {
-      label: 'Status',
-      filter: {
-        variant: 'select',
-        options: [
-          { label: 'Active', value: 'Active' },
-          { label: 'Review', value: 'Review' },
-          { label: 'Blocked', value: 'Blocked' },
-        ],
-      },
-    },
-  }),
-  helper.accessor('score', {
-    header: 'Score',
-    meta: {
-      label: 'Score',
-      align: 'end',
-    },
-  }),
-] satisfies ColumnDef<Person>[]
-
-const rows: Person[] = [
-  {
-    id: 'p-1',
-    name: 'Lina K.',
-    role: 'Designer',
-    status: 'Active',
-    score: 94,
-    notes: 'Owns the design-system pass for the next release candidate.',
-  },
-  {
-    id: 'p-2',
-    name: 'Marvin P.',
-    role: 'Engineer',
-    status: 'Review',
-    score: 88,
-    notes: 'Reviewing the server-side query contract for the new grid.',
-  },
-  {
-    id: 'p-3',
-    name: 'Nadia S.',
-    role: 'Product',
-    status: 'Blocked',
-    score: 72,
-  },
-  {
-    id: 'p-4',
-    name: 'Oscar T.',
-    role: 'DevOps',
-    status: 'Active',
-    score: 91,
-    notes: 'Validating production build size and rollout toggles.',
-  },
-  {
-    id: 'p-5',
-    name: 'Priya R.',
-    role: 'QA',
-    status: 'Active',
-    score: 85,
-  },
+  playgroundCol.text('role', { label: 'Role' }),
+  playgroundCol.text('status', { label: 'Status' }),
 ]
 
-const taskColumns: ColumnDef<Task>[] = [
-  { accessorKey: 'id', header: '#' },
-  { accessorKey: 'title', header: 'Title' },
-  { accessorKey: 'priority', header: 'Priority' },
-]
-
-const minimalRows: Task[] = [
-  { id: 1, title: 'Fix login bug', priority: 'High' },
-  { id: 2, title: 'Add dark mode', priority: 'Medium' },
-  { id: 3, title: 'Update docs', priority: 'Low' },
-]
-
-const richTableState = useDataTable({
-  data: rows,
-  columns: personColumns,
+const { table: playgroundTable } = useDataTable({
+  data: teamMembers,
+  columns: playgroundColumns,
   enableFiltering: true,
   enablePagination: true,
   enableRowSelection: true,
   enableColumnVisibility: true,
   enableExpanding: true,
-  pageSize: 3,
+  pageSize: 5,
   getRowId: (row) => row.id,
   getRowCanExpand: (row) => Boolean(row.original.notes),
 })
-
-const { table: richTable } = richTableState
-const { table: minimalTable } = useDataTable({ data: minimalRows, columns: taskColumns })
-const { table: emptyTable } = useDataTable({ data: [] as Person[], columns: personColumns })
-
-const playgroundValue = ref(false)
 
 const propDefs: PropDef[] = [
   { name: 'loading', type: 'boolean', default: false },
@@ -157,23 +50,20 @@ const propDefs: PropDef[] = [
   { name: 'virtual', type: 'boolean', default: false },
 ]
 
-const richUsageCode = `const helper = createColumnHelper<Person>()
+const richUsageCode = `const col = createColumns<TeamMember>()
 const columns = [
-  helper.accessor('name', {
-    header: 'Name',
-    meta: { label: 'Name', filter: { variant: 'text', placeholder: 'Filter people' } },
+  col.text('name', {
+    label: 'Name',
+    filter: { variant: 'text', placeholder: 'Filter team members' },
   }),
-  helper.accessor('role', {
-    header: 'Role',
-    meta: {
-      label: 'Role',
-      filter: {
-        variant: 'select',
-        options: [
-          { label: 'Designer', value: 'Designer' },
-          { label: 'Engineer', value: 'Engineer' },
-        ],
-      },
+  col.text('role', {
+    label: 'Role',
+    filter: {
+      variant: 'select',
+      options: [
+        { label: 'Admin', value: 'Admin' },
+        { label: 'Member', value: 'Member' },
+      ],
     },
   }),
 ]
@@ -185,9 +75,11 @@ const { table } = useDataTable({
   enablePagination: true,
   enableRowSelection: true,
   enableColumnVisibility: true,
+  enableExpanding: true,
+  getRowCanExpand: (row) => Boolean(row.original.notes),
 })
 
-// <UiDataGrid :table="table" selectable />`
+// <UiDataGrid :table="table" selectable expandable />`
 
 const lowLevelCode = `const columns: ColumnDef<Task>[] = [
   { accessorKey: 'id', header: '#' },
@@ -199,34 +91,83 @@ const { table } = useDataTable({ data: rows, columns })
 
 // <UiDataTable :table="table" />`
 
-const serverCode = `const serverRows = ref<Row[]>([])
-const serverMeta = ref<{ total: number; totalPages: number } | null>(null)
+const serverCode = `const col = createColumns<Row>()
+const columns = [
+  col.text('workspace', { label: 'Workspace' }),
+  col.text('owner', { label: 'Owner' }),
+]
 
-const { table, queryState } = useDataTable({
-  data: () => serverRows.value,
+const { table, isLoading, isError, refetch } = useServerTable({
   columns,
-  manualPagination: true,
-  manualFiltering: true,
-  manualSorting: true,
-  rowCount: () => serverMeta.value?.total,
-  pageCount: () => serverMeta.value?.totalPages,
+  query: useWorkspacesQuery,
 })
 
-const query = useQuery({
-  queryKey: computed(() => ['server-table-demo', queryState.value]),
-  queryFn: async () => fetchServerPage(queryState.value),
+// <UiDataGrid :table="table" :loading="isLoading" :error="isError" @retry="refetch" />`
+
+const typedCellsCode = `const col = createColumns<Invoice>()
+const columns = [
+  col.link('customer', {
+    label: 'Customer',
+    to: (row) => \`/dashboard/orders/\${row.id}\`,
+    sublabel: (row) => row.email,
+  }),
+  col.status('status', {
+    label: 'Status',
+    variant: invoiceStatusVariant,
+    labelFor: invoiceStatusLabel,
+  }),
+  col.money('total', { label: 'Total' }),
+  col.date('issuedAt', { label: 'Issued' }),
+]
+
+const { table } = useDataTable({ data: invoices, columns })`
+
+const selectionCode = `const { table, selectedRows } = useDataTable({
+  data: directory,
+  columns,
+  enableRowSelection: true,
 })
 
-watchEffect(() => {
-  serverRows.value = query.data.value?.rows ?? []
-  serverMeta.value = query.data.value
-    ? { total: query.data.value.total, totalPages: query.data.value.totalPages }
-    : null
+// <UiDataGrid :table="table" selectable />`
+
+const treeCode = `const { table } = useDataTable({
+  data: orgTree,
+  columns,
+  enableExpanding: true,
+  getRowId: (row) => row.id,
+  getSubRows: (row) => row.team,
 })
 
-// <UiDataGrid :table="table" :total-rows="serverMeta?.total" />`
+// <UiDataGrid :table="table" expandable />`
+
+const virtualCode = `const { table } = useDataTable({
+  data: makeLogRows(220),
+  columns,
+  enablePagination: false,
+})
+
+// <UiDataGrid :table="table" virtual max-body-height="20rem" />`
 
 const emptyCode = `<UiDataGrid :table="emptyTable" empty-text="No records found." />`
+
+const errorCode = `<UiDataGrid :table="table" :error="failed" @retry="retry" />`
+
+const publicApiCode = `const rows = ref<DirectoryUser[]>([])
+
+const { table } = useDataTable({
+  data: () => rows.value,
+  columns,
+  getRowId: (row) => String(row.id),
+})
+
+async function load() {
+  try {
+    const response = await fetch('https://jsonplaceholder.typicode.com/users')
+    rows.value = await response.json()
+  } catch {
+    rows.value = localFallback
+  }
+}`
 
 const dataGridProps: ApiPropRow[] = [
   {
@@ -250,8 +191,9 @@ const dataGridProps: ApiPropRow[] = [
   {
     name: 'showColumnFilters',
     type: 'boolean',
-    default: 'true',
-    description: 'Shows per-column filter affordances derived from column metadata.',
+    default: '!manualFiltering',
+    description:
+      'Shows per-column filter affordances derived from column metadata. Defaults off for server-backed (manualFiltering) tables.',
   },
   {
     name: 'showColumnVisibility',
@@ -267,13 +209,26 @@ const dataGridProps: ApiPropRow[] = [
       'Enables flat-row virtualization when the table does not use tree rows or expanded detail rows.',
   },
   {
+    name: 'error',
+    type: 'boolean',
+    default: 'false',
+    description:
+      'Replaces the table body with an error empty state. Distinct from an empty result set.',
+  },
+  {
     name: 'totalRows',
     type: 'number',
-    description: 'Optional total row count override for manual server-side tables.',
+    description: 'Optional total row count override. Server tables usually omit this.',
   },
 ]
 
-const dataGridEvents: ApiEventRow[] = []
+const dataGridEvents: ApiEventRow[] = [
+  {
+    name: 'retry',
+    payload: '—',
+    description: 'Emitted when the error-state retry control is activated.',
+  },
+]
 
 const dataGridSlots: ApiSlotRow[] = [
   {
@@ -315,18 +270,7 @@ const dataTableSlots: ApiSlotRow[] = []
         rows.
       </p>
       <ComponentDemo :code="richUsageCode">
-        <UiDataGrid :table="richTable" selectable expandable>
-          <template #expanded-row="{ row }">
-            <div class="space-y-1">
-              <p class="text-foreground text-sm font-semibold">
-                {{ row.original.name }}
-              </p>
-              <p class="text-muted-foreground text-sm">
-                {{ row.original.notes ?? 'No extra context for this row.' }}
-              </p>
-            </div>
-          </template>
-        </UiDataGrid>
+        <DataTableRichDemo />
       </ComponentDemo>
     </section>
 
@@ -336,17 +280,16 @@ const dataTableSlots: ApiSlotRow[] = []
         Keep <code>UiDataTable</code> when the page owns its own toolbar and table chrome.
       </p>
       <ComponentDemo :code="lowLevelCode">
-        <div class="max-w-lg">
-          <UiDataTable :table="minimalTable" />
-        </div>
+        <DataTableMinimalDemo />
       </ComponentDemo>
     </section>
 
     <section class="space-y-4">
       <h2 class="text-xl font-semibold">Server-side Query State</h2>
       <p class="text-muted-foreground text-sm">
-        Manual sorting, filtering, and pagination stay in <code>useDataTable()</code>, while
-        TanStack Query reacts to <code>queryState</code> outside the grid.
+        <code>useServerTable</code> binds a collection query to the grid. Do not wire
+        <code>useDataTable</code> to a query by hand — the two are mutually dependent and crash on
+        load.
       </p>
       <ComponentDemo :code="serverCode">
         <DataTableServerDemo />
@@ -354,9 +297,85 @@ const dataTableSlots: ApiSlotRow[] = []
     </section>
 
     <section class="space-y-4">
+      <h2 class="text-xl font-semibold">Typed Cells</h2>
+      <p class="text-muted-foreground text-sm">
+        <code>createColumns</code> helpers for link, status, money, and date. Invoice totals use the
+        shared <code>Money</code> type (minor units).
+      </p>
+      <ComponentDemo :code="typedCellsCode">
+        <DataTableTypedCellsDemo />
+      </ComponentDemo>
+    </section>
+
+    <section class="space-y-4">
+      <h2 class="text-xl font-semibold">Row Selection</h2>
+      <p class="text-muted-foreground text-sm">
+        Enable selection in <code>useDataTable</code> and pass <code>selectable</code>.
+        <code>selectedRows</code> is the current subset.
+      </p>
+      <ComponentDemo :code="selectionCode">
+        <DataTableSelectionDemo />
+      </ComponentDemo>
+    </section>
+
+    <section class="space-y-4">
+      <h2 class="text-xl font-semibold">Tree Rows</h2>
+      <p class="text-muted-foreground text-sm">
+        Nested records through <code>getSubRows</code> and a stable <code>getRowId</code>.
+      </p>
+      <ComponentDemo :code="treeCode">
+        <DataTableTreeDemo />
+      </ComponentDemo>
+    </section>
+
+    <section class="space-y-4">
+      <h2 class="text-xl font-semibold">Virtual Rows</h2>
+      <p class="text-muted-foreground text-sm">
+        Flat-row virtualization for long in-memory lists. Expanded detail rows and tree rows fall
+        back to the non-virtual renderer.
+      </p>
+      <ComponentDemo :code="virtualCode">
+        <DataTableVirtualDemo />
+      </ComponentDemo>
+    </section>
+
+    <section class="space-y-4">
       <h2 class="text-xl font-semibold">Empty State</h2>
+      <p class="text-muted-foreground text-sm">
+        An empty result set is not an error. The grid says so with
+        <code>empty-text</code>.
+      </p>
       <ComponentDemo :code="emptyCode">
-        <UiDataGrid :table="emptyTable" empty-text="No records found." />
+        <DataTableEmptyDemo />
+      </ComponentDemo>
+    </section>
+
+    <section class="space-y-4">
+      <h2 class="text-xl font-semibold">Error And Retry</h2>
+      <p class="text-muted-foreground text-sm">
+        Pass <code>:error</code> and listen for <code>@retry</code>. Showing “no rows match” for a
+        failed request tells the user their filters are wrong when the data is simply unknown.
+      </p>
+      <ComponentDemo :code="errorCode">
+        <DataTableErrorDemo />
+      </ComponentDemo>
+    </section>
+
+    <section class="space-y-4">
+      <h2 class="text-xl font-semibold">Public API Directory</h2>
+      <p class="text-muted-foreground text-sm">
+        Ten people from
+        <a
+          class="text-link hover:text-link-hover hover:underline"
+          href="https://jsonplaceholder.typicode.com/users"
+          rel="noreferrer"
+          target="_blank"
+          >jsonplaceholder.typicode.com/users</a
+        >. If the request fails, the grid keeps a local 10-row fallback so the demo still works
+        offline.
+      </p>
+      <ComponentDemo :code="publicApiCode">
+        <DataTablePublicApiDemo />
       </ComponentDemo>
     </section>
 
@@ -364,7 +383,7 @@ const dataTableSlots: ApiSlotRow[] = []
       <h2 class="text-xl font-semibold">Playground</h2>
       <ComponentPlayground :prop-defs="propDefs">
         <template #default="{ props: p }">
-          <UiDataGrid :table="richTable" selectable expandable v-bind="p">
+          <UiDataGrid :table="playgroundTable" selectable expandable v-bind="p">
             <template #expanded-row="{ row }">
               <div class="space-y-1">
                 <p class="text-foreground text-sm font-semibold">
@@ -383,7 +402,7 @@ const dataTableSlots: ApiSlotRow[] = []
     <section class="space-y-4">
       <h2 class="text-xl font-semibold">Accessibility</h2>
       <ComponentTestRunner>
-        <UiDataGrid :table="richTable" selectable expandable>
+        <UiDataGrid :table="playgroundTable" selectable expandable>
           <template #expanded-row="{ row }">
             <div class="space-y-1">
               <p class="text-foreground text-sm font-semibold">

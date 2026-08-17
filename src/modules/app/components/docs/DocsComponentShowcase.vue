@@ -52,8 +52,9 @@ const demos = {
     source: formsSource,
   },
   'data-table': {
-    title: 'Data table composition',
-    description: 'A small table wired to the same composable used in the app.',
+    title: 'Data table examples',
+    description:
+      'Ten capability examples on the same UiDataGrid / useDataTable contract, including a live public API directory.',
     component: DataTableDemo,
     source: dataTableSource,
   },

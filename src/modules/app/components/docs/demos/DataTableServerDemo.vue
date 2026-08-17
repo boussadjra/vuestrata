@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import { createColumnHelper } from '@tanstack/vue-table'
+import type { Ref } from 'vue'
 
-import { useDataTable, type DataTableQueryState } from '@/composables/useDataTable'
+import { createColumns } from '@/composables/useDataTable'
+import { useServerTable, type ServerCollection } from '@/composables/useServerTable'
+import type { CollectionFilters, PageMeta } from '~/lib/api/collection-queries'
 
 interface WorkspaceRow {
   id: string
@@ -14,8 +16,7 @@ interface WorkspaceRow {
 
 interface WorkspaceResult {
   rows: WorkspaceRow[]
-  total: number
-  totalPages: number
+  meta: PageMeta
 }
 
 const sourceRows: WorkspaceRow[] = [
@@ -31,128 +32,77 @@ const sourceRows: WorkspaceRow[] = [
   { id: 'ws-10', workspace: 'Junction', owner: 'Samir', state: 'Review', seats: 9 },
 ]
 
-const helper = createColumnHelper<WorkspaceRow>()
+const col = createColumns<WorkspaceRow>()
 const columns = [
-  helper.accessor('workspace', {
-    header: 'Workspace',
-    meta: {
-      label: 'Workspace',
-      width: '16rem',
-    },
-  }),
-  helper.accessor('owner', {
-    header: 'Owner',
-    meta: {
-      label: 'Owner',
-      width: '10rem',
-    },
-  }),
-  helper.accessor('state', {
-    header: 'State',
-    meta: {
-      label: 'State',
-      filter: {
-        variant: 'select',
-        options: [
-          { label: 'Active', value: 'Active' },
-          { label: 'Review', value: 'Review' },
-          { label: 'Blocked', value: 'Blocked' },
-        ],
-      },
-      width: '9rem',
-    },
-  }),
-  helper.accessor('seats', {
-    header: 'Seats',
-    meta: {
-      label: 'Seats',
-      align: 'end',
-      width: '7rem',
-    },
-  }),
+  col.text('workspace', { label: 'Workspace', width: '16rem' }),
+  col.text('owner', { label: 'Owner', width: '10rem' }),
+  col.text('state', { label: 'State', width: '9rem' }),
+  col.text('seats', { label: 'Seats', align: 'end', width: '7rem' }),
 ]
 
-const serverRows = ref<WorkspaceRow[]>([])
-const serverMeta = ref<{ total: number; totalPages: number } | null>(null)
+function fetchWorkspacePage(filters: CollectionFilters): WorkspaceResult {
+  let rows = [...sourceRows]
+  const search = filters.search?.trim().toLowerCase()
+  const pageSize = filters.pageSize || 4
+  const page = filters.page || 1
 
-const { table, queryState } = useDataTable<WorkspaceRow>({
-  data: () => serverRows.value,
-  columns,
-  enableFiltering: true,
-  enablePagination: true,
-  enableColumnVisibility: true,
-  pageSize: 4,
-  manualPagination: true,
-  manualFiltering: true,
-  manualSorting: true,
-  rowCount: () => serverMeta.value?.total,
-  pageCount: () => serverMeta.value?.totalPages,
-  getRowId: (row) => row.id,
-})
+  if (search) {
+    rows = rows.filter(
+      (row) =>
+        row.workspace.toLowerCase().includes(search) || row.owner.toLowerCase().includes(search),
+    )
+  }
 
-const serverQuery = useQuery({
-  queryKey: computed(() => ['data-table-server-demo', queryState.value]),
-  queryFn: async (): Promise<WorkspaceResult> => {
-    const state = queryState.value
-    let rows = [...sourceRows]
-    const search = state.globalFilter.trim().toLowerCase()
-    const stateFilter = state.columnFilters.find((filter) => filter.id === 'state')?.value
-    const primarySort = state.sorting[0]
+  if (filters.sortBy) {
+    const sortKey = filters.sortBy as keyof WorkspaceRow
+    const direction = filters.sortOrder === 'desc' ? -1 : 1
+    rows = rows.toSorted((left, right) => {
+      const leftValue = normalizeSortValue(left[sortKey])
+      const rightValue = normalizeSortValue(right[sortKey])
 
-    if (search) {
-      rows = rows.filter(
-        (row) =>
-          row.workspace.toLowerCase().includes(search) || row.owner.toLowerCase().includes(search),
-      )
-    }
+      if (leftValue < rightValue) return -1 * direction
+      if (leftValue > rightValue) return 1 * direction
+      return 0
+    })
+  }
 
-    if (typeof stateFilter === 'string') {
-      rows = rows.filter((row) => row.state === stateFilter)
-    }
+  const total = rows.length
+  const start = (page - 1) * pageSize
 
-    if (primarySort) {
-      const sortKey = primarySort.id as keyof WorkspaceRow
-      rows = rows.toSorted((left, right) => {
-        const leftValue = normalizeSortValue(left[sortKey])
-        const rightValue = normalizeSortValue(right[sortKey])
-
-        if (leftValue < rightValue) return primarySort.direction === 'asc' ? -1 : 1
-        if (leftValue > rightValue) return primarySort.direction === 'asc' ? 1 : -1
-        return 0
-      })
-    }
-
-    const total = rows.length
-    const start = state.pagination.pageIndex * state.pagination.pageSize
-    const end = start + state.pagination.pageSize
-
-    return {
-      rows: rows.slice(start, end),
+  return {
+    rows: rows.slice(start, start + pageSize),
+    meta: {
       total,
-      totalPages: Math.max(1, Math.ceil(total / state.pagination.pageSize)),
-    }
-  },
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    },
+  }
+}
+
+function useWorkspaceQuery(filters: Ref<CollectionFilters>): ServerCollection<WorkspaceRow> {
+  const query = useQuery({
+    queryKey: computed(() => ['data-table-server-demo', { ...filters.value }]),
+    queryFn: async () => fetchWorkspacePage(filters.value),
+  })
+
+  return {
+    items: computed(() => query.data.value?.rows ?? []),
+    meta: computed(() => query.data.value?.meta ?? null),
+    isPending: computed(() => query.isPending.value),
+    isFetching: computed(() => query.isFetching.value),
+    isError: computed(() => query.isError.value),
+    refetch: () => {
+      void query.refetch()
+    },
+  }
+}
+
+const { table, isLoading, isError, refetch } = useServerTable<WorkspaceRow>({
+  columns,
+  query: useWorkspaceQuery,
+  pageSize: 4,
 })
-
-serverRows.value = serverQuery.data.value?.rows ?? []
-serverMeta.value = serverQuery.data.value
-  ? {
-      total: serverQuery.data.value.total,
-      totalPages: serverQuery.data.value.totalPages,
-    }
-  : null
-
-watchEffect(() => {
-  serverRows.value = serverQuery.data.value?.rows ?? []
-  serverMeta.value = serverQuery.data.value
-    ? {
-        total: serverQuery.data.value.total,
-        totalPages: serverQuery.data.value.totalPages,
-      }
-    : null
-})
-
-const loading = computed(() => serverQuery.isLoading.value || serverQuery.isFetching.value)
 
 function normalizeSortValue(value: WorkspaceRow[keyof WorkspaceRow]): number | string {
   return typeof value === 'number' ? value : value.toLowerCase()
@@ -160,29 +110,14 @@ function normalizeSortValue(value: WorkspaceRow[keyof WorkspaceRow]): number | s
 </script>
 
 <template>
-  <UiCard>
-    <template #header>
-      <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h3 class="text-surface-900 text-lg font-bold dark:text-white">Server-side query demo</h3>
-          <p class="text-muted-foreground mt-1 text-sm">
-            The grid owns TanStack state, while TanStack Query reacts to <code>queryState</code> and
-            returns the current page.
-          </p>
-        </div>
-        <div class="text-muted-foreground text-sm">
-          Query key updates with search, filters, sorting, and pagination.
-        </div>
-      </div>
-    </template>
-
-    <UiDataGrid
-      :table="table"
-      :loading="loading"
-      :total-rows="serverMeta?.total"
-      search-placeholder="Search workspaces"
-      :page-size-options="[4, 8, 12]"
-      empty-text="No workspaces match the current server query."
-    />
-  </UiCard>
+  <UiDataGrid
+    :table="table"
+    :loading="isLoading"
+    :error="isError"
+    search-placeholder="Search workspaces"
+    :page-size-options="[4, 8, 12]"
+    aria-label="Workspaces"
+    empty-text="No workspaces match the current server query."
+    @retry="refetch"
+  />
 </template>

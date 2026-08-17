@@ -6,6 +6,8 @@ import { UiButton, UiDataGrid, UiPageHeader } from '@/components/ui'
 import { useDataTable } from '@/composables/useDataTable'
 import { resolveIcon } from '~/config/icon-provider'
 
+import ShowcaseDocsLink from '../components/ShowcaseDocsLink.vue'
+
 const { t } = useI18n()
 
 interface Product {
@@ -436,5 +438,11 @@ function exportCSV() {
         :empty-text="t('tables_no_products')"
       />
     </div>
+    {{ t('tables_active') }}
+    <ShowcaseDocsLink
+      to="/docs/components/data-tables"
+      :title="t('tables_docs_title')"
+      :body="t('tables_docs_body')"
+    />
   </div>
 </template>
