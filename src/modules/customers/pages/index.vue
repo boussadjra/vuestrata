@@ -7,12 +7,10 @@
  * parameters. Doing it client-side would mean shipping the whole book of
  * business to the browser in order to sort ten rows of it.
  */
-import { createColumnHelper } from '@tanstack/vue-table'
-import { h } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { TableDateCell, TableLinkCell, TableMoneyCell, TableStatusCell } from '@/components/table'
-import { UiButton, UiDataGrid, UiEmptyState, UiPageHeader, UiSelect } from '@/components/ui'
+import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
+import { createColumns } from '@/composables/useDataTable'
 import { useRbac } from '@/composables/useRbac'
 import { useServerTable } from '@/composables/useServerTable'
 import { resolveIcon } from '@/config/icon-provider'
@@ -34,62 +32,36 @@ const { can } = useRbac()
 const status = ref<CustomerStatus | 'all'>('all')
 const plan = ref<CustomerPlan | 'all'>('all')
 
-const helper = createColumnHelper<Customer>()
+const col = createColumns<Customer>()
 
 // Rebuilt when the locale changes: headers are translated strings, and a
 // `const` array computed once would keep the language the page loaded in.
 const columns = computed(() => [
-  helper.accessor('company', {
-    header: () => t('customers_col_company'),
-    cell: ({ row }) =>
-      h(TableLinkCell, {
-        to: `/dashboard/customers/${row.original.id}`,
-        label: row.original.company,
-        sublabel: `${row.original.city}, ${row.original.country}`,
-      }),
-    meta: { label: t('customers_col_company'), width: '18rem' },
+  col.link('company', {
+    label: t('customers_col_company'),
+    width: '18rem',
+    to: (row) => `/dashboard/customers/${row.id}`,
+    sublabel: (row) => `${row.city}, ${row.country}`,
   }),
-  helper.accessor('contactName', {
-    header: () => t('customers_col_contact'),
-    meta: { label: t('customers_col_contact'), width: '14rem' },
+  col.text('contactName', { label: t('customers_col_contact'), width: '14rem' }),
+  col.status('status', {
+    label: t('common_status'),
+    variant: customerStatusVariant,
+    labelFor: (value) => t(`customers_status_${value}`),
   }),
-  helper.accessor('status', {
-    header: () => t('common_status'),
-    cell: ({ row }) =>
-      h(TableStatusCell, {
-        label: t(`customers_status_${row.original.status}`),
-        variant: customerStatusVariant(row.original.status),
-      }),
-    meta: { label: t('common_status'), width: '9rem' },
+  col.text('plan', {
+    label: t('customers_col_plan'),
+    width: '9rem',
+    format: (value) => t(`customers_plan_${value}`),
   }),
-  helper.accessor('plan', {
-    header: () => t('customers_col_plan'),
-    cell: ({ row }) => t(`customers_plan_${row.original.plan}`),
-    meta: { label: t('customers_col_plan'), width: '9rem' },
-  }),
-  helper.accessor('mrr', {
-    header: () => t('customers_col_mrr'),
-    cell: ({ row }) => h(TableMoneyCell, { value: row.original.mrr }),
-    meta: { label: t('customers_col_mrr'), align: 'end', width: '9rem' },
-  }),
-  helper.accessor('lastContactAt', {
-    header: () => t('customers_col_last_contact'),
-    cell: ({ row }) => h(TableDateCell, { value: row.original.lastContactAt }),
-    meta: { label: t('customers_col_last_contact'), align: 'end', width: '11rem' },
-  }),
+  col.money('mrr', { label: t('customers_col_mrr') }),
+  col.date('lastContactAt', { label: t('customers_col_last_contact') }),
 ])
 
-// `useServerTable` owns the table/query cycle. Wiring the two together by hand
-// here reads fine and crashes at runtime: `useDataTable` evaluates `rowCount`
-// during setup, before a `const meta` declared below it exists.
-const { table, meta, isPending, isFetching, isError, refetch } = useServerTable<
-  Customer,
-  CustomerFilters
->({
-  columns: columns.value,
-  query: (filters) => useCustomersQuery(filters),
+const { table, isLoading, isError, refetch } = useServerTable<Customer, CustomerFilters>({
+  columns,
+  query: useCustomersQuery,
   extra: () => ({ status: status.value, plan: plan.value }),
-  getRowId: (row) => row.id,
 })
 
 const statusOptions = computed(() => [
@@ -126,29 +98,14 @@ const planOptions = computed(() => [
       </template>
     </UiPageHeader>
 
-    <!--
-      An error is not an empty list. Showing "no customers match" for a failed
-      request tells the user their filters are wrong when in fact the data is
-      simply unknown.
-    -->
-    <UiEmptyState
-      v-if="isError"
-      variant="error"
-      :title="t('common_error_title')"
-      :description="t('common_error_body')"
-    >
-      <UiButton variant="ghost" @click="refetch">{{ t('common_retry') }}</UiButton>
-    </UiEmptyState>
-
     <UiDataGrid
-      v-else
       :table="table"
-      :loading="isPending || isFetching"
-      :total-rows="meta?.total"
+      :loading="isLoading"
+      :error="isError"
       :aria-label="t('customers_title')"
       :search-placeholder="t('customers_search_placeholder')"
       :empty-text="t('customers_empty')"
-      :show-column-filters="false"
+      @retry="refetch"
     />
   </div>
 </template>

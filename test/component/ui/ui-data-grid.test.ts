@@ -100,7 +100,6 @@ function mountGrid(options?: {
       table: tableState.table as Table<unknown>,
       selectable: true,
       showColumnVisibility: true,
-      showColumnFilters: true,
       ...options?.props,
     },
     slots: options?.slots as Record<string, (...args: any[]) => any> | undefined,
@@ -315,5 +314,56 @@ describe('UiDataGrid', () => {
 
     expect(wrapper.find('[data-ui="data-grid-virtual-body"]').exists()).toBe(false)
     expect(wrapper.find('table').exists()).toBe(true)
+  })
+
+  it('shows column filters for client tables by default', () => {
+    const { wrapper } = mountGrid()
+
+    expect(wrapper.find('[data-ui="data-grid-filter-button"]').exists()).toBe(true)
+  })
+
+  it('hides column filters for manual server tables by default', () => {
+    const { wrapper } = mountGrid({
+      tableOptions: {
+        manualFiltering: true,
+        manualPagination: true,
+        manualSorting: true,
+        rowCount: 3,
+      },
+    })
+
+    expect(wrapper.find('[data-ui="data-grid-filter-button"]').exists()).toBe(false)
+  })
+
+  it('shows column filters on a server table when explicitly enabled', () => {
+    const { wrapper } = mountGrid({
+      tableOptions: {
+        manualFiltering: true,
+        manualPagination: true,
+        manualSorting: true,
+        rowCount: 3,
+      },
+      props: { showColumnFilters: true },
+    })
+
+    expect(wrapper.find('[data-ui="data-grid-filter-button"]').exists()).toBe(true)
+  })
+
+  it('drops outer card chrome when embedded in a panel', () => {
+    const { wrapper } = mountGrid({ props: { embedded: true } })
+
+    expect(wrapper.get('[data-ui="data-grid"]').attributes('data-embedded')).toBe('true')
+    expect(wrapper.get('[data-ui="data-grid"]').classes()).not.toContain('rounded-2xl')
+  })
+
+  it('renders an error empty state and emits retry', async () => {
+    const { wrapper } = mountGrid({ props: { error: true } })
+
+    expect(wrapper.text()).toContain('Something went wrong')
+    expect(wrapper.text()).not.toContain('Ada Lovelace')
+
+    await wrapper.get('[role="alert"]').find('button').trigger('click')
+
+    expect(wrapper.emitted('retry')).toHaveLength(1)
   })
 })

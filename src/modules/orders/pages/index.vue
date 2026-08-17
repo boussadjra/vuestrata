@@ -7,12 +7,10 @@
  * is read newest-first and alphabetical order of a reference number tells
  * nobody anything.
  */
-import { createColumnHelper } from '@tanstack/vue-table'
-import { h } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { TableDateCell, TableLinkCell, TableMoneyCell, TableStatusCell } from '@/components/table'
-import { UiButton, UiDataGrid, UiEmptyState, UiPageHeader, UiSelect } from '@/components/ui'
+import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
+import { createColumns } from '@/composables/useDataTable'
 import { useRbac } from '@/composables/useRbac'
 import { useServerTable } from '@/composables/useServerTable'
 import { resolveIcon } from '@/config/icon-provider'
@@ -34,60 +32,38 @@ const { can } = useRbac()
 const status = ref<OrderStatus | 'all'>('all')
 const channel = ref<OrderChannel | 'all'>('all')
 
-const helper = createColumnHelper<Order>()
+const col = createColumns<Order>()
 const columns = computed(() => [
-  helper.accessor('reference', {
-    header: () => t('orders_col_reference'),
-    cell: ({ row }) =>
-      h(TableLinkCell, {
-        to: `/dashboard/orders/${row.original.id}`,
-        label: row.original.reference,
-        sublabel: row.original.customerName,
-      }),
-    meta: { label: t('orders_col_reference'), width: '16rem' },
+  col.link('reference', {
+    label: t('orders_col_reference'),
+    width: '16rem',
+    to: (row) => `/dashboard/orders/${row.id}`,
+    sublabel: (row) => row.customerName,
   }),
-  helper.accessor('status', {
-    header: () => t('common_status'),
-    cell: ({ row }) =>
-      h(TableStatusCell, {
-        label: t(`orders_status_${row.original.status}`),
-        variant: orderStatusVariant(row.original.status),
-      }),
-    meta: { label: t('common_status'), width: '9rem' },
+  col.status('status', {
+    label: t('common_status'),
+    variant: orderStatusVariant,
+    labelFor: (value) => t(`orders_status_${value}`),
   }),
-  helper.accessor('channel', {
-    header: () => t('orders_col_channel'),
-    cell: ({ row }) => t(`orders_channel_${row.original.channel}`),
-    meta: { label: t('orders_col_channel'), width: '9rem' },
+  col.text('channel', {
+    label: t('orders_col_channel'),
+    width: '9rem',
+    format: (value) => t(`orders_channel_${value}`),
   }),
-  helper.display({
-    id: 'items',
-    header: () => t('orders_col_items'),
-    cell: ({ row }) => orderItemCount(row.original),
-    meta: { label: t('orders_col_items'), align: 'end', width: '7rem' },
+  col.display('items', {
+    label: t('orders_col_items'),
+    align: 'end',
+    width: '7rem',
+    cell: (row) => orderItemCount(row),
   }),
-  helper.accessor('total', {
-    header: () => t('common_total'),
-    cell: ({ row }) => h(TableMoneyCell, { value: row.original.total }),
-    meta: { label: t('common_total'), align: 'end', width: '10rem' },
-  }),
-  helper.accessor('placedAt', {
-    header: () => t('orders_col_placed'),
-    cell: ({ row }) => h(TableDateCell, { value: row.original.placedAt }),
-    meta: { label: t('orders_col_placed'), align: 'end', width: '11rem' },
-  }),
+  col.money('total', { label: t('common_total'), width: '10rem' }),
+  col.date('placedAt', { label: t('orders_col_placed') }),
 ])
 
-// See `useServerTable`: it owns the table↔query initialisation order, which is
-// a temporal dead zone if a page wires the two together itself.
-const { table, meta, isPending, isFetching, isError, refetch } = useServerTable<
-  Order,
-  OrderFilters
->({
-  columns: columns.value,
-  query: (filters) => useOrdersQuery(filters),
+const { table, isLoading, isError, refetch } = useServerTable<Order, OrderFilters>({
+  columns,
+  query: useOrdersQuery,
   extra: () => ({ status: status.value, channel: channel.value }),
-  getRowId: (row) => row.id,
 })
 
 const statusOptions = computed(() => [
@@ -123,24 +99,14 @@ const channelOptions = computed(() => [
       </template>
     </UiPageHeader>
 
-    <UiEmptyState
-      v-if="isError"
-      variant="error"
-      :title="t('common_error_title')"
-      :description="t('common_error_body')"
-    >
-      <UiButton variant="ghost" @click="refetch">{{ t('common_retry') }}</UiButton>
-    </UiEmptyState>
-
     <UiDataGrid
-      v-else
       :table="table"
-      :loading="isPending || isFetching"
-      :total-rows="meta?.total"
+      :loading="isLoading"
+      :error="isError"
       :aria-label="t('orders_title')"
       :search-placeholder="t('orders_search_placeholder')"
       :empty-text="t('orders_empty')"
-      :show-column-filters="false"
+      @retry="refetch"
     />
   </div>
 </template>

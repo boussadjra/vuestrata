@@ -24,11 +24,11 @@
  *    Reading one source removes the whole class of problem.
  */
 import type { ColumnDef } from '@tanstack/vue-table'
-import type { Ref } from 'vue'
+import type { MaybeRefOrGetter, Ref } from 'vue'
 
 import type { CollectionFilters, PageMeta } from '~/lib/api/collection-queries'
 
-import { useDataTable, type DataTableQueryState } from './useDataTable'
+import { useDataTable } from './useDataTable'
 
 /** The shape `createCollectionApi(...).useList` returns. */
 export interface ServerCollection<T> {
@@ -41,7 +41,7 @@ export interface ServerCollection<T> {
 }
 
 export interface ServerTableOptions<T, TFilters extends CollectionFilters> {
-  columns: ColumnDef<T, unknown>[]
+  columns: MaybeRefOrGetter<ColumnDef<T, unknown>[]>
   /** Runs the list query. A factory called once during setup, not a fetch. */
   query: (filters: Ref<TFilters>) => ServerCollection<T>
   /** Domain filters (status, category, …) merged into every request. */
@@ -52,10 +52,19 @@ export interface ServerTableOptions<T, TFilters extends CollectionFilters> {
   getRowId?: (row: T) => string
 }
 
+function defaultRowId<T>(row: T, index: number): string {
+  if (typeof row === 'object' && row !== null && 'id' in row) {
+    const id = (row as { id: unknown }).id
+    if (typeof id === 'string' || typeof id === 'number') return String(id)
+  }
+
+  return String(index)
+}
+
 export function useServerTable<T, TFilters extends CollectionFilters = CollectionFilters>(
   options: ServerTableOptions<T, TFilters>,
 ) {
-  const { columns, query, extra, searchDebounceMs = 300, pageSize = 10, getRowId } = options
+  const { query, extra, searchDebounceMs = 300, pageSize = 10, getRowId } = options
 
   // Owned here, so the collection can exist before the table does.
   const filters = ref({ page: 1, pageSize }) as Ref<TFilters>
@@ -66,14 +75,14 @@ export function useServerTable<T, TFilters extends CollectionFilters = Collectio
   // rows and the counts, so the body and the footer cannot disagree.
   const { table, queryState } = useDataTable<T>({
     data: () => collection.items.value,
-    columns,
+    columns: () => toValue(options.columns),
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
     pageSize,
     rowCount: () => collection.meta.value?.total,
     pageCount: () => collection.meta.value?.totalPages,
-    ...(getRowId ? { getRowId: (row: T) => getRowId(row) } : {}),
+    getRowId: getRowId ? (row: T) => getRowId(row) : defaultRowId,
   })
 
   // Debounced separately from the rest of the state: sorting and paging should
@@ -103,6 +112,8 @@ export function useServerTable<T, TFilters extends CollectionFilters = Collectio
     } as TFilters
   })
 
+  const isLoading = computed(() => collection.isPending.value || collection.isFetching.value)
+
   return {
     table,
     queryState,
@@ -112,9 +123,8 @@ export function useServerTable<T, TFilters extends CollectionFilters = Collectio
     meta: collection.meta,
     isPending: collection.isPending,
     isFetching: collection.isFetching,
+    isLoading,
     isError: collection.isError,
     refetch: collection.refetch,
   }
 }
-
-export type { DataTableQueryState }

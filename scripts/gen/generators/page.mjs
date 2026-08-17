@@ -146,8 +146,6 @@ function addLocaleKey(source, key, value) {
 }
 
 function pageTemplate({ id, name, kind, titleKey }) {
-  const Entity = pascal(id.replace(/s$/, ''))
-
   if (kind === 'detail') {
     return `<script setup lang="ts">
 /**
@@ -196,18 +194,39 @@ async function handleSubmit() {
   }
 
   if (kind === 'list') {
+    const Entities = pascal(id)
     return `<script setup lang="ts">
 /**
- * A route page: a thin inbound adapter. Swap the placeholder below for the
- * module's list query — \`use${Entity}sQuery\` from ../composables/.
+ * A route page: a thin inbound adapter. Wire the module's list query into
+ * \`useServerTable\` — see customers/pages/index.vue.
  */
+import { createColumns } from '@/composables/useDataTable'
+import { useServerTable } from '@/composables/useServerTable'
+
+import { use${Entities}Query } from '../composables/use${Entities}'
+
 const { t } = useI18n()
+const col = createColumns<{ id: string; name: string }>()
+const columns = computed(() => [
+  col.text('name', { label: t('${titleKey}') }),
+])
+
+const { table, isLoading, isError, refetch } = useServerTable({
+  columns,
+  query: use${Entities}Query,
+})
 </script>
 
 <template>
   <div class="space-y-6">
     <UiPageHeader :title="t('${titleKey}')" />
-    <UiEmptyState :title="t('${titleKey}')" />
+    <UiDataGrid
+      :table="table"
+      :loading="isLoading"
+      :error="isError"
+      :aria-label="t('${titleKey}')"
+      @retry="refetch"
+    />
   </div>
 </template>
 `

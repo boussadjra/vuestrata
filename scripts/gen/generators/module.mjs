@@ -292,73 +292,78 @@ ${header(
  * business rule, mutation or cache invalidation belongs in composables/ — see
  * AGENTS.md, which the no-restricted-imports lint rule now enforces.
  *
- * Search and pagination are server-side: \`useList\` turns the filter ref into
- * query parameters. Fetching everything and filtering in the browser is the
- * thing this pattern exists to avoid.`,
+ * Search, sorting and pagination are server-side: \`useServerTable\` turns
+ * table state into query parameters. Fetching everything and filtering in the
+ * browser is the thing this pattern exists to avoid.`,
 )}
 import { useI18n } from 'vue-i18n'
 
-import {
-  UiBadge,
-  UiButton,
-  UiCard,
-  UiEmptyState,
-  UiPageHeader,
-  UiSkeleton,
-  UiTextField,
-} from '@/components/ui'
+import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
+import { createColumns } from '@/composables/useDataTable'
+import { useServerTable } from '@/composables/useServerTable'
 
 import { use${n.Entities}Query } from '../composables/use${n.Entities}'
 import { ${n.entity}StatusVariant } from '../presentation'
-import type { ${n.Entity}Filters } from '../types'
+import {
+  ${n.ENTITY}_STATUSES,
+  type ${n.Entity},
+  type ${n.Entity}Filters,
+  type ${n.Entity}Status,
+} from '../types'
 
 const { t } = useI18n()
 
-const search = ref('')
-const filters = computed<${n.Entity}Filters>(() => ({
-  page: 1,
-  pageSize: 20,
-  search: search.value,
-}))
+const status = ref<${n.Entity}Status | 'all'>('all')
+const col = createColumns<${n.Entity}>()
+const columns = computed(() => [
+  col.link('name', {
+    label: t('${n.moduleId}_col_name'),
+    width: '18rem',
+    to: (row) => \`/dashboard/${n.moduleId}/\${row.id}\`,
+  }),
+  col.status('status', {
+    label: t('common_status'),
+    variant: ${n.entity}StatusVariant,
+    labelFor: (value) => t(\`${n.moduleId}_status_\${value}\`),
+  }),
+  col.date('createdAt', { label: t('${n.moduleId}_col_created') }),
+])
 
-const { items, isPending, isError } = use${n.Entities}Query(filters)
+const { table, isLoading, isError, refetch } = useServerTable<${n.Entity}, ${n.Entity}Filters>({
+  columns,
+  query: use${n.Entities}Query,
+  extra: () => ({ status: status.value }),
+})
+
+const statusOptions = computed(() => [
+  { label: t('common_all'), value: 'all' },
+  ...${n.ENTITY}_STATUSES.map((value) => ({ label: t(\`${n.moduleId}_status_\${value}\`), value })),
+])
 </script>
 
 <template>
   <div class="space-y-6">
     <UiPageHeader :title="t('${n.moduleId}_nav')" :description="t('${n.moduleId}_description')">
       <template #actions>
+        <UiSelect
+          v-model="status"
+          class="min-w-40"
+          :options="statusOptions"
+          :aria-label="t('${n.moduleId}_filter_status')"
+        />
         <UiButton to="/dashboard/${n.moduleId}/new">{{ t('${n.moduleId}_new_title') }}</UiButton>
       </template>
     </UiPageHeader>
 
-    <UiTextField v-model="search" :label="t('common_search')" name="search" />
-
-    <UiSkeleton v-if="isPending" class="h-64" />
-
-    <UiEmptyState v-else-if="isError" :title="t('common_error')" />
-
-    <UiEmptyState
-      v-else-if="items.length === 0"
-      :title="t('${n.moduleId}_empty_title')"
-      :description="t('${n.moduleId}_empty_description')"
+    <UiDataGrid
+      :table="table"
+      :loading="isLoading"
+      :error="isError"
+      :aria-label="t('${n.moduleId}_nav')"
+      :search-placeholder="t('${n.moduleId}_search_placeholder')"
+      :empty-text="t('${n.moduleId}_empty')"
+      @retry="refetch"
     />
-
-    <UiCard v-else>
-      <ul class="divide-border divide-y">
-        <li v-for="record in items" :key="record.id" class="flex items-center gap-4 p-4">
-          <RouterLink
-            :to="\`/dashboard/${n.moduleId}/\${record.id}\`"
-            class="text-foreground font-medium hover:underline"
-          >
-            {{ record.name }}
-          </RouterLink>
-          <UiBadge :variant="${n.entity}StatusVariant(record.status)">
-            {{ t(\`${n.moduleId}_status_\${record.status}\`) }}
-          </UiBadge>
-        </li>
-      </ul>
-    </UiCard>
   </div>
 </template>
 `
@@ -653,6 +658,11 @@ function localeTemplate(n, locale) {
     [`${n.moduleId}_edit_title`]: `Edit ${n.EntityLabel}`,
     [`${n.moduleId}_empty_title`]: `No ${n.Label.toLowerCase()} yet`,
     [`${n.moduleId}_empty_description`]: `Create your first ${n.EntityLabel.toLowerCase()} to get started.`,
+    [`${n.moduleId}_empty`]: `No ${n.Label.toLowerCase()} match these filters.`,
+    [`${n.moduleId}_search_placeholder`]: `Search ${n.Label.toLowerCase()}`,
+    [`${n.moduleId}_col_name`]: 'Name',
+    [`${n.moduleId}_col_created`]: 'Created',
+    [`${n.moduleId}_filter_status`]: 'Filter by status',
     [`${n.moduleId}_status_draft`]: 'Draft',
     [`${n.moduleId}_status_active`]: 'Active',
     [`${n.moduleId}_status_archived`]: 'Archived',

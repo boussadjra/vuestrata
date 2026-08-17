@@ -14,6 +14,7 @@ import { UiBadge, UiButton, UiCard, UiEmptyState, UiPageHeader, UiSelect } from 
 import { useFormatters } from '@/composables/useFormatters'
 import { useLocales } from '@/composables/useLocales'
 import { resolveIcon } from '@/config/icon-provider'
+import { intlLocale } from '@/plugins/appearance'
 
 import { useCalendarMonth } from '../composables/useCalendarMonth'
 import { eventKindVariant } from '../presentation'
@@ -44,7 +45,9 @@ const {
 } = useCalendarMonth(locale)
 
 const monthLabel = computed(() =>
-  new Intl.DateTimeFormat(locale.value, { month: 'long', year: 'numeric' }).format(viewMonth.value),
+  new Intl.DateTimeFormat(intlLocale(locale.value), { month: 'long', year: 'numeric' }).format(
+    viewMonth.value,
+  ),
 )
 
 const selectedDayLabel = computed(() => fullDate(selectedKey.value))
@@ -55,7 +58,7 @@ const kindOptions = computed(() => [
 ])
 
 function fullDate(key: string): string {
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'full' }).format(
+  return new Intl.DateTimeFormat(intlLocale(locale.value), { dateStyle: 'full' }).format(
     new Date(`${key}T00:00:00`),
   )
 }

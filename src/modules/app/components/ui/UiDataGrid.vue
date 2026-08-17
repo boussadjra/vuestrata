@@ -9,6 +9,7 @@ import { resolveIcon } from '~/config/icon-provider'
 import UiBadge from './UiBadge.vue'
 import UiButton from './UiButton.vue'
 import UiCheckbox from './UiCheckbox.vue'
+import UiEmptyState from './UiEmptyState.vue'
 import UiPopover from './UiPopover.vue'
 import UiSelect from './UiSelect.vue'
 
@@ -28,7 +29,12 @@ const props = withDefaults(
     showToolbar?: boolean
     showSearch?: boolean
     searchPlaceholder?: string
-    showColumnFilters?: boolean
+    /**
+     * `null` means infer: on for client tables, off when `manualFiltering`
+     * is set. Vue treats a missing boolean prop as `false`, so we cannot use
+     * `undefined` as the sentinel.
+     */
+    showColumnFilters?: boolean | null
     showColumnVisibility?: boolean
     showFooter?: boolean
     showPagination?: boolean
@@ -39,13 +45,20 @@ const props = withDefaults(
     maxBodyHeight?: number | string
     pageSizeOptions?: number[]
     totalRows?: number
+    error?: boolean
+    /**
+     * Drop the outer card chrome so the grid can sit inside a `UiPanel`
+     * without nesting two surfaces.
+     */
+    embedded?: boolean
   }>(),
   {
     loading: false,
+    error: false,
     ariaLabel: 'Data grid',
     showToolbar: true,
     showSearch: true,
-    showColumnFilters: true,
+    showColumnFilters: null,
     showColumnVisibility: true,
     showFooter: true,
     showPagination: true,
@@ -56,11 +69,20 @@ const props = withDefaults(
     maxBodyHeight: '32rem',
     pageSizeOptions: () => [10, 25, 50, 100],
     totalRows: undefined,
+    embedded: false,
   },
 )
 
+const emit = defineEmits<{
+  retry: []
+}>()
+
 const slots = useSlots()
 const { t } = useI18n()
+
+const resolvedShowColumnFilters = computed(
+  () => props.showColumnFilters ?? !props.table.options.manualFiltering,
+)
 
 const headerGroups = computed(() => props.table.getHeaderGroups())
 const visibleLeafColumns = computed(() => props.table.getVisibleLeafColumns())
@@ -112,6 +134,7 @@ const hasExpandedRowSlot = computed(() => Boolean(slots['expanded-row']))
 const virtualSupported = computed(
   () =>
     props.virtual &&
+    !props.error &&
     headerGroups.value.length === 1 &&
     !props.expandable &&
     !hasExpandedRowSlot.value &&
@@ -166,7 +189,7 @@ const {
 })
 
 const baseTextInputClass =
-  'shaped-border shaped-radius-sm w-full border border-surface-300 bg-white px-3 py-2 text-sm text-surface-700 transition-colors placeholder:text-surface-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-300 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-200 dark:placeholder:text-surface-500'
+  'shaped-border shaped-radius-sm w-full border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-700 transition-colors placeholder:text-surface-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-300 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-200 dark:placeholder:text-surface-500'
 
 function getColumnLabel(column: Column<TData, unknown>): string {
   const metaLabel = column.columnDef.meta?.label
@@ -334,6 +357,10 @@ function shouldShowExpandedDetail(row: Row<TData>): boolean {
   return hasExpandedRowSlot.value && row.getIsExpanded()
 }
 
+function retry(): void {
+  emit('retry')
+}
+
 function getRowClasses(row: Row<TData>): string[] {
   return [
     'transition-colors',
@@ -346,13 +373,20 @@ function getRowClasses(row: Row<TData>): string[] {
 
 <template>
   <div
-    class="border-surface-200 dark:border-surface-700 dark:bg-surface-900 overflow-hidden rounded-2xl border bg-white shadow-(--shadow-soft)"
+    class="overflow-hidden"
+    :class="
+      embedded
+        ? 'bg-transparent'
+        : 'border-surface-200 dark:border-surface-700 dark:bg-surface-900 rounded-2xl border bg-white shadow-(--shadow-soft)'
+    "
     data-ui="data-grid"
     data-provider="reka"
+    :data-embedded="embedded ? 'true' : undefined"
   >
     <div
       v-if="showToolbar"
-      class="border-surface-200 dark:border-surface-700 flex flex-col gap-4 border-b px-4 py-4 lg:px-5"
+      class="border-surface-200 dark:border-surface-700 flex flex-col gap-4 border-b"
+      :class="embedded ? 'px-4 py-3' : 'px-4 py-4 lg:px-5'"
     >
       <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div class="flex flex-1 flex-col gap-3 lg:max-w-2xl">
@@ -447,9 +481,10 @@ function getRowClasses(row: Row<TData>): string[] {
     <div v-if="virtualSupported" class="overflow-hidden">
       <div class="border-surface-200 dark:border-surface-700 overflow-x-auto border-b">
         <div
-          class="bg-surface-100/90 dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 grid min-w-full border-b text-sm"
+          class="bg-surface-100 dark:bg-surface-800 border-surface-200 dark:border-surface-700 grid min-w-full border-b text-sm"
           :style="{ gridTemplateColumns: virtualGridTemplateColumns }"
           role="row"
+          data-ui="data-grid-header"
         >
           <div
             v-if="selectable"
@@ -505,7 +540,7 @@ function getRowClasses(row: Row<TData>): string[] {
               />
             </div>
 
-            <UiPopover v-if="showColumnFilters && hasFilter(header.column)">
+            <UiPopover v-if="resolvedShowColumnFilters && hasFilter(header.column)">
               <template #trigger>
                 <button
                   type="button"
@@ -623,7 +658,10 @@ function getRowClasses(row: Row<TData>): string[] {
 
     <div v-else class="overflow-auto" :style="{ maxHeight: normalizedMaxBodyHeight }">
       <table class="min-w-full border-collapse text-sm" :aria-label="ariaLabel">
-        <thead class="bg-surface-100/90 dark:bg-surface-800/90 sticky top-0 z-10">
+        <thead
+          class="bg-surface-100 dark:bg-surface-800 sticky top-0 z-10"
+          data-ui="data-grid-header"
+        >
           <tr v-for="(headerGroup, headerIndex) in headerGroups" :key="headerGroup.id">
             <th
               v-if="expandable && headerIndex === 0"
@@ -688,7 +726,7 @@ function getRowClasses(row: Row<TData>): string[] {
                   />
                 </div>
 
-                <UiPopover v-if="showColumnFilters && hasFilter(header.column)">
+                <UiPopover v-if="resolvedShowColumnFilters && hasFilter(header.column)">
                   <template #trigger>
                     <button
                       type="button"
@@ -755,7 +793,25 @@ function getRowClasses(row: Row<TData>): string[] {
           </tr>
         </thead>
 
-        <tbody v-if="!loading && bodyRows.length">
+        <tbody v-if="error">
+          <tr>
+            <td :colspan="totalColumnCount" class="px-4 py-6">
+              <UiEmptyState
+                variant="error"
+                :title="t('common_error_title')"
+                :description="t('common_error_body')"
+              >
+                <template #action>
+                  <UiButton variant="ghost" data-ui="data-grid-retry" @click="retry">
+                    {{ t('common_retry') }}
+                  </UiButton>
+                </template>
+              </UiEmptyState>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody v-else-if="!loading && bodyRows.length">
           <template v-for="row in bodyRows" :key="row.id">
             <tr :class="getRowClasses(row)" :data-row-id="row.id">
               <td
@@ -852,7 +908,7 @@ function getRowClasses(row: Row<TData>): string[] {
     </div>
 
     <div
-      v-if="showFooter"
+      v-if="showFooter && !error"
       class="border-surface-200 dark:border-surface-700 flex flex-col gap-3 border-t px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-5"
     >
       <div class="text-muted-foreground text-sm">

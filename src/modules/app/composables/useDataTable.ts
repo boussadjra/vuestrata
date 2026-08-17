@@ -20,6 +20,8 @@ import {
 } from '@tanstack/vue-table'
 
 export { createColumnHelper }
+export { createColumns } from './table-columns'
+export type { ColumnChrome, ColumnFilterSpec } from './table-columns'
 export type {
   ColumnDef,
   Row,
@@ -77,7 +79,7 @@ declare module '@tanstack/table-core' {
 
 export interface UseDataTableOptions<T> {
   data: T[] | (() => T[])
-  columns: ColumnDef<T, unknown>[]
+  columns: MaybeRefOrGetter<ColumnDef<T, unknown>[]>
   enableSorting?: boolean
   enableFiltering?: boolean
   enablePagination?: boolean
@@ -99,7 +101,6 @@ export interface UseDataTableOptions<T> {
 
 export function useDataTable<T>(options: UseDataTableOptions<T>) {
   const {
-    columns,
     enableSorting = true,
     enableFiltering = true,
     enablePagination = true,
@@ -119,6 +120,7 @@ export function useDataTable<T>(options: UseDataTableOptions<T>) {
   } = options
 
   const data = typeof options.data === 'function' ? computed(options.data) : ref(options.data)
+  const resolvedColumns = computed(() => toValue(options.columns))
   const resolvedRowCount = computed(() => toValue(rowCount))
   const resolvedPageCount = computed(() => toValue(pageCount))
 
@@ -138,7 +140,9 @@ export function useDataTable<T>(options: UseDataTableOptions<T>) {
     get data() {
       return data.value as T[]
     },
-    columns,
+    get columns() {
+      return resolvedColumns.value
+    },
     state: {
       get sorting() {
         return sorting.value
@@ -223,18 +227,22 @@ export function useDataTable<T>(options: UseDataTableOptions<T>) {
     table.setOptions((prev) => ({
       ...prev,
       // `prev` is the live options proxy the Vue adapter built, and spreading
-      // it MATERIALISES every getter — including `data`, which is how the rows
-      // reach the table. Whatever `data` happened to be when this effect last
-      // ran would then be frozen in place.
+      // it MATERIALISES every getter — including `data` and `columns`.
+      // Whatever they happened to be when this effect last ran would then be
+      // frozen in place.
       //
       // That is a race with real symptoms: this effect fires when `rowCount`
       // arrives, which for a server-backed table is the same tick the rows
       // arrive. Land on the wrong side of it and the table renders an empty
       // body while the footer reports "Showing 0-0 of 48 rows" — the count is
       // read from `rowCount`, the body from the snapshot. Re-declaring the
-      // getter after the spread keeps `data` live.
+      // getters after the spread keeps `data` and `columns` live (columns must
+      // stay live so a locale change can rebuild headers).
       get data() {
         return data.value as T[]
+      },
+      get columns() {
+        return resolvedColumns.value
       },
       pageCount: resolvedPageCount.value,
       rowCount: resolvedRowCount.value,
