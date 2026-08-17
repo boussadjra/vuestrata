@@ -5,6 +5,8 @@
  * their availability and what time it is where they are — and both used to
  * carry their own copy of the logic.
  */
+import { intlLocale } from '@/plugins/appearance'
+
 import type { TeamMember } from './types'
 
 export type TeamStatusVariant = 'success' | 'warning' | 'default'
@@ -39,7 +41,7 @@ export function memberLocalTime(
   options: MemberLocalTimeOptions = {},
 ): string | null {
   try {
-    return new Intl.DateTimeFormat(locale, {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
       hour: '2-digit',
       minute: '2-digit',
       ...(options.withZoneName ? { timeZoneName: 'short' as const } : {}),

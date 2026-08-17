@@ -119,10 +119,9 @@ defineProps<{
 
 .terminal-wrapper div {
   direction: ltr;
-  /* `dir="ltr"` fixes character order, but `text-align` is a separate,
-     inherited property — in RTL the page's `[dir='rtl'] { text-align: right }`
-     still cascades in and right-aligns any wrapped line inside a flex item
-     (the import statement is the only line long enough to wrap). */
+  /* `dir="ltr"` fixes character order. Pin alignment too: an inherited
+     physical `text-align` from the page would still shove wrapped lines
+     to the wrong edge inside this LTR island. */
   text-align: left;
 }
 
