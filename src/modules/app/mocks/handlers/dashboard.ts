@@ -12,7 +12,7 @@ import {
   teamPerformanceSchema,
   upcomingEventsSchema,
   type DashboardRange,
-} from '@/modules/analytics/types/dashboard'
+} from '@/modules/analytics'
 
 import { isValidToken } from '../utils'
 

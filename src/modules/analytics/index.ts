@@ -125,4 +125,19 @@ export type {
   TeamPerformance,
   Trend,
 } from './types/dashboard'
+// The dashboard zod schemas are part of the public surface, not internals: the
+// MSW handler that serves these endpoints lives outside this module and builds
+// every response through them, so the schema *is* the cross-module contract.
+export {
+  DASHBOARD_RANGES,
+  activityFeedSchema,
+  activitySeriesSchema,
+  attentionItemsSchema,
+  dashboardStatsSchema,
+  funnelSchema,
+  revenueBreakdownSchema,
+  systemHealthSchema,
+  teamPerformanceSchema,
+  upcomingEventsSchema,
+} from './types/dashboard'
 export { analyticsModuleKeys } from './query-keys'
