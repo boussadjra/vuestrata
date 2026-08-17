@@ -75,12 +75,12 @@ export async function logInAsDemoAdmin(page: Page): Promise<void> {
  * interaction waits forever.
  */
 export async function waitForSignedInShell(page: Page): Promise<void> {
-  await expect(page.getByRole('button', { name: /account menu/i })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('account-menu-trigger')).toBeVisible({ timeout: 30_000 })
 }
 
 export async function signOut(page: Page): Promise<void> {
   await waitForSignedInShell(page)
-  await page.getByRole('button', { name: /account menu/i }).click()
+  await page.getByTestId('account-menu-trigger').click()
   await page.getByRole('menuitem', { name: /sign out/i }).click()
 }
 

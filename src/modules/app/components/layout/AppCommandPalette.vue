@@ -82,7 +82,7 @@ function navigate(path: string) {
   <div class="hidden h-[var(--control-height)] items-stretch md:inline-flex">
     <button
       type="button"
-      class="border-surface-300 dark:border-surface-600 bg-card text-muted-foreground hover:text-foreground hover:border-surface-400 dark:hover:border-surface-500 shaped-border shaped-radius-sm inline-flex h-full w-44 items-center gap-2 border px-3 text-sm leading-5 transition-colors lg:w-56"
+      class="border-surface-300 dark:border-surface-600 bg-card text-muted-foreground hover:text-foreground hover:border-surface-400 dark:hover:border-surface-500 shaped-border shaped-radius-sm inline-flex h-full w-56 items-center gap-2 border px-3 text-sm leading-5 transition-colors lg:w-72"
       :aria-label="t('command_palette_open')"
       :aria-keyshortcuts="'Meta+K Control+K'"
       data-testid="command-palette-trigger"

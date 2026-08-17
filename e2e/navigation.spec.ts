@@ -17,7 +17,7 @@ test.describe('Settings page', () => {
   test('should display theming controls', async ({ page }) => {
     await page.goto('/settings')
     await expect(page).toHaveURL(/\/dashboard\/settings/)
-    await expect(page.getByRole('heading', { name: 'Application Settings' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Theme' })).toBeVisible()
   })
@@ -54,11 +54,15 @@ test.describe('Dashboard navigation', () => {
   test('should navigate to forms page', async ({ page }) => {
     await page.goto('/dashboard/forms')
     await expect(page).toHaveURL(/\/dashboard\/forms/)
+    await page.getByRole('link', { name: /form docs and examples/i }).click()
+    await expect(page).toHaveURL(/\/docs\/components\/forms/)
   })
 
   test('should navigate to tables page', async ({ page }) => {
     await page.goto('/dashboard/tables')
     await expect(page).toHaveURL(/\/dashboard\/tables/)
+    await page.getByRole('link', { name: /data table docs and examples/i }).click()
+    await expect(page).toHaveURL(/\/docs\/components\/data-tables/)
   })
 })
 
