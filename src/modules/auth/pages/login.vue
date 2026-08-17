@@ -137,7 +137,7 @@ const socialProviders = computed(() => [
         </div>
 
         <span class="flex h-14 w-14 shrink-0 items-center">
-          <Logo class="h-9 w-auto" />
+          <Logo variant="icon" class="h-9 w-9" />
         </span>
       </div>
 

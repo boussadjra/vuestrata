@@ -90,10 +90,6 @@
   --color-surface-900: #0f172a;
   --color-surface-950: #020617;
 
-  /* Logo colors — follow theme primary/secondary */
-  --color-logo-primary: var(--color-primary-700);
-  --color-logo-secondary: var(--color-secondary-400);
-
   /* Font families */
   --font-sans: 'Inter', 'Tajawal', 'Cairo', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;

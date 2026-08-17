@@ -137,23 +137,9 @@ const guestAction = computed(() => {
         <RouterLink
           v-if="showBrand"
           to="/"
-          class="group focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex min-w-0 items-center gap-3 rounded-lg py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          class="group focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex min-w-0 items-center rounded-lg py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
-          <span class="flex h-9 w-9 shrink-0 items-center justify-center p-1">
-            <Logo className="h-6 w-auto shrink-0" />
-          </span>
-          <span class="hidden min-w-0 flex-col sm:flex">
-            <span
-              class="text-primary-700 dark:text-primary-300 truncate text-lg leading-none font-semibold"
-            >
-              Vuestrata
-            </span>
-            <span
-              class="text-muted-foreground mt-1 truncate text-[11px] font-medium tracking-[0.18em] uppercase"
-            >
-              {{ t('common_starter_workbench') }}
-            </span>
-          </span>
+          <Logo variant="full" className="h-8 w-auto max-w-48 sm:max-w-56" />
         </RouterLink>
 
         <!--

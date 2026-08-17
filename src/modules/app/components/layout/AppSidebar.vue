@@ -105,28 +105,16 @@ const isCollapsedRail = computed(() => !isMobileViewport.value && appStore.sideb
       <RouterLink
         v-if="!appStore.sidebarCollapsed"
         to="/"
-        class="focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex min-w-0 items-center gap-3 rounded-lg py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        class="focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex min-w-0 items-center rounded-lg px-1 py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center p-1">
-          <Logo class="h-6 w-auto shrink-0" />
-        </span>
-        <span class="min-w-0">
-          <span class="text-primary-600 dark:text-primary-300 block truncate text-sm font-semibold">
-            Vuestrata
-          </span>
-          <span
-            class="text-muted-foreground mt-0.5 block truncate text-[11px] font-medium tracking-[0.18em] uppercase"
-          >
-            {{ t('common_workspace') }}
-          </span>
-        </span>
+        <Logo variant="full" class="h-8 w-auto max-w-full" />
       </RouterLink>
       <RouterLink
         v-else
         to="/"
         class="focus-visible:ring-primary-300/30 dark:focus-visible:ring-offset-surface-950 flex h-8 w-8 items-center justify-center rounded-lg p-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <Logo class="h-5 w-auto shrink-0" />
+        <Logo variant="icon" class="h-8 w-8 shrink-0" />
       </RouterLink>
       <UiButton
         v-if="isMobileViewport"

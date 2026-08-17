@@ -17,12 +17,9 @@ const year = new Date().getFullYear()
     >
       <div class="flex items-center gap-3">
         <span class="me-2 flex h-10 w-10 items-center">
-          <Logo className="h-6 w-auto" />
+          <Logo variant="icon" className="h-8 w-8" />
         </span>
         <div class="min-w-0">
-          <p class="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
-            {{ t('common_starter_workbench') }}
-          </p>
           <p class="text-muted-foreground text-sm">
             © {{ year }} Vuestrata. {{ t('home_footer') }}
           </p>

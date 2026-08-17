@@ -87,4 +87,16 @@ describe('Logo', () => {
     const wrapper = mount(Logo, { props: { className: 'my-custom-class' } })
     expect(wrapper.find('svg').classes()).toContain('my-custom-class')
   })
+
+  it('should hide the wordmark in icon variant', () => {
+    const wrapper = mount(Logo, { props: { variant: 'icon' } })
+    expect(wrapper.find('#logo-text').exists()).toBe(false)
+    expect(wrapper.find('svg').attributes('viewBox')).toBe('0 0 1580 1600')
+  })
+
+  it('should show the wordmark in full variant', () => {
+    const wrapper = mount(Logo, { props: { variant: 'full' } })
+    expect(wrapper.find('#logo-text').exists()).toBe(true)
+    expect(wrapper.find('svg').attributes('viewBox')).toBe('0 0 5745 1600')
+  })
 })
