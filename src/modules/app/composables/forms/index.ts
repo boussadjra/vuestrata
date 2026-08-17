@@ -26,3 +26,6 @@ export { useUiEditable, type EditableProps } from './useUiEditable'
 export { useUiMentionsField, type MentionsFieldProps, type MentionItem } from './useUiMentionsField'
 export { useUiRatingField, type RatingFieldProps } from './useUiRatingField'
 export { useUiSteppedForm, type SteppedFormProps } from './useUiSteppedForm'
+export { useFormwerkElementRef, type FormwerkInputProps } from './useFormwerkElementRef'
+// gen:form-composables-start
+// gen:form-composables-end

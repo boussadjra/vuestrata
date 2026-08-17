@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 
-import { useUiCheckbox, type CheckboxProps } from '@/composables/forms'
+import { useUiCheckbox, useFormwerkElementRef, type CheckboxProps } from '@/composables/forms'
 import { resolveIcon } from '~/config/icon-provider'
 import { fieldErrorMessageClass, invalidCheckboxClass } from '~/utils/validationPresentation'
 
@@ -33,6 +33,10 @@ const emit = defineEmits<{
 const { inputProps, labelProps, isChecked, toggle, errorMessageProps, displayError } =
   useUiCheckbox(props)
 
+// CheckboxRoot is a component, so Formwerk's element-capturing ref cannot be
+// spread onto it directly — see useFormwerkElementRef.
+const { attrs: formwerkAttrs, captureElement } = useFormwerkElementRef(inputProps)
+
 function emitToggle() {
   if (props.disabled || props.readonly) return
   const currentValue = props.modelValue ?? props.checked ?? isChecked.value
@@ -51,7 +55,7 @@ const isIndeterminate = computed(
 )
 
 /**
- * Reka only mounts the indicator when `checked` is set. Formwerk `inputProps`
+ * Reka only mounts the indicator when `model-value` is set. Formwerk `inputProps`
  * do not keep that in sync for controlled table cells, so a selected row was
  * painted as a solid square with no mark.
  */
@@ -61,7 +65,26 @@ const visuallyChecked = computed(() => {
   return Boolean(isChecked.value)
 })
 
-const rekaChecked = computed(() => (isIndeterminate.value ? 'indeterminate' : visuallyChecked.value))
+const rekaChecked = computed(() =>
+  isIndeterminate.value ? 'indeterminate' : visuallyChecked.value,
+)
+
+/**
+ * Formwerk's `aria-checked` reports its own field state, which is stale for a
+ * controlled checkbox — a caller passing `:model-value` (the permissions panel
+ * does, 65 times) got `aria-checked="false"` on every checked box. Because
+ * fallthrough attrs beat the ones a component renders itself, that stale value
+ * also overrode the correct one CheckboxRoot derives from `:checked`.
+ *
+ * Dropping it lets Reka own the attribute, which is the accessibility
+ * primitive's job. `rekaChecked` already resolves controlled and uncontrolled
+ * alike, so the uncontrolled case is unaffected. Bound via `model-value`
+ * because Reka v2's CheckboxRoot has no `checked` prop.
+ */
+const checkboxAttrs = computed(() => {
+  const { 'aria-checked': _stale, ...rest } = formwerkAttrs.value
+  return rest
+})
 
 const hasVisibleLabel = computed(() => Boolean(props.label))
 
@@ -92,9 +115,16 @@ const checkboxClasses = computed(() => [
 <template>
   <div :class="hasVisibleLabel || displayError ? 'flex flex-col gap-1' : 'contents'">
     <div :class="hasVisibleLabel ? 'inline-flex items-center gap-2' : 'contents'">
+      <!--
+        `model-value`, not `checked`: Reka v2's CheckboxRoot has no `checked`
+        prop, so the old binding fell through as a dead HTML attribute and Reka
+        rendered `aria-checked="false"` / `data-state="unchecked"` on every
+        checkbox in the app, whatever its real state.
+      -->
       <CheckboxRoot
-        v-bind="inputProps"
-        :checked="rekaChecked"
+        v-bind="checkboxAttrs"
+        :ref="captureElement"
+        :model-value="rekaChecked"
         :class="checkboxClasses"
         :aria-label="ariaLabel || undefined"
         data-ui="checkbox"
@@ -108,13 +138,10 @@ const checkboxClasses = computed(() => [
         >
           <span
             v-if="isIndeterminate"
-            class="bg-white h-0.5 w-2.5 rounded-full"
+            class="h-0.5 w-2.5 rounded-full bg-white"
             aria-hidden="true"
           />
-          <span
-            v-else
-            :class="[resolveIcon(checkedIcon), 'text-white', indicatorSizeMap[size]]"
-          />
+          <span v-else :class="[resolveIcon(checkedIcon), 'text-white', indicatorSizeMap[size]]" />
         </CheckboxIndicator>
       </CheckboxRoot>
       <span

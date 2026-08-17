@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Toggle } from 'reka-ui'
 
-import { useUiToggle, type ToggleProps } from '@/composables/forms'
+import { useUiToggle, useFormwerkElementRef, type ToggleProps } from '@/composables/forms'
 
 const props = withDefaults(
   defineProps<
@@ -18,6 +18,10 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const { inputProps, labelProps, isChecked, toggle, fieldValue } = useUiToggle(props)
+
+// `Toggle` is a component, so Formwerk's element-capturing ref cannot be spread
+// onto it directly — see useFormwerkElementRef.
+const { attrs: toggleAttrs, captureElement } = useFormwerkElementRef(inputProps)
 
 const sizeClasses: Record<string, string> = {
   sm: 'px-2 py-1 text-xs',
@@ -50,7 +54,8 @@ watch(
 
 <template>
   <Toggle
-    v-bind="inputProps"
+    v-bind="toggleAttrs"
+    :ref="captureElement"
     :class="toggleClasses"
     data-ui="toggle"
     :data-provider="provider"
