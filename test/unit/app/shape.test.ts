@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vite-plus/test'
 
-import { applyShape, readPersistedShape, normalizeRadius } from '@/plugins/shape'
 import { bootstrapTheme } from '@/plugins/bootstrap-theme'
+import { applyShape, readPersistedShape, normalizeRadius } from '@/plugins/shape'
 
 describe('shape plugin', () => {
   beforeEach(() => {

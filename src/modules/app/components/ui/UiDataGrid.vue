@@ -792,10 +792,7 @@ function getRowClasses(row: Row<TData>): string[] {
                 v-if="selectable"
                 class="border-surface-100 dark:border-surface-800 w-12 border-b px-3 py-3 align-middle"
               >
-                <div
-                  class="flex items-center justify-center"
-                  data-ui="data-grid-row-select"
-                >
+                <div class="flex items-center justify-center" data-ui="data-grid-row-select">
                   <UiCheckbox
                     size="sm"
                     :aria-label="t('common_select_row')"

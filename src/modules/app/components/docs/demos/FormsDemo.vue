@@ -290,8 +290,7 @@ function syncScenarioCodeState(key: string, event: Event) {
                 </p>
                 <pre
                   class="border-surface-200/70 text-surface-700 bg-surface-100/70 dark:border-surface-800 dark:bg-surface-950/75 dark:text-surface-300 mt-3 max-h-52 overflow-auto rounded-2xl border p-3 font-mono text-[11px] leading-5"
-                  >{{ JSON.stringify(scenario.lastSubmission.value, null, 2) }}</pre
-                >
+                  >{{ JSON.stringify(scenario.lastSubmission.value, null, 2) }}</pre>
               </div>
 
               <div class="mt-5 flex flex-col gap-3 border-t border-current/10 pt-4">
@@ -333,8 +332,7 @@ function syncScenarioCodeState(key: string, event: Event) {
             </summary>
             <pre
               class="border-surface-200/70 text-surface-700 bg-surface-100/70 dark:border-surface-800 dark:bg-surface-950/75 dark:text-surface-300 mt-3 max-h-96 overflow-auto rounded-2xl border p-3 font-mono text-[11px] leading-5"
-              >{{ buildScenarioCode(scenario) }}</pre
-            >
+              >{{ buildScenarioCode(scenario) }}</pre>
           </details>
         </section>
       </div>

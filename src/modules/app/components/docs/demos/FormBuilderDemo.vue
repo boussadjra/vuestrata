@@ -92,8 +92,7 @@ const { fields, values, isSubmitting, handleSubmit, reset } = useFormBuilder({
       </template>
       <pre
         class="text-foreground bg-surface-50 dark:bg-surface-800 max-h-64 overflow-auto rounded-lg p-3 font-mono text-xs"
-        >{{ JSON.stringify(values, null, 2) }}</pre
-      >
+        >{{ JSON.stringify(values, null, 2) }}</pre>
     </UiCard>
   </div>
 </template>
