@@ -1,0 +1,389 @@
+/*
+ * Analog theme — the analyst's notebook.
+ *
+ * Apply by adding class="theme-analog" to <html>
+ *
+ * Warm paper, burnt-coral ink, a muted teal second pen, and a gold highlighter
+ * used the way a real margin mark is used: rarely. IBM Plex Sans for the body,
+ * IBM Plex Mono for labels and figures, Newsreader for editorial headings.
+ * Grain, a dotted grid, thin ink borders, and a 3px offset shadow. Not a
+ * cartoon sketch, and not a rounded SaaS card.
+ *
+ * Distinct from Blueprint (cool plotter azure, zero radius, drawing-set marks)
+ * and from Harbour (painterly wash, glass, large rounding). Analog is a
+ * technical notebook that has been kept.
+ *
+ * Specified muted `#777167` on `#F3EFE6` is 4.21:1, so `--color-muted-foreground`
+ * sits on surface-600 (`#6b665b`, 5.0:1). Specified coral `#E85D3F` with a light
+ * label is 3.0:1, so `--color-primary-solid` is 700. `text-primary-600` is the
+ * logo wordmark on the sidebar; 600 is `#b63c20` so that pair clears 4.5:1.
+ *
+ * Contrast: foreground (surface-900) on background ≈ 13.7:1;
+ * muted-foreground (surface-600) on `muted` ≈ 4.6:1;
+ * primary-solid (primary-700) with a paper label ≈ 5.7:1;
+ * ring (primary-700) ≈ 5.7:1 light / primary-400 on night paper ≥ 3:1.
+ */
+:root.theme-analog {
+  /* Primary — burnt coral. 500 is the specified display mark; 700 carries text. */
+  --color-primary-50: #fdf4f2;
+  --color-primary-100: #fadfd8;
+  --color-primary-200: #f5c7bc;
+  --color-primary-300: #ee8c74;
+  --color-primary-400: #e67156;
+  --color-primary-500: #e85d3f;
+  --color-primary-600: #b63c20;
+  --color-primary-700: #a33c28;
+  --color-primary-800: #7f3222;
+  --color-primary-900: #5c261a;
+  --color-primary-950: #32150e;
+
+  /* Secondary — muted teal, the second pen. Specified `#2f6f68` is 600. */
+  --color-secondary-50: #f0f6f5;
+  --color-secondary-100: #d8e8e6;
+  --color-secondary-200: #b3d1cd;
+  --color-secondary-300: #82b3ad;
+  --color-secondary-400: #548f88;
+  --color-secondary-500: #3a7a73;
+  --color-secondary-600: #2f6f68;
+  --color-secondary-700: #255a54;
+  --color-secondary-800: #1e4843;
+  --color-secondary-900: #183b37;
+  --color-secondary-950: #0c221f;
+
+  /* Accent — gold highlighter. Charts and marks, never a filled control. */
+  --color-accent-50: #fbf8e8;
+  --color-accent-100: #f5edc4;
+  --color-accent-200: #eddc8a;
+  --color-accent-300: #ebd072;
+  --color-accent-400: #e7c95a;
+  --color-accent-500: #d4b63a;
+  --color-accent-600: #b39422;
+  --color-accent-700: #8a7019;
+  --color-accent-800: #6b5716;
+  --color-accent-900: #544512;
+  --color-accent-950: #2f2609;
+
+  /* Surface — warm paper to walnut ink. Never #fff, never cool grey. */
+  --color-surface-50: #f3efe6;
+  --color-surface-100: #ede8dc;
+  --color-surface-200: #d4ccbe;
+  --color-surface-300: #b8b0a3;
+  --color-surface-400: #9a9184;
+  --color-surface-500: #777167;
+  --color-surface-600: #6b665b;
+  --color-surface-700: #4a463f;
+  --color-surface-800: #322f2a;
+  --color-surface-900: #25231f;
+  --color-surface-950: #161410;
+
+  --color-card: #faf7f0;
+  --color-elevated: #fdfbf6;
+  --color-border: var(--color-surface-300);
+  --color-border-strong: var(--color-surface-400);
+  --color-input: var(--color-surface-300);
+  --color-sidebar: var(--color-surface-100);
+  --color-sidebar-border: var(--color-surface-300);
+  --color-primary-solid: var(--color-primary-700);
+  --color-primary-solid-hover: var(--color-primary-800);
+  --color-ring: var(--color-primary-700);
+  --color-link: var(--color-primary-700);
+  --color-link-hover: var(--color-primary-800);
+
+  /* Coral, teal, gold, ink — gold only once so the highlighter stays rare. */
+  --color-chart-1: var(--color-primary-700);
+  --color-chart-2: var(--color-secondary-600);
+  --color-chart-3: var(--color-accent-400);
+  --color-chart-4: var(--color-surface-700);
+  --color-chart-5: var(--color-secondary-800);
+  --color-chart-6: var(--color-primary-400);
+  --color-chart-7: var(--color-accent-700);
+  --color-chart-8: var(--color-surface-500);
+
+  --font-sans: 'IBM Plex Sans', 'Tajawal', 'Cairo', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-display: 'Newsreader', 'Tajawal', 'Cairo', Georgia, ui-serif, serif;
+
+  /* 2–6px. Both scales, or cards stay on the default shape radius. */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+
+  --shape-radius: 0.25rem;
+  --shape-radius-sm: 0.125rem;
+  --shape-radius-lg: 0.375rem;
+  --shape-radius-xl: 0.375rem;
+  --shape-border-width: 1px;
+
+  --shadow-soft: 2px 2px 0 rgb(37 35 31 / 0.08);
+  --shadow-elevated: 3px 3px 0 rgb(37 35 31 / 0.12);
+  --shadow-card: 3px 3px 0 rgb(37 35 31 / 0.12);
+  --shadow-card-hover: 4px 4px 0 rgb(37 35 31 / 0.16);
+  --shadow-glow-primary: none;
+  --shadow-glow-secondary: none;
+  --shadow-glow-accent: none;
+
+  --analog-ink: rgb(37 35 31 / 0.14);
+  --analog-hatch: repeating-linear-gradient(135deg, rgb(37 35 31 / 0.1) 0 1px, transparent 1px 6px);
+  --analog-underline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='6' viewBox='0 0 24 6' fill='none'%3E%3Cpath d='M0 4 Q6 1.5 12 4 T24 4' stroke='%2325231F' stroke-width='1.15' stroke-linecap='round'/%3E%3C/svg%3E");
+  --analog-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+:root.theme-analog[dir='rtl'] {
+  --shadow-soft: -2px 2px 0 rgb(37 35 31 / 0.08);
+  --shadow-elevated: -3px 3px 0 rgb(37 35 31 / 0.12);
+  --shadow-card: -3px 3px 0 rgb(37 35 31 / 0.12);
+  --shadow-card-hover: -4px 4px 0 rgb(37 35 31 / 0.16);
+}
+
+/* ─── Dark mode — the same notebook after the lamp is off ──
+ * Ramp stays 50 light / 950 dark. semantic.css performs the flip. */
+:root.theme-analog.dark {
+  --color-surface-50: #f3efe6;
+  --color-surface-100: #e6dfd2;
+  --color-surface-200: #d4ccbe;
+  --color-surface-300: #c4bbae;
+  --color-surface-400: #a89f90;
+  --color-surface-500: #847c70;
+  --color-surface-600: #6b665b;
+  --color-surface-700: #4a463f;
+  --color-surface-800: #2a2722;
+  --color-surface-900: #1f1c18;
+  --color-surface-950: #161410;
+
+  --color-card: var(--color-surface-900);
+  --color-elevated: var(--color-surface-800);
+  --color-border: var(--color-surface-700);
+  --color-border-strong: var(--color-surface-600);
+  --color-sidebar: var(--color-surface-950);
+  --color-sidebar-border: var(--color-surface-700);
+  --color-ring: var(--color-primary-400);
+  --color-link: var(--color-primary-300);
+  --color-link-hover: var(--color-primary-200);
+
+  --color-chart-1: var(--color-primary-400);
+  --color-chart-2: var(--color-secondary-400);
+  --color-chart-3: var(--color-accent-400);
+  --color-chart-4: var(--color-surface-300);
+  --color-chart-5: var(--color-secondary-300);
+  --color-chart-6: var(--color-primary-200);
+  --color-chart-7: var(--color-accent-600);
+  --color-chart-8: var(--color-surface-400);
+
+  --shadow-soft: 2px 2px 0 rgb(0 0 0 / 0.45);
+  --shadow-elevated: 3px 3px 0 rgb(0 0 0 / 0.5);
+  --shadow-card: 3px 3px 0 rgb(0 0 0 / 0.5);
+  --shadow-card-hover: 4px 4px 0 rgb(232 93 63 / 0.28);
+
+  --analog-ink: rgb(243 239 230 / 0.12);
+  --analog-hatch: repeating-linear-gradient(
+    135deg,
+    rgb(243 239 230 / 0.08) 0 1px,
+    transparent 1px 6px
+  );
+  --analog-underline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='6' viewBox='0 0 24 6' fill='none'%3E%3Cpath d='M0 4 Q6 1.5 12 4 T24 4' stroke='%23F3EFE6' stroke-width='1.15' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+:root.theme-analog.dark[dir='rtl'] {
+  --shadow-soft: -2px 2px 0 rgb(0 0 0 / 0.45);
+  --shadow-elevated: -3px 3px 0 rgb(0 0 0 / 0.5);
+  --shadow-card: -3px 3px 0 rgb(0 0 0 / 0.5);
+  --shadow-card-hover: -4px 4px 0 rgb(232 93 63 / 0.28);
+}
+
+/* ─── Paper: grain + dotted grid ─────────────────────────── */
+:root.theme-analog {
+  background-color: var(--color-surface-50);
+  background-image:
+    var(--analog-grain), radial-gradient(circle, var(--analog-ink) 0.55px, transparent 0.6px);
+  background-size:
+    180px 180px,
+    18px 18px;
+  background-attachment: fixed;
+}
+
+:root.theme-analog.dark {
+  background-color: var(--color-surface-950);
+}
+
+:root.theme-analog body,
+:root.theme-analog #app,
+:root.theme-analog main,
+:root.theme-analog .bg-background.min-h-screen,
+:root.theme-analog .bg-background.h-screen {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* ─── Type ───────────────────────────────────────────────── */
+:root.theme-analog h1,
+:root.theme-analog h2,
+:root.theme-analog h3,
+:root.theme-analog h4,
+:root.theme-analog blockquote {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+:root.theme-analog h1 {
+  position: relative;
+}
+
+:root.theme-analog h1::after {
+  content: '';
+  display: block;
+  width: 8rem;
+  height: 6px;
+  margin-top: 0.4rem;
+  background-image: var(--analog-underline);
+  background-repeat: repeat-x;
+  background-size: 24px 6px;
+}
+
+:root.theme-analog label,
+:root.theme-analog legend,
+:root.theme-analog caption,
+:root.theme-analog thead th,
+:root.theme-analog [data-ui='badge'],
+:root.theme-analog kbd,
+:root.theme-analog time {
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+/* ─── Cards — opaque sheet, ink rule, offset, corner marks ─ */
+:root.theme-analog .card,
+:root.theme-analog [data-ui='card'] {
+  position: relative;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+:root.theme-analog .card::before,
+:root.theme-analog [data-ui='card']::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 10px;
+  bottom: 10px;
+  width: 1.75rem;
+  height: 7px;
+  pointer-events: none;
+  background-image: var(--analog-hatch);
+  opacity: 0.85;
+}
+
+:root.theme-analog .card::after,
+:root.theme-analog [data-ui='card']::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  inset-inline-end: 12px;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  border-inline-end: 1.5px solid color-mix(in oklch, var(--color-primary-600) 45%, transparent);
+  border-bottom: 1.5px solid color-mix(in oklch, var(--color-primary-600) 45%, transparent);
+  transform: rotate(-45deg);
+}
+
+:root.theme-analog[dir='rtl'] .card::after,
+:root.theme-analog[dir='rtl'] [data-ui='card']::after {
+  transform: rotate(45deg);
+}
+
+:root.theme-analog [data-ui='card'][data-shape='tabbed']::before,
+:root.theme-analog [data-ui='card'][data-shape='tabbed']::after {
+  content: none;
+}
+
+/* ─── Chrome — hatch along the cut edge ──────────────────── */
+:root.theme-analog header {
+  background-color: var(--color-surface-100);
+  background-image: var(--analog-hatch);
+  background-size: 100% 7px;
+  background-position: bottom;
+  background-repeat: repeat-x;
+  border-bottom: 1px solid var(--color-border);
+}
+
+:root.theme-analog aside {
+  background-color: var(--color-sidebar);
+  border-inline-end: 1px solid var(--color-border);
+}
+
+:root.theme-analog.dark header,
+:root.theme-analog.dark aside {
+  background-color: var(--color-surface-950);
+}
+
+:root.theme-analog thead {
+  background-image: var(--analog-hatch);
+}
+
+/* ─── Current page — hollow ink circle ───────────────────── */
+:root.theme-analog aside a[aria-current='page'] {
+  position: relative;
+}
+
+:root.theme-analog aside a[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0.7rem;
+  top: 50%;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-top: -0.21rem;
+  pointer-events: none;
+  border: 1.5px solid var(--color-primary-700);
+  border-radius: 999px;
+}
+
+:root.theme-analog.dark aside a[aria-current='page']::after {
+  border-color: var(--color-primary-400);
+}
+
+/* ─── Buttons — stamped, not glossy ──────────────────────── */
+:root.theme-analog [data-ui='button'][data-variant='primary'] {
+  box-shadow: var(--shadow-soft);
+}
+
+:root.theme-analog [data-ui='button'][data-variant='primary']:hover {
+  box-shadow: var(--shadow-elevated);
+}
+
+/* ─── Inputs — a ruled field ─────────────────────────────── */
+:root.theme-analog input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-analog select:not(.unstyled-input),
+:root.theme-analog textarea:not(.unstyled-input) {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+
+:root.theme-analog input:not([type='checkbox']):not([type='radio']):not(.unstyled-input):focus,
+:root.theme-analog select:not(.unstyled-input):focus,
+:root.theme-analog textarea:not(.unstyled-input):focus {
+  border-color: var(--color-primary-700);
+}
+
+:root.theme-analog.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-analog.dark select:not(.unstyled-input),
+:root.theme-analog.dark textarea:not(.unstyled-input) {
+  background: var(--color-surface-900);
+}
+
+:root.theme-analog ::selection {
+  background: color-mix(in oklch, var(--color-accent-400) 45%, transparent);
+  color: var(--color-surface-900);
+}
+
+:root.theme-analog ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+}
+
+:root.theme-analog.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-700);
+}

@@ -14,6 +14,7 @@ const builtinThemes: ThemeConfig[] = [
   { name: 'harbour', label: 'Harbour', cssClass: 'theme-harbour' },
   // gen:themes-start
   { name: 'pro', label: 'Pro', cssClass: 'theme-pro' },
+  { name: 'analog', label: 'Analog', cssClass: 'theme-analog' },
   // gen:themes-end
 ]
 

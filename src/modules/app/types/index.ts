@@ -85,6 +85,7 @@ export type ThemeName =
   | 'blueprint'
   | 'harbour'
   | 'pro'
+  | 'analog'
   | (string & {})
 
 export interface ThemeConfig {

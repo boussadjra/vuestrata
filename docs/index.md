@@ -1,6 +1,6 @@
 ---
 title: Vuestrata
-description: Vue 3 enterprise starter with Reka UI wrappers, eleven themes, and typed API boundaries.
+description: Vue 3 enterprise starter with Reka UI wrappers, twelve themes, and typed API boundaries.
 navigation: false
 ---
 
@@ -22,7 +22,7 @@ Composable app modules with explicit server-state and client-state ownership.
 ::
 
 ::card{title="Theming" icon="palette" to="/docs/theming/overview"}
-11 built-in themes, dark mode, CSS custom properties, and custom theme creation.
+12 built-in themes, dark mode, CSS custom properties, and custom theme creation.
 ::
 
 ::card{title="Components" icon="code" to="/docs/components/overview"}

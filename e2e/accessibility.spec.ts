@@ -177,6 +177,9 @@ test.describe('Accessibility — theme and colour-mode matrix', () => {
     // Cool near-white paper with muted steel text: the classic "elegant grey
     // on tinted white" miss. Pro's light ramp is that trap by design.
     { theme: 'pro', dark: false },
+    // Warm paper with stone muted text: Analog's specified `#777167` misses AA
+    // on `#f3efe6`, so the live token is the darker 600. Audit the pair.
+    { theme: 'analog', dark: false },
     // Saturated fills whose primary-600 + light label fails AA. These three
     // re-point `--color-primary-solid` (and Terminal's label) in their theme
     // files; leaving them out of the matrix is how the dashboard chip shipped
