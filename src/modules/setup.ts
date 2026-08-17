@@ -14,9 +14,16 @@
  *   - Public API                  → module's index.ts barrel only (no deep imports)
  *
  * Adding a module:
- *   1. Create src/modules/<name>/index.ts satisfying ModuleDefinition
- *   2. Import and add it to appModules below
- *   3. Run `vp check` to verify the wiring
+ *   Run `vp run gen:module <name>` — it writes the module and registers it
+ *   here. See docs/9.recipes/1.add-a-module.md for what it does and does not do.
+ *
+ *   By hand, the same three steps:
+ *     1. Create src/modules/<name>/index.ts satisfying ModuleDefinition
+ *     2. Import and add it to appModules below
+ *     3. Run `vp check` to verify the wiring
+ *
+ *   Forgetting step 2 produces no error — the module simply never loads. That
+ *   is what test/unit/architecture/registry-drift.test.ts exists to catch.
  */
 import analyticsModule from './analytics'
 import authModule from './auth'
@@ -60,4 +67,9 @@ export const appModules: ModuleDefinition[] = [
   showcaseModule,
   // settings: display preferences and feature flags (Pinia pattern)
   settingsModule,
+  // Generated modules append below. The entries above are ordered by role
+  // rather than alphabetically, so `vp run gen:module` adds to the end instead
+  // of guessing where a new domain belongs — move it up if it has a natural home.
+  // gen:modules-start
+  // gen:modules-end
 ]

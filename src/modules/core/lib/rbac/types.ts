@@ -39,6 +39,8 @@ export type BuiltinPermission =
   | 'calendar:manage'
   | 'messages:read'
   | 'team:read'
+// gen:permissions-start
+// gen:permissions-end
 
 // Permission type: strict union of built-in literals enforced at compile time.
 // Dynamic permissions should be added to BuiltinPermission or validated at runtime.

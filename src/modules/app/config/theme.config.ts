@@ -12,6 +12,8 @@ const builtinThemes: ThemeConfig[] = [
   { name: 'terminal', label: 'Terminal', cssClass: 'theme-terminal' },
   { name: 'blueprint', label: 'Blueprint', cssClass: 'theme-blueprint' },
   { name: 'harbour', label: 'Harbour', cssClass: 'theme-harbour' },
+  // gen:themes-start
+  // gen:themes-end
 ]
 
 /** Register a custom theme at runtime */
