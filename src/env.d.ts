@@ -19,7 +19,16 @@ interface ImportMetaEnv {
   readonly VUESTRATA_API_URL: string
   readonly VUESTRATA_USE_MOCKS: string
   readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'mock'
-  readonly VUESTRATA_ICON_PROVIDER: 'solar' | 'lucide' | 'phosphor'
+  readonly VUESTRATA_ICON_PROVIDER:
+    | 'solar'
+    | 'lucide'
+    | 'phosphor'
+    | 'iconoir'
+    | 'tabler'
+    | 'mingcute'
+    | 'remix'
+    | 'griddy'
+    | 'iconamoon'
   readonly VUESTRATA_THEME: string
   readonly VUESTRATA_DEMO_AUTH_RETENTION_HOURS: string
   readonly VUESTRATA_ERROR_REPORTING_DSN: string

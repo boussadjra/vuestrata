@@ -1,7 +1,17 @@
 import type { Role, Permission, BuiltinPermission, RoleDefinition } from '~/lib/rbac/types'
 
 // ─── Icon System ─────────────────────────────────────────
-export type IconProvider = 'solar' | 'lucide' | 'phosphor' | (string & {})
+export type IconProvider =
+  | 'solar'
+  | 'lucide'
+  | 'phosphor'
+  | 'iconoir'
+  | 'tabler'
+  | 'mingcute'
+  | 'remix'
+  | 'griddy'
+  | 'iconamoon'
+  | (string & {})
 
 export type IconName =
   | 'bolt'

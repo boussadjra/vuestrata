@@ -29,7 +29,17 @@ import { z } from 'zod'
  */
 export const RUNTIME_MODES = ['production', 'demo'] as const
 export const AUTH_ADAPTERS = ['mock', 'jwt', 'oauth'] as const
-export const ICON_PROVIDERS = ['solar', 'lucide', 'phosphor'] as const
+export const ICON_PROVIDERS = [
+  'solar',
+  'lucide',
+  'phosphor',
+  'iconoir',
+  'tabler',
+  'mingcute',
+  'remix',
+  'griddy',
+  'iconamoon',
+] as const
 
 export type RuntimeMode = (typeof RUNTIME_MODES)[number]
 export type AuthAdapterName = (typeof AUTH_ADAPTERS)[number]

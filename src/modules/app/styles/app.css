@@ -17,7 +17,7 @@
    dark-mode surface flip. */
 @import './semantic.css';
 @import './motion.css';
-@plugin '@egoist/tailwindcss-icons';
+@plugin './icons-plugin.mjs';
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*

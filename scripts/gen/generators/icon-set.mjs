@@ -48,6 +48,10 @@ export function planIconSet({ plan, root, positional, options }) {
       'then confirm the classes resolve — a wrong name renders nothing rather than erroring.',
   )
   plan.addNote(
+    `Add '${prefix}' to the collections list in src/modules/app/styles/icons-plugin.mjs. ` +
+      'Without it Tailwind generates no CSS for the pack and every icon renders blank.',
+  )
+  plan.addNote(
     `Every value is a guess of the form \`i-${prefix}-<semantic-name>\`. Correct them against the ` +
       'pack, then run `node scripts/lint/run-custom-rules.mjs` to confirm none are empty.',
   )
