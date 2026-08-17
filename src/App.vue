@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { ConfigProvider } from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
-import { useLocaleSync } from '@/composables/useActiveLocale'
+import { useActiveLocale, useLocaleSync } from '@/composables/useActiveLocale'
 import { useShapeSync } from '@/composables/useShape'
 import { useThemeSync } from '@/composables/useTheme'
 
@@ -11,7 +12,12 @@ useLocaleSync()
 useShapeSync()
 
 const { t } = useI18n()
+const { current, dir } = useActiveLocale()
 const appError = ref<Error | null>(null)
+
+// Reka portals default to dir=ltr unless ConfigProvider supplies the reading
+// direction. html[dir] is not inherited by a teleported tree that Reka then
+// stamps with dir="ltr".
 
 // Only capture errors that originate from async component setup (Suspense).
 // Transient render-cycle errors (e.g. a computed accessing data before onMounted fills it)
@@ -29,27 +35,29 @@ onErrorCaptured((err, _instance, info) => {
 </script>
 
 <template>
-  <div
-    v-if="appError"
-    role="alert"
-    class="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center"
-  >
-    <p class="text-surface-600 dark:text-surface-400 text-sm">
-      {{ t('common_error_generic') }}
-    </p>
-  </div>
+  <ConfigProvider :dir="dir" :locale="current">
+    <div
+      v-if="appError"
+      role="alert"
+      class="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center"
+    >
+      <p class="text-surface-600 dark:text-surface-400 text-sm">
+        {{ t('common_error_generic') }}
+      </p>
+    </div>
 
-  <Suspense v-else>
-    <RouterView />
+    <Suspense v-else>
+      <RouterView />
 
-    <template #fallback>
-      <div
-        class="flex min-h-screen items-center justify-center"
-        role="status"
-        :aria-label="t('common_loading_aria')"
-      >
-        <AppIcon name="spinner" size="xl" class="text-primary-500 animate-spin" />
-      </div>
-    </template>
-  </Suspense>
+      <template #fallback>
+        <div
+          class="flex min-h-screen items-center justify-center"
+          role="status"
+          :aria-label="t('common_loading_aria')"
+        >
+          <AppIcon name="spinner" size="xl" class="text-primary-500 animate-spin" />
+        </div>
+      </template>
+    </Suspense>
+  </ConfigProvider>
 </template>

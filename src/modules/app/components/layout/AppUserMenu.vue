@@ -8,7 +8,8 @@
  * one control that states the signed-in identity.
  *
  * Reka's DropdownMenu supplies the roving-focus, typeahead, Esc-to-close and
- * focus-restore behaviour the ARIA menu pattern requires.
+ * focus-restore behaviour the ARIA menu pattern requires. `:dir` is bound
+ * because Reka portals default to LTR even when `html[dir]` is rtl.
  */
 import {
   DropdownMenuContent,
@@ -21,12 +22,14 @@ import {
 import { useI18n } from 'vue-i18n'
 
 import { UiAvatar } from '@/components/ui'
+import { useActiveLocale } from '@/composables/useActiveLocale'
 import { resolveIcon } from '@/config/icon-provider'
 import { useAuth } from '@/modules/auth'
 import { useAuthStore } from '@/stores/auth'
 import type { IconName } from '@/types'
 
 const { t } = useI18n()
+const { dir } = useActiveLocale()
 const authStore = useAuthStore()
 const { logout } = useAuth()
 const router = useRouter()
@@ -47,13 +50,14 @@ function go(to: string) {
 </script>
 
 <template>
-  <DropdownMenuRoot v-if="user">
+  <DropdownMenuRoot v-if="user" :dir="dir">
     <DropdownMenuTrigger
-      class="hover:bg-muted flex items-center gap-2 rounded-[var(--shape-radius-sm)] p-1 transition-colors"
+      class="hover:bg-muted flex items-center gap-2 rounded-[var(--shape-radius-sm)] p-1 text-start transition-colors"
       :aria-label="t('account_menu_label', { name: user.name })"
+      data-testid="account-menu-trigger"
     >
       <UiAvatar :src="user.avatar" :fallback="user.name" size="sm" />
-      <span class="hidden min-w-0 flex-col items-start md:flex">
+      <span class="hidden min-w-0 flex-col items-start text-start md:flex">
         <span class="text-foreground max-w-32 truncate text-sm font-medium">{{ user.name }}</span>
         <span class="text-muted-foreground text-[11px] leading-tight">
           {{ t(`role_${user.role}`) }}
@@ -72,7 +76,8 @@ function go(to: string) {
       <DropdownMenuContent
         align="end"
         :side-offset="8"
-        class="border-border bg-elevated z-(--z-dropdown) min-w-56 rounded-[var(--shape-radius-sm)] border p-1.5 shadow-[var(--shadow-soft)]"
+        class="border-border bg-elevated z-(--z-dropdown) min-w-56 rounded-[var(--shape-radius-sm)] border p-1.5 text-start shadow-[var(--shadow-soft)]"
+        data-testid="account-menu"
       >
         <div class="px-2.5 py-2">
           <p class="text-foreground truncate text-sm font-medium">{{ user.name }}</p>
@@ -83,24 +88,27 @@ function go(to: string) {
         <DropdownMenuItem
           v-for="link in links"
           :key="link.to"
-          class="text-foreground data-[highlighted]:bg-muted flex cursor-pointer items-center gap-2.5 rounded-[var(--shape-radius-sm)] px-2.5 py-2 text-sm outline-none"
+          class="text-foreground data-[highlighted]:bg-muted flex cursor-pointer items-center gap-2.5 rounded-[var(--shape-radius-sm)] px-2.5 py-2 text-start text-sm outline-none"
           @select="go(link.to)"
         >
           <span
-            :class="[resolveIcon(link.icon), 'text-muted-foreground h-4 w-4']"
+            :class="[resolveIcon(link.icon), 'text-muted-foreground h-4 w-4 shrink-0']"
             aria-hidden="true"
           />
-          {{ t(link.label) }}
+          <span>{{ t(link.label) }}</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator class="bg-border my-1 h-px" />
 
         <DropdownMenuItem
-          class="text-destructive data-[highlighted]:bg-destructive-subtle flex cursor-pointer items-center gap-2.5 rounded-[var(--shape-radius-sm)] px-2.5 py-2 text-sm outline-none"
+          class="text-destructive data-[highlighted]:bg-destructive-subtle flex cursor-pointer items-center gap-2.5 rounded-[var(--shape-radius-sm)] px-2.5 py-2 text-start text-sm outline-none"
           @select="logout()"
         >
-          <span :class="[resolveIcon('logout'), 'h-4 w-4']" aria-hidden="true" />
-          {{ t('auth_logout') }}
+          <span
+            :class="[resolveIcon('logout'), 'h-4 w-4 shrink-0 rtl:rotate-180']"
+            aria-hidden="true"
+          />
+          <span>{{ t('auth_logout') }}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenuPortal>

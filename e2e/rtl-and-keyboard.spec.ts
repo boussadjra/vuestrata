@@ -61,6 +61,33 @@ test.describe('RTL layout', () => {
     expect(box!.x + box!.width).toBeCloseTo(viewport.width, -1)
   })
 
+  test('account menu items keep icons on the inline-start side', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await gotoAndSettle(page, '/dashboard')
+
+    await page.getByTestId('account-menu-trigger').click()
+    const menu = page.getByTestId('account-menu')
+    await expect(menu).toBeVisible()
+    await expect(menu).toHaveAttribute('dir', 'rtl')
+
+    const accountItem = menu.getByRole('menuitem').filter({ hasText: 'حسابي' })
+    const geometry = await accountItem.evaluate((el) => {
+      const icon = el.querySelector('[aria-hidden="true"]')
+      if (!(icon instanceof HTMLElement)) return null
+      const itemBox = el.getBoundingClientRect()
+      const iconBox = icon.getBoundingClientRect()
+      return {
+        iconMid: iconBox.left + iconBox.width / 2,
+        itemMid: itemBox.left + itemBox.width / 2,
+      }
+    })
+
+    expect(geometry, 'account item should render an icon').not.toBeNull()
+    // Inline-start in RTL is the right edge, so the icon must sit in the
+    // right half of the row — the LTR bug parked it on the left.
+    expect(geometry!.iconMid).toBeGreaterThan(geometry!.itemMid)
+  })
+
   test('does not overflow horizontally', async ({ page }) => {
     // A stray physical margin in RTL typically shows up as a horizontal
     // scrollbar rather than an obviously broken layout.
