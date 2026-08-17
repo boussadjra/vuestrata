@@ -7,14 +7,12 @@
   "github": { "silent": true },
   "rewrites": [
     {
-      "//": "SPA fallback. The negative lookahead keeps /api/* and the real static assets from being rewritten to index.html — without it a missing API route would return an HTML document with a 200, which is far harder to debug than a 404.",
       "source": "/((?!api/|assets/|mockServiceWorker\\.js|favicon\\.ico|robots\\.txt).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
     {
-      "//": "Keep in sync with public/_headers and the nginx block in Dockerfile.",
       "source": "/(.*)",
       "headers": [
         {
@@ -37,12 +35,10 @@
       ]
     },
     {
-      "//": "Hashed build output is content-addressed, so it can be cached forever.",
       "source": "/assets/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "//": "The service worker is NOT hashed and controls every request in the demo. A cached copy would keep serving stale mock handlers after a deploy, so it must be revalidated every time. Service-Worker-Allowed lets it claim the root scope.",
       "source": "/mockServiceWorker.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
@@ -50,7 +46,6 @@
       ]
     },
     {
-      "//": "index.html is the SPA entry point and references hashed assets; it must never be served stale.",
       "source": "/index.html",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     }
