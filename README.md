@@ -63,6 +63,31 @@ vp build
 vp preview
 ```
 
+## Extending the Template
+
+Every common extension task has a generator that writes the files **and** the
+registries that are easy to forget:
+
+```bash
+vp run gen:module payments        # CRUD domain: schema, queries, mocks, pages, i18n, registered
+vp run gen:page payments refunds  # a page, wired into the module's routes
+vp run gen:theme midnight         # theme, imported and registered in all four places
+vp run gen:component Tag          # Ui* wrapper (+ --field for a forms composable)
+vp run gen:icon-set tabler        # icon map covering every IconName
+```
+
+Add `--dry-run` to preview the plan without writing anything, or `--json` for
+machine-readable output. `vp run gen` lists them all.
+
+These exist because the failure mode they prevent is **silent**: a module never
+added to `setup.ts`, a theme imported after `semantic.css`, a nav item pointing
+at a group that does not exist — none of these throw. Six custom lint rules and
+an architecture test suite catch them if you write the files by hand instead.
+
+See [`docs/9.recipes/`](docs/9.recipes/) for what each generator does, what it
+deliberately leaves to you, and how to verify. Agents should read
+[`AGENTS.md`](AGENTS.md) — the canonical brief.
+
 ## Project Structure
 
 ```
