@@ -1,5 +1,7 @@
 import type { IconMap, IconName } from '~/types'
 
+import { solarIconMap } from './solar'
+
 /**
  * Template for a custom icon map.
  *
@@ -12,64 +14,18 @@ import type { IconMap, IconName } from '~/types'
  * Each value is the CSS class that renders that icon (e.g., Iconify class or custom font icon).
  */
 
-const ICON_NAMES: IconName[] = [
-  'bolt',
-  'shield-check',
-  'palette',
-  'lock',
-  'widget',
-  'chart',
-  'rocket',
-  'menu',
-  'sun',
-  'moon',
-  'login',
-  'logout',
-  'users',
-  'card',
-  'document',
-  'database',
-  'graph',
-  'settings',
-  'sidebar',
-  'search',
-  'close',
-  'close-circle',
-  'check',
-  'checks',
-  'check-circle',
-  'info-circle',
-  'danger-triangle',
-  'arrow-left',
-  'arrow-right',
-  'arrow-up',
-  'arrow-down',
-  'chevron-down',
-  'chevron-right',
-  'refresh',
-  'spinner',
-  'download',
-  'tuning',
-  'star',
-  'file',
-  'home',
-  'user-plus',
-  'shield-user',
-  'code',
-  'monitor',
-  'letter',
-  'bell',
-  'minus-circle',
-  'trend-up',
-  'dots-menu',
-  'folder',
-  'dollar',
-  'emoji',
-  'shield-warning',
-  'zoom-in',
-  'document-add',
-  'palette-round',
-]
+/**
+ * Every semantic icon name, derived rather than hand-listed.
+ *
+ * `solarIconMap` is typed `IconMap` (= `Record<IconName, string>`), so the
+ * compiler already guarantees it has exactly one entry per `IconName`. Reading
+ * its keys is therefore the same set as the union, and cannot drift from it.
+ * A literal array here previously fell nine names behind the union with
+ * nothing to catch it; the derivation removes the failure mode rather than
+ * repairing one instance of it. Any complete map would do — solar is the
+ * default provider, so it is the natural one to read.
+ */
+const ICON_NAMES = Object.keys(solarIconMap) as IconName[]
 
 export function createCustomIconMap(entries: Partial<IconMap>): IconMap {
   const map = {} as Record<string, string>
