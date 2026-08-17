@@ -2,9 +2,12 @@ import path from 'node:path'
 
 import { createConsola } from 'consola'
 
+import { i18nParityPlugin } from './plugins/i18n-parity.plugin.mjs'
+import { iconParityPlugin } from './plugins/icon-parity.plugin.mjs'
 import { inlineVueHandlersPlugin } from './plugins/inline-vue-handlers.plugin.mjs'
 import { moduleScopeStatePlugin } from './plugins/module-scope-state.plugin.mjs'
 import { noRawPalettePlugin } from './plugins/no-raw-palette.plugin.mjs'
+import { themeRegistryPlugin } from './plugins/theme-registry.plugin.mjs'
 
 const logger = createConsola({
   level: 3,
@@ -15,7 +18,16 @@ const logger = createConsola({
 })
 
 const root = process.cwd()
-const plugins = [inlineVueHandlersPlugin(), moduleScopeStatePlugin(), noRawPalettePlugin()]
+const plugins = [
+  inlineVueHandlersPlugin(),
+  moduleScopeStatePlugin(),
+  noRawPalettePlugin(),
+  // Registry-drift rules: each guards a contract spread across several files
+  // that no compiler or test can see as a single unit.
+  i18nParityPlugin(),
+  iconParityPlugin(),
+  themeRegistryPlugin(),
+]
 
 let hasError = false
 
