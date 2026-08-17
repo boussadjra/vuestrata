@@ -7,12 +7,14 @@ import { useAppStore } from '@/stores/app'
 import ar from '../locales/ar.json'
 import en from '../locales/en.json'
 import fr from '../locales/fr.json'
-
-const supportedLocales = ['en', 'fr', 'ar'] as const
-type SupportedLocale = (typeof supportedLocales)[number]
+// `appearance.ts` owns the locale list — it also holds LOCALE_METADATA and
+// RTL_LOCALES, so adding a language stays a single-file change. This module
+// used to re-declare the same tuple, which meant a fourth locale could be
+// half-added and still typecheck.
+import { SUPPORTED_LOCALES, type SupportedLocale } from './appearance'
 
 function toSupportedLocale(locale: string): SupportedLocale {
-  return supportedLocales.includes(locale as SupportedLocale) ? (locale as SupportedLocale) : 'en'
+  return SUPPORTED_LOCALES.includes(locale as SupportedLocale) ? (locale as SupportedLocale) : 'en'
 }
 
 export const i18n = createI18n({
@@ -22,8 +24,14 @@ export const i18n = createI18n({
   messages: { en, fr, ar },
 })
 
-function hotMergeLocale(locale: SupportedLocale, mod: { default?: typeof en } | undefined) {
-  if (mod?.default) i18n.global.mergeLocaleMessage(locale, mod.default)
+/**
+ * `import.meta.hot.accept` types its callback argument as `ModuleNamespace`,
+ * which has no declared overlap with the locale JSON shape — hence the
+ * structural check plus cast rather than a typed parameter.
+ */
+function hotMergeLocale(locale: SupportedLocale, mod: unknown) {
+  const next = (mod as { default?: typeof en } | undefined)?.default
+  if (next) i18n.global.mergeLocaleMessage(locale, next)
 }
 
 // Locale JSON is compiled into this singleton. Vite HMR of the JSON file does
