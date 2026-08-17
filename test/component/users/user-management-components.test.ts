@@ -1,6 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { nextTick } from 'vue'
 
 import { getRegisteredPermissions, getRolePermissions } from '@/lib/rbac'
 import InviteUserDialog from '@/modules/users/components/InviteUserDialog.vue'
@@ -39,19 +40,52 @@ vi.mock('@/modules/users/composables/useUpdatePermissionsMutation', async () => 
   }
 })
 
+/**
+ * Locate a permission's toggle by its `data-permission` hook.
+ *
+ * Not by label text: the panel renders `permLabel(perm)`, which is translated
+ * copy ("View users"), never the raw `users:read` token. Matching on text also
+ * ties the test to the active locale and to the wording of the catalog, so a
+ * copy edit would break it for no good reason.
+ */
 function permissionToggle(wrapper: VueWrapper, permission: Permission) {
-  const label = wrapper.findAll('label').find((candidate) => candidate.text().includes(permission))
-  if (!label) throw new Error(`Permission label not found: ${permission}`)
+  const label = wrapper.find(`[data-permission="${permission}"]`)
+  if (!label.exists()) throw new Error(`Permission row not found: ${permission}`)
   return label.find<HTMLElement>('[role="checkbox"]')
 }
 
+/**
+ * Open the role select and choose an option.
+ *
+ * The listbox is rendered through Reka's `SelectPortal`, which teleports it to
+ * `document.body` — outside the wrapper's subtree. `wrapper.findAll` therefore
+ * never sees the options no matter how long you wait; they have to be queried
+ * from the document.
+ */
 async function selectRole(wrapper: VueWrapper, label: string) {
-  await wrapper.find('#invite-role').trigger('click')
-  const option = wrapper
-    .findAll<HTMLElement>('[role="option"]')
-    .find((candidate) => candidate.text().trim() === label)
-  if (!option) throw new Error(`Role option not found: ${label}`)
-  await option.trigger('click')
+  const trigger = wrapper.find('#invite-role')
+  // Reka opens the listbox on pointerdown. No event init here: VTU assigns the
+  // given keys onto the constructed event, and `button` is getter-only on
+  // MouseEvent — jsdom already defaults it to 0, which is what Reka checks for.
+  await trigger.trigger('pointerdown')
+  await trigger.trigger('click')
+  await nextTick()
+
+  const options = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
+  const option = options.find((candidate) => candidate.textContent?.trim() === label)
+  if (!option) {
+    throw new Error(
+      `Role option not found: ${label}. Found: ${options.map((o) => o.textContent?.trim()).join(', ') || '(none)'}`,
+    )
+  }
+
+  // Reka's SelectItem commits on pointerup, not click. jsdom has no
+  // PointerEvent constructor, but the listeners are registered by event type,
+  // so a MouseEvent named 'pointerup' is dispatched and handled identically.
+  option.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+  option.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
+  option.click()
+  await nextTick()
 }
 
 beforeEach(() => {
@@ -145,10 +179,11 @@ describe('UserPermissionsPanel', () => {
     const wrapper = mountPanel(user)
 
     expect(wrapper.text()).toContain('You are editing your own account')
-    const usersReadLabel = wrapper
-      .findAll('label')
-      .find((candidate) => candidate.text().includes('users:read'))
-    expect(usersReadLabel?.classes()).toContain('cursor-not-allowed')
+    // Located by data-permission, not label text: the row renders translated
+    // copy, so `users:read` never appears in it.
+    const usersReadLabel = wrapper.find('[data-permission="users:read"]')
+    expect(usersReadLabel.exists()).toBe(true)
+    expect(usersReadLabel.classes()).toContain('cursor-not-allowed')
   })
 
   it('reset button restores role defaults', async () => {

@@ -135,6 +135,7 @@ async function submit() {
             <label
               v-for="perm in permissionsForNamespace(ns)"
               :key="perm"
+              :data-permission="perm"
               class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors"
               :class="{
                 'hover:bg-surface-100 dark:hover:bg-surface-800': !isUsersReadDisabled(
@@ -143,9 +144,17 @@ async function submit() {
                 'cursor-not-allowed opacity-50': isUsersReadDisabled(perm as Permission),
               }"
             >
+              <!--
+                The wrapping <label> does not name this control: UiCheckbox
+                renders `role="checkbox"` on a div, and implicit label
+                association only works for native form elements. Without an
+                explicit aria-label a screen reader announces 65 anonymous
+                "checkbox, not checked" controls.
+              -->
               <UiCheckbox
                 :model-value="selected.has(perm as Permission)"
                 :disabled="isUsersReadDisabled(perm as Permission)"
+                :aria-label="permLabel(perm)"
                 @update:model-value="setPermission(perm as Permission, $event)"
               />
               <span class="text-foreground flex-1 text-sm">
