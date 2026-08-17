@@ -65,7 +65,7 @@ onMounted(updateClipPath)
     <section
       ref="cardRef"
       :aria-labelledby="headingId"
-      :style="{ clipPath, webkitClipPath: clipPath }"
+      :style="{ clipPath, WebkitClipPath: clipPath }"
       data-ui="card"
       data-shape="tabbed"
       class="ui-stat-card"
