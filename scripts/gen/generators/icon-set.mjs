@@ -1,0 +1,100 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
+import { camel, kebab } from '../lib/naming.mjs'
+import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
+
+/**
+ * Scaffold an icon provider.
+ *
+ * `IconMap` is `Record<IconName, string>`, so a new provider must implement
+ * every semantic name — currently 65 of them. Typing that list by hand is how
+ * the old `ICON_NAMES` array in custom.ts fell nine names behind the union
+ * without anyone noticing.
+ *
+ * So the generator reads the names from the union itself and emits a complete,
+ * pre-filled map. Values are guessed from the Iconify prefix (`i-<prefix>-<name>`)
+ * — many will be wrong, and that is fine: they are all present, typed, and the
+ * icon-parity lint rule reports any left empty.
+ */
+export function planIconSet({ plan, root, positional, options }) {
+  const raw = positional[0]
+  if (!raw) throw new Error('an icon set name is required, e.g. `vp run gen:icon-set tabler`')
+
+  const name = kebab(raw)
+  const varName = `${camel(name)}IconMap`
+  const prefix = options.prefix ?? name
+
+  const iconNames = readIconNames(root)
+  if (iconNames.length === 0) {
+    throw new Error('could not read the IconName union from src/modules/app/types/index.ts')
+  }
+
+  plan.addFile(
+    `src/modules/app/icons/maps/${name}.ts`,
+    mapTemplate({ name, varName, prefix, iconNames }),
+  )
+
+  plan.addEdit('src/modules/app/icons/index.ts', `export ${varName}`, (source) =>
+    insertBeforeSentinel(source, SENTINELS.iconMaps, `export { ${varName} } from './maps/${name}'`),
+  )
+
+  plan.addNote(
+    `Add \`${name}\` to ICON_PROVIDERS in src/modules/core/lib/config/env.schema.ts and to ` +
+      '`builtinMaps` in src/modules/app/config/icon-provider.ts so it can be selected.',
+  )
+  plan.addNote(
+    `Install the Iconify pack if it is not already a dependency: \`vp add -D @iconify-json/${prefix}\`, ` +
+      'then confirm the classes resolve — a wrong name renders nothing rather than erroring.',
+  )
+  plan.addNote(
+    `Every value is a guess of the form \`i-${prefix}-<semantic-name>\`. Correct them against the ` +
+      'pack, then run `node scripts/lint/run-custom-rules.mjs` to confirm none are empty.',
+  )
+
+  return plan
+}
+
+function readIconNames(root) {
+  const source = fs.readFileSync(path.join(root, 'src/modules/app/types/index.ts'), 'utf8')
+  const start = source.indexOf('export type IconName')
+  if (start === -1) return []
+
+  const names = []
+  for (const line of source.slice(start).split(/\r?\n/).slice(1)) {
+    const trimmed = line.trim()
+    if (trimmed === '') continue
+    const match = trimmed.match(/^\|\s*'([^']+)'/)
+    if (!match) break
+    names.push(match[1])
+  }
+  return names
+}
+
+function mapTemplate({ name, varName, prefix, iconNames }) {
+  const entries = iconNames
+    .map((iconName) => {
+      const key = /^[A-Za-z_$][\w$]*$/.test(iconName) ? iconName : `'${iconName}'`
+      return `  ${key}: 'i-${prefix}-${iconName}',`
+    })
+    .join('\n')
+
+  return `import type { IconMap } from '~/types'
+
+/**
+ * ${name} icon provider.
+ *
+ * GENERATED — every value below is a guess of the form \`i-${prefix}-<semantic-name>\`.
+ * Iconify pack names rarely line up with our semantic names, so most need
+ * correcting against the real pack. The keys, however, are complete and typed:
+ * \`IconMap\` is \`Record<IconName, string>\`, so the compiler will tell you if a
+ * name is ever added to the union and not to this file.
+ *
+ * An entry left as an empty string renders an empty span with no error, which
+ * is why the icon-parity lint rule fails on one.
+ */
+export const ${varName}: IconMap = {
+${entries}
+}
+`
+}
