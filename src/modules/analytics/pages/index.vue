@@ -1,9 +1,4 @@
 <script setup lang="ts">
-import { BarChart, LineChart, PieChart } from 'echarts/charts'
-import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-
 import { UiPageHeader } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
 
@@ -31,18 +26,6 @@ import {
   useUpcomingEventsQuery,
 } from '../composables/useDashboardQueries'
 import type { DashboardFilters } from '../types/dashboard'
-
-// Only the chart types this page draws. ECharts tree-shakes by registration, so
-// importing the whole library would add several hundred kB for nothing.
-use([
-  CanvasRenderer,
-  LineChart,
-  BarChart,
-  PieChart,
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-])
 
 const { dt } = useDashboardI18n()
 const authStore = useAuthStore()

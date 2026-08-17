@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import type { EChartsOption } from 'echarts'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { defineComponent, h } from 'vue'
+import { createI18n } from 'vue-i18n'
 
 import BaseChart from '@/components/ui/BaseChart.vue'
 
@@ -38,13 +39,18 @@ afterEach(() => {
   stubMatchMedia(() => false)
 })
 
+function mountChart(props: { option: EChartsOption }) {
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} } })
+  return mount(BaseChart, {
+    props,
+    global: { plugins: [i18n], stubs: { Echarts: VChartStub } },
+  })
+}
+
 describe('BaseChart reduced motion', () => {
   it('leaves ECharts animation alone when motion is allowed', () => {
     stubMatchMedia(() => false)
-    const wrapper = mount(BaseChart, {
-      props: { option: SAMPLE },
-      global: { stubs: { Echarts: VChartStub } },
-    })
+    const wrapper = mountChart({ option: SAMPLE })
 
     const option = wrapper.getComponent(VChartStub).props('option') as EChartsOption
     expect(option.animation).not.toBe(false)
@@ -52,15 +58,19 @@ describe('BaseChart reduced motion', () => {
 
   it('disables canvas tweening when the user prefers reduced motion', () => {
     stubMatchMedia((query) => query.includes('prefers-reduced-motion'))
-    const wrapper = mount(BaseChart, {
-      props: { option: SAMPLE },
-      global: { stubs: { Echarts: VChartStub } },
-    })
+    const wrapper = mountChart({ option: SAMPLE })
 
     const option = wrapper.getComponent(VChartStub).props('option') as EChartsOption
     expect(option.animation).toBe(false)
     expect(option.animationDuration).toBe(0)
     expect(option.animationDurationUpdate).toBe(0)
     expect(option.stateAnimation).toEqual({ duration: 0 })
+  })
+
+  it('keeps the canvas in an LTR coordinate system for RTL pages', () => {
+    stubMatchMedia(() => false)
+    const wrapper = mountChart({ option: SAMPLE })
+
+    expect(wrapper.get('[dir="ltr"]')).toBeTruthy()
   })
 })

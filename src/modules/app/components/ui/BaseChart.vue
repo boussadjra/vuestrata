@@ -2,6 +2,11 @@
 import { useMediaQuery } from '@vueuse/core'
 import type { EChartsOption } from 'echarts'
 import VChart from 'vue-echarts'
+import { useI18n } from 'vue-i18n'
+
+import { ensureEchartsRegistered } from '~/lib/echarts-setup'
+
+ensureEchartsRegistered()
 
 /** One row of the non-visual equivalent of the chart. */
 export interface ChartDataRow {
@@ -44,6 +49,7 @@ const props = withDefaults(defineProps<BaseChartProps>(), {
   loading: false,
 })
 
+const { locale } = useI18n()
 const chartId = useId()
 
 const accessibleName = computed(() => {
@@ -93,13 +99,19 @@ const chartOption = computed<EChartsOption>(() => {
       </p>
     </figcaption>
 
-    <div :class="height" class="min-w-0">
+    <!--
+      Canvas charts keep a left-to-right coordinate system even when the page is
+      RTL. Isolating `dir` here avoids zero-width hosts and mis-measured axes
+      under `html[dir=rtl]`, without flipping surrounding copy.
+    -->
+    <div :class="height" class="min-w-0" dir="ltr">
       <!--
         `role="img"` collapses the canvas into a single labelled node; without
         it screen readers announce an unlabelled graphic. `aria-describedby`
         points at the data table so a user can jump straight to the numbers.
       -->
       <VChart
+        :key="locale"
         :option="chartOption"
         :init-options="{ renderer: 'canvas' }"
         :loading="loading"
