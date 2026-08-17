@@ -4,11 +4,16 @@ import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 
 import { UiButton, UiPageHeader } from '@/components/ui'
+import { useAppLocaleString } from '@/composables/useAppLocaleString'
 import { useNotificationStore } from '@/stores/notification'
 import { resolveIcon } from '~/config/icon-provider'
 
+import ShowcaseDocsLink from '../components/ShowcaseDocsLink.vue'
+
 const notifications = useNotificationStore()
 const { t } = useI18n()
+const docsTitle = useAppLocaleString('forms_docs_title')
+const docsBody = useAppLocaleString('forms_docs_body')
 const formwerkFieldOptions = { disableHtmlValidation: true }
 
 // ─── Contact Form (Zod validated) ────────────────────────
@@ -578,5 +583,7 @@ async function handleProfileSubmit() {
         </fieldset>
       </div>
     </div>
+
+    <ShowcaseDocsLink to="/docs/components/forms" :title="docsTitle" :body="docsBody" />
   </div>
 </template>
