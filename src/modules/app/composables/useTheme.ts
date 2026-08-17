@@ -1,4 +1,5 @@
-import { applyAppearance, type SupportedLocale } from '@/plugins/appearance'
+import { useActivePathname } from '@/composables/useActiveLocale'
+import { applyAppearance, resolveActiveLocale, type SupportedLocale } from '@/plugins/appearance'
 import { useAppStore } from '@/stores/app'
 import { getThemes, getTheme, registerTheme as registryRegisterTheme } from '~/config/theme.config'
 import type { ThemeName, ThemeConfig } from '~/types'
@@ -46,12 +47,13 @@ export function useTheme() {
  * Synchronizes the persisted appearance state (theme, dark mode, locale) to
  * `<html>`. Call from the app root so the watcher follows component lifecycle.
  *
- * The DOM is mutated through `applyAppearance()` from `@/plugins/appearance`
- * — the same helper used by the pre-mount bootstrap — so there is exactly one
- * place that owns these mutations.
+ * Locale goes through `resolveActiveLocale()` so `/docs` stays English/LTR
+ * without writing the stored preference. The DOM is mutated through
+ * `applyAppearance()` — the same helper used by the pre-mount bootstrap.
  */
 export function useThemeSync() {
   const appStore = useAppStore()
+  const pathname = useActivePathname()
 
   const stop = watchEffect(() => {
     const config = getTheme(appStore.theme)
@@ -59,7 +61,7 @@ export function useThemeSync() {
       theme: appStore.theme,
       themeClass: config?.cssClass ?? '',
       dark: appStore.isDark,
-      locale: appStore.locale as SupportedLocale,
+      locale: resolveActiveLocale(pathname.value, appStore.locale as SupportedLocale),
     })
   })
 

@@ -36,3 +36,30 @@ for (const path of PAGES) {
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 })
   })
 }
+
+test.describe('docs locale', () => {
+  test('hides the language switcher and stays English LTR', async ({ page }) => {
+    await page.addInitScript((key) => localStorage.setItem(key, 'ar'), 'vuestrata-locale')
+    await page.goto('/docs')
+    await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 })
+
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    await expect(page.getByTestId('header-locale-select')).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('vuestrata-locale'))).toBe('ar')
+  })
+
+  test('restores the persisted locale after leaving docs', async ({ page }) => {
+    await page.addInitScript((key) => localStorage.setItem(key, 'ar'), 'vuestrata-locale')
+    await page.goto('/docs')
+    await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
+
+    await page.goto('/')
+    await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ar')
+    await expect(page.getByTestId('header-locale-select')).toBeVisible()
+  })
+})

@@ -8,6 +8,8 @@ navigation: false
 
 Vuestrata is a Vue 3 starter for teams that want production shape on day one: Reka UI wrappers, module boundaries, theme tokens, auth scaffolding, typed query keys, and tests that already know the app.
 
+The in-app docs at `/docs` are English and left-to-right only. The header language switcher is hidden there, and a persisted French or Arabic preference is restored when you leave.
+
 ::card-group
 ::card{title="Getting Started" icon="rocket" to="/docs/getting-started/installation"}
 Install, configure, and run the starter through Vite+.

@@ -2,7 +2,7 @@
 import { SwitchRoot, SwitchThumb } from 'reka-ui'
 
 import { useUiSwitch, type SwitchProps } from '@/composables/forms'
-import { useAppStore } from '@/stores/app'
+import { useActiveLocale } from '@/composables/useActiveLocale'
 
 /**
  * Attributes are forwarded manually.
@@ -42,7 +42,7 @@ const wrapperAttrs = computed(() => {
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-const appStore = useAppStore()
+const { isRtl } = useActiveLocale()
 const { inputProps, labelProps, isPressed, errorMessageProps, displayError } = useUiSwitch(props)
 
 const sizeMap: Record<string, { track: string; thumb: string; on: string; off: string }> = {
@@ -53,7 +53,7 @@ const sizeMap: Record<string, { track: string; thumb: string; on: string; off: s
 
 const s = computed(() => sizeMap[props.size]!)
 const thumbPositionClass = computed(() => {
-  if (appStore.isRtl) {
+  if (isRtl.value) {
     return isPressed.value
       ? s.value.off.replace('translate-x', '-translate-x')
       : s.value.on.replace('translate-x', '-translate-x')

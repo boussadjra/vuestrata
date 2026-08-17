@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { useLocaleSync } from '@/composables/useActiveLocale'
 import { useShapeSync } from '@/composables/useShape'
 import { useThemeSync } from '@/composables/useTheme'
 
-// Root-owned DOM sync for theme, dark mode, and shape classes.
+// Root-owned DOM sync for theme, dark mode, locale, and shape classes.
 useThemeSync()
+useLocaleSync()
 useShapeSync()
 
 const { t } = useI18n()

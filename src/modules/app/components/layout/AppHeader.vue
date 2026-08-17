@@ -5,6 +5,7 @@ import { UiButton, UiSelect } from '@/components/ui'
 import { useLocales } from '@/composables/useLocales'
 import { useTheme } from '@/composables/useTheme'
 import { resolveIcon } from '@/config/icon-provider'
+import { isDocsPath } from '@/plugins/appearance'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 
@@ -46,7 +47,7 @@ function routeStartsWith(base: string) {
 }
 
 const isDashboardRoute = computed(() => routeStartsWith('/dashboard'))
-const isDocsRoute = computed(() => routeStartsWith('/docs'))
+const isDocsRoute = computed(() => isDocsPath(normalizedPath.value))
 
 const docsSidebar = useDocsSidebar()
 
@@ -168,11 +169,14 @@ const guestAction = computed(() => {
       <div class="app-header-toolbar flex min-w-0 items-center gap-1 sm:gap-2">
         <AppCommandPalette v-if="authStore.isAuthenticated" />
 
+        <!-- Docs are English-only; the switcher would imply the markdown is translated. -->
         <UiSelect
+          v-if="!isDocsRoute"
           class="max-w-28 min-w-0 sm:max-w-none sm:min-w-35"
           v-model="currentLocale"
           :options="localeOptions"
           :aria-label="t('header_locale_label')"
+          data-testid="header-locale-select"
         />
 
         <UiButton

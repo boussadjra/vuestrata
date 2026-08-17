@@ -11,7 +11,7 @@ import fr from '../locales/fr.json'
 // RTL_LOCALES, so adding a language stays a single-file change. This module
 // used to re-declare the same tuple, which meant a fourth locale could be
 // half-added and still typecheck.
-import { SUPPORTED_LOCALES, type SupportedLocale } from './appearance'
+import { resolveActiveLocale, SUPPORTED_LOCALES, type SupportedLocale } from './appearance'
 
 function toSupportedLocale(locale: string): SupportedLocale {
   return SUPPORTED_LOCALES.includes(locale as SupportedLocale) ? (locale as SupportedLocale) : 'en'
@@ -47,8 +47,19 @@ export function getI18n() {
   return i18n
 }
 
+function readPathname(): string {
+  return typeof window === 'undefined' ? '/' : window.location.pathname
+}
+
 /**
  * Install vue-i18n on the app and bind the active locale to the app store.
+ *
+ * Documentation routes force English via `resolveActiveLocale`. The store
+ * (and localStorage) keep the user's preference; this only chooses what
+ * vue-i18n renders. SPA navigations are handled by `useLocaleSync`, which
+ * watches the router — this watcher only re-runs when the stored locale
+ * changes, and then reads `window.location.pathname` so a docs tab still
+ * stays English if Settings is mutated from another tab.
  */
 export function installI18n(app: App) {
   const { locale } = storeToRefs(useAppStore())
@@ -56,7 +67,7 @@ export function installI18n(app: App) {
   watch(
     locale,
     (value) => {
-      i18n.global.locale.value = toSupportedLocale(value)
+      i18n.global.locale.value = resolveActiveLocale(readPathname(), toSupportedLocale(value))
     },
     { immediate: true },
   )

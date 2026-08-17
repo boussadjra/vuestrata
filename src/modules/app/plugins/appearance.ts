@@ -3,10 +3,14 @@
  * preferences that affect first paint: dark mode, theme, and locale.
  *
  * Both the synchronous pre-mount bootstrap (`bootstrap-theme.ts`) and the
- * reactive post-mount sync (`useThemeSync` in `composables/useTheme.ts`)
- * consume the same `applyAppearance()` helper, so the DOM is mutated in
- * exactly one place. The Pinia store imports the same storage keys to keep
- * persistence aligned.
+ * reactive post-mount sync (`useThemeSync` / `useLocaleSync`) consume the
+ * same `applyAppearance()` helper, so the DOM is mutated in exactly one
+ * place. The Pinia store imports the same storage keys to keep persistence
+ * aligned.
+ *
+ * In-app documentation is English/LTR only. `resolveActiveLocale()` is the
+ * single override: it never writes the persisted preference, so leaving
+ * `/docs` restores French or Arabic exactly as the user left them.
  *
  * Why a plain module and not a composable?
  *   - The pre-mount path runs before `createApp()`, so reactivity is not
@@ -48,6 +52,35 @@ const RTL_LOCALES = new Set<SupportedLocale>(['ar'])
 /** Whether a locale is written right-to-left. */
 export function isRtlLocale(locale: string): boolean {
   return RTL_LOCALES.has(locale as SupportedLocale)
+}
+
+/**
+ * Docs are authored in English. The chrome, markdown, and demos all assume
+ * LTR, so `/docs` never follows a persisted French or Arabic preference.
+ */
+export const DOCS_LOCALE: SupportedLocale = 'en'
+
+/**
+ * Whether `pathname` is the in-app documentation tree.
+ *
+ * Trailing slashes and query/hash suffixes are ignored so `/docs/`,
+ * `/docs/theming/overview?x=1`, and the router path all agree.
+ */
+export function isDocsPath(pathname: string): boolean {
+  const path = pathname.split(/[?#]/, 1)[0] ?? pathname
+  const normalized = path.replace(/\/+$/, '') || '/'
+  return normalized === '/docs' || normalized.startsWith('/docs/')
+}
+
+/**
+ * Locale that should actually be applied to `<html>` and vue-i18n.
+ *
+ * The persisted value is unchanged: this is a render-time override so a
+ * reader can open the docs from an Arabic session without flipping their
+ * saved language, and without the markdown laying out RTL.
+ */
+export function resolveActiveLocale(pathname: string, persisted: SupportedLocale): SupportedLocale {
+  return isDocsPath(pathname) ? DOCS_LOCALE : persisted
 }
 
 // Defence in depth: only allow safe identifiers in values that get spliced

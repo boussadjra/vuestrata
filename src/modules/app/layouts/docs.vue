@@ -8,7 +8,7 @@ provideDocsSidebar()
 </script>
 
 <template>
-  <div class="bg-background text-foreground flex h-screen flex-col">
+  <div class="bg-background text-foreground flex h-screen flex-col" dir="ltr" lang="en">
     <SkipLink />
     <AppHeader />
     <main id="main-content" tabindex="-1" class="min-h-0 flex-1 overflow-hidden focus:outline-none">
