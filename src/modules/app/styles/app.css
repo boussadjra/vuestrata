@@ -961,9 +961,10 @@ button:active,
 input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
 select:not(.unstyled-input),
 textarea:not(.unstyled-input) {
-  border: 1px solid color-mix(in oklch, var(--color-surface-300) 88%, white);
+  /* Mix in srgb: oklch + white interpolates toward hue 0 and reads pink. */
+  border: 1px solid color-mix(in srgb, var(--color-surface-300) 88%, white);
   border-radius: var(--shape-radius-sm);
-  background: color-mix(in oklch, var(--color-surface-50) 96%, white);
+  background: color-mix(in srgb, var(--color-surface-50) 96%, white);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -978,8 +979,8 @@ textarea:not(.unstyled-input):focus {
 html.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
 html.dark select:not(.unstyled-input),
 html.dark textarea:not(.unstyled-input) {
-  background: color-mix(in oklch, var(--color-surface-800) 94%, black);
-  border-color: color-mix(in oklch, var(--color-surface-700) 92%, black);
+  background: color-mix(in srgb, var(--color-surface-800) 94%, black);
+  border-color: color-mix(in srgb, var(--color-surface-700) 92%, black);
 }
 html.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input):focus,
 html.dark select:not(.unstyled-input):focus,
@@ -1043,7 +1044,7 @@ html.dark [data-ui='skeleton'] {
    RTL support
    =========================== */
 [dir='rtl'] {
-  text-align: right;
+  text-align: start;
   font-family: 'Tajawal', 'Cairo', 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 

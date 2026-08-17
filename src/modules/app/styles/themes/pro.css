@@ -18,8 +18,8 @@
  * No glass, no page wash, no button gradients. Those products look clean
  * because they are quiet.
  *
- * Contrast: foreground (surface-900) on background ≈ 15.4:1;
- * muted-foreground (surface-600) on `muted` ≈ 6.0:1;
+ * Contrast: foreground (surface-900) on background ≈ 15.2:1;
+ * muted-foreground (surface-600) on `muted` ≈ 5.8:1;
  * primary-solid (primary-600) with a light label ≈ 6.3:1;
  * ring ≈ 6.3:1 light / 5.7:1 dark.
  */
@@ -65,10 +65,13 @@
   --color-accent-900: #1d3e3b;
   --color-accent-950: #0c2220;
 
-  /* Surface — cool paper tinted toward the blue, never #fff and never cream. */
-  --color-surface-50: #f5f6f9;
-  --color-surface-100: #eceef3;
-  --color-surface-200: #e1e3ea;
+  /* Surface — cool paper tinted toward the blue, never #fff and never cream.
+     100 is the muted/thead/input fill; keep enough chroma that it reads blue
+     next to primary-solid, not a pink-grey (OKLCH mixes with white/transparent
+     were pushing the previous #eceef3 toward hue 0). */
+  --color-surface-50: #f2f4fb;
+  --color-surface-100: #e6ebf7;
+  --color-surface-200: #d7deee;
   --color-surface-300: #cbced8;
   --color-surface-400: #9ea3b3;
   --color-surface-500: #6e7791;
@@ -123,8 +126,8 @@
  * Only the dark end of the surface ramp changes, plus chart slots (because
  * `:root.dark` in semantic.css rewrites them after this file). */
 :root.theme-pro.dark {
-  --color-surface-50: #f5f6f9;
-  --color-surface-100: #e8ebf2;
+  --color-surface-50: #f2f4fb;
+  --color-surface-100: #e6ebf7;
   --color-surface-200: #cfd5e3;
   --color-surface-300: #b0b8cc;
   --color-surface-400: #a0a7ba;
@@ -165,4 +168,30 @@
 
 :root.theme-pro ::selection {
   background: color-mix(in oklch, var(--color-primary-400) 35%, transparent);
+}
+
+/* Chrome — search fields and table heads share the muted blue-grey, mixed in
+ * srgb so the fill cannot hue-shift toward red the way oklch + white does. */
+:root.theme-pro input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-pro select:not(.unstyled-input),
+:root.theme-pro textarea:not(.unstyled-input) {
+  background: color-mix(in srgb, var(--color-primary-50) 55%, var(--color-surface-100));
+  border-color: var(--color-surface-300);
+}
+
+:root.theme-pro.dark input:not([type='checkbox']):not([type='radio']):not(.unstyled-input),
+:root.theme-pro.dark select:not(.unstyled-input),
+:root.theme-pro.dark textarea:not(.unstyled-input) {
+  background: var(--color-surface-800);
+  border-color: var(--color-surface-700);
+}
+
+:root.theme-pro thead,
+:root.theme-pro [data-ui='data-grid-header'] {
+  background-color: color-mix(in srgb, var(--color-primary-50) 40%, var(--color-surface-100));
+}
+
+:root.theme-pro.dark thead,
+:root.theme-pro.dark [data-ui='data-grid-header'] {
+  background-color: var(--color-surface-800);
 }

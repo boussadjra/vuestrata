@@ -1,7 +1,15 @@
 <script setup lang="ts">
+/**
+ * Settings — appearance, shape, language, and icon vocabulary.
+ *
+ * Shares the account page's section chrome (`UiPageHeader` + `UiPanel`,
+ * `max-w-5xl`, 3+2 grid) so moving between the two account-group routes does
+ * not change the spatial language. Preference copy that the user must read
+ * uses `text-foreground`; filler section descriptions are omitted.
+ */
 import { useI18n } from 'vue-i18n'
 
-import { UiButton, UiPageHeader, UiSwitch } from '@/components/ui'
+import { UiButton, UiPageHeader, UiPanel, UiSwitch } from '@/components/ui'
 import { useShape } from '@/composables/useShape'
 import type { ShapeRadius, ShapeBorder, ShapeShadow } from '@/composables/useShape'
 import { useTheme } from '@/composables/useTheme'
@@ -23,16 +31,18 @@ const {
 } = useShape()
 const { logout } = useAuth()
 
-const iconProviderOptions: { value: string; label: string }[] = getIconProviders().map((p) => ({
-  value: p,
-  label: p.charAt(0).toUpperCase() + p.slice(1),
-}))
+const iconProviderOptions = computed(() =>
+  getIconProviders().map((provider) => ({
+    value: provider,
+    label: provider.charAt(0).toUpperCase() + provider.slice(1),
+  })),
+)
 
-const locales = [
-  { code: 'en', labelKey: 'settings_locale_english', flag: '🇺🇸' },
-  { code: 'fr', labelKey: 'settings_locale_french', flag: '🇫🇷' },
-  { code: 'ar', labelKey: 'settings_locale_arabic', flag: '🇸🇦' },
-]
+const localeOptions = computed(() => [
+  { value: 'en', label: t('settings_locale_english') },
+  { value: 'fr', label: t('settings_locale_french') },
+  { value: 'ar', label: t('settings_locale_arabic') },
+])
 
 /*
  * Literal pixel radii, NOT `rounded-sm`/`rounded-xl`/etc.
@@ -72,6 +82,52 @@ const darkModeModel = computed({
   },
 })
 
+/**
+ * Exclusive choice chrome. Selected fill matches `UiToggleGroup` so a picked
+ * theme, radius, or locale uses the same solid as a segmented control.
+ *
+ * Button rounding follows `--radius-md` (the theme), not `--shape-radius`.
+ * The shape preset is what these buttons *set*; using it here would make every
+ * option look identical the moment one is applied.
+ */
+function choiceClass(selected: boolean): string[] {
+  return [
+    'flex min-h-11 w-full cursor-pointer flex-col items-center justify-center gap-2 px-3 py-3 text-sm font-medium',
+    'rounded-md border transition-colors duration-150',
+    'motion-reduce:transition-none',
+    selected
+      ? 'border-transparent bg-primary-solid text-primary-foreground'
+      : 'border-border bg-card text-foreground hover:bg-muted',
+  ]
+}
+
+/** Decorative swatch fill. Inverts on the selected solid so the preview stays visible. */
+function radiusPreviewClass(selected: boolean, preview: string): string[] {
+  return [
+    'h-8 w-8 border-2',
+    preview,
+    selected
+      ? 'border-primary-foreground bg-primary-foreground/25'
+      : 'border-primary-500 bg-primary-500/20',
+  ]
+}
+
+function borderPreviewClass(selected: boolean, preview: string): string[] {
+  return [
+    'h-8 w-8 rounded-md',
+    preview,
+    selected ? 'border-primary-foreground' : 'border-foreground',
+  ]
+}
+
+function shadowPreviewClass(selected: boolean, preview: string): string[] {
+  return [
+    'h-8 w-8 rounded-md border',
+    preview,
+    selected ? 'border-primary-foreground/40 bg-primary-foreground' : 'border-border bg-card',
+  ]
+}
+
 function switchLocale(code: string) {
   appStore.setLocale(code)
 }
@@ -80,222 +136,146 @@ function switchTheme(name: ThemeName) {
   setTheme(name)
 }
 
-function switchIconProvider(p: IconProvider) {
-  appStore.setIconProvider(p)
+function switchIconProvider(provider: IconProvider) {
+  appStore.setIconProvider(provider)
 }
 </script>
 
 <template>
-  <div class="animate-fade-in mx-auto max-w-3xl space-y-10">
-    <UiPageHeader :title="t('settings_title')" :description="t('settings_subtitle')" />
+  <div class="mx-auto max-w-5xl space-y-8">
+    <UiPageHeader :title="t('settings_title')" :description="t('settings_subtitle')">
+      <template #actions>
+        <UiButton to="/dashboard/account" variant="ghost">
+          <span :class="[resolveIcon('shield-user'), 'h-4 w-4']" aria-hidden="true" />
+          {{ t('account_nav') }}
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
-    <div class="space-y-8">
-      <!-- Appearance -->
-      <section
-        class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
-      >
-        <h2 class="mb-2 text-lg font-bold">{{ t('settings_appearance') }}</h2>
-        <p class="text-muted-foreground mb-6 text-sm">
-          {{ t('settings_appearance_desc') }}
-        </p>
-
-        <div
-          class="bg-surface-50 dark:bg-surface-800/60 border-surface-200/60 dark:border-surface-700/40 flex items-center justify-between rounded-xl border p-4"
-        >
-          <div class="flex items-center gap-3">
-            <div
-              class="bg-surface-200 dark:bg-surface-700 flex h-10 w-10 items-center justify-center rounded-xl"
-            >
-              <span v-if="isDark" :class="[resolveIcon('moon'), 'text-primary-400 h-5 w-5']" />
-              <span v-else :class="[resolveIcon('sun'), 'text-warning-500 h-5 w-5']" />
-            </div>
-            <div>
-              <span class="block text-sm font-semibold">{{ t('settings_dark_mode') }}</span>
-              <span class="text-surface-500 text-xs">
+    <div class="flex flex-col gap-8 lg:grid lg:grid-cols-5 lg:items-start">
+      <div class="flex min-w-0 flex-col gap-8 lg:col-span-3">
+        <UiPanel :title="t('settings_appearance')" content-class="min-h-0">
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <p class="text-foreground text-sm font-semibold">{{ t('settings_dark_mode') }}</p>
+              <p class="text-foreground mt-0.5 text-sm">
                 {{ isDark ? t('settings_dark_mode_active') : t('settings_light_mode_active') }}
-              </span>
+              </p>
+            </div>
+            <UiSwitch v-model="darkModeModel" :aria-label="t('settings_dark_mode')" />
+          </div>
+
+          <div class="border-border mt-5 border-t pt-5">
+            <h3 class="text-foreground text-sm font-semibold">{{ t('settings_theme') }}</h3>
+            <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <button
+                v-for="th in themes"
+                :key="th.name"
+                type="button"
+                :class="choiceClass(currentThemeName === th.name)"
+                :aria-pressed="currentThemeName === th.name"
+                @click="switchTheme(th.name)"
+              >
+                {{ th.label }}
+              </button>
             </div>
           </div>
-          <UiSwitch v-model="darkModeModel" :aria-label="t('settings_dark_mode')" />
-        </div>
-      </section>
+        </UiPanel>
 
-      <!-- Shapes -->
-      <section
-        class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
-      >
-        <h2 class="mb-2 text-lg font-bold">{{ t('settings_shapes_title') }}</h2>
-        <p class="text-muted-foreground mb-6 text-sm">
-          {{ t('settings_shapes_desc') }}
-        </p>
+        <UiPanel :title="t('settings_shapes_title')" content-class="min-h-0">
+          <div class="divide-border divide-y">
+            <div class="py-5 first:pt-0 last:pb-0">
+              <h3 class="text-foreground text-sm font-semibold">
+                {{ t('settings_border_radius') }}
+              </h3>
+              <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <button
+                  v-for="opt in radiusOptions"
+                  :key="opt.value"
+                  type="button"
+                  :class="choiceClass(shapeRadius === opt.value)"
+                  :aria-pressed="shapeRadius === opt.value"
+                  @click="setRadius(opt.value)"
+                >
+                  <div :class="radiusPreviewClass(shapeRadius === opt.value, opt.preview)" />
+                  {{ t(opt.labelKey) }}
+                </button>
+              </div>
+            </div>
 
-        <!-- Border Radius -->
-        <div class="mb-6">
-          <h3 class="text-foreground mb-3 text-sm font-semibold">
-            {{ t('settings_border_radius') }}
-          </h3>
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="py-5 first:pt-0 last:pb-0">
+              <h3 class="text-foreground text-sm font-semibold">{{ t('settings_borders') }}</h3>
+              <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <button
+                  v-for="opt in borderOptions"
+                  :key="opt.value"
+                  type="button"
+                  :class="choiceClass(shapeBorder === opt.value)"
+                  :aria-pressed="shapeBorder === opt.value"
+                  @click="setBorder(opt.value)"
+                >
+                  <div :class="borderPreviewClass(shapeBorder === opt.value, opt.preview)" />
+                  {{ t(opt.labelKey) }}
+                </button>
+              </div>
+            </div>
+
+            <div class="py-5 first:pt-0 last:pb-0">
+              <h3 class="text-foreground text-sm font-semibold">{{ t('settings_shadows') }}</h3>
+              <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <button
+                  v-for="opt in shadowOptions"
+                  :key="opt.value"
+                  type="button"
+                  :class="choiceClass(shapeShadow === opt.value)"
+                  :aria-pressed="shapeShadow === opt.value"
+                  @click="setShadow(opt.value)"
+                >
+                  <div :class="shadowPreviewClass(shapeShadow === opt.value, opt.preview)" />
+                  {{ t(opt.labelKey) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </UiPanel>
+      </div>
+
+      <div class="flex min-w-0 flex-col gap-8 lg:col-span-2">
+        <UiPanel :title="t('settings_language')" content-class="min-h-0">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
             <button
-              v-for="opt in radiusOptions"
+              v-for="opt in localeOptions"
               :key="opt.value"
-              :class="[
-                'flex flex-col items-center gap-2 px-3 py-3.5 text-xs font-medium transition-all duration-200',
-                shapeRadius === opt.value
-                  ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 rounded-xl shadow-md ring-2 ring-offset-2'
-                  : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 rounded-xl border',
-              ]"
-              @click="setRadius(opt.value)"
+              type="button"
+              :class="choiceClass(locale === opt.value)"
+              :aria-pressed="locale === opt.value"
+              @click="switchLocale(opt.value)"
             >
-              <div
-                :class="['bg-primary-500/20 border-primary-500 h-8 w-8 border-2', opt.preview]"
-              />
-              {{ t(opt.labelKey) }}
+              {{ opt.label }}
             </button>
           </div>
-        </div>
+        </UiPanel>
 
-        <!-- Borders -->
-        <div class="mb-6">
-          <h3 class="text-foreground mb-3 text-sm font-semibold">
-            {{ t('settings_borders') }}
-          </h3>
-          <div class="grid grid-cols-4 gap-3">
+        <UiPanel :title="t('settings_icon_provider')" content-class="min-h-0">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
             <button
-              v-for="opt in borderOptions"
+              v-for="opt in iconProviderOptions"
               :key="opt.value"
-              :class="[
-                'flex flex-col items-center gap-2 rounded-xl px-3 py-3.5 text-xs font-medium transition-all duration-200',
-                shapeBorder === opt.value
-                  ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
-                  : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
-              ]"
-              @click="setBorder(opt.value)"
+              type="button"
+              :class="choiceClass(appStore.iconProvider === opt.value)"
+              :aria-pressed="appStore.iconProvider === opt.value"
+              @click="switchIconProvider(opt.value)"
             >
-              <div
-                :class="[
-                  'border-surface-500 dark:border-surface-400 h-8 w-8 rounded-lg',
-                  opt.preview,
-                ]"
-              />
-              {{ t(opt.labelKey) }}
+              {{ opt.label }}
             </button>
           </div>
-        </div>
-
-        <!-- Shadows -->
-        <div>
-          <h3 class="text-foreground mb-3 text-sm font-semibold">
-            {{ t('settings_shadows') }}
-          </h3>
-          <div class="grid grid-cols-4 gap-3">
-            <button
-              v-for="opt in shadowOptions"
-              :key="opt.value"
-              :class="[
-                'flex flex-col items-center gap-2 rounded-xl px-3 py-3.5 text-xs font-medium transition-all duration-200',
-                shapeShadow === opt.value
-                  ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
-                  : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
-              ]"
-              @click="setShadow(opt.value)"
-            >
-              <div
-                :class="[
-                  'dark:bg-surface-700 border-surface-200 dark:border-surface-600 h-8 w-8 rounded-lg border bg-white',
-                  opt.preview,
-                ]"
-              />
-              {{ t(opt.labelKey) }}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Language -->
-      <section
-        class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
-      >
-        <h2 class="mb-2 text-lg font-bold">{{ t('settings_language') }}</h2>
-        <p class="text-muted-foreground mb-5 text-sm">
-          {{ t('settings_language_desc') }}
-        </p>
-        <div class="grid grid-cols-3 gap-3">
-          <button
-            v-for="loc in locales"
-            :key="loc.code"
-            :class="[
-              'flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-200',
-              locale === loc.code
-                ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
-                : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
-            ]"
-            @click="switchLocale(loc.code)"
-          >
-            <span class="text-lg">{{ loc.flag }}</span>
-            {{ t(loc.labelKey) }}
-          </button>
-        </div>
-      </section>
-
-      <!-- Theme -->
-      <section
-        class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
-      >
-        <h2 class="mb-2 text-lg font-bold">{{ t('settings_theme') }}</h2>
-        <p class="text-muted-foreground mb-5 text-sm">
-          {{ t('settings_theme_desc') }}
-        </p>
-        <div class="grid grid-cols-3 gap-3">
-          <button
-            v-for="th in themes"
-            :key="th.name"
-            :class="[
-              'flex flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-200',
-              currentThemeName === th.name
-                ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
-                : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
-            ]"
-            @click="switchTheme(th.name)"
-          >
-            <span :class="[resolveIcon('palette-round'), 'h-5 w-5']" />
-            {{ th.label }}
-          </button>
-        </div>
-      </section>
-
-      <!-- Icon Provider -->
-      <section
-        class="card border-surface-200 dark:border-surface-700/50 dark:bg-surface-800/80 rounded-2xl border bg-white p-7"
-      >
-        <h2 class="mb-2 text-lg font-bold">{{ t('settings_icon_provider') }}</h2>
-        <p class="text-muted-foreground mb-5 text-sm">
-          {{ t('settings_icon_provider_desc') }}
-        </p>
-        <div class="grid grid-cols-3 gap-3">
-          <button
-            v-for="ip in iconProviderOptions"
-            :key="ip.value"
-            :class="[
-              'flex flex-col items-center gap-2 rounded-xl px-4 py-4 text-sm font-medium transition-all duration-200',
-              appStore.iconProvider === ip.value
-                ? 'ring-primary-500 dark:ring-primary-400 dark:ring-offset-surface-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300 shadow-md ring-2 ring-offset-2'
-                : 'border-surface-200 dark:border-surface-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-surface-50 dark:hover:bg-surface-800/80 border',
-            ]"
-            @click="switchIconProvider(ip.value)"
-          >
-            <span :class="[resolveIcon('star'), 'h-5 w-5']" />
-            {{ ip.label }}
-          </button>
-        </div>
-      </section>
-
-      <!-- Logout -->
-      <UiButton variant="destructive" block @click="logout">
-        <span :class="[resolveIcon('logout'), 'me-1 h-4 w-4']" />
-        {{ t('auth_logout') }}
-      </UiButton>
+        </UiPanel>
+      </div>
     </div>
+
+    <UiButton variant="destructive" @click="logout">
+      <span :class="[resolveIcon('logout'), 'h-4 w-4']" aria-hidden="true" />
+      {{ t('auth_logout') }}
+    </UiButton>
   </div>
 </template>
-
-<style scoped></style>
