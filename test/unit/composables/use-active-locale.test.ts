@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 import { defineComponent, h, nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
-import { useLocaleSync } from '@/composables/useActiveLocale'
+import { useActiveLocale, useLocaleSync } from '@/composables/useActiveLocale'
 import { getI18n } from '@/plugins/i18n'
 import { useAppStore } from '@/stores/app'
 
@@ -83,5 +83,48 @@ describe('useLocaleSync', () => {
     expect(localStorage.getItem('vuestrata-locale')).toBe('ar')
 
     wrapper.unmount()
+  })
+})
+
+describe('useActiveLocale', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute('dir')
+  })
+
+  it('exposes rtl direction for Arabic and ltr on docs', async () => {
+    localStorage.setItem('vuestrata-locale', 'ar')
+
+    const LocaleHost = defineComponent({
+      setup() {
+        const { dir, current } = useActiveLocale()
+        return () => h('div', { 'data-dir': dir.value, 'data-current': current.value })
+      },
+    })
+
+    async function mountAt(url: string) {
+      const pinia = createPinia()
+      setActivePinia(pinia)
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          { path: '/dashboard', component: { template: '<div />' } },
+          { path: '/docs', component: { template: '<div />' } },
+        ],
+      })
+      await router.push(url)
+      await router.isReady()
+      return mount(LocaleHost, { global: { plugins: [pinia, router] } })
+    }
+
+    const dashboard = await mountAt('/dashboard')
+    expect(dashboard.attributes('data-current')).toBe('ar')
+    expect(dashboard.attributes('data-dir')).toBe('rtl')
+    dashboard.unmount()
+
+    const docs = await mountAt('/docs')
+    expect(docs.attributes('data-current')).toBe('en')
+    expect(docs.attributes('data-dir')).toBe('ltr')
+    docs.unmount()
   })
 })

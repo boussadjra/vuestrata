@@ -81,6 +81,12 @@ describe('number', () => {
     // French uses narrow no-break spaces rather than commas.
     expect(formattersFor('fr').number(1_234_567)).not.toBe('1,234,567')
   })
+
+  it('uses Western digits in Arabic', () => {
+    const formatted = formattersFor('ar').number(1_234_567)
+    expect(formatted).not.toMatch(/[٠-٩]/)
+    expect(formatted).toMatch(/1/)
+  })
 })
 
 describe('relativeTime', () => {

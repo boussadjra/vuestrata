@@ -7,7 +7,7 @@
  * roughly twice a year. Every step here goes through `Date#setDate`, which the
  * runtime normalizes across DST, month ends and leap years.
  */
-import { isRtlLocale } from '~/plugins/appearance'
+import { intlLocale, isRtlLocale } from '~/plugins/appearance'
 
 export interface MonthDay {
   date: Date
@@ -86,7 +86,7 @@ export function buildMonthGrid(month: Date, locale: string): MonthDay[] {
 /** Weekday headers in the locale's own order and script. */
 export function weekdayLabels(locale: string, format: 'short' | 'narrow' = 'short'): string[] {
   const weekStart = firstDayOfWeek(locale) % 7
-  const formatter = new Intl.DateTimeFormat(locale, { weekday: format })
+  const formatter = new Intl.DateTimeFormat(intlLocale(locale), { weekday: format })
 
   // 2024-01-07 was a Sunday, which makes index 0 = Sunday and the modulo below
   // trivially correct. Any known Sunday would do; this one avoids a leap year.

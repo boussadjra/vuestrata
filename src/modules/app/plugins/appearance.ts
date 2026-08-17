@@ -55,6 +55,16 @@ export function isRtlLocale(locale: string): boolean {
 }
 
 /**
+ * BCP 47 tag for `Intl` formatters.
+ *
+ * Arabic UI stays RTL with Arabic month and weekday names, but numerals use
+ * Western digit shapes (1, 2, 3) rather than Eastern Arabic (١, ٢, ٣).
+ */
+export function intlLocale(locale: string): string {
+  return locale === 'ar' ? 'ar-u-nu-latn' : locale
+}
+
+/**
  * Docs are authored in English. The chrome, markdown, and demos all assume
  * LTR, so `/docs` never follows a persisted French or Arabic preference.
  */

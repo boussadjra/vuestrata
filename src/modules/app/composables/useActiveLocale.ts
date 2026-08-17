@@ -42,9 +42,12 @@ export function useActiveLocale() {
     resolveActiveLocale(pathname.value, appStore.locale as SupportedLocale),
   )
 
+  const isRtl = computed(() => isRtlLocale(current.value))
+
   return {
     current,
-    isRtl: computed(() => isRtlLocale(current.value)),
+    isRtl,
+    dir: computed<'ltr' | 'rtl'>(() => (isRtl.value ? 'rtl' : 'ltr')),
   }
 }
 

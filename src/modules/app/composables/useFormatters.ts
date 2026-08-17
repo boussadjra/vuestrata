@@ -1,5 +1,6 @@
 import { useI18n } from 'vue-i18n'
 
+import { intlLocale } from '@/plugins/appearance'
 import { toMajorUnits } from '~/lib/money'
 
 /**
@@ -9,13 +10,17 @@ import { toMajorUnits } from '~/lib/money'
  * previously shipped pre-formatted strings from the API (`"$45,231"`), which
  * hardcodes the symbol, the grouping separator, and the symbol's position for
  * every locale at once — and produces `"$45,231"` for an Arabic reader who
- * expects `٤٥٬٢٣١` and a right-positioned symbol.
+ * expects a right-positioned symbol and locale-appropriate grouping.
  *
  * `Intl` formatters are relatively expensive to construct, so they are cached
  * per locale+options rather than rebuilt on every render.
  */
 export function useFormatters() {
   const { locale } = useI18n()
+
+  function intlTag() {
+    return intlLocale(locale.value)
+  }
 
   const cache = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat | Intl.RelativeTimeFormat>()
 
@@ -38,7 +43,7 @@ export function useFormatters() {
     const formatter = cached(
       key,
       () =>
-        new Intl.NumberFormat(locale.value, {
+        new Intl.NumberFormat(intlTag(), {
           style: 'currency',
           currency: currencyCode,
           notation: compact ? 'compact' : 'standard',
@@ -53,7 +58,7 @@ export function useFormatters() {
     const formatter = cached(
       key,
       () =>
-        new Intl.NumberFormat(locale.value, {
+        new Intl.NumberFormat(intlTag(), {
           notation: compact ? 'compact' : 'standard',
           maximumFractionDigits: compact ? 1 : 0,
         }),
@@ -67,7 +72,7 @@ export function useFormatters() {
     const formatter = cached(
       key,
       () =>
-        new Intl.NumberFormat(locale.value, {
+        new Intl.NumberFormat(intlTag(), {
           style: 'percent',
           minimumFractionDigits: fractionDigits,
           maximumFractionDigits: fractionDigits,
@@ -82,7 +87,7 @@ export function useFormatters() {
     const formatter = cached(
       key,
       () =>
-        new Intl.NumberFormat(locale.value, {
+        new Intl.NumberFormat(intlTag(), {
           style: 'percent',
           signDisplay: 'exceptZero',
           minimumFractionDigits: fractionDigits,
@@ -99,7 +104,7 @@ export function useFormatters() {
     const key = `date:${locale.value}:${JSON.stringify(options)}`
     const formatter = cached(
       key,
-      () => new Intl.DateTimeFormat(locale.value, options),
+      () => new Intl.DateTimeFormat(intlTag(), options),
     ) as Intl.DateTimeFormat
     return formatter.format(typeof value === 'string' ? new Date(value) : value)
   }
@@ -128,7 +133,7 @@ export function useFormatters() {
   function relativeTime(value: string | Date): string {
     const formatter = cached(
       `rel:${locale.value}`,
-      () => new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' }),
+      () => new Intl.RelativeTimeFormat(intlTag(), { numeric: 'auto' }),
     ) as Intl.RelativeTimeFormat
 
     const target = typeof value === 'string' ? new Date(value) : value

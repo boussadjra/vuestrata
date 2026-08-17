@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import {
   applyAppearance,
+  intlLocale,
   isDocsPath,
   readPersistedAppearance,
   resolveActiveLocale,
@@ -23,6 +24,14 @@ describe('isDocsPath', () => {
     expect(isDocsPath('/dashboard')).toBe(false)
     expect(isDocsPath('/documentation')).toBe(false)
     expect(isDocsPath('/docsfoo')).toBe(false)
+  })
+})
+
+describe('intlLocale', () => {
+  it('uses Western digits for Arabic Intl formatters', () => {
+    expect(intlLocale('ar')).toBe('ar-u-nu-latn')
+    expect(intlLocale('en')).toBe('en')
+    expect(intlLocale('fr')).toBe('fr')
   })
 })
 
