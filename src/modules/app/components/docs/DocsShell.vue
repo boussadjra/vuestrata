@@ -51,6 +51,10 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Module System Overview',
     description: 'App module architecture, boundaries, and runtime registration.',
   },
+  '/docs/2.architecture/4.route-pages.md': {
+    title: 'Route Pages',
+    description: 'Pages are thin inbound adapters between Vue Router and the application.',
+  },
   '/docs/3.modules/2.creating-a-module.md': {
     title: 'Creating a Module',
     description: 'Step-by-step guide to add a module in the current architecture.',
@@ -59,9 +63,18 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Built-in Modules',
     description: 'Reference for the currently shipped app modules.',
   },
+  '/docs/3.modules/4.navigation.md': {
+    title: 'Navigation',
+    description: 'Sidebar groups, nested sections, breadcrumbs, and the command palette.',
+  },
   '/docs/4.theming/1.overview.md': {
     title: 'Theming',
     description: 'Multi-theme system with dark mode support and custom themes.',
+  },
+  '/docs/4.theming/2.semantic-tokens.md': {
+    title: 'Semantic Tokens',
+    description:
+      'The token contract every theme satisfies, and the rule that keeps components off raw palette values.',
   },
   '/docs/5.components/1.overview.md': {
     title: 'Components',
@@ -114,6 +127,10 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description:
       'Detailed form management with useFormBuilder(), UiFormBuilder, state handling, and validation.',
   },
+  '/docs/5.components/5.dashboard.md': {
+    title: 'Dashboard',
+    description: 'The dashboard panels, the data they read, and how the charts are registered.',
+  },
   '/docs/6.configuration/1.environment.md': {
     title: 'Environment',
     description: 'Environment variables and deployment configuration.',
@@ -130,6 +147,28 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
   '/docs/7.testing/1.overview.md': {
     title: 'Testing',
     description: 'Unit testing with Vitest and end-to-end testing with Playwright.',
+  },
+  '/docs/7.testing/2.accessibility.md': {
+    title: 'Accessibility Testing',
+    description:
+      'What the automated suite covers, what it cannot, and the manual checklist that fills the gap.',
+  },
+  '/docs/8.deployment/1.vercel-demo.md': {
+    title: 'Vercel Demo',
+    description: 'Deploying the public, backend-free demo.',
+  },
+  '/docs/8.deployment/2.real-production.md': {
+    title: 'Real Production',
+    description:
+      'Deploying against a real backend, and every demo affordance that must be switched off first.',
+  },
+  '/docs/9.readiness.md': {
+    title: 'Readiness',
+    description: 'What is production-ready, what is a demo affordance, and what is still missing.',
+  },
+  '/docs/10.troubleshooting.md': {
+    title: 'Troubleshooting',
+    description: 'Failures this template produces on purpose, and what each one is telling you.',
   },
   '/docs/9.recipes/index.md': {
     title: 'Recipes',
@@ -207,6 +246,10 @@ function buildSlug(path: string): string {
     .replace(/(\d+)\./g, '')
 }
 
+/** Where standalone `docs/*.md` pages land: one section, after the numbered ones. */
+const TOP_LEVEL_SECTION = 'reference'
+const TOP_LEVEL_SECTION_ORDER = 999
+
 function extractOrder(segment: string): number {
   const match = segment.match(/^(\d+)\./)
   return match ? Number(match[1]) : 999
@@ -263,12 +306,28 @@ for (const path of Object.keys(markdownModules)) {
   let subsectionOrder: number | undefined
 
   if (parts.length === 1) {
-    sectionOrder = -1
+    // `docs/index.md` is the root link rendered above the sections. Every
+    // other top-level page — readiness, troubleshooting — fell through with
+    // `section: ''`, and `buildSidebarSections` drops those, so the page
+    // existed at its URL and appeared in no sidebar anywhere.
+    if (parts[0] === 'index') {
+      sectionOrder = -1
+    } else {
+      section = TOP_LEVEL_SECTION
+      sectionOrder = TOP_LEVEL_SECTION_ORDER
+      order = extractOrder(parts[0]!)
+
+      if (!sections.has(section))
+        sections.set(section, { label: TOP_LEVEL_SECTION, order: sectionOrder })
+    }
   } else if (parts.length === 2) {
     const sectionDir = parts[0]!
     sectionOrder = extractOrder(sectionDir)
     section = sectionDir.replace(/^\d+\./, '')
-    order = extractOrder(parts[1]!)
+    // A section's own `index.md` leads it. Without this it takes the
+    // no-numeric-prefix fallback of 999 and sorts *after* every page it
+    // introduces — which is how "Recipes" ended up below all eight recipes.
+    order = parts[1] === 'index' ? 0 : extractOrder(parts[1]!)
 
     if (!sections.has(section))
       sections.set(section, { label: section.replace(/-/g, ' '), order: sectionOrder })
