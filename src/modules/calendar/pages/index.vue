@@ -163,7 +163,7 @@ function cellLabel(key: string, count: number): string {
                   :aria-pressed="day.key === selectedKey"
                   :class="[
                     'flex h-20 w-full flex-col items-start gap-1 rounded-[var(--shape-radius-sm)] p-1.5 text-start transition-colors',
-                    day.inMonth ? 'text-foreground' : 'text-subtle-foreground',
+                    day.inMonth ? 'text-foreground' : 'text-muted-foreground',
                     day.key === selectedKey
                       ? 'bg-primary-solid text-primary-foreground'
                       : 'hover:bg-muted',

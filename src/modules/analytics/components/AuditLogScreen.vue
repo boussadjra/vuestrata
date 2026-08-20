@@ -68,7 +68,7 @@ function actionLabel(value: string): string {
         class="dark:bg-surface-800/90 border-surface-200 dark:border-surface-700 rounded-xl border bg-white/90 p-4"
       >
         <p class="text-muted-foreground text-sm">{{ t('audit_auth_events') }}</p>
-        <p class="text-info-700 dark:text-info-300 text-2xl font-bold tabular-nums">
+        <p class="text-info text-2xl font-bold tabular-nums">
           {{ stats.auth }}
         </p>
       </div>

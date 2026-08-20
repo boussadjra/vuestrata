@@ -222,9 +222,7 @@ function requestExport(name: string) {
               <td
                 :class="[
                   'px-5 py-3 text-end tabular-nums',
-                  row.changePercent >= 0
-                    ? 'text-success-700 dark:text-success-400'
-                    : 'text-destructive',
+                  row.changePercent >= 0 ? 'text-success' : 'text-destructive',
                 ]"
               >
                 {{ signedPercent(row.changePercent) }}

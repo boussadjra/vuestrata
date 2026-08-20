@@ -202,7 +202,7 @@ const socialProviders = computed(() => [
           <span :class="[resolveIcon('letter'), 'h-4 w-4']" />
           {{ t('auth_magic_link_sent_title') }}
         </div>
-        <p class="text-success-700 dark:text-success-300/80">
+        <p class="text-success/80">
           {{ t('auth_magic_link_sent_body', { email: form.email }) }}
         </p>
       </div>

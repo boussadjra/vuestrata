@@ -23,11 +23,19 @@ const props = withDefaults(defineProps<TrendDeltaProps>(), { size: 'md' })
 
 const { signedPercent } = useFormatters()
 
+/**
+ * The two branches are deliberately asymmetric.
+ *
+ * `text-success` is the semantic status-text token. There is no
+ * `text-destructive` equivalent here because `--color-destructive` is tuned as
+ * a FILL (it pairs with `--color-destructive-foreground` on buttons) and sits
+ * at `danger-600`, which measures 3.70:1 on Terminal's light card — below AA.
+ * `danger-700` clears it at 4.96:1. Swapping this to `text-destructive` for
+ * symmetry would reintroduce the contrast bug this file was fixed for.
+ */
 const toneClass = computed(() => {
   if (props.direction === 'flat') return 'text-muted-foreground'
-  return props.isImprovement
-    ? 'text-success-700 dark:text-success-300'
-    : 'text-danger-700 dark:text-danger-300'
+  return props.isImprovement ? 'text-success' : 'text-danger-700 dark:text-danger-300'
 })
 
 const iconName = computed(() => {

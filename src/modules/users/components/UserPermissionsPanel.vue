@@ -162,7 +162,7 @@ async function submit() {
               </span>
               <span
                 v-if="roleDefaults.has(perm)"
-                class="bg-info-subtle text-info-700 dark:text-info-300 rounded px-1.5 py-0.5 text-xs"
+                class="bg-info-subtle text-info rounded px-1.5 py-0.5 text-xs"
               >
                 {{ t('users_permission_default') }}
               </span>

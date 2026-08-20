@@ -47,12 +47,12 @@ const SEVERITY: Record<
   },
   warning: {
     icon: 'clock',
-    tone: 'text-warning-700 dark:text-warning-300',
+    tone: 'text-warning',
     badge: 'bg-warning-subtle text-warning-800 dark:text-warning-200',
   },
   info: {
     icon: 'info-circle',
-    tone: 'text-info-700 dark:text-info-300',
+    tone: 'text-info',
     badge: 'bg-info-subtle text-info-800 dark:text-info-200',
   },
 }

@@ -31,8 +31,8 @@ const isEmpty = computed(() => services.value.length === 0)
  */
 const STATUS: Record<SystemHealth['services'][number]['status'], { icon: IconName; tone: string }> =
   {
-    operational: { icon: 'check-circle', tone: 'text-success-700 dark:text-success-300' },
-    degraded: { icon: 'danger-triangle', tone: 'text-warning-700 dark:text-warning-300' },
+    operational: { icon: 'check-circle', tone: 'text-success' },
+    degraded: { icon: 'danger-triangle', tone: 'text-warning' },
     outage: { icon: 'close-circle', tone: 'text-destructive' },
   }
 
