@@ -24,7 +24,7 @@ const viewBox = computed(() => (props.variant === 'icon' ? '0 0 1580 1600' : '0 
     role="img"
     :aria-label="title"
     preserveAspectRatio="xMidYMid meet"
-    class="logo shrink-0 w-auto"
+    class="logo w-auto shrink-0"
     :class="className"
     style="fill-rule: evenodd; clip-rule: evenodd; stroke-linejoin: round; stroke-miterlimit: 2"
   >
