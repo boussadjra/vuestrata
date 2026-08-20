@@ -198,7 +198,9 @@ adds six project rules. `vpr test --run` includes `test/unit/architecture/`.
 | `theme-registry`        | a theme wired in 3 of 4 files, or imported after `semantic.css`                                             |
 | `module-contract` test  | bad layout, nav group, icon or i18n key; dynamic route shadowing a static one; unconditional `mockHandlers` |
 | `registry-drift` test   | a module never added to `setup.ts`                                                                          |
-| `verify-bundle.mjs`     | MSW or demo credentials reaching a production bundle                                                        |
+| `verify-bundle.mjs`     | MSW or demo credentials reaching a production bundle; the bundle size budgets                               |
+| `check-toolchain-pins`  | Node/pnpm/Vite+ pinned differently in the Dockerfile, `vercel.json` and CI                                  |
+| `sync-headers --check`  | the security headers drifting between their four generated targets                                          |
 
 If a rule blocks you, fix the cause. Reach for an escape hatch only with a
 written justification — every one of these exists because the failure it
