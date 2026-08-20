@@ -46,8 +46,8 @@ importers:
         specifier: ^1.1.3
         version: 1.1.3
       comark:
-        specifier: https://pkg.pr.new/comarkdown/comark/comark@05679bb
-        version: https://pkg.pr.new/comarkdown/comark/comark@05679bb(shiki@4.4.3)(vue@3.5.41(typescript@6.0.3))
+        specifier: file:vendor/comark-1.0.0-05679bb.tgz
+        version: file:vendor/comark-1.0.0-05679bb.tgz(shiki@4.4.3)(vue@3.5.41(typescript@6.0.3))
       consola:
         specifier: ^3.4.2
         version: 3.4.2
@@ -195,7 +195,7 @@ importers:
         version: 0.2.9(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0)
       vitest:
         specifier: 4.1.10
-        version: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10))(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
+        version: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
       vue-tsc:
         specifier: ^3.3.9
         version: 3.3.9(typescript@6.0.3)
@@ -2096,8 +2096,8 @@ packages:
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
-  comark@https://pkg.pr.new/comarkdown/comark/comark@05679bb:
-    resolution: {integrity: sha512-cNnKWFKD0bG98mF/bn9HAqGJYfFKtfXZlyneBP+AK7NvdGbbJbGGQ0dHtgSxmnK7IvVG9OVMZ6mKa+VvK7d8Tg==, tarball: https://pkg.pr.new/comarkdown/comark/comark@05679bb}
+  comark@file:vendor/comark-1.0.0-05679bb.tgz:
+    resolution: {integrity: sha512-oUIeK98mkfRIhbWdbJk4mdt+U7o/ARzVA+8xP4VeAeXmUQ7myu+dCygzKHl7GLVpgjNX/3qQnuolhakZh7Qd4g==, tarball: file:vendor/comark-1.0.0-05679bb.tgz}
     version: 1.0.0
     peerDependencies:
       react: ^19.2.4
@@ -4818,7 +4818,7 @@ snapshots:
       '@testing-library/dom': 10.4.1
       '@testing-library/user-event': 14.6.4(@testing-library/dom@10.4.1)
       '@vitest/browser': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10)
-      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10))(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
+      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
     transitivePeerDependencies:
       - bufferutil
       - msw
@@ -4834,7 +4834,7 @@ snapshots:
       pngjs: 7.0.0
       sirv: 3.0.2
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10))(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
+      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
       ws: 8.21.3
     transitivePeerDependencies:
       - bufferutil
@@ -4854,7 +4854,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10))(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
+      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
     optionalDependencies:
       '@vitest/browser': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10)
 
@@ -5274,7 +5274,7 @@ snapshots:
 
   color-name@1.1.4: {}
 
-  comark@https://pkg.pr.new/comarkdown/comark/comark@05679bb(shiki@4.4.3)(vue@3.5.41(typescript@6.0.3)):
+  comark@file:vendor/comark-1.0.0-05679bb.tgz(shiki@4.4.3)(vue@3.5.41(typescript@6.0.3)):
     optionalDependencies:
       shiki: 4.4.3
       vue: 3.5.41(typescript@6.0.3)
@@ -6696,7 +6696,7 @@ snapshots:
       oxfmt: 0.62.0(vite-plus@0.2.9(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))
       oxlint: 1.77.0(oxlint-tsgolint@7.0.2001)(vite-plus@0.2.9(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))
       oxlint-tsgolint: 7.0.2001
-      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10))(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
+      vitest: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
     optionalDependencies:
       '@voidzero-dev/vite-plus-darwin-arm64': 0.2.9
       '@voidzero-dev/vite-plus-darwin-x64': 0.2.9
@@ -6737,7 +6737,7 @@ snapshots:
       - vite
       - yaml
 
-  vitest@4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))(vitest@4.1.10))(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3)):
+  vitest@4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10)(@vitest/coverage-v8@4.1.10)(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(jsdom@30.0.1)(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3)):
     dependencies:
       '@vitest/expect': 4.1.10
       '@vitest/mocker': 4.1.10(@voidzero-dev/vite-plus-core@0.2.9(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(msw@2.15.0(@types/node@26.2.0)(typescript@6.0.3))
