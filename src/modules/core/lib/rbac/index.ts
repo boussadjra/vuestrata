@@ -18,6 +18,7 @@ export type {
 export {
   registerPermissions,
   getRegisteredPermissions,
+  tryGetRegisteredPermissions,
   isRegisteredPermission,
   validatePermissions,
   clearRegistry,

@@ -79,6 +79,10 @@ export function getRbacBackend(): RbacBackend {
   return rbacBackend
 }
 
+export function tryGetRbacBackend(): RbacBackend | null {
+  return rbacBackend
+}
+
 export function installValidationCacheBackend<T>(backend: ValidationCacheBackend<T>): void {
   validationCacheBackend = backend as ValidationCacheBackend
 }

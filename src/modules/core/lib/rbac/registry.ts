@@ -1,5 +1,5 @@
 import { createScopedLogger } from '~/lib/logger'
-import { getRbacBackend } from '~/lib/runtime'
+import { getRbacBackend, tryGetRbacBackend } from '~/lib/runtime'
 
 const registryLogger = createScopedLogger('rbac:registry')
 
@@ -51,4 +51,18 @@ export function validatePermissions(permissions: string[]): string[] {
     }
   }
   return invalid
+}
+
+const EMPTY_PERMISSIONS: ReadonlySet<string> = new Set<string>()
+
+/**
+ * Registered permissions, or an empty set when no backend is installed yet.
+ *
+ * For the handful of callers that can legitimately run before bootstrap has
+ * wired the backends — demo seeding reached from a mock handler in an isolated
+ * test, for instance — and for which "fewer permissions" is a better answer
+ * than a thrown error.
+ */
+export function tryGetRegisteredPermissions(): ReadonlySet<string> {
+  return tryGetRbacBackend()?.permissions ?? EMPTY_PERMISSIONS
 }
