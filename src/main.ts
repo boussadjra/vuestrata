@@ -16,6 +16,7 @@ import { installI18n } from '@/plugins/i18n'
 import { pinia } from '@/plugins/pinia'
 import { router, layoutMap } from '@/plugins/router'
 import { restoreSession } from '@/plugins/session-restore'
+import { installStaleChunkRecovery } from '@/plugins/stale-chunk'
 import { VueQueryPlugin, vueQueryOptions } from '@/plugins/vue-query'
 import { installRuntimeBackends } from '@/state/runtime-backends'
 // Stores
@@ -182,6 +183,9 @@ async function bootstrap() {
   // the rest of bootstrap is still captured. No-op without a configured DSN.
   await installErrorReporting()
   installErrorHandlers()
+  // Before any lazy route can be requested, so a deploy that landed while this
+  // tab was open is recovered rather than surfacing as a dead navigation.
+  installStaleChunkRecovery()
 
   const app = createApp(App)
   setupVueErrorHandler(app)

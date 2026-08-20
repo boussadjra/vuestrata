@@ -18,6 +18,7 @@ import type { Permission } from '~/types'
 
 import { pinia } from './pinia'
 import { resolveRouteAccess, type GuardedRoute } from './route-guard'
+import { clearStaleChunkMarker, handleStaleChunkError } from './stale-chunk'
 
 NProgress.configure({
   showSpinner: false,
@@ -61,9 +62,19 @@ router.beforeEach(() => {
 })
 router.afterEach(() => {
   NProgress.done()
+  // Chunks are loading again, so a LATER stale chunk (a second deploy in the
+  // same session) should get its own reload rather than being suppressed by a
+  // marker left over from this one.
+  clearStaleChunkMarker()
 })
-router.onError(() => {
+router.onError((error) => {
   NProgress.done()
+  // A route component that no longer exists on the server means a deploy
+  // happened while this tab was open. Previously this handler tidied away the
+  // progress bar and stopped there, so the user clicked a link and the app
+  // silently refused to move — permanently, because the missing chunk never
+  // comes back. See plugins/stale-chunk.ts for the reload-loop guard.
+  handleStaleChunkError(error)
 })
 
 // Auth & RBAC guard.
