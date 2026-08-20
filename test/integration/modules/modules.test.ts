@@ -81,3 +81,52 @@ describe('module persistence', () => {
     expect(store.enabledModules.has('checkout')).toBe(true)
   })
 })
+
+describe('module defaults after the first boot', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  /**
+   * The persisted list used to win outright whenever it was non-empty, so a
+   * module added after a visitor's first boot — which is what `gen:module`
+   * produces — never enabled: no routes, no nav entry, and no error saying so.
+   */
+  it('should enable a default module the browser has not seen before', async () => {
+    localStorage.setItem('vuestrata-enabled-modules', JSON.stringify(['orders']))
+    localStorage.setItem('vuestrata-known-modules', JSON.stringify(['orders']))
+
+    const store = useModuleStore()
+    await store.initModules([
+      createModule('orders'),
+      createModule('invoices', { enabledByDefault: true }),
+    ])
+
+    expect(store.enabledModules.has('invoices')).toBe(true)
+    expect(store.enabledModules.has('orders')).toBe(true)
+  })
+
+  it('should leave a known default module disabled once it has been turned off', async () => {
+    localStorage.setItem('vuestrata-enabled-modules', JSON.stringify(['orders']))
+    localStorage.setItem('vuestrata-known-modules', JSON.stringify(['orders', 'calendar']))
+
+    const store = useModuleStore()
+    await store.initModules([
+      createModule('orders'),
+      createModule('calendar', { enabledByDefault: true }),
+    ])
+
+    expect(store.enabledModules.has('calendar')).toBe(false)
+  })
+
+  it('should record every registered module as known', async () => {
+    const store = useModuleStore()
+    await store.initModules([createModule('orders'), createModule('calendar')])
+
+    expect(JSON.parse(localStorage.getItem('vuestrata-known-modules') ?? '[]')).toEqual([
+      'orders',
+      'calendar',
+    ])
+  })
+})

@@ -24,12 +24,20 @@ export interface ResolvedNavGroup extends ModuleNavGroupDefinition {
 
 const moduleLogger = createScopedLogger('modules')
 const STORAGE_KEY = 'vuestrata-enabled-modules'
+// Every module id this browser has already seen. Kept apart from the enabled
+// list so "never offered yet" stays distinguishable from "turned off".
+const KNOWN_STORAGE_KEY = 'vuestrata-known-modules'
 
 export const useModuleStore = defineStore('modules', () => {
   // ─── State ────────────────────────────────────────────────
 
   const registry = ref(new Map<string, ModuleDefinition>())
   const enabledStorage = useAppStorage<string[]>(STORAGE_KEY, [], {
+    serializer: createJsonSerializer<string[]>([]),
+    validate: (value) => Array.isArray(value) && value.every((entry) => typeof entry === 'string'),
+    fallback: [],
+  })
+  const knownStorage = useAppStorage<string[]>(KNOWN_STORAGE_KEY, [], {
     serializer: createJsonSerializer<string[]>([]),
     validate: (value) => Array.isArray(value) && value.every((entry) => typeof entry === 'string'),
     fallback: [],
@@ -267,9 +275,24 @@ export const useModuleStore = defineStore('modules', () => {
     }
 
     const persisted = new Set(enabledStorage.value)
+    const known = new Set(knownStorage.value)
     const required = definitions.filter((d) => d.config.required).map((d) => d.config.id)
     const defaults = definitions.filter((d) => d.config.enabledByDefault).map((d) => d.config.id)
-    const toEnable = new Set([...required, ...(persisted.size > 0 ? persisted : defaults)])
+
+    // A default-on module is enabled the first time this browser sees it, and
+    // its persisted state is honoured from then on.
+    //
+    // The persisted list used to win outright whenever it was non-empty, which
+    // meant defaults only ever applied on a visitor's very first boot. Add a
+    // module afterwards — which is exactly what `vp run gen:module` does — and
+    // it stayed disabled forever: no routes, no nav entry, no error, and no way
+    // to reach it short of clearing site data. Diffing against the ids this
+    // browser has already seen tells a genuinely new module apart from one the
+    // visitor turned off.
+    const unseenDefaults = defaults.filter((id) => !known.has(id))
+    const toEnable = new Set([...required, ...persisted, ...unseenDefaults])
+
+    knownStorage.value = [...new Set([...known, ...definitions.map((d) => d.config.id)])]
 
     // Continue enabling siblings even if an optional one fails so a single
     // broken module can't take the whole app offline. Required modules
