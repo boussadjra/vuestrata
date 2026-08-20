@@ -1,10 +1,11 @@
 import { runtimeEnv } from '~/lib/config'
+import { normalizeError } from '~/lib/errors'
 import type { AuthProvider, AuthResponse } from '~/types'
 
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '../lib/pkce'
-import { assertOAuthProvider, authEndpoints } from './base'
+import { assertOAuthProvider, authEndpoints, authLogger } from './base'
 import { clearPkceState, OAUTH_STATE_TTL_MS, persistPkceState, readPkceState } from './pkce-state'
-import { OAuthRedirectError, type AuthAdapter } from './types'
+import { OAuthRedirectError, type AuthAdapter, type ResumedSession } from './types'
 
 function callbackUrl(): string {
   return `${window.location.origin}/auth/callback`
@@ -84,6 +85,39 @@ export function createOAuthAdapter(): AuthAdapter {
 
     logout: authEndpoints.logout,
     getUser: authEndpoints.getUser,
+
+    /**
+     * Resume from the HttpOnly session cookie.
+     *
+     * This runs unconditionally — there is no stored token to check first, and
+     * checking for one is precisely the bug this replaced: the bootstrap used
+     * to gate session restoration on `authStore.token`, which under cookie
+     * transport is ALWAYS null. A signed-in user with a perfectly valid session
+     * cookie was therefore treated as signed out on every reload.
+     *
+     * No token comes back, and none is invented. `ResumedSession.token` stays
+     * undefined and the auth store's `isAuthenticated` accounts for cookie
+     * transport directly.
+     */
+    async resumeSession(): Promise<ResumedSession | null> {
+      try {
+        const user = await authEndpoints.getUser()
+        if (!user) return null
+        authLogger.info('Session resumed from the session cookie.')
+        return { user }
+      } catch (err) {
+        const appErr = normalizeError(err)
+        if (appErr.status === 401 || appErr.status === 403) {
+          authLogger.info('No session cookie to resume.')
+        } else {
+          authLogger.warn('Could not resume the session from the session cookie.', {
+            code: appErr.code,
+            status: appErr.status,
+          })
+        }
+        return null
+      }
+    },
 
     async login() {
       return beginAuthorizationCodeFlow('/auth/authorize')

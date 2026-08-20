@@ -3,7 +3,7 @@ import { configure as configureFormwerk } from '@formwerk/core'
 import { appConfig, authAdapter as configuredAuthAdapter } from '@/config/app.config'
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
 // Utilities & error handling
-import { installErrorHandlers, normalizeError, reportError } from '@/lib/errors'
+import { installErrorHandlers, reportError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 // Modules
 import { setupModules, useModuleStore } from '@/modules'
@@ -15,6 +15,7 @@ import { installI18n } from '@/plugins/i18n'
 // Plugins (initialization order matters)
 import { pinia } from '@/plugins/pinia'
 import { router, layoutMap } from '@/plugins/router'
+import { restoreSession } from '@/plugins/session-restore'
 import { VueQueryPlugin, vueQueryOptions } from '@/plugins/vue-query'
 import { installRuntimeBackends } from '@/state/runtime-backends'
 // Stores
@@ -115,36 +116,30 @@ function loadDemoState() {
   return import('@/state/demo')
 }
 
-async function restoreSession(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
-  // Mock adapter: restore the session from the IndexedDB demo store.
-  if (__VUESTRATA_DEMO__ && configuredAuthAdapter === 'mock') {
-    const { getDemoSession } = await loadDemoState()
-    const session = await getDemoSession()
-    if (session) {
-      authStore.setAuth(session.user, session.token, session.refreshToken, session.expiresIn)
-    }
-    return
-  }
-  if (!authStore.token) return
-  try {
-    const adapter = createAuthAdapter(configuredAuthAdapter)
-    const user = await adapter.getUser()
-    if (user) authStore.setUser(user)
-  } catch (err) {
-    // Only clear auth on hard credential failures (401/403). A transient
-    // network blip, 5xx, or CORS hiccup should not log the user out — the
-    // 401 interceptor will catch a truly-invalid token on the next request.
-    const appErr = normalizeError(err)
-    if (appErr.status === 401 || appErr.status === 403) {
-      logger.warn('Session no longer valid — clearing auth', { status: appErr.status })
-      authStore.clearAuth()
-    } else {
-      logger.warn('Session restoration failed (kept current state)', {
-        code: appErr.code,
-        status: appErr.status,
-      })
-    }
-  }
+/**
+ * Wire the real dependencies into `restoreSession`.
+ *
+ * The decision logic lives in `plugins/session-restore.ts` so it can be tested
+ * without booting an app — see the note there about the `!authStore.token`
+ * precondition that used to make the whole thing dead code.
+ */
+async function restoreSessionForBoot(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+  const isDemoAuth = __VUESTRATA_DEMO__ && configuredAuthAdapter === 'mock'
+  const adapter = createAuthAdapter(configuredAuthAdapter)
+
+  await restoreSession({
+    store: authStore,
+    getUser: () => adapter.getUser(),
+    resumeSession: adapter.resumeSession ? () => adapter.resumeSession!() : undefined,
+    // Passing this is what selects the demo branch; the restore module needs
+    // no build-mode constant of its own.
+    loadDemoSession: isDemoAuth
+      ? async () => {
+          const { getDemoSession } = await loadDemoState()
+          return (await getDemoSession()) ?? null
+        }
+      : undefined,
+  })
 }
 
 function removeAppLoader(): void {
@@ -225,7 +220,7 @@ async function bootstrap() {
 
   // After the seed, so a session restored from a previous visit carries the
   // reconciled permission set rather than the one captured at login.
-  await restoreSession(authStore)
+  await restoreSessionForBoot(authStore)
 
   app.use(router)
 
@@ -257,7 +252,7 @@ async function bootstrap() {
 
     onInvalidation(async (event) => {
       if (event === 'update') {
-        await restoreSession(authStore)
+        await restoreSessionForBoot(authStore)
         return
       }
 

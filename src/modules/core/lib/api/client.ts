@@ -12,7 +12,7 @@ import {
   notifySessionExpired,
 } from './auth-interceptor'
 
-export { installApiAuth, resetAuthInterceptor } from './auth-interceptor'
+export { getAuthTransport, installApiAuth, resetAuthInterceptor } from './auth-interceptor'
 export type { ApiAuthProvider } from './types'
 type ApiRequestOptions = Omit<FetchOptions<'json'>, 'method' | 'body'>
 // `runtimeEnv.apiUrl` may be a relative path like '/api'. In Node (tests) a

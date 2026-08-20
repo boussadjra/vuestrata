@@ -29,6 +29,40 @@ import { z } from 'zod'
  */
 export const RUNTIME_MODES = ['production', 'demo'] as const
 export const AUTH_ADAPTERS = ['mock', 'jwt', 'oauth'] as const
+
+/**
+ * How a bearer-transport session survives a page reload.
+ *
+ * Tokens are held in memory, so without one of these a refresh (F5, a restored
+ * tab, following a deep link) ends the session. That was the behaviour before
+ * this setting existed, and it was silent — the app simply bounced the user to
+ * the login page with no indication that anything was misconfigured.
+ *
+ * Only meaningful for the `bearer` transport. Cookie-transport adapters resume
+ * from their HttpOnly session cookie unconditionally; the browser owns that
+ * credential and there is nothing for this setting to control.
+ *
+ *   none           — no reload survival. Correct for kiosk/shared terminals
+ *                    and for the demo, where IndexedDB already holds the
+ *                    session. An explicit choice, not an accident.
+ *   refresh-cookie — at boot the app calls the refresh endpoint with
+ *                    `credentials: 'include'` and no body; the backend reads
+ *                    its own HttpOnly refresh cookie and returns a new access
+ *                    token. RECOMMENDED: no long-lived credential is ever
+ *                    readable by JavaScript, so an XSS cannot exfiltrate it.
+ *                    Requires backend support.
+ *   session         — the refresh token is kept in `sessionStorage`. Survives
+ *                    reload, dies with the tab. Readable by any script on the
+ *                    origin: an XSS can steal it.
+ *   local           — the refresh token is kept in `localStorage`. Survives a
+ *                    browser restart. Same XSS exposure as `session`, over a
+ *                    longer window and shared across tabs.
+ *
+ * `session` and `local` match the endpoint contract this template documents
+ * (`POST /auth/login` returns `refreshToken` in the body). `refresh-cookie`
+ * needs a backend that sets the cookie itself. Pick deliberately.
+ */
+export const SESSION_PERSISTENCE_MODES = ['none', 'refresh-cookie', 'session', 'local'] as const
 export const ICON_PROVIDERS = [
   'solar',
   'lucide',
@@ -43,6 +77,7 @@ export const ICON_PROVIDERS = [
 
 export type RuntimeMode = (typeof RUNTIME_MODES)[number]
 export type AuthAdapterName = (typeof AUTH_ADAPTERS)[number]
+export type SessionPersistence = (typeof SESSION_PERSISTENCE_MODES)[number]
 export type IconProviderName = (typeof ICON_PROVIDERS)[number]
 
 /** Canonical env keys. Referenced by docs, tests, and error messages. */
@@ -52,6 +87,7 @@ export const ENV_KEYS = {
   apiUrl: 'VUESTRATA_API_URL',
   useMocks: 'VUESTRATA_USE_MOCKS',
   authAdapter: 'VUESTRATA_AUTH_ADAPTER',
+  sessionPersistence: 'VUESTRATA_SESSION_PERSISTENCE',
   iconProvider: 'VUESTRATA_ICON_PROVIDER',
   theme: 'VUESTRATA_THEME',
   demoRetentionHours: 'VUESTRATA_DEMO_AUTH_RETENTION_HOURS',
@@ -136,6 +172,7 @@ const envSchema = z.object({
   [ENV_KEYS.apiUrl]: z.string().min(1).optional(),
   [ENV_KEYS.useMocks]: booleanish,
   [ENV_KEYS.authAdapter]: z.enum(AUTH_ADAPTERS).optional(),
+  [ENV_KEYS.sessionPersistence]: z.enum(SESSION_PERSISTENCE_MODES).optional(),
   [ENV_KEYS.iconProvider]: z.enum(ICON_PROVIDERS).optional(),
   [ENV_KEYS.theme]: z
     .string()
@@ -157,6 +194,11 @@ export interface RuntimeEnv {
   apiUrl: string
   useMocks: boolean
   authAdapter: AuthAdapterName
+  /**
+   * Reload-survival strategy for bearer sessions. Ignored by cookie-transport
+   * adapters, which resume from their session cookie regardless.
+   */
+  sessionPersistence: SessionPersistence
   iconProvider: IconProviderName
   theme: string
   demoAuth: { retentionHours: number }
@@ -205,6 +247,17 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
         },
       })
     }
+    if (env.sessionPersistence !== 'none') {
+      issues.push({
+        message:
+          `${ENV_KEYS.sessionPersistence} must be "none" when ${ENV_KEYS.runtimeMode}="demo" ` +
+          `(received "${env.sessionPersistence}"). The demo restores its session from IndexedDB; ` +
+          `there is no refresh token and no refresh endpoint outside MSW.`,
+        apply: (draft) => {
+          draft.sessionPersistence = 'none'
+        },
+      })
+    }
     return issues
   }
 
@@ -225,6 +278,23 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
         `Use "jwt" or "oauth", or set ${ENV_KEYS.runtimeMode}="demo".`,
       apply: (draft) => {
         draft.authAdapter = 'jwt'
+      },
+    })
+  }
+
+  // Cookie transport owns its own persistence: the browser holds an HttpOnly
+  // session cookie and the app resumes from it unconditionally. Configuring a
+  // bearer strategy alongside it is a contradiction, and silently honouring it
+  // would mean writing a refresh token to Web Storage for an adapter that
+  // never receives one.
+  if (env.authAdapter === 'oauth' && env.sessionPersistence !== 'none') {
+    issues.push({
+      message:
+        `${ENV_KEYS.sessionPersistence}="${env.sessionPersistence}" has no meaning with ` +
+        `${ENV_KEYS.authAdapter}="oauth": that adapter uses cookie transport and resumes from ` +
+        `its session cookie. Set it to "none".`,
+      apply: (draft) => {
+        draft.sessionPersistence = 'none'
       },
     })
   }
@@ -292,6 +362,12 @@ function applyDefaults(parsed: z.infer<typeof envSchema>, isDev: boolean): Runti
     // one variable set. Explicit values still win — and are then cross-checked.
     useMocks: parsed[ENV_KEYS.useMocks] ?? demo,
     authAdapter: parsed[ENV_KEYS.authAdapter] ?? (demo ? 'mock' : 'jwt'),
+    // Default to the strategy that cannot leak a long-lived credential. When
+    // the backend does not set a refresh cookie the boot call simply 401s and
+    // the user lands on the login page — exactly what happened before this
+    // setting existed, so the default is never worse than the old behaviour,
+    // and is strictly better against a backend that does support it.
+    sessionPersistence: parsed[ENV_KEYS.sessionPersistence] ?? (demo ? 'none' : 'refresh-cookie'),
     iconProvider: parsed[ENV_KEYS.iconProvider] ?? 'solar',
     theme: parsed[ENV_KEYS.theme] ?? 'default',
     demoAuth: {

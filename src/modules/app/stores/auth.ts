@@ -1,7 +1,12 @@
 import { jwtDecode } from 'jwt-decode'
 import { defineStore } from 'pinia'
 
-import { resetAuthInterceptor } from '~/lib/api/client'
+import { getAuthTransport, resetAuthInterceptor } from '~/lib/api/client'
+import {
+  clearPersistedRefreshToken,
+  persistRefreshToken,
+  usesWebStorage,
+} from '~/lib/auth/session-persistence'
 import { createScopedLogger } from '~/lib/logger'
 import type { User, Role, Permission } from '~/types'
 
@@ -39,9 +44,12 @@ function resolveTokenLifetime(token: string, expiresIn: number | undefined): num
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  // Tokens and user data are held in-memory only — never persisted to
-  // localStorage.  Real backends set HttpOnly cookies; the mock adapter
-  // keeps tokens in these refs for the lifetime of the page session.
+  // The ACCESS token and user are held in memory only, always. Only the
+  // refresh token is ever persisted, and only when the deployment opted in
+  // through `VUESTRATA_SESSION_PERSISTENCE` — see
+  // core/lib/auth/session-persistence.ts for the trade-off behind each mode.
+  // Cookie-transport deployments persist nothing here: the browser holds an
+  // HttpOnly session cookie and the app never sees a token at all.
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
   const refreshToken = ref<string | null>(null)
@@ -53,7 +61,20 @@ export const useAuthStore = defineStore('auth', () => {
   // never imports adapter code.
   let refreshHandler: (() => void | Promise<void>) | null = null
 
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  /**
+   * Under cookie transport there is NEVER a client-visible token — the whole
+   * point of an HttpOnly session cookie is that JavaScript cannot read it. The
+   * old `!!token && !!user` definition therefore reported every cookie-session
+   * user as signed out, so the route guard bounced them to /auth/login on each
+   * protected route even with a perfectly valid session.
+   *
+   * `getAuthTransport()` is not reactive, but it is written once during
+   * bootstrap and never changes afterwards; the computed also depends on
+   * `user`, so the first mutation after bootstrap re-evaluates it anyway.
+   */
+  const isAuthenticated = computed(
+    () => !!user.value && (!!token.value || getAuthTransport() === 'cookie'),
+  )
   const userRole = computed<Role>(() => user.value?.role ?? 'guest')
   const userPermissions = computed<Permission[]>(() => user.value?.permissions ?? [])
 
@@ -98,6 +119,11 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = t
     if (rt) {
       refreshToken.value = rt
+      // Mirror rotations into storage as they happen. A backend that rotates
+      // the refresh token on every use would otherwise leave a stale value
+      // behind, and the next boot would present a token the server has
+      // already invalidated.
+      if (usesWebStorage()) persistRefreshToken(rt)
     }
     const lifetime = resolveTokenLifetime(t, expiresIn)
     if (lifetime !== null) {
@@ -114,6 +140,10 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     refreshToken.value = null
     clearRefreshTimer()
+    // Unconditional, and it clears BOTH storage areas: a logout must not leave
+    // a usable refresh token behind, including one written before the
+    // deployment's persistence mode was changed.
+    clearPersistedRefreshToken()
   }
 
   /**

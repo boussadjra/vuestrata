@@ -10,9 +10,16 @@ export {
   ENV_KEYS,
   ICON_PROVIDERS,
   RUNTIME_MODES,
+  SESSION_PERSISTENCE_MODES,
   isDemoRuntime,
 } from '~/lib/config'
-export type { AuthAdapterName, IconProviderName, RuntimeEnv, RuntimeMode } from '~/lib/config'
+export type {
+  AuthAdapterName,
+  IconProviderName,
+  RuntimeEnv,
+  RuntimeMode,
+  SessionPersistence,
+} from '~/lib/config'
 
 /**
  * The configured auth adapter. Exported separately because it is read during
@@ -26,6 +33,7 @@ export const appConfig: AppConfig = {
   apiUrl: runtimeEnv.apiUrl,
   useMocks: runtimeEnv.useMocks,
   authProvider: runtimeEnv.authAdapter,
+  sessionPersistence: runtimeEnv.sessionPersistence,
   iconProvider: runtimeEnv.iconProvider,
   theme: runtimeEnv.theme,
   demoAuth: runtimeEnv.demoAuth,

@@ -1,7 +1,15 @@
 import { jwtDecode } from 'jwt-decode'
 
+import {
+  readPersistedRefreshToken,
+  usesRefreshCookie,
+  usesWebStorage,
+} from '~/lib/auth/session-persistence'
+import { normalizeError } from '~/lib/errors'
+import type { User } from '~/types'
+
 import { authEndpoints, authLogger } from './base'
-import type { AuthAdapter } from './types'
+import type { AuthAdapter, ResumedSession } from './types'
 
 /**
  * Clock-skew margin. A token that expires in under 30 seconds is treated as
@@ -72,6 +80,33 @@ export function createJwtAdapter(getToken: () => string | null = () => null): Au
     verifyMfa: authEndpoints.verifyMfa,
     disableMfa: authEndpoints.disableMfa,
 
+    /**
+     * Recover a session after a reload dropped the in-memory access token.
+     *
+     * Which credential is presented depends on `VUESTRATA_SESSION_PERSISTENCE`:
+     * an HttpOnly refresh cookie the backend set, or a refresh token this app
+     * wrote to Web Storage. Under `none` there is nothing to present and the
+     * session legitimately ends at the reload.
+     *
+     * A 401/403 means the credential is spent or was revoked — the ordinary
+     * signed-out answer. Anything else (offline, 5xx, CORS) is reported as null
+     * too, because a boot-time resume must never be the thing that white-screens
+     * the app; the user simply lands on the login page.
+     */
+    async resumeSession(): Promise<ResumedSession | null> {
+      if (usesRefreshCookie()) {
+        return callResume(() => authEndpoints.resumeWithRefreshCookie(), 'refresh cookie')
+      }
+
+      if (usesWebStorage()) {
+        const stored = readPersistedRefreshToken()
+        if (!stored) return null
+        return callResume(() => authEndpoints.refreshToken(stored), 'persisted refresh token')
+      }
+
+      return null
+    },
+
     async getUser() {
       // Skip a request that is guaranteed to 401. Returning null lets the
       // caller treat it as "no session" and trigger a refresh, rather than
@@ -83,5 +118,33 @@ export function createJwtAdapter(getToken: () => string | null = () => null): Au
       }
       return authEndpoints.getUser()
     },
+  }
+}
+
+/**
+ * Run one resume strategy, turning every failure into `null`.
+ *
+ * Split out so the two strategies cannot drift in how they classify errors —
+ * the whole point is that NOTHING thrown here reaches the bootstrap.
+ */
+async function callResume(
+  call: () => Promise<{ user: User; token: string; refreshToken: string; expiresIn: number }>,
+  strategy: string,
+): Promise<ResumedSession | null> {
+  try {
+    const result = await call()
+    authLogger.info(`Session resumed from ${strategy}.`)
+    return result
+  } catch (err) {
+    const appErr = normalizeError(err)
+    if (appErr.status === 401 || appErr.status === 403) {
+      authLogger.info(`No session to resume (${strategy} rejected).`)
+    } else {
+      authLogger.warn(`Could not resume the session from the ${strategy}.`, {
+        code: appErr.code,
+        status: appErr.status,
+      })
+    }
+    return null
   }
 }

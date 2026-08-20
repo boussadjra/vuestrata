@@ -64,6 +64,24 @@ export const authEndpoints = {
       body: { refreshToken: token },
     }),
 
+  /**
+   * Mint a fresh access token from an HttpOnly refresh cookie.
+   *
+   * Same endpoint as `refreshToken`, but with no body and cookies attached:
+   * the backend reads the credential it set itself. `credentials` is passed
+   * explicitly because the API client defaults it from the auth TRANSPORT, and
+   * this call is the one place a bearer-transport deployment legitimately needs
+   * to send a cookie.
+   *
+   * A 401 here is the ordinary "no session to resume" answer, not an error
+   * worth surfacing — see `resumeSession` in the JWT adapter.
+   */
+  resumeWithRefreshCookie: (): Promise<AuthResponse> =>
+    apiFetch<AuthResponse>('/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+    }),
+
   sendMagicLink: (request: MagicLinkRequest): Promise<{ message: string }> =>
     apiFetch<{ message: string }>('/auth/magic-link', { method: 'POST', body: request }),
 

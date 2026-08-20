@@ -1,3 +1,4 @@
+import type { SessionPersistence } from '~/lib/config/env.schema'
 import type { Role, Permission, BuiltinPermission, RoleDefinition } from '~/lib/rbac/types'
 
 // ─── Icon System ─────────────────────────────────────────
@@ -196,6 +197,12 @@ export interface AppConfig {
   apiUrl: string
   useMocks: boolean
   authProvider: 'jwt' | 'oauth' | 'mock'
+  /**
+   * How a bearer session survives a page reload. See
+   * `SESSION_PERSISTENCE_MODES` in core/lib/config/env.schema.ts for the
+   * security trade-off behind each value.
+   */
+  sessionPersistence: SessionPersistence
   iconProvider: IconProvider
   /** Default theme for fresh sessions; persisted preferences override it. */
   theme: string

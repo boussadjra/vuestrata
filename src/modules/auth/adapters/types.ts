@@ -92,6 +92,39 @@ export interface AuthAdapter {
    * interface did not describe a step the flow depends on.
    */
   exchangeCode?: (code: string, state: string) => Promise<AuthResponse>
+
+  /**
+   * Recover an existing session at boot, after a reload dropped the in-memory
+   * token. Resolves to null when there is nothing to resume — that is the
+   * normal answer for a signed-out visitor, not a failure.
+   *
+   * How it does that is the adapter's business: a cookie-transport adapter
+   * asks `/auth/me` and lets the session cookie speak for itself, while a
+   * bearer adapter presents a refresh credential whose location depends on
+   * `VUESTRATA_SESSION_PERSISTENCE`.
+   *
+   * Unlike `exchangeCode` this gets no `capabilities` flag: nothing in the UI
+   * branches on it, because there is no button to hide. An adapter that cannot
+   * resume simply omits it, and the bootstrap treats that as "no session".
+   */
+  resumeSession?: () => Promise<ResumedSession | null>
+}
+
+/**
+ * What a successful `resumeSession()` recovered.
+ *
+ * Deliberately NOT `AuthResponse`: that type requires `token`, and a
+ * cookie-transport adapter never has one — the credential is an HttpOnly
+ * cookie the browser owns and JavaScript cannot read. Forcing the cookie case
+ * into `AuthResponse` would mean inventing a fake token, which is exactly the
+ * kind of lie that makes `isAuthenticated` wrong.
+ */
+export interface ResumedSession {
+  user: User
+  /** Absent under cookie transport. */
+  token?: string
+  refreshToken?: string
+  expiresIn?: number
 }
 
 /**
