@@ -27,6 +27,14 @@ export interface ModuleRouteMeta {
    * module-registration time, long before a locale is chosen.
    */
   title?: string
+  /**
+   * i18n key (or literal) for this route's `<meta name="description">`.
+   *
+   * Optional and rarely worth setting for an authenticated console screen —
+   * it matters on routes that are publicly linkable, where a link unfurler or
+   * a crawler that executes JavaScript will read it.
+   */
+  description?: string
 }
 
 export type ModuleRoute = RouteRecordRaw

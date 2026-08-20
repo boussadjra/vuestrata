@@ -3,6 +3,7 @@ import { ConfigProvider } from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
 import { useActiveLocale, useLocaleSync } from '@/composables/useActiveLocale'
+import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useShapeSync } from '@/composables/useShape'
 import { useThemeSync } from '@/composables/useTheme'
 
@@ -10,6 +11,9 @@ import { useThemeSync } from '@/composables/useTheme'
 useThemeSync()
 useLocaleSync()
 useShapeSync()
+// Keeps <title> in step with the route. Without it every page shared one
+// title, which also made useRouteAnnouncer's document.title fallback useless.
+useDocumentTitle()
 
 const { t } = useI18n()
 const { current, dir } = useActiveLocale()
