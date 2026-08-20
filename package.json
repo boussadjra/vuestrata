@@ -50,7 +50,8 @@
     "release:verify": "vp check && vp test --run",
     "docker:build": "docker build -t vuestrata .",
     "docker:run": "docker run -p 8080:80 vuestrata",
-    "prepare": "vp config"
+    "prepare": "vp config",
+    "build:version": "node scripts/build/write-version.mjs"
   },
   "dependencies": {
     "@formwerk/core": "^0.14.4",

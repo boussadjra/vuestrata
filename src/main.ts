@@ -12,12 +12,14 @@ import { appModules } from '@/modules/setup'
 import { bootstrapTheme } from '@/plugins/bootstrap-theme'
 import { installErrorReporting } from '@/plugins/error-reporting'
 import { installI18n } from '@/plugins/i18n'
+import { installPerformanceMonitoring } from '@/plugins/observability'
 // Plugins (initialization order matters)
 import { pinia } from '@/plugins/pinia'
 import { router, layoutMap } from '@/plugins/router'
 import { restoreSession } from '@/plugins/session-restore'
 import { installStaleChunkRecovery } from '@/plugins/stale-chunk'
 import { VueQueryPlugin, vueQueryOptions } from '@/plugins/vue-query'
+import { useBuildInfo } from '@/state/build-info'
 import { installRuntimeBackends } from '@/state/runtime-backends'
 // Stores
 import { useAuthStore } from '@/stores/auth'
@@ -182,6 +184,7 @@ async function bootstrap() {
   // Install the reporter BEFORE the global handlers so an error thrown during
   // the rest of bootstrap is still captured. No-op without a configured DSN.
   await installErrorReporting()
+  installPerformanceMonitoring()
   installErrorHandlers()
   // Before any lazy route can be requested, so a deploy that landed while this
   // tab was open is recovered rather than surfacing as a dead navigation.
@@ -247,6 +250,10 @@ async function bootstrap() {
 
   app.mount('#app')
   removeAppLoader()
+
+  // After mount: this is a background nicety and must never sit on the path to
+  // first paint. No-op in demo mode.
+  void useBuildInfo().start()
 
   // Cross-tab demo session syncing. Entirely demo-only: it exists so signing
   // out in one tab clears the others, which real backends handle with a shared
