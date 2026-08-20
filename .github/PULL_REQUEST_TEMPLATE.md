@@ -5,8 +5,8 @@ Describe the change and its scope.
 ## Validation
 
 - [ ] `vp check`
-- [ ] `vp test --run`
-- [ ] `vp run test:e2e` when routing or user-visible flows changed
+- [ ] `vpr test --run`
+- [ ] `vpr test:e2e` when routing or user-visible flows changed
 
 ## Docs And Contracts
 

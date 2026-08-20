@@ -12,9 +12,9 @@
     "sessionEnd": [
       {
         "type": "command",
-        "powershell": "$hookData = [Console]::In.ReadToEnd() | ConvertFrom-Json; if ($hookData.reason -eq 'complete') { Write-Host '[hook] Session complete — running quality gates...'; vp check; if ($LASTEXITCODE -eq 0) { vp test --run } }",
+        "powershell": "$hookData = [Console]::In.ReadToEnd() | ConvertFrom-Json; if ($hookData.reason -eq 'complete') { Write-Host '[hook] Session complete — running quality gates...'; vp check; if ($LASTEXITCODE -eq 0) { vpr test --run } }",
         "timeoutSec": 300,
-        "comment": "Run full quality gate (vp check + vp test --run) at session end to confirm CI is green"
+        "comment": "Run full quality gate (vp check + vpr test --run) at session end to confirm CI is green"
       }
     ]
   }

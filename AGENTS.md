@@ -43,19 +43,19 @@ them.
 Most extension tasks have a generator. Each writes the files **and** the
 registries that are easy to forget, then formats what it wrote.
 
-| Task               | Command                           | Recipe                                 |
-| ------------------ | --------------------------------- | -------------------------------------- |
-| CRUD domain module | `vp run gen:module <name>`        | `docs/9.recipes/1.add-a-module.md`     |
-| Page in a module   | `vp run gen:page <module> <name>` | `docs/9.recipes/2.add-a-page.md`       |
-| Theme              | `vp run gen:theme <name>`         | `docs/9.recipes/3.add-a-theme.md`      |
-| `Ui*` component    | `vp run gen:component <Name>`     | `docs/9.recipes/4.add-a-component.md`  |
-| Icon provider      | `vp run gen:icon-set <name>`      | `docs/9.recipes/5.add-an-icon-set.md`  |
-| Locale             | — by hand                         | `docs/9.recipes/6.add-a-locale.md`     |
-| Permission         | — by hand                         | `docs/9.recipes/7.add-a-permission.md` |
-| Nav group          | — by hand                         | `docs/9.recipes/8.add-a-nav-group.md`  |
+| Task               | Command                        | Recipe                                 |
+| ------------------ | ------------------------------ | -------------------------------------- |
+| CRUD domain module | `vpr gen:module <name>`        | `docs/9.recipes/1.add-a-module.md`     |
+| Page in a module   | `vpr gen:page <module> <name>` | `docs/9.recipes/2.add-a-page.md`       |
+| Theme              | `vpr gen:theme <name>`         | `docs/9.recipes/3.add-a-theme.md`      |
+| `Ui*` component    | `vpr gen:component <Name>`     | `docs/9.recipes/4.add-a-component.md`  |
+| Icon provider      | `vpr gen:icon-set <name>`      | `docs/9.recipes/5.add-an-icon-set.md`  |
+| Locale             | — by hand                      | `docs/9.recipes/6.add-a-locale.md`     |
+| Permission         | — by hand                      | `docs/9.recipes/7.add-a-permission.md` |
+| Nav group          | — by hand                      | `docs/9.recipes/8.add-a-nav-group.md`  |
 
 Every generator supports `--dry-run` (print the plan, write nothing), `--json`
-(the same plan, machine-readable) and `--force`. `vp run gen` lists them all.
+(the same plan, machine-readable) and `--force`. `vpr gen` lists them all.
 
 **Prefer the generator over hand-writing these files.** Not for speed — because
 the failure mode is silence. A module missing from `setup.ts`, a theme imported
@@ -185,7 +185,7 @@ not more layers.
 ## What the gates catch
 
 `vp check` runs format, lint and types. `node scripts/lint/run-custom-rules.mjs`
-adds six project rules. `vp test --run` includes `test/unit/architecture/`.
+adds six project rules. `vpr test --run` includes `test/unit/architecture/`.
 
 | Check                   | Catches                                                                                                     |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -207,8 +207,8 @@ prevents was silent.
 ## Quality gates
 
 - **Always**: `vp check`.
-- **Routing, layouts, config, providers or runtime wiring changed**: add `vp build`.
-- **User-visible flow or routing changed**: add `vp run test:e2e`.
+- **Routing, layouts, config, providers or runtime wiring changed**: add `vpr build`.
+- **User-visible flow or routing changed**: add `vpr test:e2e`.
 - **Docs, env or labels changed**: `node scripts/docs/check-links.mjs`.
 - Leave no new diagnostics in touched files. Fix root causes rather than masking.
 - Update code, docs, `.env.example` and UI copy in the same change.
@@ -216,9 +216,15 @@ prevents was silent.
 ## Tooling
 
 - Use the `vp` CLI for everything. Never `pnpm`, `npm`, `yarn`, `bun`, or `npx`.
-- `vp <name>` is a built-in; `vp run <name>` is a `package.json` script or
-  `vite.config.ts` task. They can differ — check both before guessing.
-- There is no `vp vitest` or `vp oxlint`. Use `vp test` and `vp lint`.
+- `vp <name>` is a built-in. `vpr <name>` — short for `vp run <name>` — is a
+  `package.json` script or `vite.config.ts` task.
+- Six names exist in both places: `dev`, `build`, `preview`, `lint`, `fmt`,
+  `test`. Running `vp` for one of those prints a note pointing at the script,
+  because the script is usually what you meant — `lint` also runs the custom
+  rules, the MSW worker check and the docs link check; `build` also runs
+  `vue-tsc`; `dev` sets the port. **Prefer `vpr` for all six.**
+- `check` has no script, so `vp check` is correct and prints no note.
+- There is no `vp vitest` or `vp oxlint`. Use `vpr test` and `vpr lint`.
 - Import from `vite-plus` and `vite-plus/test`, not `vite` or `vitest`.
 - For one-off binaries use `vp dlx`.
 - Do not install wrapped tools (Vitest, Oxlint, Oxfmt, tsdown) directly, and do

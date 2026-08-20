@@ -19,7 +19,7 @@ import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
  */
 export function planIconSet({ plan, root, positional, options }) {
   const raw = positional[0]
-  if (!raw) throw new Error('an icon set name is required, e.g. `vp run gen:icon-set tabler`')
+  if (!raw) throw new Error('an icon set name is required, e.g. `vpr gen:icon-set tabler`')
 
   const name = kebab(raw)
   const varName = `${camel(name)}IconMap`

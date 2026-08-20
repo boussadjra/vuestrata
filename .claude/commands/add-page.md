@@ -3,7 +3,7 @@ description: Add a page to an existing module
 argument-hint: <module> <name> [--kind list|detail|form|blank] [--nav]
 ---
 
-Add a page: `vp run gen:page $ARGUMENTS`
+Add a page: `vpr gen:page $ARGUMENTS`
 
 Preview with `--dry-run` first.
 
@@ -14,4 +14,4 @@ alone gets you no URL and no error. See `docs/9.recipes/2.add-a-page.md`.
 Keep the page thin: it coordinates, it does not implement. Queries and mutations
 belong in the module's `composables/`.
 
-Verify: `vp check && vp test --run`
+Verify: `vp check && vpr test --run`

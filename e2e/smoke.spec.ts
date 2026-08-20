@@ -13,7 +13,7 @@ import { logInAsDemoAdmin } from './helpers/auth'
  * being compiled out of the wrong target, sourcemaps leaking.
  *
  * Run them against the real thing:
- *   E2E_TARGET=preview vp run test:e2e -- e2e/smoke.spec.ts
+ *   E2E_TARGET=preview vpr test:e2e -- e2e/smoke.spec.ts
  *
  * CI defaults to the preview target, so this is the gate.
  */

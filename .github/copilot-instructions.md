@@ -20,7 +20,7 @@ codebase it writes.
 - **Custom agents** for the spec workflow are in `.github/agents/`; their bodies
   live in `.specify/templates/commands/`.
 - **Hooks** in `.github/hooks/hooks.json` run `vp check` after each file edit
-  and `vp check` + `vp test --run` at session end. That is a Copilot-schema
+  and `vp check` + `vpr test --run` at session end. That is a Copilot-schema
   file; it does not apply to other harnesses.
 - **Planning**: prefer lightweight implementation notes for non-trivial changes
   over mandatory spec-folder scaffolding. Templates remain in
@@ -31,8 +31,8 @@ codebase it writes.
 ```bash
 vp check                                   # format, lint, types
 node scripts/lint/run-custom-rules.mjs     # the six project rules
-vp test --run                              # includes test/unit/architecture/
+vpr test --run                              # includes test/unit/architecture/
 ```
 
-Add `vp build` when routing, config, providers or runtime wiring changed, and
-`vp run test:e2e` when a user-visible flow or route changed.
+Add `vpr build` when routing, config, providers or runtime wiring changed, and
+`vpr test:e2e` when a user-visible flow or route changed.

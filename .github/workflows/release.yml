@@ -13,7 +13,7 @@ env:
 
 jobs:
   # Full gate before anything is published. Previously the release job ran only
-  # `vp check` + `vp test`, so a tag could ship an artifact that no e2e run and
+  # `vp check` + `vpr test`, so a tag could ship an artifact that no e2e run and
   # no bundle verification had ever seen.
   verify:
     name: Verify
@@ -28,7 +28,7 @@ jobs:
       - run: vp check
       - run: node scripts/lint/run-custom-rules.mjs
       - run: node scripts/msw/check-worker-version.mjs
-      - run: vp test --run
+      - run: vpr test --run
 
   smoke:
     name: Production smoke tests
@@ -47,7 +47,7 @@ jobs:
       - name: E2E against the production preview
         env:
           E2E_TARGET: preview
-        run: vp run test:e2e -- --project=chromium
+        run: vpr test:e2e -- --project=chromium
 
       - uses: actions/upload-artifact@v4
         if: always()

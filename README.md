@@ -30,16 +30,16 @@ A modern, production-ready Vue 3 template with multi-theme support, Reka UI wrap
 vp install
 
 # Start dev server (with MSW mocks)
-vp dev
+vpr dev
 
 # Project checks (format, lint, typecheck)
 vp check
 
 # Lint
-vp lint
+vpr lint
 
-# Custom lint rules (chained after `vp lint` via the package.json
-# `lint` script; run standalone if you invoke `vp lint` directly):
+# Custom lint rules (chained after `vpr lint` via the package.json
+# `lint` script; run standalone if you invoke `vpr lint` directly):
 #   - inline-vue-handlers: forbids inline `@event` handlers in <template>
 #   - module-scope-state: forbids top-level mutable state in src/**
 #     (use `createGlobalState` for simple shared state, Pinia for
@@ -48,19 +48,19 @@ vp lint
 node scripts/lint/run-custom-rules.mjs
 
 # Format
-vp fmt
+vpr fmt
 
 # Unit tests
-vp test --run
+vpr test --run
 
 # E2E tests
-vp run test:e2e
+vpr test:e2e
 
 # Build for production
-vp build
+vpr build
 
 # Preview production build
-vp preview
+vpr preview
 ```
 
 ## Extending the Template
@@ -69,15 +69,15 @@ Every common extension task has a generator that writes the files **and** the
 registries that are easy to forget:
 
 ```bash
-vp run gen:module payments        # CRUD domain: schema, queries, mocks, pages, i18n, registered
-vp run gen:page payments refunds  # a page, wired into the module's routes
-vp run gen:theme midnight         # theme, imported and registered in all four places
-vp run gen:component Tag          # Ui* wrapper (+ --field for a forms composable)
-vp run gen:icon-set tabler        # icon map covering every IconName
+vpr gen:module payments        # CRUD domain: schema, queries, mocks, pages, i18n, registered
+vpr gen:page payments refunds  # a page, wired into the module's routes
+vpr gen:theme midnight         # theme, imported and registered in all four places
+vpr gen:component Tag          # Ui* wrapper (+ --field for a forms composable)
+vpr gen:icon-set tabler        # icon map covering every IconName
 ```
 
 Add `--dry-run` to preview the plan without writing anything, or `--json` for
-machine-readable output. `vp run gen` lists them all.
+machine-readable output. `vpr gen` lists them all.
 
 These exist because the failure mode they prevent is **silent**: a module never
 added to `setup.ts`, a theme imported after `semantic.css`, a nav item pointing
@@ -193,15 +193,15 @@ reference and `.env.example` for annotated defaults.
 
 ```bash
 # Build and run
-vp run docker:build
-vp run docker:run
+vpr docker:build
+vpr docker:run
 
 # Or with docker-compose
 docker compose up -d
 ```
 
 The container build bootstraps the global `vp` CLI once, then uses `vp install --frozen-lockfile`
-and `vp build` so the Docker path matches the repo's normal toolchain.
+and `vpr build` so the Docker path matches the repo's normal toolchain.
 
 ## Release and Versioning
 
@@ -209,25 +209,25 @@ Vuestrata now uses explicit SemVer scripts, including prerelease channels.
 
 ```bash
 # Show current version
-vp run version:show
+vpr version:show
 
 # Stable bumps
-vp run version:patch
-vp run version:minor
-vp run version:major
+vpr version:patch
+vpr version:minor
+vpr version:major
 
 # Start prerelease trains
-vp run version:prepatch
-vp run version:preminor
-vp run version:premajor
+vpr version:prepatch
+vpr version:preminor
+vpr version:premajor
 
 # Continue an existing prerelease
-vp run version:prerelease
-vp run version:prerelease:beta
-vp run version:prerelease:rc
+vpr version:prerelease
+vpr version:prerelease:beta
+vpr version:prerelease:rc
 
 # Explicit prerelease id override
-vp run version:prerelease -- --preid beta
+vpr version:prerelease -- --preid beta
 ```
 
 Tag releases as `v<version>`; tags with a prerelease suffix such as `v2.1.0-beta.0` are treated
@@ -239,15 +239,15 @@ Before publishing a new template version:
 
 ```bash
 vp check
-vp test --run
-vp run test:e2e
-vp run docker:build
+vpr test --run
+vpr test:e2e
+vpr docker:build
 ```
 
 Then:
 
 1. Update `CHANGELOG.md`.
-2. Bump the version with one of the `vp run version:*` scripts.
+2. Bump the version with one of the `vpr version:*` scripts.
 3. Tag the release as `v<version>`.
 4. Push the tag so the GitHub release workflow can publish the artifact.
 
@@ -283,7 +283,7 @@ vp install
 Just run and visit http://localhost:3333
 
 ```bash
-vp dev
+vpr dev
 ```
 
 ### Build
@@ -291,7 +291,7 @@ vp dev
 To build the App, run
 
 ```bash
-vp build
+vpr build
 ```
 
 And you will see the generated file in `dist` that ready to be served.

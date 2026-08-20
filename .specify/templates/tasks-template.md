@@ -58,8 +58,8 @@
 ## Phase N: Polish & Cross-Cutting Concerns
 
 - [ ] TN01 Run `vp check`
-- [ ] TN02 [P] Run `vp test --run` focused on [test files]
-- [ ] TN03 [P] Run `vp build`
+- [ ] TN02 [P] Run `vpr test --run` focused on [test files]
+- [ ] TN03 [P] Run `vpr build`
 
 ---
 

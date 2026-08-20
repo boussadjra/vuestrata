@@ -3,7 +3,7 @@ description: Scaffold a theme
 argument-hint: <name> [--label <Label>]
 ---
 
-Scaffold a theme: `vp run gen:theme $ARGUMENTS`
+Scaffold a theme: `vpr gen:theme $ARGUMENTS`
 
 The generator wires all four files that must agree (stylesheet, `app.css`
 import, `theme.config.ts`, `ThemeName`) and places the import BEFORE
@@ -14,4 +14,4 @@ Then replace the placeholder grey ramps with the real palette: four ramps
 `danger` is shared across themes in `app.css` — leave it alone unless the theme
 genuinely needs a different warning hue.
 
-Verify: `vp check`, then `vp dev` and check both light and dark.
+Verify: `vp check`, then `vpr dev` and check both light and dark.

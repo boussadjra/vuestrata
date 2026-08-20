@@ -10,16 +10,16 @@ Always:
 ```bash
 vp check                                   # format, lint, types
 node scripts/lint/run-custom-rules.mjs     # six project rules
-vp test --run                              # includes test/unit/architecture/
+vpr test --run                              # includes test/unit/architecture/
 ```
 
 Add when relevant:
 
-- routing, layouts, config, providers or runtime wiring changed → `vp build`
-- user-visible flow or routing changed → `vp run test:e2e`
+- routing, layouts, config, providers or runtime wiring changed → `vpr build`
+- user-visible flow or routing changed → `vpr test:e2e`
 - docs, env or UI copy changed → `node scripts/docs/check-links.mjs`
 - module `mockHandlers` or demo/production wiring touched →
-  `vp build` then `node scripts/build/verify-bundle.mjs --mode=production`
+  `vpr build` then `node scripts/build/verify-bundle.mjs --mode=production`
 
 Note: `test/component/users/user-management-components.test.ts` has 7
 pre-existing failures on `main`. They are not yours unless you touched that area.

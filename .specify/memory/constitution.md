@@ -14,7 +14,7 @@ Preserve current behavior, public APIs, and repository shape unless an approved 
 
 ### III. Vite Plus Toolchain Is Mandatory
 
-Use the `vp` CLI (Vite Plus) for all development commands. Reuse built-in commands: `vp check`, `vp lint`, `vp fmt --check`, `vp test --run`, `vp run test:e2e`, `vp build`. Use `vp run <script>` for custom package.json scripts that share names with built-ins. Do not use `pnpm`, `npm`, `yarn`, or `bun` directly — Vite Plus wraps the underlying package manager. Do not run non-existent wrappers such as `vp vitest` or `vp oxlint`; use `vp test` and `vp lint`. Do not install wrapped tools directly (for example Vitest, Oxlint, Oxfmt, tsdown) just to invoke them. Import JavaScript modules from `vite-plus` (for example `vite-plus` and `vite-plus/test`) instead of `vite` or `vitest`. Use `vp dlx` instead of package-manager-specific `npx` or `dlx`. Do not add parallel tooling such as Cypress, legacy PostCSS-era config, or duplicate lint/format stacks.
+Use the `vp` CLI (Vite Plus) for all development commands. Reuse the project commands: `vp check`, `vpr lint`, `vpr fmt --check`, `vpr test --run`, `vpr test:e2e`, `vpr build`. `vpr <name>` is `vp run <name>`; use it for every `package.json` script, and in particular for the six names that shadow a built-in (`dev`, `build`, `preview`, `lint`, `fmt`, `test`), where the script is a superset and `vp` prints a note saying so. Do not use `pnpm`, `npm`, `yarn`, or `bun` directly — Vite Plus wraps the underlying package manager. Do not run non-existent wrappers such as `vp vitest` or `vp oxlint`; use `vpr test` and `vpr lint`. Do not install wrapped tools directly (for example Vitest, Oxlint, Oxfmt, tsdown) just to invoke them. Import JavaScript modules from `vite-plus` (for example `vite-plus` and `vite-plus/test`) instead of `vite` or `vitest`. Use `vp dlx` instead of package-manager-specific `npx` or `dlx`. Do not add parallel tooling such as Cypress, legacy PostCSS-era config, or duplicate lint/format stacks.
 
 ### IV. Organize By Layer And Module
 
@@ -103,4 +103,4 @@ Each UI provider directory (`src/modules/app/components/ui/provider/<provider>/`
 - PRs must confirm any exception explicitly.
 - AI agents must read this file before major implementation and must flag policy conflicts instead of silently violating them.
 - Agents SHOULD run `vp install` after pulling remote changes and before starting work.
-- Before completion, agents SHOULD validate with `vp check` and `vp test` (or the smallest justified focused subset).
+- Before completion, agents SHOULD validate with `vp check` and `vpr test` (or the smallest justified focused subset).

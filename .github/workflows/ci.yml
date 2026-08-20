@@ -38,7 +38,7 @@ jobs:
       # claims a machine can verify — that every source path and relative link
       # still resolves.
       - run: node scripts/docs/check-links.mjs
-      - run: vp fmt --check
+      - run: vpr fmt --check
 
   typecheck:
     name: Type Check
@@ -70,7 +70,7 @@ jobs:
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
-      - run: vp run test:${{ matrix.suite }} -- --coverage
+      - run: vpr test:${{ matrix.suite }} -- --coverage
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -139,7 +139,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: vp exec playwright install --with-deps chromium
 
-      # E2E_TARGET=preview makes Playwright run `vp build && vp preview` over
+      # E2E_TARGET=preview makes Playwright run `vpr build && vpr preview` over
       # dist/ rather than the dev server. This is what exercises the real
       # chunking, the __VUESTRATA_DEMO__ compile-out, and MSW registering from
       # a built artifact — none of which the dev server can prove.
@@ -148,7 +148,7 @@ jobs:
       - name: Run E2E against the production preview
         env:
           E2E_TARGET: preview
-        run: vp run test:e2e -- --project=chromium
+        run: vpr test:e2e -- --project=chromium
 
       - uses: actions/upload-artifact@v4
         if: always()

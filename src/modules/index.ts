@@ -284,7 +284,7 @@ export const useModuleStore = defineStore('modules', () => {
     //
     // The persisted list used to win outright whenever it was non-empty, which
     // meant defaults only ever applied on a visitor's very first boot. Add a
-    // module afterwards — which is exactly what `vp run gen:module` does — and
+    // module afterwards — which is exactly what `vpr gen:module` does — and
     // it stayed disabled forever: no routes, no nav entry, no error, and no way
     // to reach it short of clearing site data. Diffing against the ids this
     // browser has already seen tells a genuinely new module apart from one the

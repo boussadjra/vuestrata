@@ -12,7 +12,7 @@ import { deriveModuleNames } from './lib/naming.mjs'
 import { Plan } from './lib/plan.mjs'
 
 /**
- * Scaffolding entry point — `vp run gen:<kind> <name>`.
+ * Scaffolding entry point — `vpr gen:<kind> <name>`.
  *
  * Every generator plans first and writes second (see lib/plan.mjs), so
  * `--dry-run` walks the identical code path and stops before touching disk.
@@ -76,7 +76,7 @@ function parseArgs(argv) {
 
 function printUsage() {
   logger.log('')
-  logger.log('Usage: vp run gen:<kind> <name> [options]')
+  logger.log('Usage: vpr gen:<kind> <name> [options]')
   logger.log('')
   for (const generator of Object.values(GENERATORS)) {
     logger.log(`  ${generator.usage}`)
@@ -96,10 +96,10 @@ function printUsage() {
  * The templates could be hand-matched to oxfmt's output instead, but that ties
  * every template to the current `fmt` settings in vite.config.ts — change
  * `printWidth` and every generator starts emitting code that fails
- * `vp fmt --check`. Running the formatter is the version that stays correct.
+ * `vpr fmt --check`. Running the formatter is the version that stays correct.
  *
  * Non-fatal: a generated-but-unformatted file is a nuisance, not a failure, and
- * `vp fmt` will fix it on the next commit via the staged hook.
+ * `vpr fmt` will fix it on the next commit via the staged hook.
  */
 function formatTouchedFiles(files) {
   const targets = [...new Set(files)].filter((file) => /\.(ts|vue|json|css)$/.test(file))
@@ -112,7 +112,7 @@ function formatTouchedFiles(files) {
 
   if (result.status !== 0) {
     logger.warn(
-      'Could not run `vp fmt` on the generated files — run it yourself before committing.',
+      'Could not run `vpr fmt` on the generated files — run it yourself before committing.',
     )
   }
 }
@@ -203,7 +203,7 @@ async function main() {
   }
 
   logger.log('')
-  logger.info('Verify with:  vp check && vp test --run')
+  logger.info('Verify with:  vp check && vpr test --run')
   logger.log('')
 }
 

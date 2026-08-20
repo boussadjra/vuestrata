@@ -38,4 +38,4 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 - [ ] Constitution Check in `plan.md` is complete (no missing principles)
 - [ ] No constitution ⚠ without a Complexity Tracking justification
 - [ ] Dependencies graph in `tasks.md` is consistent with task phase order
-- [ ] Polish phase includes `vp check`, `vp test --run`, and `vp build`
+- [ ] Polish phase includes `vp check`, `vpr test --run`, and `vpr build`

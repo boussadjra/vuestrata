@@ -14,7 +14,7 @@
  *   - Public API                  → module's index.ts barrel only (no deep imports)
  *
  * Adding a module:
- *   Run `vp run gen:module <name>` — it writes the module and registers it
+ *   Run `vpr gen:module <name>` — it writes the module and registers it
  *   here. See docs/9.recipes/1.add-a-module.md for what it does and does not do.
  *
  *   By hand, the same three steps:
@@ -68,7 +68,7 @@ export const appModules: ModuleDefinition[] = [
   // settings: display preferences and feature flags (Pinia pattern)
   settingsModule,
   // Generated modules append below. The entries above are ordered by role
-  // rather than alphabetically, so `vp run gen:module` adds to the end instead
+  // rather than alphabetically, so `vpr gen:module` adds to the end instead
   // of guessing where a new domain belongs — move it up if it has a natural home.
   // gen:modules-start
   // gen:modules-end

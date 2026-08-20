@@ -69,7 +69,7 @@ let files
 try {
   files = walk(distDir)
 } catch {
-  logger.error(`No build output at ${distDir}. Run \`vp build\` first.`)
+  logger.error(`No build output at ${distDir}. Run \`vpr build\` first.`)
   process.exit(1)
 }
 

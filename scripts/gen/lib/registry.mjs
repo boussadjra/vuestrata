@@ -67,7 +67,7 @@ export function insertBeforeSentinel(source, sentinel, line, { comment = '//' } 
  * Imports are not sentinel-anchored: oxfmt sorts them anyway (`sortImports` in
  * vite.config.ts), so a sentinel region would be reordered out from under us on
  * the next format. Inserting in sorted position instead means the file is
- * already correct and `vp fmt --check` stays green without a format step.
+ * already correct and `vpr fmt --check` stays green without a format step.
  */
 export function insertImport(source, statement, { matching }) {
   if (source.includes(statement)) return source

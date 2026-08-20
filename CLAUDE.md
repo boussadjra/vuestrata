@@ -9,14 +9,25 @@ Highest authority above `AGENTS.md`: `.specify/memory/constitution.md`.
 
 ## The one thing that trips people up
 
-This project uses **Vite+**, not plain npm scripts. The CLI is `vp`.
+This project uses **Vite+**, not plain npm scripts. There are two CLIs:
 
-- `vp <name>` runs a **built-in** (`vp check`, `vp lint`, `vp fmt`, `vp test`,
-  `vp build`, `vp dev`).
-- `vp run <name>` runs a **`package.json` script or `vite.config.ts` task**.
-- The two can differ for the same name. Check `package.json` before guessing.
-- Never `pnpm`, `npm`, `yarn`, `bun`, or `npx`. For one-off binaries: `vp dlx`.
-- There is no `vp vitest` or `vp oxlint`.
+- `vp <name>` runs a **built-in** — `vp check`, `vp install`, `vp exec`, `vp dlx`.
+- `vpr <name>` runs a **`package.json` script or `vite.config.ts` task**. It is
+  exactly `vp run <name>`, spelled shorter.
+
+Six names exist in both places — `dev`, `build`, `preview`, `lint`, `fmt`,
+`test` — and `vp` prints a note for those telling you the script exists. It is
+worth heeding: three of the scripts do strictly more than the built-in.
+
+| Script      | What it adds over `vp <name>`                           |
+| ----------- | ------------------------------------------------------- |
+| `vpr lint`  | custom rules, MSW worker version check, docs link check |
+| `vpr build` | `vue-tsc --noEmit` first                                |
+| `vpr dev`   | `--port 3333 --host`                                    |
+
+**Use `vpr` for those six.** `check` has no script, so `vp check` is right and
+silent. Never `pnpm`, `npm`, `yarn`, `bun`, or `npx`; for one-off binaries,
+`vp dlx`. There is no `vp vitest` or `vp oxlint`.
 
 ## Slash commands
 
@@ -34,11 +45,11 @@ This project uses **Vite+**, not plain npm scripts. The CLI is `vp`.
 ```bash
 vp check                                   # format, lint, types
 node scripts/lint/run-custom-rules.mjs     # six project-specific rules
-vp test --run                              # includes test/unit/architecture/
+vpr test --run                              # includes test/unit/architecture/
 ```
 
-Add `vp build` when routing, layouts, config, providers or runtime wiring
-changed; `vp run test:e2e` when a user-visible flow changed.
+Add `vpr build` when routing, layouts, config, providers or runtime wiring
+changed; `vpr test:e2e` when a user-visible flow changed.
 
 `vp check` is slow enough (tens of seconds) that it is not worth running after
 every single edit — run it before you report work as done.

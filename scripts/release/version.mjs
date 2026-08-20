@@ -188,7 +188,7 @@ async function main() {
   if (command === 'set') {
     const [explicit] = positional
     if (!explicit)
-      throw new Error('`set` requires a target version, e.g. `vp run version:set -- 2.1.0-beta.0`.')
+      throw new Error('`set` requires a target version, e.g. `vpr version:set -- 2.1.0-beta.0`.')
     parseVersion(explicit)
     nextVersion = explicit
   } else {

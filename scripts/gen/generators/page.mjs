@@ -22,7 +22,7 @@ const KINDS = new Set(['list', 'detail', 'form', 'blank'])
 export function planPage({ plan, root, positional, options }) {
   const [moduleId, rawName] = positional
   if (!moduleId || !rawName) {
-    throw new Error('usage: vp run gen:page <module> <name> [--kind list|detail|form|blank]')
+    throw new Error('usage: vpr gen:page <module> <name> [--kind list|detail|form|blank]')
   }
 
   const id = kebab(moduleId)
@@ -32,7 +32,7 @@ export function planPage({ plan, root, positional, options }) {
   if (!fs.existsSync(barrelPath)) {
     throw new Error(
       `module "${id}" does not exist (looked for src/modules/${id}/index.ts). ` +
-        'Create it first with `vp run gen:module`.',
+        'Create it first with `vpr gen:module`.',
     )
   }
 

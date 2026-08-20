@@ -7,7 +7,7 @@
   // `vue-tsc --noEmit`, so nothing type-checked `e2e/` at all: a spec could
   // reference a helper that no longer exists and only fail when Playwright
   // compiled it mid-run, after the build and unit jobs had already gone green.
-  // This config exists to close that gap. It is checked by `vp run typecheck:e2e`.
+  // This config exists to close that gap. It is checked by `vpr typecheck:e2e`.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     // Playwright's own types replace the Vite client/layout types the app uses.

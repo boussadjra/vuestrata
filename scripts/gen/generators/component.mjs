@@ -16,7 +16,7 @@ import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
  */
 export function planComponent({ plan, positional, options }) {
   const raw = positional[0]
-  if (!raw) throw new Error('a component name is required, e.g. `vp run gen:component Tag`')
+  if (!raw) throw new Error('a component name is required, e.g. `vpr gen:component Tag`')
 
   const base = pascal(raw.replace(/^Ui/, ''))
   if (!base) throw new Error(`"${raw}" is not a usable component name`)

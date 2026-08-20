@@ -22,7 +22,7 @@ Implement the current feature by executing tasks from `tasks.md` in correct depe
    a. Announce the phase and its purpose.
    b. Execute tasks in order; for `[P]`-marked tasks, handle them together where file independence allows.
    c. After each user-story phase, verify the checkpoint condition stated in `tasks.md`.
-6. On completing all tasks, run the polish phase: `vp check && vp test --run && vp build`.
+6. On completing all tasks, run the polish phase: `vp check && vpr test --run && vpr build`.
 7. Report: tasks completed, any remaining open tasks, constitution compliance confirmation.
 
 ## Constraints

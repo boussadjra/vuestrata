@@ -7,13 +7,13 @@ Use the `vp` CLI for all local work.
 ```bash
 vp install
 vp check
-vp test --run
+vpr test --run
 ```
 
 For user-visible flow changes, also run:
 
 ```bash
-vp run test:e2e
+vpr test:e2e
 ```
 
 ## Pull Requests
@@ -34,7 +34,7 @@ vp run test:e2e
 ## Before Opening A PR
 
 - Run `vp check`.
-- Run `vp test --run`.
+- Run `vpr test --run`.
 - Add or update tests for behavior changes.
 - Update the relevant docs under `docs/` and `README.md` when claims change.
 

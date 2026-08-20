@@ -21,7 +21,7 @@ Generate `tasks.md` for the current feature by deriving sequential, dependency-o
    - **Phase 1: Setup** — audit / scaffolding tasks, no story label
    - **Phase 2: Foundational** — blocking prerequisites for all user stories, no story label
    - **Phase 3+**: One phase per user story in priority order (P1 first), each task labelled `[USN]`
-   - **Polish phase** — `vp check`, `vp test --run`, `vp build`
+   - **Polish phase** — `vp check`, `vpr test --run`, `vpr build`
    - **Dependencies & Execution Order** — ASCII graph of task dependencies
 5. Every task must follow the strict format: `- [ ] T001 [P?] [Story?] Description with exact file path`
 6. Mark tasks `[P]` only if they touch different files with no dependencies on incomplete tasks.

@@ -17,7 +17,7 @@ import { insertBeforeSentinel, insertUnionMember, SENTINELS } from '../lib/regis
  */
 export function planTheme({ plan, positional, options }) {
   const raw = positional[0]
-  if (!raw) throw new Error('a theme name is required, e.g. `vp run gen:theme midnight`')
+  if (!raw) throw new Error('a theme name is required, e.g. `vpr gen:theme midnight`')
 
   const name = kebab(raw)
   if (!/^[a-z][a-z0-9-]*$/.test(name)) {

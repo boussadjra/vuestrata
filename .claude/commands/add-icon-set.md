@@ -3,7 +3,7 @@ description: Scaffold an icon provider map
 argument-hint: <name> [--prefix <iconify-prefix>]
 ---
 
-Scaffold an icon set: `vp run gen:icon-set $ARGUMENTS`
+Scaffold an icon set: `vpr gen:icon-set $ARGUMENTS`
 
 It emits a complete map covering every `IconName`, with values guessed as
 `i-<prefix>-<semantic-name>`. Most guesses will be wrong — correct them against
