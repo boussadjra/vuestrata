@@ -204,20 +204,28 @@ async function bootstrap() {
   app.use(VueQueryPlugin, vueQueryOptions)
   installI18n(app)
 
-  // Seed the demo super-admin. This runs AFTER installRuntimeBackends() so the
-  // RBAC registry is populated and the seeded user gets every permission that
-  // actually exists. It used to run inside installRuntimeBackends() with no
-  // guard at all, writing a super-admin into IndexedDB in every environment.
+  // Initialize feature modules and register their routes before installing
+  // the router, so the first navigation sees the final route table.
+  await setupModules(router, appModules, layoutMap)
+
+  // Seed the demo super-admin — and top its grants back up on every boot.
+  //
+  // Runs AFTER setupModules() because a module's `config.permissions` only
+  // reach the RBAC registry when the module registers. Seeding before that
+  // produced a demo admin that held the built-in permissions and none of the
+  // module-contributed ones, so the feature a module had just added was
+  // missing from its sidebar and answered `/403`.
+  //
+  // It used to run inside installRuntimeBackends() with no guard at all,
+  // writing a super-admin into IndexedDB in every environment.
   if (__VUESTRATA_DEMO__ && configuredAuthAdapter === 'mock') {
     const { seedDemoSuperAdmin } = await loadDemoState()
     await seedDemoSuperAdmin()
   }
 
+  // After the seed, so a session restored from a previous visit carries the
+  // reconciled permission set rather than the one captured at login.
   await restoreSession(authStore)
-
-  // Initialize feature modules and register their routes before installing
-  // the router, so the first navigation sees the final route table.
-  await setupModules(router, appModules, layoutMap)
 
   app.use(router)
 

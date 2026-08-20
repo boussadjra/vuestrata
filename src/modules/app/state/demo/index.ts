@@ -17,8 +17,9 @@ export { DEMO_ACCOUNT } from './account'
 export {
   clearAllDemoData,
   clearDemoSession,
-  DEFAULT_DEMO_PERMISSIONS,
-  DEFAULT_DEMO_USERS,
+  createDefaultDemoUsers,
+  createDemoSuperAdmin,
+  demoSuperAdminPermissions,
   ensureDefaultDemoUsers,
   getDemoSession,
   getDemoUsers,

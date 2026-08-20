@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { getRegisteredPermissions, registerPermissions } from '@/lib/rbac'
-import { getDemoUsers, setDemoUsers } from '@/state/demo-store'
+import { getDemoSession, getDemoUsers, setDemoUsers } from '@/state/demo-store'
 import { DEMO_ACCOUNT } from '@/state/demo/account'
 import { seedDemoSuperAdmin } from '@/state/demo/seed'
 import {
@@ -11,7 +11,12 @@ import {
   resetRuntimeBackends,
 } from '@/state/runtime-backends'
 
-import { createAuthTestUser, resetDemoData, resetDemoGlobals } from '../../utils/auth-test-helpers'
+import {
+  createAuthTestUser,
+  resetDemoData,
+  resetDemoGlobals,
+  seedDemoSession,
+} from '../../utils/auth-test-helpers'
 
 beforeEach(async () => {
   await resetDemoData()
@@ -118,5 +123,78 @@ describe('demo super admin seed', () => {
 
     const users = await getDemoUsers()
     expect(users.map((user) => user.email)).toEqual([DEMO_ACCOUNT.email])
+  })
+})
+
+describe('demo super admin reconciliation', () => {
+  /**
+   * The stored demo admin is a snapshot, and it outlives the code that wrote
+   * it. Seeding only into an empty store meant a permission added later — by a
+   * new module, or by a new grant on an existing role — never reached a visitor
+   * who had been here before, so the feature was invisible to exactly the
+   * account meant to demonstrate it.
+   */
+  it('tops up a stored demo admin with permissions added since', async () => {
+    await setDemoUsers([
+      createAuthTestUser({
+        id: '1',
+        email: DEMO_ACCOUNT.email,
+        role: 'super_admin',
+        permissions: ['dashboard:read'],
+      }),
+    ])
+    registerPermissions('reporting', ['publish'])
+
+    await seedDemoSuperAdmin()
+
+    const [admin] = await getDemoUsers()
+    expect(admin?.permissions).toEqual(expect.arrayContaining([...BUILTIN_PERMISSIONS]))
+    expect(admin?.permissions).toContain('reporting:publish')
+  })
+
+  it('keeps the stored account otherwise intact', async () => {
+    await setDemoUsers([
+      createAuthTestUser({
+        id: 'demo-1',
+        email: DEMO_ACCOUNT.email,
+        name: 'Renamed Admin',
+        role: 'super_admin',
+        permissions: ['dashboard:read'],
+        mfaEnabled: true,
+      }),
+    ])
+
+    await seedDemoSuperAdmin()
+
+    const [admin] = await getDemoUsers()
+    expect(admin).toMatchObject({ id: 'demo-1', name: 'Renamed Admin', mfaEnabled: true })
+  })
+
+  it('refreshes a signed-in session so the grants reach the current tab', async () => {
+    // `restoreSession()` reads the user out of the session envelope, not the
+    // users list, so refreshing only the list would leave an already-signed-in
+    // visitor on the permission set captured at login.
+    const stale = createAuthTestUser({
+      id: '1',
+      email: DEMO_ACCOUNT.email,
+      role: 'super_admin',
+      permissions: ['dashboard:read'],
+    })
+    await setDemoUsers([stale])
+    await seedDemoSession(stale)
+
+    await seedDemoSuperAdmin()
+
+    const session = await getDemoSession()
+    expect(session?.user.permissions).toEqual(expect.arrayContaining([...BUILTIN_PERMISSIONS]))
+  })
+
+  it('does not promote an account the visitor registered themselves', async () => {
+    const visitor = createAuthTestUser({ email: 'visitor@example.test', role: 'member' })
+    await setDemoUsers([visitor])
+
+    await seedDemoSuperAdmin()
+
+    await expect(getDemoUsers()).resolves.toEqual([visitor])
   })
 })
