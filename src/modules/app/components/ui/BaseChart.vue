@@ -1,12 +1,32 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import type { EChartsOption } from 'echarts'
-import VChart from 'vue-echarts'
 import { useI18n } from 'vue-i18n'
 
-import { ensureEchartsRegistered } from '~/lib/echarts-setup'
-
-ensureEchartsRegistered()
+/**
+ * ECharts is loaded on DEMAND, not with this component's module.
+ *
+ * `import VChart from 'vue-echarts'` put echarts into BaseChart's static
+ * import graph, and because the module registry pulls every module barrel into
+ * the entry graph, that in turn put `charts-vendor` — 778 KB raw, 264 KB
+ * gzipped — into index.html's modulepreload list. Every visitor downloaded the
+ * whole charting engine before first paint, including on the login page, which
+ * has no chart on it. The manualChunks comment in vite.config.ts already said
+ * charts are "almost never needed on the first paint"; the import made that
+ * untrue.
+ *
+ * The type import above stays static: types are erased and cost nothing.
+ */
+const VChart = defineAsyncComponent(async () => {
+  const [{ default: Chart }, { ensureEchartsRegistered }] = await Promise.all([
+    import('vue-echarts'),
+    import('~/lib/echarts-setup'),
+  ])
+  // Registration must happen before the first render, not at module scope of
+  // this file — that was the other half of the eager import.
+  ensureEchartsRegistered()
+  return Chart
+})
 
 /** One row of the non-visual equivalent of the chart. */
 export interface ChartDataRow {

@@ -18,6 +18,7 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { gzipSync } from 'node:zlib'
 
 import { consola } from 'consola'
 
@@ -190,6 +191,111 @@ if (mode === 'demo') {
     files.some((file) => relative(file) === 'index.html') ? null : 'dist/index.html is missing',
   )
 }
+
+// ─── Size budget ──────────────────────────────────────────────────────────────
+//
+// Nothing here limited how big the bundle could get. Chunking was configured
+// thoughtfully in vite.config.ts and then never measured again, so a dependency
+// that doubled a vendor chunk — or a static import that dragged a large library
+// onto the critical path — shipped silently.
+//
+// The budgets below sit just above the CURRENT measurements. They are a
+// regression alarm, not a target: the numbers they pin are not good, they are
+// simply what is true today, and the check exists so a change has to be
+// deliberate about making them worse.
+//
+// Raising a budget is a legitimate decision. Doing it without noticing is not.
+
+/** Bytes, gzipped, of everything index.html pulls in before first paint. */
+const INITIAL_PAYLOAD_BUDGET_GZIP = 750 * 1024
+
+/**
+ * Bytes, raw, of the largest chunk that is loaded EAGERLY.
+ *
+ * Deliberately not "the largest chunk emitted". The biggest files in the build
+ * are the markdown engine (~1.6 MB) and the docs vendor bundle (~1.1 MB), and
+ * both are lazy — they load only when someone opens /docs. A ceiling that had
+ * to clear those would be set so high it could never fail, which is how a
+ * budget becomes decoration. This one only looks at what index.html preloads.
+ */
+const LARGEST_EAGER_CHUNK_BUDGET = 850 * 1024
+
+/** Bytes, raw, of every emitted .js file combined. */
+const TOTAL_JS_BUDGET = 6.5 * 1024 * 1024
+
+const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`
+
+/**
+ * What the browser must download before it can render.
+ *
+ * Read from index.html rather than inferred from the import graph: the
+ * `<script>` plus every `<link rel="modulepreload">` IS the critical path, and
+ * a modulepreload is a real download, not a hint that the browser might skip.
+ */
+function initialPayload() {
+  const indexHtml = files.find((file) => relative(file) === 'index.html')
+  if (!indexHtml) return null
+
+  const html = readFileSync(indexHtml, 'utf8')
+  const refs = new Set(
+    [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]),
+  )
+
+  let raw = 0
+  let gzip = 0
+  let largest = { name: '', size: 0 }
+  for (const ref of refs) {
+    try {
+      const contents = readFileSync(join(distDir, ref.replace(/^\//, '')))
+      raw += contents.length
+      gzip += gzipSync(contents).length
+      if (contents.length > largest.size) {
+        largest = { name: ref.replace(/^\//, ''), size: contents.length }
+      }
+    } catch {
+      // Referenced but not emitted; the build would be broken in a way the
+      // other checks catch more clearly than a size check would.
+    }
+  }
+  return { raw, gzip, count: refs.size, largest }
+}
+
+const payload = initialPayload()
+
+if (payload) {
+  check(`initial payload within ${kb(INITIAL_PAYLOAD_BUDGET_GZIP)} gzipped`, () =>
+    payload.gzip > INITIAL_PAYLOAD_BUDGET_GZIP
+      ? `${kb(payload.gzip)} gzipped (${kb(payload.raw)} raw) across ${payload.count} files — over budget by ${kb(payload.gzip - INITIAL_PAYLOAD_BUDGET_GZIP)}`
+      : null,
+  )
+  check(`largest eagerly-loaded chunk within ${kb(LARGEST_EAGER_CHUNK_BUDGET)}`, () =>
+    payload.largest.size > LARGEST_EAGER_CHUNK_BUDGET
+      ? `${payload.largest.name} is ${kb(payload.largest.size)} and is preloaded on every page`
+      : null,
+  )
+
+  logger.info(
+    `Initial payload: ${kb(payload.gzip)} gzipped, ${kb(payload.raw)} raw, ${payload.count} files ` +
+      `(largest: ${payload.largest.name} ${kb(payload.largest.size)})`,
+  )
+}
+
+const chunkSizes = jsFiles
+  .map((file) => ({ name: relative(file), size: statSync(file).size }))
+  .sort((a, b) => b.size - a.size)
+
+const totalJs = chunkSizes.reduce((sum, chunk) => sum + chunk.size, 0)
+
+check(`total JS within ${kb(TOTAL_JS_BUDGET)}`, () =>
+  totalJs > TOTAL_JS_BUDGET ? `${kb(totalJs)} across ${jsFiles.length} files` : null,
+)
+
+logger.info(
+  `Largest chunks: ${chunkSizes
+    .slice(0, 5)
+    .map((chunk) => `${chunk.name} ${kb(chunk.size)}`)
+    .join(', ')}`,
+)
 
 // ─── Report ───────────────────────────────────────────────────────────────────
 
