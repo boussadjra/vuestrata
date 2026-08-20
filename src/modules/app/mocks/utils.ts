@@ -6,6 +6,50 @@
  * inside the auth module's mocks so non-auth modules (billing, users, etc.)
  * can authorize their requests without importing from `@/modules/auth`.
  */
+import { runtimeEnv } from '~/lib/config'
+
+/**
+ * The path the API is mounted at, taken from the same validated env the real
+ * client reads. An absolute `VUESTRATA_API_URL` contributes only its pathname —
+ * the leading `*` in every pattern already covers scheme and host.
+ */
+const API_BASE_PATH = ((): string => {
+  const raw = runtimeEnv.apiUrl
+  if (typeof raw !== 'string' || raw === '') return ''
+  try {
+    const path = raw.startsWith('/') ? raw : new URL(raw).pathname
+    return path.replace(/\/+$/, '')
+  } catch {
+    return ''
+  }
+})()
+
+/**
+ * Anchor a handler to the API's mount point.
+ *
+ * Every mock path goes through here, because MSW's service worker sees EVERY
+ * same-origin request — not just the ones the app makes through `apiGet`. A
+ * bare `*​/projects/:id` therefore claimed far more than the endpoint it was
+ * written for:
+ *
+ *   - Vite serves the app's own source tree from the same origin, so
+ *     `GET /src/modules/projects/presentation.ts` matched. A module script
+ *     request carries no bearer token, so the handler answered 401 and the
+ *     page failed to load on its own source file.
+ *   - `GET /dashboard/projects/42` — a hard reload of a detail route — matched
+ *     too, answering the navigation with JSON instead of `index.html`.
+ *
+ * Both are invisible in CI: the e2e gate runs against a built bundle, where the
+ * app is served from `/assets/*` and every route is a client-side transition.
+ *
+ * `VUESTRATA_API_URL=/` mounts the API at the origin root and brings the
+ * ambiguity back — there is then no namespace to tell an endpoint apart from a
+ * page. Give the API a path of its own.
+ */
+export function mockApiUrl(path: string): string {
+  return `*${API_BASE_PATH}${path}`
+}
+
 export function isValidToken(request: Request): boolean {
   const auth = request.headers.get('Authorization')
   if (!auth?.startsWith('Bearer ')) return false

@@ -14,7 +14,7 @@ import {
   type DashboardRange,
 } from '@/modules/analytics'
 
-import { isValidToken } from '../utils'
+import { isValidToken, mockApiUrl } from '../utils'
 
 /**
  * Dashboard mock backend.
@@ -138,7 +138,7 @@ function unauthorized() {
 }
 
 export const dashboardHandlers = [
-  http.get('*/dashboard/stats', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/stats'), async ({ request }) => {
     await delay(220)
     if (!isValidToken(request)) return unauthorized()
 
@@ -191,7 +191,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/activity', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/activity'), async ({ request }) => {
     await delay(220)
     if (!isValidToken(request)) return unauthorized()
 
@@ -213,7 +213,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/revenue-breakdown', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/revenue-breakdown'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) return unauthorized()
 
@@ -238,7 +238,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/funnel', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/funnel'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) return unauthorized()
 
@@ -259,7 +259,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/team-performance', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/team-performance'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) return unauthorized()
 
@@ -276,7 +276,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/recent-activity', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/recent-activity'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) return unauthorized()
 
@@ -339,7 +339,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/attention', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/attention'), async ({ request }) => {
     await delay(180)
     if (!isValidToken(request)) return unauthorized()
 
@@ -379,7 +379,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/upcoming', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/upcoming'), async ({ request }) => {
     await delay(180)
     if (!isValidToken(request)) return unauthorized()
 
@@ -423,7 +423,7 @@ export const dashboardHandlers = [
     )
   }),
 
-  http.get('*/dashboard/health', async ({ request }) => {
+  http.get(mockApiUrl('/dashboard/health'), async ({ request }) => {
     await delay(160)
     if (!isValidToken(request)) return unauthorized()
 

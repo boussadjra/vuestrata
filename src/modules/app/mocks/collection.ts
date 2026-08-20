@@ -18,14 +18,14 @@ import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 
 import type { PaginatedResponse } from '~/types'
 
-import { isValidToken } from './utils'
+import { isValidToken, mockApiUrl } from './utils'
 
 export interface CollectionRecord {
   id: string
 }
 
 export interface CollectionOptions<T extends CollectionRecord> {
-  /** Path segment, e.g. `orders` — matched as `*​/orders`. */
+  /** Path segment, e.g. `orders` — matched as `*<apiBasePath>/orders`. */
   resource: string
   /** Seeded records. Copied on write; the seed array is never mutated. */
   seed: T[]
@@ -116,7 +116,7 @@ export function createCollectionMock<T extends CollectionRecord>(
   }
 
   const handlers: HttpHandler[] = [
-    http.get(`*/${resource}`, async ({ request }) => {
+    http.get(mockApiUrl(`/${resource}`), async ({ request }) => {
       await delay(latency)
       const denied = unauthorized(request)
       if (denied) return denied
@@ -176,7 +176,7 @@ export function createCollectionMock<T extends CollectionRecord>(
       } satisfies PaginatedResponse<T>)
     }),
 
-    http.get(`*/${resource}/:id`, async ({ request, params }) => {
+    http.get(mockApiUrl(`/${resource}/:id`), async ({ request, params }) => {
       await delay(latency)
       const denied = unauthorized(request)
       if (denied) return denied
@@ -189,7 +189,7 @@ export function createCollectionMock<T extends CollectionRecord>(
 
   if (create) {
     handlers.push(
-      http.post(`*/${resource}`, async ({ request }) => {
+      http.post(mockApiUrl(`/${resource}`), async ({ request }) => {
         await delay(latency)
         const denied = unauthorized(request)
         if (denied) return denied
@@ -210,7 +210,7 @@ export function createCollectionMock<T extends CollectionRecord>(
 
   if (update) {
     handlers.push(
-      http.patch(`*/${resource}/:id`, async ({ request, params }) => {
+      http.patch(mockApiUrl(`/${resource}/:id`), async ({ request, params }) => {
         await delay(latency)
         const denied = unauthorized(request)
         if (denied) return denied
@@ -225,7 +225,7 @@ export function createCollectionMock<T extends CollectionRecord>(
         records = records.map((record, position) => (position === index ? next : record))
         return HttpResponse.json(next)
       }),
-      http.delete(`*/${resource}/:id`, async ({ request, params }) => {
+      http.delete(mockApiUrl(`/${resource}/:id`), async ({ request, params }) => {
         await delay(latency)
         const denied = unauthorized(request)
         if (denied) return denied

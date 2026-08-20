@@ -3,10 +3,10 @@ import { http, HttpResponse, delay } from 'msw'
 import type { AuditLogEntry, PaginatedResponse } from '~/types'
 
 import { mockAuditLogs } from '../fixtures'
-import { isValidToken } from '../utils'
+import { isValidToken, mockApiUrl } from '../utils'
 
 export const auditHandlers = [
-  http.get('*/audit-logs', async ({ request }) => {
+  http.get(mockApiUrl('/audit-logs'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })

@@ -28,8 +28,14 @@ function jsonHeaders(extra?: HeadersInit): HeadersInit {
   return headers
 }
 
+// Handlers are anchored to the API base path (`VUESTRATA_API_URL`, `/api` by
+// default) so the mock backend cannot claim unrelated same-origin URLs — the
+// app's own source files in dev, or a hard reload of a detail route. Requests
+// here go through the same mount point the app uses.
+const API_ORIGIN = 'http://localhost/api'
+
 async function jsonRequest(path: string, init: RequestInit = {}) {
-  return fetch(`http://localhost${path}`, {
+  return fetch(`${API_ORIGIN}${path}`, {
     ...init,
     headers: jsonHeaders(init.headers),
   })
@@ -128,10 +134,10 @@ describe('auth MSW handlers', () => {
   it('GET /auth/me requires a bearer token and active session', async () => {
     await seedDemoSession(adminUser)
 
-    const unauthorized = await fetch('http://localhost/auth/me')
+    const unauthorized = await fetch(`${API_ORIGIN}/auth/me`)
     expect(unauthorized.status).toBe(401)
 
-    const authorized = await fetch('http://localhost/auth/me', { headers: AUTH_HEADER })
+    const authorized = await fetch(`${API_ORIGIN}/auth/me`, { headers: AUTH_HEADER })
     expect(authorized.status).toBe(200)
     await expect(parseJson<User>(authorized)).resolves.toMatchObject({ id: adminUser.id })
   })
@@ -228,7 +234,7 @@ describe('auth MSW handlers', () => {
   })
 
   it('GET /api/auth/:provider redirects to the mock callback code', async () => {
-    const response = await fetch('http://localhost/api/auth/github', { redirect: 'manual' })
+    const response = await fetch(`${API_ORIGIN}/auth/github`, { redirect: 'manual' })
 
     expect(response.status).toBe(302)
     expect(response.headers.get('location')).toContain('/auth/callback')
@@ -238,13 +244,13 @@ describe('auth MSW handlers', () => {
 
 describe('users MSW handlers', () => {
   it('GET /users requires auth', async () => {
-    const response = await fetch('http://localhost/users')
+    const response = await fetch(`${API_ORIGIN}/users`)
 
     expect(response.status).toBe(401)
   })
 
   it('GET /users returns paginated, filtered users', async () => {
-    const response = await fetch('http://localhost/users?page=1&pageSize=1&search=member', {
+    const response = await fetch(`${API_ORIGIN}/users?page=1&pageSize=1&search=member`, {
       headers: AUTH_HEADER,
     })
 

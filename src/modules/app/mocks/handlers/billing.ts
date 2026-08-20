@@ -3,10 +3,10 @@ import { http, HttpResponse, delay } from 'msw'
 import { PLANS } from '~/modules/billing'
 
 import { mockInvoices, mockPaymentMethods, mockSubscription, mockUsage } from '../fixtures'
-import { isValidToken } from '../utils'
+import { isValidToken, mockApiUrl } from '../utils'
 
 export const billingHandlers = [
-  http.get('*/billing', async ({ request }) => {
+  http.get(mockApiUrl('/billing'), async ({ request }) => {
     await delay(300)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
@@ -20,7 +20,7 @@ export const billingHandlers = [
     })
   }),
 
-  http.post('*/billing/subscribe', async ({ request }) => {
+  http.post(mockApiUrl('/billing/subscribe'), async ({ request }) => {
     await delay(500)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
@@ -33,7 +33,7 @@ export const billingHandlers = [
     })
   }),
 
-  http.post('*/billing/cancel', async ({ request }) => {
+  http.post(mockApiUrl('/billing/cancel'), async ({ request }) => {
     await delay(300)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
@@ -44,7 +44,7 @@ export const billingHandlers = [
     })
   }),
 
-  http.put('*/billing/payment-methods', async ({ request }) => {
+  http.put(mockApiUrl('/billing/payment-methods'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })

@@ -3,7 +3,7 @@ import { delay, http, HttpResponse } from 'msw'
 import type { Permission, PaginatedResponse, Role, User } from '~/types'
 
 import { useDemoAuthBackend } from '../../state/demo-auth-backend'
-import { isValidToken } from '../utils'
+import { isValidToken, mockApiUrl } from '../utils'
 
 function normalizeSortableValue(value: unknown): number | string {
   if (typeof value === 'boolean') return value ? 1 : 0
@@ -17,7 +17,7 @@ function normalizeSortableValue(value: unknown): number | string {
 }
 
 export const usersHandlers = [
-  http.get('*/users', async ({ request }) => {
+  http.get(mockApiUrl('/users'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
@@ -63,7 +63,7 @@ export const usersHandlers = [
     } satisfies PaginatedResponse<User>)
   }),
 
-  http.patch('*/users/:id/role', async ({ request, params }) => {
+  http.patch(mockApiUrl('/users/:id/role'), async ({ request, params }) => {
     await delay(200)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
@@ -82,7 +82,7 @@ export const usersHandlers = [
     return HttpResponse.json(updated)
   }),
 
-  http.post('*/users', async ({ request }) => {
+  http.post(mockApiUrl('/users'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
@@ -109,7 +109,7 @@ export const usersHandlers = [
     return HttpResponse.json(newUser, { status: 201 })
   }),
 
-  http.patch('*/users/:id/permissions', async ({ request, params }) => {
+  http.patch(mockApiUrl('/users/:id/permissions'), async ({ request, params }) => {
     await delay(200)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })

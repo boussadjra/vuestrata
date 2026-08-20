@@ -1,6 +1,6 @@
 import { delay, http, HttpResponse } from 'msw'
 
-import { createMockJwt, isValidToken } from '@/mocks/utils'
+import { createMockJwt, isValidToken, mockApiUrl } from '@/mocks/utils'
 import { useDemoAuthBackend } from '@/state/demo-auth-backend'
 import { ensureDefaultDemoUsers, getDemoUsers } from '@/state/demo-store'
 import { DEMO_ACCOUNT } from '@/state/demo/account'
@@ -21,7 +21,7 @@ function tokensFor(user: User) {
 }
 
 export const authMockHandlers = [
-  http.post('*/auth/login', async ({ request }) => {
+  http.post(mockApiUrl('/auth/login'), async ({ request }) => {
     await delay(300)
     const { setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as AuthCredentials
@@ -63,7 +63,7 @@ export const authMockHandlers = [
     )
   }),
 
-  http.post('*/auth/register', async ({ request }) => {
+  http.post(mockApiUrl('/auth/register'), async ({ request }) => {
     await delay(300)
     const { setDemoUsers, setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as AuthCredentials & { name: string }
@@ -83,13 +83,13 @@ export const authMockHandlers = [
     return HttpResponse.json({ user: newUser, ...tokens })
   }),
 
-  http.post('*/auth/magic-link', async ({ request }) => {
+  http.post(mockApiUrl('/auth/magic-link'), async ({ request }) => {
     await delay(500)
     const body = (await request.json()) as { email: string }
     return HttpResponse.json({ message: `Magic link sent to ${body.email}` })
   }),
 
-  http.post('*/auth/magic-link/verify', async () => {
+  http.post(mockApiUrl('/auth/magic-link/verify'), async () => {
     await delay(300)
     const { setDemoSession } = useDemoAuthBackend()
     const users = await ensureDefaultDemoUsers()
@@ -100,7 +100,7 @@ export const authMockHandlers = [
   }),
 
   // ── MFA ────────────────────────────────────────────────
-  http.post('*/auth/mfa/setup', async ({ request }) => {
+  http.post(mockApiUrl('/auth/mfa/setup'), async ({ request }) => {
     await delay(300)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
@@ -113,7 +113,7 @@ export const authMockHandlers = [
     })
   }),
 
-  http.post('*/auth/mfa/verify', async ({ request }) => {
+  http.post(mockApiUrl('/auth/mfa/verify'), async ({ request }) => {
     await delay(300)
     const { setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as { mfaToken: string; code: string }
@@ -130,7 +130,7 @@ export const authMockHandlers = [
     )
   }),
 
-  http.post('*/auth/mfa/disable', async ({ request }) => {
+  http.post(mockApiUrl('/auth/mfa/disable'), async ({ request }) => {
     await delay(200)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
@@ -139,7 +139,7 @@ export const authMockHandlers = [
   }),
 
   // ── Session ─────────────────────────────────────────────
-  http.get('*/auth/me', async ({ request }) => {
+  http.get(mockApiUrl('/auth/me'), async ({ request }) => {
     await delay(100)
     if (!isValidToken(request)) {
       return HttpResponse.json({ message: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 })
@@ -152,14 +152,14 @@ export const authMockHandlers = [
     return HttpResponse.json(session.user)
   }),
 
-  http.post('*/auth/logout', async () => {
+  http.post(mockApiUrl('/auth/logout'), async () => {
     await delay(100)
     const { clearDemoSession } = useDemoAuthBackend()
     await clearDemoSession()
     return new HttpResponse(null, { status: 204 })
   }),
 
-  http.post('*/auth/refresh', async () => {
+  http.post(mockApiUrl('/auth/refresh'), async () => {
     await delay(200)
     const { getDemoSession, setDemoSession } = useDemoAuthBackend()
     const session = await getDemoSession()
@@ -172,7 +172,7 @@ export const authMockHandlers = [
   }),
 
   // ── OAuth token exchange ─────────────────────────────────
-  http.post('*/auth/token', async ({ request }) => {
+  http.post(mockApiUrl('/auth/token'), async ({ request }) => {
     await delay(300)
     const { setDemoSession } = useDemoAuthBackend()
     const body = (await request.json()) as Record<string, string>
@@ -202,7 +202,7 @@ export const authMockHandlers = [
   }),
 
   // ── Social / OAuth provider redirects ───────────────────
-  http.get('*/api/auth/:provider', ({ params }) => {
+  http.get(mockApiUrl('/auth/:provider'), ({ params }) => {
     const provider = params['provider'] as string
     const redirectUrl = new URL('/auth/callback', globalThis.location?.origin ?? 'http://localhost')
     redirectUrl.searchParams.set('code', `demo-oauth-code-${provider}`)
@@ -210,7 +210,7 @@ export const authMockHandlers = [
     return HttpResponse.redirect(redirectUrl.toString())
   }),
 
-  http.get('*/api/auth/:provider/callback', ({ params }) => {
+  http.get(mockApiUrl('/auth/:provider/callback'), ({ params }) => {
     const provider = params['provider'] as string
     const redirectUrl = new URL('/auth/callback', globalThis.location?.origin ?? 'http://localhost')
     redirectUrl.searchParams.set('code', `demo-oauth-code-${provider}`)
