@@ -15,7 +15,7 @@
     "gen:component": "node scripts/gen/index.mjs component",
     "gen:theme": "node scripts/gen/index.mjs theme",
     "gen:icon-set": "node scripts/gen/index.mjs icon-set",
-    "lint": "vp lint && node scripts/lint/run-custom-rules.mjs && node scripts/msw/check-worker-version.mjs && node scripts/docs/check-links.mjs --quiet",
+    "lint": "vp lint && node scripts/lint/run-custom-rules.mjs && node scripts/msw/check-worker-version.mjs && node scripts/security/sync-headers.mjs --check && node scripts/docs/check-links.mjs --quiet",
     "lint:docs": "node scripts/docs/check-links.mjs",
     "lint:fix": "vp lint --fix",
     "lint:inline-handlers": "node scripts/lint/run-custom-rules.mjs",
@@ -51,6 +51,8 @@
     "docker:build": "docker build -t vuestrata .",
     "docker:run": "docker run -p 8080:80 vuestrata",
     "prepare": "vp config",
+    "security:headers": "node scripts/security/sync-headers.mjs",
+    "security:headers:check": "node scripts/security/sync-headers.mjs --check",
     "build:version": "node scripts/build/write-version.mjs"
   },
   "dependencies": {

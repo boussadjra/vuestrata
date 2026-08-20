@@ -1,0 +1,136 @@
+/**
+ * The canonical security-header set. One definition, four consumers.
+ *
+ * These headers previously existed as four hand-maintained copies — in
+ * `vercel.json`, `public/_headers`, an nginx block built with `printf` inside
+ * the Dockerfile, and a `<meta>` tag in `index.html`. Each carried a comment
+ * asking the next person to keep the others in sync, and nothing checked that
+ * they did. A CSP that is correct in three places out of four is a CSP that is
+ * wrong wherever the app actually gets deployed.
+ *
+ * `sync-headers.mjs` renders every target from this module and, with `--check`,
+ * fails when a committed file has drifted. That check runs in `vpr lint`.
+ */
+
+/**
+ * Directives that never vary by deployment.
+ *
+ * `style-src` needs `'unsafe-inline'`: both Tailwind and Vue inject style
+ * elements at runtime. That is a real weakening of the policy and cannot be
+ * removed without nonce-ing every injected style, which Vue's runtime does not
+ * support today.
+ */
+const BASE_CSP = {
+  'default-src': ["'self'"],
+  'script-src': ["'self'"],
+  'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  'font-src': ["'self'", 'https://fonts.gstatic.com'],
+  'img-src': ["'self'", 'data:', 'blob:'],
+  'connect-src': ["'self'"],
+  'worker-src': ["'self'", 'blob:'],
+  'frame-ancestors': ["'none'"],
+  'base-uri': ["'self'"],
+  'form-action': ["'self'"],
+  'object-src': ["'none'"],
+}
+
+/**
+ * Directives a `<meta http-equiv>` tag cannot express.
+ *
+ * `frame-ancestors` is ignored entirely when delivered via `<meta>` — the spec
+ * requires it to come from a real header — so emitting it there is noise that
+ * implies protection the tag does not provide. `X-Frame-Options: DENY` covers
+ * the meta-only case.
+ */
+const META_UNSUPPORTED_DIRECTIVES = new Set(['frame-ancestors'])
+
+/**
+ * Turn an API URL into a CSP `connect-src` source.
+ *
+ * A same-origin path (`/api`, the reverse-proxy setup) needs nothing beyond
+ * `'self'`. A cross-origin API needs its ORIGIN — scheme, host and port, with
+ * no path. This is the single most common way to get a CSP wrong: a path is
+ * not a valid CSP source, and ONE invalid source makes the browser discard the
+ * entire directive, so `connect-src 'self' https://api.example.com/v1` silently
+ * provides no protection at all rather than failing loudly.
+ */
+export function connectSrcFor(apiUrl) {
+  if (!apiUrl || apiUrl.startsWith('/')) return null
+
+  let parsed
+  try {
+    parsed = new URL(apiUrl)
+  } catch {
+    throw new Error(
+      `Cannot derive a CSP connect-src from VUESTRATA_API_URL="${apiUrl}": ` +
+        `it is neither an absolute URL nor a same-origin path starting with "/".`,
+    )
+  }
+  return parsed.origin
+}
+
+/**
+ * Build the CSP string.
+ *
+ * `apiUrl` widens `connect-src` when the backend is cross-origin. Everything
+ * else is fixed.
+ */
+export function buildCsp({ apiUrl = '/api', forMeta = false } = {}) {
+  const directives = {}
+  for (const [name, sources] of Object.entries(BASE_CSP)) {
+    if (forMeta && META_UNSUPPORTED_DIRECTIVES.has(name)) continue
+    directives[name] = [...sources]
+  }
+
+  const apiOrigin = connectSrcFor(apiUrl)
+  if (apiOrigin && !directives['connect-src'].includes(apiOrigin)) {
+    directives['connect-src'].push(apiOrigin)
+  }
+
+  return Object.entries(directives)
+    .map(([name, sources]) => `${name} ${sources.join(' ')}`)
+    .join('; ')
+}
+
+/** The full header set sent on every response. Order is stable for diffing. */
+export function buildSecurityHeaders({ apiUrl = '/api' } = {}) {
+  return [
+    ['Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload'],
+    ['Content-Security-Policy', buildCsp({ apiUrl })],
+    ['X-Content-Type-Options', 'nosniff'],
+    ['X-Frame-Options', 'DENY'],
+    ['Referrer-Policy', 'strict-origin-when-cross-origin'],
+    ['Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()'],
+    ['Cross-Origin-Opener-Policy', 'same-origin'],
+    ['Cross-Origin-Resource-Policy', 'same-origin'],
+  ]
+}
+
+/** Cache policy per path class. Shared by every target so they cannot disagree. */
+export const CACHE_RULES = [
+  {
+    match: '/index.html',
+    nginxLocation: '/',
+    headers: [['Cache-Control', 'public, max-age=0, must-revalidate']],
+  },
+  {
+    match: '/assets/*',
+    nginxLocation: '/assets/',
+    headers: [['Cache-Control', 'public, max-age=31536000, immutable']],
+  },
+  {
+    match: '/mockServiceWorker.js',
+    nginxLocation: null, // demo hosts only; the production image deletes it
+    headers: [
+      ['Cache-Control', 'no-cache, no-store, must-revalidate'],
+      ['Service-Worker-Allowed', '/'],
+    ],
+    comment:
+      'Not content-hashed and controls every request in the demo build — a cached\ncopy would keep serving stale mock handlers after a deploy.',
+  },
+]
+
+/** Marker written into every generated file so nobody hand-edits one. */
+export const GENERATED_BANNER =
+  'GENERATED by scripts/security/sync-headers.mjs — do not edit by hand.\n' +
+  'Edit scripts/security/headers.mjs and run `vpr security:headers`.'

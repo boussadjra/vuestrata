@@ -52,6 +52,15 @@
       ]
     },
     {
+      "source": "/index\\.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -61,7 +70,7 @@
       ]
     },
     {
-      "source": "/mockServiceWorker.js",
+      "source": "/mockServiceWorker\\.js",
       "headers": [
         {
           "key": "Cache-Control",
@@ -70,15 +79,6 @@
         {
           "key": "Service-Worker-Allowed",
           "value": "/"
-        }
-      ]
-    },
-    {
-      "source": "/index.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
         }
       ]
     }
