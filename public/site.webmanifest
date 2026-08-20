@@ -1,0 +1,18 @@
+{
+  "name": "Vuestrata",
+  "short_name": "Vuestrata",
+  "description": "Modern Vue 3 starter template",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0832EF",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

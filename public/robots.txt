@@ -1,0 +1,18 @@
+# Vuestrata
+#
+# The hosted demo is a public showcase and should be indexable. A real
+# deployment of this template is an authenticated console: nothing behind the
+# login is reachable by a crawler anyway, but advertising the route structure
+# is free reconnaissance. Replace the block below with `Disallow: /` for an
+# internal deployment.
+
+User-agent: *
+Allow: /
+
+# Never useful to index, and each one is either an implementation detail or a
+# dead end for a crawler.
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /403
+Disallow: /version.json
+Disallow: /mockServiceWorker.js
