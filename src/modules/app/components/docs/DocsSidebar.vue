@@ -227,11 +227,17 @@ watch(
   { flush: 'post' },
 )
 
-const itemLinkClass =
-  'focus-visible:ring-primary-300 flex min-h-10 w-full items-center rounded-lg px-3 py-2 text-start text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5'
+const linkBase =
+  'focus-visible:ring-primary-300 flex w-full items-center rounded-lg py-2 pe-3 text-start text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:py-1.5'
 
-const childLinkClass =
-  'focus-visible:ring-primary-300 flex min-h-9 w-full items-center rounded-lg py-2 pe-3 ps-4 text-start text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none lg:min-h-8 lg:py-1.5'
+/** The docs root — a peer of the section headings, so it shares their indent. */
+const rootLinkClass = `${linkBase} min-h-10 ps-3 lg:min-h-8`
+
+/** A page, or a group toggle: one step in from its section heading. */
+const itemLinkClass = `${linkBase} min-h-10 ps-5 lg:min-h-8`
+
+/** A page inside a group: one step further, alongside the guide line. */
+const childLinkClass = `${linkBase} min-h-9 ps-4 lg:min-h-8`
 </script>
 
 <template>
@@ -253,7 +259,7 @@ const childLinkClass =
     <RouterLink
       to="/docs"
       :class="[
-        itemLinkClass,
+        rootLinkClass,
         'mb-3 font-semibold',
         currentSlug === ''
           ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300'
@@ -321,7 +327,7 @@ const childLinkClass =
               <ul
                 v-show="isGroupExpanded(entry.group.key)"
                 :id="getGroupPanelId(entry.group.key)"
-                class="border-surface-200 dark:border-surface-700 ms-6 mt-1 list-none space-y-1 border-s p-0"
+                class="border-surface-200 dark:border-surface-700 ms-5 mt-1 list-none space-y-1 border-s p-0 ps-1"
               >
                 <li v-for="sub in entry.group.items" :key="sub.slug">
                   <RouterLink
