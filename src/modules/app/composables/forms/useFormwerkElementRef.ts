@@ -25,20 +25,32 @@ import { toValue, type MaybeRefOrGetter } from 'vue'
  *
  * So: strip `ref` out of the spread, and hand Formwerk the component's `$el`.
  */
-export interface FormwerkInputProps extends Record<string, unknown> {
+/**
+ * The one property this helper reads.
+ *
+ * Deliberately `unknown` rather than a call signature, and deliberately not
+ * `extends Record<string, unknown>`. Formwerk types its `inputProps` as
+ * interfaces, and an interface has no implicit index signature, so it is not
+ * assignable to `Record<string, unknown>` — which is what made `UiCheckbox`
+ * and `UiToggle` fail `vue-tsc` while compiling and running perfectly well.
+ * Constraining to the single property actually read here accepts every
+ * Formwerk prop object, and the generic parameter keeps the rest of them
+ * fully typed on the way out.
+ */
+export interface FormwerkInputProps {
   ref?: (el: unknown) => void
 }
 
-export function useFormwerkElementRef(inputProps: MaybeRefOrGetter<FormwerkInputProps>) {
+export function useFormwerkElementRef<T extends object>(inputProps: MaybeRefOrGetter<T>) {
   /** `inputProps` with the function ref removed, safe to `v-bind` to a component. */
   const attrs = computed(() => {
-    const { ref: _capture, ...rest } = toValue(inputProps)
+    const { ref: _capture, ...rest } = toValue(inputProps) as T & FormwerkInputProps
     return rest
   })
 
   /** Bind as `:ref` on the component. Resolves the instance to its root element. */
   function captureElement(instance: unknown) {
-    const capture = toValue(inputProps).ref
+    const capture = (toValue(inputProps) as FormwerkInputProps).ref
     if (typeof capture !== 'function') return
 
     const el = resolveElement(instance)

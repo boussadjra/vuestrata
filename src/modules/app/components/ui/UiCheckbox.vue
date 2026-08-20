@@ -82,7 +82,7 @@ const rekaChecked = computed(() =>
  * because Reka v2's CheckboxRoot has no `checked` prop.
  */
 const checkboxAttrs = computed(() => {
-  const { 'aria-checked': _stale, ...rest } = formwerkAttrs.value
+  const { 'aria-checked': _stale, ...rest } = formwerkAttrs.value as Record<string, unknown>
   return rest
 })
 
