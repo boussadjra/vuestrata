@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 jobs:
   lint:
@@ -33,6 +33,14 @@ jobs:
       # stale one fails MSW's integrity check at runtime and silently disables
       # mocking, which would take the whole hosted demo down.
       - run: node scripts/msw/check-worker-version.mjs
+      # Node, pnpm and Vite+ are pinned by hand in the Dockerfile, vercel.json
+      # and this file. They had all drifted apart, so the image users receive
+      # was built by a toolchain CI never ran. One source of truth each, checked.
+      - run: node scripts/lint/check-toolchain-pins.mjs
+      # The security headers exist in four places (vercel.json, public/_headers,
+      # the nginx config, index.html). They used to be kept in sync by a comment
+      # asking the next person to remember.
+      - run: node scripts/security/sync-headers.mjs --check
       # Docs rot silently: a path renamed in a refactor leaves the prose
       # pointing at a file nobody will find, and nothing fails. This checks the
       # claims a machine can verify — that every source path and relative link

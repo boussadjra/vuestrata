@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "env VUESTRATA_RUNTIME_MODE=demo VUESTRATA_USE_MOCKS=true VUESTRATA_AUTH_ADAPTER=mock vp build",
-  "installCommand": "npm i -g vite-plus@0.1.16 && vp install --frozen-lockfile",
+  "installCommand": "npm i -g vite-plus@0.2.9 && vp install --frozen-lockfile",
   "outputDirectory": "dist",
   "framework": null,
   "github": {
