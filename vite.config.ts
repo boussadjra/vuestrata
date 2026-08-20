@@ -385,5 +385,30 @@ export default defineConfig({
     globals: true,
 
     setupFiles: ['test/setup.ts'],
+
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'clover', 'json'],
+
+      /**
+       * A ratchet, not a target.
+       *
+       * CI already collected coverage and uploaded it as an artifact, but
+       * nothing ever read it — coverage could fall to zero and every job would
+       * still be green. These floors sit a couple of points under the measured
+       * baseline (statements 65.7, branches 52.7, functions 58.0, lines 66.9)
+       * so ordinary churn does not trip them, while a change that deletes or
+       * strands a meaningful body of tested code does.
+       *
+       * Raise them when the real numbers rise. Lowering one is a decision that
+       * belongs in a commit message, which is the entire point of having them.
+       */
+      thresholds: {
+        statements: 63,
+        branches: 50,
+        functions: 55,
+        lines: 64,
+      },
+    },
   },
 })

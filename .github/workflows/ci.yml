@@ -134,18 +134,27 @@ jobs:
           retention-days: 7
 
   e2e:
-    name: E2E (built artifact)
+    name: E2E (${{ matrix.browser }})
     runs-on: ubuntu-latest
     # Depends on build so a broken bundle fails fast and cheaply, before
     # spending browser time on it.
     needs: [build]
+    strategy:
+      fail-fast: false
+      matrix:
+        # playwright.config.ts has always defined all four of these, and CI ran
+        # only chromium — so three configured browsers were never exercised.
+        # A matrix runs them in parallel rather than serially in one job.
+        browser: [chromium, firefox, webkit, mobile-chrome]
     steps:
       - uses: actions/checkout@v4
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
-      - run: vp exec playwright install --with-deps chromium
+      # mobile-chrome is Chromium with a device profile, so it needs no extra
+      # browser download.
+      - run: vp exec playwright install --with-deps ${{ matrix.browser == 'mobile-chrome' && 'chromium' || matrix.browser }}
 
       # E2E_TARGET=preview makes Playwright run `vpr build && vpr preview` over
       # dist/ rather than the dev server. This is what exercises the real
@@ -156,12 +165,66 @@ jobs:
       - name: Run E2E against the production preview
         env:
           E2E_TARGET: preview
-        run: vpr test:e2e -- --project=chromium
+        run: vpr test:e2e -- --project=${{ matrix.browser }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+
+  # The Docker image is the REAL production target, and nothing in CI had ever
+  # built it — let alone opened it in a browser. `verify-bundle` inspects files
+  # on disk; it cannot tell you the app mounts. A production build that
+  # white-screened on boot passed every gate.
+  docker:
+    name: Docker image (production artifact)
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build the image
+        run: |
+          docker build             --build-arg VUESTRATA_RELEASE=${{ github.sha }}             --build-arg VUESTRATA_API_URL=/api             -t vuestrata:ci .
+
+      - name: Start the container
+        run: |
+          docker run -d --name vuestrata-ci -p 8080:8080 vuestrata:ci
+          # The image declares a HEALTHCHECK; wait for it rather than sleeping
+          # an arbitrary number of seconds.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs vuestrata-ci
+          exit 1
+
+      - run: vp exec playwright install --with-deps chromium
+
+      - name: Smoke-test the running production artifact
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8080
+        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+
+      - name: Container logs
+        if: always()
+        run: docker logs vuestrata-ci || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-docker
           path: playwright-report/
           retention-days: 7
 
@@ -171,7 +234,7 @@ jobs:
     name: CI OK
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint, typecheck, test, build, e2e]
+    needs: [lint, typecheck, test, build, e2e, docker]
     steps:
       - name: Fail if any dependency failed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')

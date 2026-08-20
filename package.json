@@ -54,7 +54,9 @@
     "lint:toolchain": "node scripts/lint/check-toolchain-pins.mjs",
     "security:headers": "node scripts/security/sync-headers.mjs",
     "security:headers:check": "node scripts/security/sync-headers.mjs --check",
-    "build:version": "node scripts/build/write-version.mjs"
+    "build:version": "node scripts/build/write-version.mjs",
+    "test:e2e:all": "playwright test --project=chromium --project=firefox --project=webkit --project=mobile-chrome",
+    "test:e2e:docker": "playwright test e2e/production-artifact.spec.ts --project=chromium"
   },
   "dependencies": {
     "@formwerk/core": "^0.14.4",
