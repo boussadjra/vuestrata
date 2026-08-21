@@ -1,6 +1,6 @@
 {
   "name": "vuestrata",
-  "version": "1.0.1-alpha.3",
+  "version": "1.0.1-alpha.4",
   "private": true,
   "description": "Opinionated Vue application foundation with enforced architecture, generators, and 12 design personalities.",
   "keywords": [
