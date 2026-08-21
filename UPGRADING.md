@@ -130,7 +130,7 @@ you have made changes you care about, compare against the release you started
 from first:
 
 ```bash
-git diff v1.0.1-alpha.5 -- src/modules/app/components/ui/
+git diff v1.0.1-alpha.6 -- src/modules/app/components/ui/
 ```
 
 Anything that turns up there is an edit `init` is about to forget. Either
