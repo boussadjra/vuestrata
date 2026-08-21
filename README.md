@@ -64,6 +64,47 @@ the template, and _your_ application — in
 - **GitHub Actions** CI/CD pipeline
 - **Docker** multi-stage build with Nginx
 
+## Start a Project
+
+Vuestrata is a template you own a copy of, not a dependency you resolve. The CLI
+is what lets upstream fixes still reach you after you have changed things.
+
+```bash
+# 1. Your own copy — use the "Use this template" button, then:
+git clone https://github.com/<you>/<your-app>.git my-app && cd my-app
+vp install
+
+# 2. The CLI. Install it now, before you edit anything.
+vp add -D @vuestrata/cli
+vp exec vuestrata doctor
+
+# 3. Clear out the nine demo modules, the marketing page and the docs site.
+vp exec vuestrata eject --dry-run     # read the plan first
+vp exec vuestrata eject
+vp check && vpr build && vpr test --run
+
+# 4. Build your own domains.
+vp exec vuestrata add module payments
+```
+
+Customise through the seams — `styles/brand.css` for design tokens,
+`locales/<locale>.overrides.json` for copy, `config/app.overrides.ts` for the
+product name and links. Those files are yours; nothing upstream writes to them,
+which is what lets everything else keep updating.
+
+Later, to take a release:
+
+```bash
+vp add -D @vuestrata/cli@latest
+vp exec vuestrata diff      # what would change; writes nothing
+vp exec vuestrata upgrade
+```
+
+Files you never touched are replaced. Files you edited are left alone, with the
+new version dropped beside them to compare. Full walkthrough in
+[Starting a Project](docs/1.getting-started/3.starting-a-project.md); the
+mechanism is in [UPGRADING.md](UPGRADING.md).
+
 ## Quick Start
 
 ```bash

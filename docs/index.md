@@ -15,6 +15,10 @@ The in-app docs at `/docs` are English and left-to-right only. The header langua
 Install, configure, and run the starter through Vite+.
 ::
 
+::card{title="Starting a Project" icon="widget" to="/docs/getting-started/starting-a-project"}
+Take your own copy, clear out the demo, and keep taking updates afterwards.
+::
+
 ::card{title="Architecture" icon="layers" to="/docs/architecture/overview"}
 Module boundaries, runtime setup, wrapper architecture, and typed data flow.
 ::

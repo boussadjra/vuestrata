@@ -34,6 +34,10 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Configuration',
     description: 'Environment variables and adapter configuration.',
   },
+  '/docs/1.getting-started/3.starting-a-project.md': {
+    title: 'Starting a Project',
+    description: 'From the template to your own app, and how to keep taking updates afterwards.',
+  },
   '/docs/2.architecture/1.overview.md': {
     title: 'Architecture Overview',
     description: 'Current layered architecture, module ownership, and runtime flow.',

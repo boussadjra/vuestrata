@@ -7,11 +7,20 @@ things, and a `git merge` would collide on every file both sides touched.
 `@vuestrata/cli` exists to make that not true.
 
 ```bash
-vp add -D @vuestrata/cli   # once
-vuestrata init             # once, in an existing project
-vuestrata diff             # what would change
-vuestrata upgrade          # do it
+vp add -D @vuestrata/cli          # once
+vp exec vuestrata doctor          # is this project upgradable?
+vp exec vuestrata diff            # what would change; writes nothing
+vp exec vuestrata upgrade         # do it
 ```
+
+> **New to Vuestrata?** Start at
+> [Starting a Project](docs/1.getting-started/3.starting-a-project.md) — taking
+> your own copy, removing the demo, and the habits that keep upgrades working.
+> This page is the mechanism underneath.
+
+A project cloned from the template arrives already tracked, so there is no setup
+step. `vuestrata init` exists only for a project that predates the CLI; see
+[Adopting the CLI late](#adopting-the-cli-late).
 
 ## The one idea
 
@@ -102,6 +111,31 @@ upgrade puts any of it back.
 
 `--keep <ids>` keeps named modules; `--keep-docs` keeps `docs/`; `--dry-run`
 prints the plan.
+
+## Adopting the CLI late
+
+A project that started before `@vuestrata/cli` existed has no lockfile, so run:
+
+```bash
+vp exec vuestrata init
+```
+
+One caveat, and it is worth reading twice. `init` records the files **as they
+are now** as the baseline. If you had already restyled `UiButton.vue`, that
+edit is recorded as though Vuestrata shipped it, and the next upgrade will
+replace it without asking.
+
+That is the right trade — the alternative is tracking nothing at all — but if
+you have made changes you care about, compare against the release you started
+from first:
+
+```bash
+git diff v1.0.1-alpha.5 -- src/modules/app/components/ui/
+```
+
+Anything that turns up there is an edit `init` is about to forget. Either
+re-apply it after the upgrade, or move it into one of the seams above so it
+stops being an edit at all.
 
 ## When something goes wrong
 
