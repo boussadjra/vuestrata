@@ -104,6 +104,24 @@ describe('module contract', () => {
     expect(appModules.length).toBeGreaterThan(0)
   })
 
+  it('declares an origin on every module', () => {
+    // `vuestrata eject` removes every `demo` module and keeps every `template`
+    // one, and it has no way to tell them apart other than this field — the
+    // eight worked-example domains are deliberately indistinguishable from real
+    // ones. A module that forgets to declare it would be silently kept on a
+    // project that asked for a clean slate, or silently deleted on one that
+    // did not.
+    for (const mod of appModules) {
+      const { id, origin } = mod.config
+      expect(
+        origin,
+        `module "${id}" declares no origin. Use 'app' for your own modules; ` +
+          "'demo' and 'template' belong to Vuestrata.",
+      ).toBeDefined()
+      expect(['demo', 'template', 'app'], `module "${id}" has origin "${origin}"`).toContain(origin)
+    }
+  })
+
   it('has unique, kebab-case ids that match their directory', () => {
     const seen = new Set<string>()
     for (const mod of appModules) {

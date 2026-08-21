@@ -17,6 +17,7 @@ import ordersI18nFr from './i18n/fr.json'
 const ordersModule: ModuleDefinition = {
   config: {
     id: 'orders',
+    origin: 'demo',
     name: 'Orders',
     description: 'Order capture, fulfilment, and revenue',
     version: '1.0.0',

@@ -109,7 +109,26 @@ export interface ModuleConfig {
   dependencies?: string[]
   /** Permissions this module introduces */
   permissions?: string[]
+  /**
+   * Who this module belongs to.
+   *
+   * `vuestrata eject` needs to know which modules exist to demonstrate the
+   * template and which are load-bearing, and no heuristic gets that right: the
+   * eight domain modules look exactly like a real one because they *are* real
+   * ones, written to be read as worked examples.
+   *
+   *   demo      A worked example. `eject` removes it.
+   *   template  Infrastructure Vuestrata provides — auth, users, settings.
+   *             Kept, and its files stay managed.
+   *   app       Yours. Never touched by anything upstream.
+   *
+   * Generated modules default to `app`; declaring anything else on one of your
+   * own modules would invite an upgrade to reason about it.
+   */
+  origin?: ModuleOrigin
 }
+
+export type ModuleOrigin = 'demo' | 'template' | 'app'
 
 export type ModuleCategory =
   | 'core'

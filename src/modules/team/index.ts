@@ -17,6 +17,7 @@ import teamI18nFr from './i18n/fr.json'
 const teamModule: ModuleDefinition = {
   config: {
     id: 'team',
+    origin: 'demo',
     name: 'Team',
     description: 'People directory, departments, and availability',
     version: '1.0.0',

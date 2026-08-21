@@ -13,6 +13,7 @@ import projectsI18nFr from './i18n/fr.json'
 const projectsModule: ModuleDefinition = {
   config: {
     id: 'projects',
+    origin: 'demo',
     name: 'Projects',
     description: 'Project portfolio and task boards',
     version: '1.0.0',

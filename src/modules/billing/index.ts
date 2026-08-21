@@ -20,6 +20,7 @@ import billingI18nFr from './i18n/fr.json'
 const billingModule: ModuleDefinition = {
   config: {
     id: 'billing',
+    origin: 'template',
     name: 'Billing',
     description: 'Subscription plans, invoices, and payment management',
     version: '1.0.0',

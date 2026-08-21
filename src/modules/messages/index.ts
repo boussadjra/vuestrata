@@ -14,6 +14,7 @@ import messagesI18nFr from './i18n/fr.json'
 const messagesModule: ModuleDefinition = {
   config: {
     id: 'messages',
+    origin: 'demo',
     name: 'Messages',
     description: 'Inbox, threads, and the notification centre',
     version: '1.0.0',

@@ -28,6 +28,7 @@ import accountI18nFr from './i18n/fr.json'
 const authModule: ModuleDefinition = {
   config: {
     id: 'auth',
+    origin: 'template',
     name: 'Auth',
     description: 'Authentication pages, adapters, and OAuth/MFA flows',
     version: '1.0.0',

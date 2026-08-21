@@ -16,6 +16,7 @@ import reportsI18nFr from './i18n/fr.json'
 const reportsModule: ModuleDefinition = {
   config: {
     id: 'reports',
+    origin: 'demo',
     name: 'Reports',
     description: 'Saved reports across revenue, pipeline, usage, and support',
     version: '1.0.0',

@@ -17,6 +17,7 @@ import customersI18nFr from './i18n/fr.json'
 const customersModule: ModuleDefinition = {
   config: {
     id: 'customers',
+    origin: 'demo',
     name: 'Customers',
     description: 'Customer accounts, contacts, and revenue',
     version: '1.0.0',

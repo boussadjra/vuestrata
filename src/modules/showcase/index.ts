@@ -14,6 +14,7 @@ import showcaseI18nFr from './i18n/fr.json'
 const showcaseModule: ModuleDefinition = {
   config: {
     id: 'showcase',
+    origin: 'demo',
     name: 'Showcase',
     description: 'Forms and data-tables demonstration pages',
     version: '1.0.0',

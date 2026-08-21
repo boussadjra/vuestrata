@@ -19,6 +19,7 @@ import usersI18nFr from './i18n/fr.json'
 const usersModule: ModuleDefinition = {
   config: {
     id: 'users',
+    origin: 'template',
     name: 'Users',
     description: 'Team member management, roles, and access control',
     version: '1.0.0',

@@ -16,6 +16,7 @@ import analyticsI18nFr from './i18n/fr.json'
 const analyticsModule: ModuleDefinition = {
   config: {
     id: 'analytics',
+    origin: 'template',
     name: 'Analytics',
     description: 'Dashboard overview, audit log, and chart visualizations',
     version: '1.0.0',

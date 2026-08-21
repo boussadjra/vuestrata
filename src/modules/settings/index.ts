@@ -22,6 +22,7 @@ import settingsI18nFr from './i18n/fr.json'
 const settingsModule: ModuleDefinition = {
   config: {
     id: 'settings',
+    origin: 'template',
     name: 'Settings',
     description: 'Display preferences and feature flag management',
     version: '1.0.0',

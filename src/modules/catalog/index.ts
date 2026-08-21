@@ -14,6 +14,7 @@ import catalogI18nFr from './i18n/fr.json'
 const catalogModule: ModuleDefinition = {
   config: {
     id: 'catalog',
+    origin: 'demo',
     name: 'Products',
     description: 'Product catalogue, pricing, and stock levels',
     version: '1.0.0',

@@ -14,6 +14,7 @@ import calendarI18nFr from './i18n/fr.json'
 const calendarModule: ModuleDefinition = {
   config: {
     id: 'calendar',
+    origin: 'demo',
     name: 'Calendar',
     description: 'Team calendar, deadlines, and maintenance windows',
     version: '1.0.0',
