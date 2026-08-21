@@ -1,6 +1,6 @@
 {
   "name": "@vuestrata/cli",
-  "version": "1.0.1-alpha.5",
+  "version": "1.0.1-alpha.6",
   "description": "Scaffold, inspect and upgrade a Vuestrata project.",
   "keywords": [
     "cli",
