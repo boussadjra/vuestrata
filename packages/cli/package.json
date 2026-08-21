@@ -2,6 +2,23 @@
   "name": "@vuestrata/cli",
   "version": "1.0.1-alpha.5",
   "description": "Scaffold, inspect and upgrade a Vuestrata project.",
+  "keywords": [
+    "cli",
+    "codemod",
+    "generator",
+    "migration",
+    "scaffold",
+    "starter-template",
+    "template-upgrade",
+    "vite-plus",
+    "vue",
+    "vue3",
+    "vuestrata"
+  ],
+  "homepage": "https://github.com/boussadjra/vuestrata/blob/main/packages/cli/README.md",
+  "bugs": {
+    "url": "https://github.com/boussadjra/vuestrata/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +29,7 @@
     "vuestrata": "src/index.mjs"
   },
   "files": [
+    "README.md",
     "src",
     "migrations",
     "payload"
