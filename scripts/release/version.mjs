@@ -1,9 +1,10 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const packageJsonPath = path.resolve(__dirname, '../../package.json')
+const repoRoot = path.resolve(__dirname, '../..')
 
 const DEFAULT_PREID = 'alpha'
 const VALID_COMMANDS = new Set([
@@ -130,14 +131,51 @@ function bump(parsed, command, preid) {
   }
 }
 
-async function readPackageJson() {
-  const content = await readFile(packageJsonPath, 'utf8')
-  return JSON.parse(content)
+/**
+ * Every package.json a release moves, root first.
+ *
+ * `packages/cli` is not optional here. Its version is the template version a
+ * project receives — `upgrade` stamps it into the lockfile and
+ * `build-payload.mjs` into the payload index — so a CLI left behind a root bump
+ * publishes a payload labelled as a release it is not.
+ */
+async function packageJsonPaths() {
+  const paths = [path.join(repoRoot, 'package.json')]
+  const packagesDir = path.join(repoRoot, 'packages')
+
+  let entries = []
+  try {
+    entries = await readdir(packagesDir, { withFileTypes: true })
+  } catch {
+    return paths
+  }
+
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory()) continue
+    const candidate = path.join(packagesDir, entry.name, 'package.json')
+    if (existsSync(candidate)) paths.push(candidate)
+  }
+
+  return paths
 }
 
-async function writePackageJson(pkg) {
-  const next = `${JSON.stringify(pkg, null, 2)}\n`
-  await writeFile(packageJsonPath, next, 'utf8')
+async function readPackages() {
+  const packages = []
+  for (const file of await packageJsonPaths()) {
+    packages.push({ file, pkg: JSON.parse(await readFile(file, 'utf8')) })
+  }
+  return packages
+}
+
+async function writePackages(packages, nextVersion) {
+  for (const entry of packages) {
+    entry.pkg.version = nextVersion
+    await writeFile(entry.file, `${JSON.stringify(entry.pkg, null, 2)}\n`, 'utf8')
+  }
+}
+
+function relative(file) {
+  return path.relative(repoRoot, file).replaceAll('\\', '/')
 }
 
 function writeStdout(message) {
@@ -148,7 +186,7 @@ function writeStderr(message) {
   process.stderr.write(`${message}\n`)
 }
 
-function printResult({ command, currentVersion, nextVersion, dryRun, json }) {
+function printResult({ command, currentVersion, nextVersion, dryRun, json, packages, drifted }) {
   if (json) {
     writeStdout(
       JSON.stringify(
@@ -157,6 +195,10 @@ function printResult({ command, currentVersion, nextVersion, dryRun, json }) {
           currentVersion,
           nextVersion,
           dryRun,
+          packages: packages.map((entry) => ({
+            file: relative(entry.file),
+            version: command === 'show' || dryRun ? entry.pkg.version : nextVersion,
+          })),
         },
         null,
         2,
@@ -167,21 +209,46 @@ function printResult({ command, currentVersion, nextVersion, dryRun, json }) {
 
   if (command === 'show') {
     writeStdout(currentVersion)
+    for (const entry of drifted) {
+      writeStderr(
+        `[version] ${relative(entry.file)} is at ${entry.pkg.version}, not ${currentVersion}`,
+      )
+    }
     return
   }
 
   const action = dryRun ? 'Would set' : 'Set'
   writeStdout(`${action} version ${currentVersion} -> ${nextVersion}`)
+  for (const entry of packages) writeStdout(`  ${relative(entry.file)}`)
 }
 
 async function main() {
   const { command, preid, dryRun, json, positional } = parseArgs(process.argv.slice(2))
-  const pkg = await readPackageJson()
-  const currentVersion = String(pkg.version)
+  const packages = await readPackages()
+  const [root] = packages
+  const currentVersion = String(root.pkg.version)
+
+  // The root is the source of truth; anything else is reported so a drift is
+  // visible rather than quietly overwritten.
+  const drifted = packages.slice(1).filter((entry) => String(entry.pkg.version) !== currentVersion)
 
   if (command === 'show') {
-    printResult({ command, currentVersion, nextVersion: currentVersion, dryRun, json })
+    printResult({
+      command,
+      currentVersion,
+      nextVersion: currentVersion,
+      dryRun,
+      json,
+      packages,
+      drifted,
+    })
     return
+  }
+
+  for (const entry of drifted) {
+    writeStderr(
+      `[version] ${relative(entry.file)} was at ${entry.pkg.version}; bringing it to the release version.`,
+    )
   }
 
   let nextVersion
@@ -196,12 +263,9 @@ async function main() {
     nextVersion = formatVersion(bump(parsed, command, preid))
   }
 
-  if (!dryRun) {
-    pkg.version = nextVersion
-    await writePackageJson(pkg)
-  }
+  if (!dryRun) await writePackages(packages, nextVersion)
 
-  printResult({ command, currentVersion, nextVersion, dryRun, json })
+  printResult({ command, currentVersion, nextVersion, dryRun, json, packages, drifted })
 }
 
 main().catch((error) => {
