@@ -228,13 +228,58 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  # The CLI edits projects built from this template, and the only test that
+  # proves a generator still wires what it claims to wire is running it against
+  # the template itself. That is why `packages/cli` lives here rather than in
+  # its own repository.
+  cli-roundtrip:
+    name: CLI Round Trip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The payload is not committed — it is a copy of the source beside it,
+      # built here the same way `prepack` builds it for a release.
+      - run: node packages/cli/scripts/build-payload.mjs
+
+      # Slots resolve, every registry still carries its markers, and the
+      # lockfile agrees with what is on disk.
+      - run: node packages/cli/src/index.mjs doctor
+
+      # Nothing to install: the payload is this checkout.
+      - run: node packages/cli/src/index.mjs diff
+
+      # Scaffold, then prove the result compiles and is wired. A module missing
+      # from setup.ts does not throw — it just never loads.
+      - run: node packages/cli/src/index.mjs add module payments --no-format
+      - run: node packages/cli/src/index.mjs add component Tag --no-format
+      - run: node packages/cli/src/index.mjs add theme midnight --no-format
+      - run: vpr fmt
+      - run: vp exec vue-tsc --noEmit
+      - run: node scripts/lint/run-custom-rules.mjs
+      - run: vp test --run test/unit/architecture
+
+      # Back to a clean slate, then prove that still builds. Eject touches the
+      # module registry, the permission union, the role grants and the router;
+      # any one of them left half-done gives a tree that type-checks and fails
+      # to build, or builds and renders pages with no layout.
+      - run: git checkout . && git clean -fd
+      - run: node packages/cli/src/index.mjs eject --allow-dirty
+      - run: vp build
+      - run: vp exec vue-tsc --noEmit
+      - run: vp test --run
+
   # Single required status check. Point branch protection at this one job and it
   # stays correct as jobs are added or renamed.
   ci-ok:
     name: CI OK
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint, typecheck, test, build, e2e, docker]
+    needs: [lint, typecheck, test, build, e2e, docker, cli-roundtrip]
     steps:
       - name: Fail if any dependency failed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
