@@ -65,7 +65,7 @@ const cTertiary = computed(() => seriesColor(2))
  * These used to be `isDark ? '#94a3b8' : '#64748b'` pairs: the DEFAULT theme's
  * slate ramp, written as literals. A canvas cannot use CSS classes, so a
  * hardcoded literal here is not "a fallback" — it is the only value the chart
- * will ever draw, on all ten themes. Every axis on this page rendered in
+ * will ever draw, on every theme. Every axis on this page rendered in
  * Tailwind slate whether the app was set to Blueprint, Ghibli or Terminal,
  * which is most of what "the theme isn't applied on the charts page" was.
  *

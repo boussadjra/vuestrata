@@ -45,7 +45,7 @@ const THREADS: ThreadSeed[] = [
     messages: [
       'The audit came back. Two blockers: the data grid is not reachable by keyboard when it overflows, and four themes fail contrast on muted text in dark mode.',
       'Both are fixed on main. Contrast was a token problem, not a per-component one — muted-foreground was one ramp step too light against the inset surface.',
-      'Confirmed on my end. Re-running the axe suite across all ten themes now.',
+      'Confirmed on my end. Re-running the axe suite across all twelve themes now.',
     ],
   },
   {
@@ -133,7 +133,7 @@ const NOTIFICATIONS: {
   {
     kind: 'assignment',
     title: 'You were assigned a task',
-    body: 'Audit colour contrast across all ten themes — due in 4 days.',
+    body: 'Audit colour contrast across all twelve themes — due in 4 days.',
     link: '/dashboard/projects',
   },
   {

@@ -48,7 +48,7 @@ const TASK_TITLES = [
   'Add retry with exponential backoff to the upload queue',
   'Replace the polling loop with server-sent events',
   'Write the migration runbook and dry-run it against staging',
-  'Audit colour contrast across all ten themes',
+  'Audit colour contrast across all twelve themes',
   'Instrument p95 latency on the ingest endpoint',
   'Deduplicate customer records before the cutover',
   'Add integration tests for the partial-failure path',

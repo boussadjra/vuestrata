@@ -1,8 +1,49 @@
 # Vuestrata
 
-> **Note:** Vuestrata supersedes _Vueye_, a simpler Vue 3 starter template.
+An opinionated Vue application foundation with enforced architecture,
+generators, and 12 distinct design personalities.
 
-A modern, production-ready Vue 3 template with multi-theme support, Reka UI wrappers, and enterprise-grade tooling.
+**[Live demo](https://vuestrata.vercel.app/)** · [Documentation](docs/index.md) · [Use this template](https://github.com/boussadjra/vuestrata/generate)
+
+Starting a Vue project is easy. Keeping routing, state ownership, module
+boundaries, API access, auth, themes, permissions, mocks, tests and deployment
+configuration consistent as the app grows is the expensive part — and the
+conventions that matter most fail _silently_. A module never added to
+`setup.ts` does not throw; the feature just never loads. A theme wired into
+three of its four files does not throw; it renders the wrong surfaces. Demo
+mocks left in a production build do not throw; they ship.
+
+So Vuestrata does not merely document its conventions. It makes the important
+ones executable:
+
+- **Six custom lint rules** — module-scope state, raw palette utilities (on a
+  ratchet), inline template handlers, i18n key parity across `en`/`fr`/`ar`,
+  icon-name parity, and the four files a theme must appear in.
+- **Four architecture tests** — module registry drift, the module contract,
+  docs registration, demo-only access.
+- **Bundle verification** — `verify-bundle.mjs` fails the build if an MSW chunk
+  or the mock worker reaches a production artifact, or if a size budget is
+  exceeded. (The demo-credential markers are checked too, behind
+  `--strict-demo`, which CI does not yet enable.)
+- **Drift checks** — toolchain pins and security headers are generated from one
+  definition each, and CI fails when a copy disagrees.
+- **Generators** — `vpr gen:module`, `gen:page`, `gen:theme`, `gen:component`,
+  `gen:icon-set` write the files _and_ the registries that are easy to forget.
+
+And 12 built-in themes that are design personalities rather than palette swaps:
+each redefines colour ramps, radii and elevation in both colour modes over one
+unchanged component layer, and eight of them change the typeface too.
+
+## Status
+
+Vuestrata is in an **alpha release train** (see `package.json` for the current
+version). The public demo is deployed and the template is ready to start a
+project from; conventions and the public surface may still change between alpha
+releases. `RELEASE.md` describes the channels.
+
+What "ready" means here is deliberately split into three questions — the demo,
+the template, and _your_ application — in
+[Readiness](docs/9.readiness.md).
 
 ## Features
 
@@ -10,7 +51,7 @@ A modern, production-ready Vue 3 template with multi-theme support, Reka UI wrap
 - **TypeScript 6.0+** in strict mode
 - **Tailwind CSS v4** with CSS-first configuration
 - **Multi-theme system** — 12 built-in themes (Default, Analog, Blueprint, Brutalist, Forest, Ghibli, Harbour, Ocean, Pro, Rose, Sunset, Terminal) + dark mode
-- **Reka UI component layer** — `Ui*` wrappers backed by shared base composables
+- **Reka UI component layer** — 67 `Ui*` wrappers; field behaviour lives in `composables/forms/`
 - **File-based routing** via Vue Router 5
 - **Auto-imports** — composables, Vue APIs, and components
 - **Pinia** stores with composition API
@@ -97,10 +138,9 @@ src/
 │   │   ├── assets/         # Static assets (fonts, images)
 │   │   ├── components/
 │   │   │   ├── layout/     # AppHeader, AppSidebar, AppFooter
-│   │   │   └── ui/         # Reka-backed Ui wrappers and shared base composables
-│   │   │       ├── Ui*.vue # Consumer-facing UI wrappers
-│   │   │       └── base/   # Shared base composables (Formwerk integration)
+│   │   │   └── ui/         # Reka-backed Ui* wrappers — the public component surface
 │   │   ├── composables/    # useTheme, useBilling, useDataTable
+│   │   │   └── forms/      # Field behaviour behind the Ui* field wrappers (Formwerk)
 │   │   ├── config/         # app.config, icon provider, theme config
 │   │   ├── layouts/        # default, auth, dashboard, blank
 │   │   ├── mocks/          # MSW handlers and browser worker
@@ -120,20 +160,39 @@ src/
 │   │       ├── rbac/       # RBAC engine
 │   │       └── validation/ # Zod validation utilities
 │   ├── billing/            # Billing module (TanStack Query pattern)
-│   ├── showcase/           # Forms and data-table demo module
+│   ├── customers/          # Reference domain module — the one to copy
+│   ├── orders/             # Domain module (master/detail)
+│   ├── catalog/            # Domain module (card grid)
+│   ├── projects/           # Domain module (kanban)
+│   ├── calendar/           # Domain module (calendar)
+│   ├── messages/           # Domain module (feed)
+│   ├── team/               # Domain module (directory)
+│   ├── reports/            # Domain module (restricted page)
 │   ├── users/              # Users module (TanStack Query pattern)
-│   └── settings/           # Settings module (Pinia pattern)
+│   ├── showcase/           # Forms and data-table demo module
+│   ├── settings/           # Settings module (Pinia pattern)
+│   ├── setup.ts            # appModules — the module registry
+│   └── nav-groups.ts       # Sidebar sections
 ├── App.vue                 # Root component
 └── main.ts                 # Bootstrap entry
 ```
 
 ## Theme System
 
-Vuestrata ships with 12 built-in themes plus dark mode:
+Vuestrata ships with 12 built-in themes, each in light and dark mode:
 
 `default`, `analog`, `blueprint`, `brutalist`, `forest`, `ghibli`, `harbour`, `ocean`, `pro`, `rose`, `sunset`, and `terminal`.
 
-Themes are registered in `src/modules/app/config/theme.config.ts`, applied as `theme-*` classes on `<html>`, and managed through `useTheme()` with first-paint syncing handled by `bootstrapTheme()`.
+They are design personalities, not palette swaps. Every theme redefines the same
+custom-property vocabulary over one unchanged component layer: full
+primary/secondary/accent/surface ramps, radius scales, and shadow or offset-ink
+elevation, in both colour modes. Eight also change the body typeface, two change
+border weight, four ship their own chart palette, and two add theme-local
+drawing primitives. No theme changes the icon set, the spacing scale or motion —
+those are chosen elsewhere and stay constant, which is what makes the themes
+interchangeable. See [DESIGN.md](DESIGN.md) for what each theme varies.
+
+Themes are registered in `src/modules/app/config/theme.config.ts`, applied as `theme-*` classes on `<html>`, and managed through `useTheme()` with first-paint syncing handled by `bootstrapTheme()`. The `theme-registry` lint rule fails the build when a theme is wired into three of its four files, or imported after `semantic.css`.
 
 ## UI Component System
 
@@ -250,6 +309,12 @@ Then:
 2. Bump the version with one of the `vpr version:*` scripts.
 3. Tag the release as `v<version>`.
 4. Push the tag so the GitHub release workflow can publish the artifact.
+
+## History
+
+Vuestrata supersedes _Vueye_, a simpler Vue 3 starter template. Nothing here
+depends on knowing that; it matters only if you are coming from Vueye and
+wondering where it went.
 
 ## Community
 

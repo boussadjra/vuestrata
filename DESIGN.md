@@ -1,6 +1,6 @@
 ---
 name: Vuestrata
-description: A multi-theme Vue 3 enterprise starter — structured defaults, opinionated conventions, twelve design personalities in one codebase.
+description: The design system behind Vuestrata — one component vocabulary, twelve design personalities, and the rules that keep them interchangeable.
 colors:
   # ── Default theme: Workshop Teal (primary) ──────────────────────────────
   workshop-teal-mist: '#eefbf5' # primary-50  — hover tints, input bg tints
@@ -129,7 +129,47 @@ Vuestrata is a workspace, not a canvas. Every visual decision starts from utilit
 
 The system rejects what PRODUCT.md calls the anti-references by name: Bootstrap admin dashboards with their accordion of padded boxes, Vercel-style marketing templates that prioritize whitespace over density, cluttered Material Design with competing elevation and ripple at every tier, and the generic SaaS dashboard aesthetic of blue gradients and star-rating widgets. Vuestrata is for developers who want production-grade structure, not a style show.
 
-Twelve named themes extend this foundation without changing the architecture. Each theme overrides the same CSS custom-property vocabulary — colors, radii, shadows, typeface — so the layout and component structure remain constant. A screen that works in Default works in Terminal. The themes are not skins; they are first-class design personalities, each with its own aesthetic rationale.
+Twelve named themes extend this foundation without changing the architecture. Each theme overrides the same CSS custom-property vocabulary — colour ramps, radii, elevation, typeface — so the layout and component structure remain constant. A screen that works in Default works in Terminal. The themes are not skins; they are first-class design personalities, each with its own aesthetic rationale.
+
+### What a theme may change, and what it may not
+
+The marketing story and the engineering contract are the same sentence: _same
+application architecture and components, different visual personalities._ That
+only holds because the split below is enforced rather than assumed.
+
+**Structural invariants — identical in all 12 themes:**
+
+- Component contracts. Every `Ui*` wrapper has the same props, slots and events
+  regardless of theme, and no component branches on the theme name.
+- The semantic token vocabulary. Themes redefine what `--color-primary-500` or
+  `--radius-md` resolves to; they never invent a new role. The five colour roles
+  are `primary`, `secondary`, `accent`, `surface`, `danger`.
+- Layout and behaviour. Page structure, navigation, focus order, and
+  interaction semantics do not vary by theme.
+- Accessibility expectations. Contrast targets, the single `*:focus-visible`
+  indicator, `prefers-reduced-motion` handling, and RTL correctness apply to
+  every theme in both colour modes.
+- Iconography. Icons come from the icon provider (`config/icon.config.ts`),
+  which is selected independently. **A theme does not change the icon set.**
+- Density and spacing. No theme redefines the spacing scale.
+- Motion. Durations and easings are global; no theme overrides them.
+
+**Theme-level variables — may differ, and do:**
+
+| Dimension                                                   | Implemented by                                                          | Coverage                                                   |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Colour ramps (primary/secondary/accent/surface, both modes) | `--color-*`                                                             | all 12                                                     |
+| Border radius                                               | `--radius-*`, and `--shape-radius-*` where the theme sets both          | all 12                                                     |
+| Elevation                                                   | `--shadow-soft/card/card-hover/elevated` — gaussian, or hard offset ink | all 12                                                     |
+| Glow tokens                                                 | `--shadow-glow-*`                                                       | tinted in 8; set to `none` in Analog, Blueprint, Brutalist |
+| Body typeface                                               | `--font-sans`                                                           | 8 of 12 depart from Inter                                  |
+| Display / mono typeface                                     | `--font-display`, `--font-mono`                                         | Analog, Ghibli (display); Analog (mono)                    |
+| Border weight                                               | `--shape-border-width`                                                  | Analog, Brutalist                                          |
+| Chart palette                                               | `--color-chart-1…8`                                                     | Analog, Blueprint, Harbour, Pro                            |
+| Theme-local drawing primitives                              | e.g. `--blueprint-grid-*`, `--analog-grain`                             | Blueprint, Analog                                          |
+
+Not every theme changes every dimension, and that is the point: a theme spends
+variation where its personality needs it and inherits the rest.
 
 **Key Characteristics:**
 
@@ -191,7 +231,7 @@ _The default palette is a craftsman's limited set — one working teal, one warm
 
 ### Theme Variants
 
-The theming engine works by overriding the same `--color-*`, `--radius-*`, `--shadow-*`, and `--font-sans` custom properties on `:root.<theme-class>`. Apply a theme with `class="theme-<name>"` on `<html>`. All 12 themes support `html.dark`.
+The theming engine works by overriding the same `--color-*`, `--radius-*`, `--shadow-*` and `--font-sans` custom properties on `:root.<theme-class>`; individual themes additionally set `--shape-*`, `--font-display`/`--font-mono`, `--color-chart-*`, or their own theme-local primitives. Apply a theme with `class="theme-<name>"` on `<html>`. All 12 themes support `html.dark`.
 
 #### Character Cards
 
@@ -477,7 +517,7 @@ Precedence falls out of source order: themes are imported at the top of app.css 
 
 `--shape-border-width` follows the same pattern, with one limitation worth knowing: Tailwind's `border` utility emits a literal `1px`, not a token, so border width cannot be driven globally the way radius can. Only `.shaped-border` and the `[data-ui=…]` rules respond.
 
-**The Typeface Handoff Rule.** Seven themes switch the default typeface to a non-Inter stack: Blueprint (IBM Plex Sans), Analog (IBM Plex Sans body / Newsreader display / IBM Plex Mono labels), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik), Pro (Plus Jakarta Sans). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
+**The Typeface Handoff Rule.** Eight themes switch the default typeface to a non-Inter stack: Blueprint (IBM Plex Sans), Analog (IBM Plex Sans body / Newsreader display / IBM Plex Mono labels), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik), Pro (Plus Jakarta Sans). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
 
 A theme font must be **loaded** as well as named. `index.html` carries the single Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New and Harbour/Sunset spent theirs in the platform default sans. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
 
@@ -677,8 +717,9 @@ motion-reduce:active:scale-100
 
 ### Shadow Glows (theme-dependent)
 
-Available in: Ocean, Forest, Sunset, Rose, Terminal (dark only), Harbour  
-Disabled in: Blueprint (`none`), Brutalist (no variable set)
+Base values in app.css derive all three from the active ramps, so an unlisted theme still glows in its own hue.  
+Own tinted values: Ocean, Forest, Sunset, Rose, Harbour, Pro, Ghibli (primary + secondary), Terminal (primary, dark only)  
+Disabled (`none`): Analog, Blueprint, Brutalist
 
 ```
 --shadow-glow-primary:   0 0 24px rgb(primary-500 / 0.3)

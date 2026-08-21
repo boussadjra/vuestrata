@@ -33,7 +33,7 @@ const visible = ref(true)
  *
  * Each variant used to carry four hardcoded raw-palette pairs (a light shade
  * plus a hand-written dark twin) — 28 such utilities in this file alone. That meant
- * the alert looked identical on all ten themes and needed its light/dark
+ * the alert looked identical on every theme and needed its light/dark
  * inversion written out by hand for every colour.
  *
  * `*-subtle` backgrounds and the foreground/border steps re-point themselves in

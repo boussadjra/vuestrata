@@ -1,12 +1,12 @@
 ---
 title: Vuestrata
-description: Vue 3 enterprise starter with Reka UI wrappers, twelve themes, and typed API boundaries.
+description: An opinionated Vue application foundation — enforced architecture, generators, and twelve design personalities.
 navigation: false
 ---
 
 # Vuestrata
 
-Vuestrata is a Vue 3 starter for teams that want production shape on day one: Reka UI wrappers, module boundaries, theme tokens, auth scaffolding, typed query keys, and tests that already know the app.
+Vuestrata is an opinionated Vue application foundation for teams that want production shape on day one: Reka UI wrappers, module boundaries, theme tokens, auth scaffolding, typed query keys, and tests that already know the app. The conventions are not just documented — lint rules, architecture tests and build verification fail when the ones whose breakage is silent get broken.
 
 The in-app docs at `/docs` are English and left-to-right only. The header language switcher is hidden there, and a persisted French or Arabic preference is restored when you leave.
 
@@ -24,7 +24,7 @@ Composable app modules with explicit server-state and client-state ownership.
 ::
 
 ::card{title="Theming" icon="palette" to="/docs/theming/overview"}
-12 built-in themes, dark mode, CSS custom properties, and custom theme creation.
+12 design personalities, dark mode, CSS custom properties, and custom theme creation.
 ::
 
 ::card{title="Components" icon="code" to="/docs/components/overview"}

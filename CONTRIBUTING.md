@@ -22,7 +22,7 @@ vpr test:e2e
 - Prefer root-cause fixes over compatibility shims.
 - Do not introduce direct `pnpm`, `npm`, `yarn`, or `bun` commands into docs, CI, or scripts.
 - Keep `src/modules/core/lib/` framework-agnostic.
-- Preserve provider independence: provider components must not import each other.
+- Keep the `Ui*` wrappers the only public component surface: shared field behaviour belongs in `src/modules/app/composables/forms/`, not in an intermediate component layer.
 - Keep route pages thin. A page under `src/modules/*/pages/` is an inbound
   adapter: it may depend on Vue Router, normalize route input, handle
   route-level concerns (redirects, metadata, breadcrumbs, not-found, route

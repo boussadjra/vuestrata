@@ -4,7 +4,7 @@ import path from 'node:path'
 /**
  * Forbid raw Tailwind palette utilities where a semantic token exists.
  *
- * Vuestrata ships ten themes. A component that hardcodes `bg-green-50` or
+ * Vuestrata ships 12 themes. A component that hardcodes `bg-green-50` or
  * `text-red-500` renders identically on all ten, ignoring the theme's ramps,
  * and needs a hand-written `dark:` twin that is easy to forget or get wrong.
  * The semantic layer in `src/modules/app/styles/semantic.css` exists precisely

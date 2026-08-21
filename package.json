@@ -2,6 +2,30 @@
   "name": "vuestrata",
   "version": "1.0.1-alpha.3",
   "private": true,
+  "description": "Opinionated Vue application foundation with enforced architecture, generators, and 12 design personalities.",
+  "keywords": [
+    "admin-dashboard",
+    "dashboard",
+    "i18n",
+    "pinia",
+    "reka-ui",
+    "rtl",
+    "starter-template",
+    "tailwindcss",
+    "tanstack-query",
+    "typescript",
+    "vite",
+    "vite-plus",
+    "vue",
+    "vue-router",
+    "vue3"
+  ],
+  "homepage": "https://vuestrata.vercel.app/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boussadjra/vuestrata.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vp dev --port 3333 --host",

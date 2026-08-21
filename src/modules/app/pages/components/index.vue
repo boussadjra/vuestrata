@@ -173,7 +173,8 @@ const categories: Category[] = [
   <div>
     <h1 class="mb-2 text-3xl font-bold">{{ t('sidebar_components') }}</h1>
     <p class="text-muted-foreground mb-10 text-lg">
-      Explore all provider-agnostic UI components. Each works with both Reka UI and Vuetify&nbsp;0.
+      Explore the Ui* component surface. Every wrapper is Reka-backed, reads only semantic tokens,
+      and therefore behaves the same in all 12 themes.
     </p>
 
     <div class="space-y-10">

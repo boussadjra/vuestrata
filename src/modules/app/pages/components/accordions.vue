@@ -9,9 +9,9 @@ import ComponentTestRunner from '@/components/docs/ComponentTestRunner.vue'
 const basicItems = [
   {
     value: 'item-1',
-    title: 'What is Vueye?',
+    title: 'What is Vuestrata?',
     content:
-      'Vueye is a modular Vue 3 dashboard framework with built-in ecommerce modules, theming, and RBAC.',
+      'An opinionated Vue application foundation: modular domain modules, twelve themes, RBAC, and architecture rules the gates enforce.',
   },
   {
     value: 'item-2',
@@ -22,28 +22,28 @@ const basicItems = [
   {
     value: 'item-3',
     title: 'Is it open source?',
-    content: 'Yes, Vueye is released under an open-source license. Contributions are welcome.',
+    content: 'Yes, Vuestrata is MIT licensed. Contributions are welcome.',
   },
 ]
 
 const faqItems = [
   {
     value: 'faq-1',
-    title: 'How do I install Vueye?',
+    title: 'How do I install Vuestrata?',
     content:
-      'Clone the repository and run pnpm install to get started. See the installation guide for details.',
+      'Clone the repository and run vp install to get started. See the installation guide for details.',
   },
   {
     value: 'faq-2',
     title: 'Can I use custom components?',
     content:
-      'Absolutely. The Ui* wrapper pattern lets you swap underlying component providers without changing consumer code.',
+      'Absolutely. The Ui* wrapper pattern keeps one stable import surface, so the implementation behind a wrapper can change without touching consumer code.',
   },
   {
     value: 'faq-3',
     title: 'Does it support SSR?',
     content:
-      'Currently, Vueye is designed as a client-side SPA. SSR support may be planned for future releases.',
+      'Currently, Vuestrata is designed as a client-side SPA. SSR support may be planned for future releases.',
   },
   {
     value: 'faq-4',

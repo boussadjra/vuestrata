@@ -149,7 +149,7 @@ test.describe('Accessibility — authenticated pages', () => {
  *
  * Each theme installs its own ramps, and dark mode re-points the semantic
  * tokens on top of them, so a contrast pass on the default light theme says
- * nothing about the other nineteen combinations. Auditing all ten themes in
+ * nothing about the other twenty-three combinations. Auditing all 12 themes in
  * both modes on every page would be far too slow for CI, so this covers the
  * highest-signal combinations: the default theme in both modes, the two
  * themes whose ramps sit closest to their surfaces, the two that supply a
