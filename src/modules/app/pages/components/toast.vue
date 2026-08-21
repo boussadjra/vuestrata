@@ -5,17 +5,23 @@ import ComponentDemo from '@/components/docs/ComponentDemo.vue'
 import ComponentPlayground from '@/components/docs/ComponentPlayground.vue'
 import type { PropDef } from '@/components/docs/ComponentPlayground.vue'
 import ComponentTestRunner from '@/components/docs/ComponentTestRunner.vue'
+import { useNotificationStore } from '~/stores/notification'
 
-const usageCode = `<UiToast variant="info" title="Heads up" message="This is an info toast." trigger-label="Show Toast" />`
+// UiToast emits rather than delivering, so the page decides where a
+// notification goes. That is what keeps the component layer free of any
+// dependency on this application's stores.
+const notifications = useNotificationStore()
 
-const variantsCode = `<UiToast variant="info" title="Info" message="This is an informational notification." trigger-label="Info Toast" />
-<UiToast variant="success" title="Saved" message="Changes saved successfully." trigger-label="Success Toast" />
-<UiToast variant="warning" title="Warning" message="Some fields need attention." trigger-label="Warning Toast" />
-<UiToast variant="error" title="Failed" message="Request failed. Please try again." trigger-label="Error Toast" />`
+const usageCode = `<UiToast variant="info" title="Heads up" message="This is an info toast." trigger-label="Show Toast" @show="notifications.add" />`
 
-const customCode = `<UiToast variant="success" title="Upload Complete" message="Your file has been uploaded and processed." trigger-label="Upload Done" />
-<UiToast variant="error" title="Connection Lost" message="Unable to reach the server. Check your network." trigger-label="Connection Error" />
-<UiToast variant="info" title="New Version" message="A new version is available. Refresh to update." trigger-label="Update Available" />`
+const variantsCode = `<UiToast variant="info" title="Info" message="This is an informational notification." trigger-label="Info Toast" @show="notifications.add" />
+<UiToast variant="success" title="Saved" message="Changes saved successfully." trigger-label="Success Toast" @show="notifications.add" />
+<UiToast variant="warning" title="Warning" message="Some fields need attention." trigger-label="Warning Toast" @show="notifications.add" />
+<UiToast variant="error" title="Failed" message="Request failed. Please try again." trigger-label="Error Toast" @show="notifications.add" />`
+
+const customCode = `<UiToast variant="success" title="Upload Complete" message="Your file has been uploaded and processed." trigger-label="Upload Done" @show="notifications.add" />
+<UiToast variant="error" title="Connection Lost" message="Unable to reach the server. Check your network." trigger-label="Connection Error" @show="notifications.add" />
+<UiToast variant="info" title="New Version" message="A new version is available. Refresh to update." trigger-label="Update Available" @show="notifications.add" />`
 
 const propDefs: PropDef[] = [
   {
@@ -49,6 +55,11 @@ const apiProps: ApiPropRow[] = [
 ]
 
 const apiEvents: ApiEventRow[] = [
+  {
+    name: 'show',
+    payload: '{ type, title, message, duration }',
+    description: 'Emitted when the trigger is pressed; wire it to your notification store',
+  },
   { name: 'close', payload: '—', description: 'Emitted when the toast is dismissed' },
 ]
 </script>
@@ -67,6 +78,7 @@ const apiEvents: ApiEventRow[] = [
       <h2 class="text-xl font-semibold">Usage</h2>
       <ComponentDemo :code="usageCode">
         <UiToast
+          @show="notifications.add"
           variant="info"
           title="Heads up"
           message="This is an info toast."
@@ -81,24 +93,28 @@ const apiEvents: ApiEventRow[] = [
       <ComponentDemo :code="variantsCode">
         <div class="flex flex-wrap gap-3">
           <UiToast
+            @show="notifications.add"
             variant="info"
             title="Info"
             message="This is an informational notification."
             trigger-label="Info Toast"
           />
           <UiToast
+            @show="notifications.add"
             variant="success"
             title="Saved"
             message="Changes saved successfully."
             trigger-label="Success Toast"
           />
           <UiToast
+            @show="notifications.add"
             variant="warning"
             title="Warning"
             message="Some fields need attention."
             trigger-label="Warning Toast"
           />
           <UiToast
+            @show="notifications.add"
             variant="error"
             title="Failed"
             message="Request failed. Please try again."
@@ -114,18 +130,21 @@ const apiEvents: ApiEventRow[] = [
       <ComponentDemo :code="customCode">
         <div class="flex flex-wrap gap-3">
           <UiToast
+            @show="notifications.add"
             variant="success"
             title="Upload Complete"
             message="Your file has been uploaded and processed."
             trigger-label="Upload Done"
           />
           <UiToast
+            @show="notifications.add"
             variant="error"
             title="Connection Lost"
             message="Unable to reach the server. Check your network."
             trigger-label="Connection Error"
           />
           <UiToast
+            @show="notifications.add"
             variant="info"
             title="New Version"
             message="A new version is available. Refresh to update."
@@ -141,6 +160,7 @@ const apiEvents: ApiEventRow[] = [
       <ComponentPlayground :prop-defs="propDefs">
         <template #default="{ props: p }">
           <UiToast
+            @show="notifications.add"
             v-bind="p"
             :message="typeof p.message === 'string' ? p.message : 'Saved successfully'"
           />
@@ -154,12 +174,14 @@ const apiEvents: ApiEventRow[] = [
       <ComponentTestRunner>
         <div class="flex flex-wrap gap-3">
           <UiToast
+            @show="notifications.add"
             variant="info"
             title="Info"
             message="Informational notification."
             trigger-label="Info"
           />
           <UiToast
+            @show="notifications.add"
             variant="success"
             title="Success"
             message="Operation succeeded."

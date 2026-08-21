@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { RouterLink } from 'vue-router'
 
 import { resolveIcon } from '~/config/icon-provider'
+import { cn } from '~/lib/cn'
 import type { ButtonGroupItemValue, ButtonGroupModelValue } from '~/types'
 
 export interface ButtonProps {
@@ -36,6 +37,13 @@ const props = withDefaults(defineProps<ButtonProps>(), {
 
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 const slots = useSlots()
+
+// The template has three possible roots, so there is nothing for Vue to attach
+// fallthrough attributes to — and the incoming `class` has to reach `cn()` to
+// be merged rather than concatenated.
+defineOptions({ inheritAttrs: false })
+
+const attrs = useAttrs()
 
 const buttonGroup = inject<{
   modelValue: Ref<ButtonGroupModelValue>
@@ -80,6 +88,7 @@ const activeVariantClasses: Record<string, string> = {
   destructive: 'bg-danger-800 text-white hover:bg-danger-900',
 }
 
+// Grows the tap target on the two sizes too small to reach 44px on their own.
 const touchHitArea: Record<string, string> = {
   xs: "after:content-[''] after:absolute after:-inset-[10px] after:rounded-lg",
   sm: "after:content-[''] after:absolute after:-inset-[6px] after:rounded-lg",
@@ -100,10 +109,9 @@ const iconOnly = computed(() => props.icon === true || (!!props.icon && !slots.d
 
 const needsPositionContext = computed(() => !iconOnly.value && Boolean(touchHitArea[props.size]))
 
-const classes = computed(() => {
-  return [
+const classes = computed(() =>
+  cn(
     'btn inline-flex items-center justify-center gap-2 rounded-[var(--shape-radius-sm)] font-medium',
-    needsPositionContext.value ? 'relative' : '',
     'transition duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer',
     /*
      * No `focus-visible:outline-none` here.
@@ -117,19 +125,30 @@ const classes = computed(() => {
      * every theme in both modes, so the button now just uses it.
      */
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
+    'motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
+    needsPositionContext.value ? 'relative' : '',
     isLink.value && (props.disabled || props.loading) ? 'pointer-events-none opacity-50' : '',
     !props.block && !props.loading ? 'hover:scale-[1.02] active:scale-[0.97]' : '',
-    'motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
     iconOnly.value ? iconOnlySizeClasses[props.size] : sizeClasses[props.size],
     isActive.value ? activeVariantClasses[props.variant] : variantClasses[props.variant],
     props.block ? 'w-full' : '',
     !iconOnly.value ? touchHitArea[props.size] : '',
-  ]
-})
+    // Last, so a caller's utility wins its group instead of losing to whichever
+    // order Tailwind emitted.
+    attrs.class as string | undefined,
+  ),
+)
 
 const isLink = computed(() => Boolean(props.to || props.href))
 
+const forwardedAttrs = computed(() => {
+  const { class: _incoming, ...rest } = attrs
+  return rest
+})
+
 const commonAttrs = computed(() => ({
+  // `class` is destructured out: it is already folded into `classes`.
+  ...forwardedAttrs.value,
   class: classes.value,
   'aria-disabled': props.disabled || props.loading || undefined,
   'aria-busy': props.loading || undefined,

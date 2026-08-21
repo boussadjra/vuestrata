@@ -151,6 +151,39 @@ export default defineConfig({
         },
       },
       {
+        // The `Ui*` layer is the one part of this template a project is most
+        // likely to keep taking updates for, and the one it is most likely to
+        // have restyled. Both are only possible while a wrapper depends on
+        // nothing that belongs to a particular application: the moment
+        // `UiToast` imports this app's notification store, a project that
+        // renames that store has to fork the component to keep it working, and
+        // a forked component can never be updated again.
+        //
+        // Allowed: `core/lib`, `composables/forms`, `config/icon-provider`,
+        // `~/types`, and Reka. Anything application-shaped is passed in as a
+        // prop or reported as an emit.
+        files: ['src/modules/app/components/ui/**'],
+        rules: {
+          'no-restricted-imports': [
+            'error',
+            {
+              patterns: [
+                {
+                  group: ['~/stores/*', '@/stores/*', '~/state/*', '@/state/*'],
+                  message:
+                    'A Ui* wrapper must not read application state. Take it as a prop, or emit and let the caller decide — see UiToast.vue. Otherwise the component cannot be updated independently of the app that uses it.',
+                },
+                {
+                  group: ['~/modules/*', '@/modules/*', '~/modules/*/**', '@/modules/*/**'],
+                  message:
+                    'A Ui* wrapper must not depend on a feature module. The dependency runs the other way: modules compose the component surface.',
+                },
+              ],
+            },
+          ],
+        },
+      },
+      {
         // Route pages are thin inbound adapters: they coordinate, they do not
         // implement. A page that imports the data layer directly has taken on
         // work that belongs in the module's composables. See AGENTS.md.
@@ -181,6 +214,11 @@ export default defineConfig({
     ignorePatterns: [
       'dist/**',
       'node_modules/**',
+      // A byte-for-byte copy of the files above, shipped inside the CLI so
+      // `vuestrata upgrade` has something to install. Linting it would report
+      // every finding twice, and type-checking it fails outright: the copies
+      // sit outside the alias roots, so `@/types` resolves to nothing.
+      'packages/cli/payload/**',
       '.agents/**',
       '*.d.ts',
       'auto-imports.d.ts',

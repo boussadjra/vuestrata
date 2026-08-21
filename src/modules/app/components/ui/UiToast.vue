@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { resolveIcon } from '~/config/icon-provider'
-import { useNotificationStore } from '~/stores/notification'
+
+export interface ToastNotification {
+  type: 'info' | 'success' | 'warning' | 'error'
+  title: string
+  message: string
+  duration: number
+}
 
 export interface ToastProps {
   provider?: 'reka'
@@ -19,10 +25,19 @@ const props = withDefaults(defineProps<ToastProps>(), {
   triggerLabel: 'Show toast',
 })
 
-const notifications = useNotificationStore()
+/**
+ * The trigger reports; it does not deliver.
+ *
+ * This component used to call `useNotificationStore().add()` itself, which
+ * made a `Ui*` wrapper depend on an application store — the one import the
+ * component layer cannot have if it is to stay independently upgradable, since
+ * a project that renames or replaces its notification store would have to fork
+ * the component to keep this button working.
+ */
+const emit = defineEmits<{ show: [notification: ToastNotification] }>()
 
 function showToast() {
-  notifications.add({
+  emit('show', {
     type: props.variant,
     title: props.title,
     message: props.message,
