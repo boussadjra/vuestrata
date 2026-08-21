@@ -89,7 +89,7 @@ export function runDoctor({ root, version, flags }) {
         entry.status === 'deleted'
           ? `${entry.rel} is tracked but missing. An upgrade will skip it rather than restore it.`
           : `${entry.rel} was edited after Vuestrata wrote it. An upgrade will leave it alone and ` +
-              'write a patch to .vuestrata/patches/ instead.',
+              'write the new version to .vuestrata/incoming/ to compare against.',
       )
     }
   }

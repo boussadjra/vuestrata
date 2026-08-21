@@ -60,7 +60,14 @@ Every release, in order.
    vpr version:prerelease        # or version:patch / :minor / :major
    ```
 
-8. Commit, tag, push
+8. Rebuild the shipped lockfile — the bump invalidated it, and `vpr lint` fails
+   until it is current
+
+   ```bash
+   node packages/cli/src/index.mjs init --force --pristine
+   ```
+
+9. Commit, tag, push
 
    ```bash
    git tag v<version> && git push origin v<version>
@@ -69,24 +76,24 @@ Every release, in order.
    A tag containing a hyphen (`v2.1.0-beta.0`) is published by the GitHub
    release workflow as a prerelease.
 
-9. Publish the CLI. Without this step nothing reaches anyone: the tag ships the
-   template to GitHub, but a project takes updates from npm.
+10. Publish the CLI. Without this step nothing reaches anyone: the tag ships the
+    template to GitHub, but a project takes updates from npm.
 
-   ```bash
-   cd packages/cli && vp pm publish --access public --tag alpha
-   ```
+```bash
+cd packages/cli && vp pm publish --access public --tag alpha
+```
 
-   - `--access public` — npm defaults a scoped package to private, which fails
-     without a paid account.
-   - `--tag alpha` — matches the prerelease channel, so `npm i @vuestrata/cli`
-     keeps resolving to the last stable release. **Drop it for a stable
-     release**, where `latest` is what you want. Use `--tag beta` / `--tag rc`
-     on those channels.
-   - `prepack` builds the payload automatically. There is no step for it, and
-     it is not committed: it is a copy of files that already live in this
-     repository, and a committed copy is one that can disagree with them.
+- `--access public` — npm defaults a scoped package to private, which fails
+  without a paid account.
+- `--tag alpha` — matches the prerelease channel, so `npm i @vuestrata/cli`
+  keeps resolving to the last stable release. **Drop it for a stable
+  release**, where `latest` is what you want. Use `--tag beta` / `--tag rc`
+  on those channels.
+- `prepack` builds the payload automatically. There is no step for it, and
+  it is not committed: it is a copy of files that already live in this
+  repository, and a committed copy is one that can disagree with them.
 
-10. Confirm what landed
+11. Confirm what landed
 
     ```bash
     vp pm view @vuestrata/cli dist-tags

@@ -182,7 +182,7 @@ function writeFile(full, contents) {
 }
 
 function printReport(report, { apply }) {
-  const tense = apply ? '' : ' would'
+  const outcome = apply ? 'has been written beside it' : 'would be written beside it'
 
   logger.log('')
   logger.info(`${report.from} → ${report.to}`)
@@ -204,7 +204,7 @@ function printReport(report, { apply }) {
     logger.log('')
     logger.warn(
       `${report.incoming.length} file(s) you edited also changed upstream. Your version stays; ` +
-        `the new one${tense} be written beside it:`,
+        `the new one ${outcome}:`,
     )
     for (const entry of report.incoming) {
       logger.log(`  review  ${entry.rel}`)

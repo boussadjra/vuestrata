@@ -39,7 +39,7 @@
     "gen:component": "node packages/cli/src/index.mjs add component",
     "gen:theme": "node packages/cli/src/index.mjs add theme",
     "gen:icon-set": "node packages/cli/src/index.mjs add icon-set",
-    "lint": "vp lint && node scripts/lint/run-custom-rules.mjs && node scripts/lint/check-toolchain-pins.mjs && node scripts/msw/check-worker-version.mjs && node scripts/security/sync-headers.mjs --check && node scripts/docs/check-links.mjs --quiet",
+    "lint": "vp lint && node scripts/lint/run-custom-rules.mjs && node scripts/lint/check-toolchain-pins.mjs && node scripts/msw/check-worker-version.mjs && node scripts/security/sync-headers.mjs --check && node scripts/docs/check-links.mjs --quiet && node scripts/release/check-template-lock.mjs",
     "lint:docs": "node scripts/docs/check-links.mjs",
     "lint:fix": "vp lint --fix",
     "lint:inline-handlers": "node scripts/lint/run-custom-rules.mjs",
@@ -84,7 +84,8 @@
     "doctor": "node packages/cli/src/index.mjs doctor",
     "diff": "node packages/cli/src/index.mjs diff",
     "upgrade": "node packages/cli/src/index.mjs upgrade",
-    "cli:payload": "node packages/cli/scripts/build-payload.mjs"
+    "cli:payload": "node packages/cli/scripts/build-payload.mjs",
+    "lint:template-lock": "node scripts/release/check-template-lock.mjs"
   },
   "dependencies": {
     "@formwerk/core": "^0.14.4",
