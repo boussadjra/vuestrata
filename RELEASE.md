@@ -44,24 +44,53 @@ vpr version:prerelease -- --preid beta
 
 ## Release Checklist
 
-1. Run `vp check`.
-2. Run `vpr test --run`.
-3. Run `vpr test:e2e` for user-visible or routing changes.
-4. Update `CHANGELOG.md`.
-5. Bump the version with one of the scripts above.
-6. Commit the version/changelog update.
-7. Tag the release as `v<version>`.
+Every release, in order.
 
-Examples:
+1. `vp check`
+2. `vpr lint`
+3. `vpr test --run`
+4. `vpr test:e2e` — for a user-visible or routing change
+5. **Write the migration**, if the change touches any contract in the table
+   below, or the `UPGRADING.md` entry when it genuinely cannot be automated
+6. Update `CHANGELOG.md`, including the **Fork impact** subsection
+7. Bump the version. The root and `packages/cli/package.json` move together —
+   the CLI's version _is_ the template version a project receives
 
-```bash
-git tag v2.0.1
-git tag v2.1.0-beta.0
-git push origin v2.0.1
-git push origin v2.1.0-beta.0
-```
+   ```bash
+   vpr version:prerelease        # or version:patch / :minor / :major
+   ```
 
-Tags containing a hyphen, such as `v2.1.0-beta.0`, are published by the GitHub release workflow as prereleases.
+8. Commit, tag, push
+
+   ```bash
+   git tag v<version> && git push origin v<version>
+   ```
+
+   A tag containing a hyphen (`v2.1.0-beta.0`) is published by the GitHub
+   release workflow as a prerelease.
+
+9. Publish the CLI. Without this step nothing reaches anyone: the tag ships the
+   template to GitHub, but a project takes updates from npm.
+
+   ```bash
+   cd packages/cli && vp pm publish --access public --tag alpha
+   ```
+
+   - `--access public` — npm defaults a scoped package to private, which fails
+     without a paid account.
+   - `--tag alpha` — matches the prerelease channel, so `npm i @vuestrata/cli`
+     keeps resolving to the last stable release. **Drop it for a stable
+     release**, where `latest` is what you want. Use `--tag beta` / `--tag rc`
+     on those channels.
+   - `prepack` builds the payload automatically. There is no step for it, and
+     it is not committed: it is a copy of files that already live in this
+     repository, and a committed copy is one that can disagree with them.
+
+10. Confirm what landed
+
+    ```bash
+    vp pm view @vuestrata/cli dist-tags
+    ```
 
 ## The Compatibility Rule
 
@@ -92,19 +121,3 @@ a request and a migration is a fix.
 
 Deprecate rather than rename where you can: keep the old name working for one
 minor with a console warning, and remove it in the next.
-
-## Release Checklist
-
-Replaces the numbered list above when the change touches any contract:
-
-1. `vp check`
-2. `vpr test --run`
-3. `vpr test:e2e` for user-visible or routing changes
-4. Write the migration, or the `UPGRADING.md` entry
-5. Update `CHANGELOG.md`, including the **Fork impact** subsection
-6. Bump the version — `packages/cli/package.json` moves with the root
-7. Commit, tag `v<version>`, push the tag
-
-The CLI payload needs no step. `prepack` rebuilds it from this repository on
-every publish, which is why it is not committed: it is a copy of files that
-already live here, and a committed copy is one that can disagree with them.
