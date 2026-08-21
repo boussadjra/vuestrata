@@ -1,0 +1,751 @@
+{
+  "template": "1.0.1-alpha.4",
+  "files": {
+    "src/modules/app/components/layout/AppBreadcrumb.vue": {
+      "class": "managed",
+      "hash": "sha256-c074c68af013befc5458dbc7ec754640865ff1f06863efed36ab1b3bdd72f197",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/layout/AppFooter.vue": {
+      "class": "managed",
+      "hash": "sha256-ae5f01f1a4ed45166164a33f36cb823db9ed6def7d932bf109576f812eeeb398",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/layout/AppHeader.vue": {
+      "class": "managed",
+      "hash": "sha256-95b812122d70f67076c4109984c3f236722fa37b358db425f335705ac6bf598b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/layout/AppSidebar.vue": {
+      "class": "managed",
+      "hash": "sha256-cdc052b7eff31d06fc9a7eba1f08c9ea602a37e9b03929e76b57a63d8c34f922",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/layout/SkipLink.vue": {
+      "class": "managed",
+      "hash": "sha256-bdb1ea7ff2b1d3deecc72b4a56537541fe11ed6a87ae3ed0c3a2b97a557b8c01",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/Logo.vue": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/AppIcon.vue": {
+      "class": "managed",
+      "hash": "sha256-ac2f7eaba60f78759bfe3cd9b74a8e39dfa0c5970beeddcebb3fbfc76f548415",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/BaseChart.vue": {
+      "class": "managed",
+      "hash": "sha256-661ffb69b5d1e7f089ba93daed2cfa754ce944a05a00f28e8202c88cc354072c",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/index.ts": {
+      "class": "managed",
+      "hash": "sha256-ac125768526345230bdf91fd5cf112f92569055f1a6f97443c833c5be64836b1",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/stat-card-path.ts": {
+      "class": "managed",
+      "hash": "sha256-da4f60fb0bf156695ab8a63659f6dc63ded3efd8bb817234900d78ff29ece3ef",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiAccordion.vue": {
+      "class": "managed",
+      "hash": "sha256-b603b9fc49cd4825e78bedf4f06f3e350e66643794c23c20985d9a3ea345202b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiAlert.vue": {
+      "class": "managed",
+      "hash": "sha256-a2cf6026714bbbad164efc27091b5a1b4c8ab8343182dfe3f50a6c913caf0848",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiAutocomplete.vue": {
+      "class": "managed",
+      "hash": "sha256-32b0585db9a2b2d76ae1fab71a362567d86110b298c15acff110f67d3f00e8d3",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiAvatar.vue": {
+      "class": "managed",
+      "hash": "sha256-dacf13a433ac56693520ba0dc72a1277d23a12a61201d2b78a2ac4e57fb5e81c",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiBadge.vue": {
+      "class": "managed",
+      "hash": "sha256-5e666d2226aa9cad7683a4c3d6428d36bf606658452fc4921e4dc4a3eaf34f14",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiBreadcrumb.vue": {
+      "class": "managed",
+      "hash": "sha256-c5f503f06f733ef6833ed8343ac4eeeee96d6ee655c3dc71fa177b370984b2bb",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiButton.vue": {
+      "class": "managed",
+      "hash": "sha256-2541e7f0dc904d7295c8d6e36de1ebc69066301dd3287c462ecb17e7615ee716",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiButtonGroup.vue": {
+      "class": "managed",
+      "hash": "sha256-b2abf385f55f67e2750e5d492051aa9ccf8e9f5289ca5ef18a11c476a5869f61",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiCalendar.vue": {
+      "class": "managed",
+      "hash": "sha256-2f8f704c04b1ef5fffd0ea48a9a576d5b2980a75e0313ac4889f1cbfcd4ca7c3",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiCard.vue": {
+      "class": "managed",
+      "hash": "sha256-2bec97d3e6dff8884d962a3aef269846e3a9dab86c5934dd0fc23df01f736945",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiCheckbox.vue": {
+      "class": "managed",
+      "hash": "sha256-c78b02d8b0516bcb007f1606f935bbd0810539f7116e1530890add6f669dcae4",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiColorPicker.vue": {
+      "class": "managed",
+      "hash": "sha256-b6679d7d699231593ebf7eae8b1174893a3dd65ebea29b7ef9f58774c24cd813",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiComboBox.vue": {
+      "class": "managed",
+      "hash": "sha256-ced0ef44000e52a46ade75699bd8b3ee5c4b1d1a187902a563f06b0fbf5db592",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiCommandPalette.vue": {
+      "class": "managed",
+      "hash": "sha256-88687a567b1f9b913f31e812a9448b628599f3480ec6a42a6c1293292d9832d4",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiDataGrid.vue": {
+      "class": "managed",
+      "hash": "sha256-2bc833dfae0c331ceb780e41439f6acb1ebf3a1905a367b3db76db7b6b33b9b2",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiDataTable.vue": {
+      "class": "managed",
+      "hash": "sha256-00755fe5adc83c9feed2eaafbf5b50350a6c699d27062e6f3723261900290557",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiDateField.vue": {
+      "class": "managed",
+      "hash": "sha256-0ffb7e3a19b1a83bf57b1f98b1b766f3f6da86653b83a2f9e3f9e296067a10ba",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiDatePicker.vue": {
+      "class": "managed",
+      "hash": "sha256-58832b18534906e3e0c48a1fbd03b9a2c46d68237a5488acf47c735bad23f0d1",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiDateRangePicker.vue": {
+      "class": "managed",
+      "hash": "sha256-4617bdcef3f2c21aa53cf02d2f2bafeb6641fbf43a8a3f82cc6dcfbb9a627ca6",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiDatetimePicker.vue": {
+      "class": "managed",
+      "hash": "sha256-a0274eb7bd6dd6663ede788df4b566c9d7ef8db12d7ac187895e071ae98152bc",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiDialog.vue": {
+      "class": "managed",
+      "hash": "sha256-b6abb4327a8fa433d476c52702fae172705f24fe08e728f27d958fff0ed8d240",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiEditable.vue": {
+      "class": "managed",
+      "hash": "sha256-6e1d12ab30b0a7e75e11045dbbc7930f29f506987f9d2e910f89c453656f8f10",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiEmptyState.vue": {
+      "class": "managed",
+      "hash": "sha256-c82b02932d9d42444dbde3f1fcf4edb2016e2f720351c397643e9b11f0174eeb",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiFileUpload.vue": {
+      "class": "managed",
+      "hash": "sha256-b301a65d527f5354d1ed63080e277f21260dc7209ded033bc9f8c2d830678fcd",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiForm.vue": {
+      "class": "managed",
+      "hash": "sha256-dda0a0b8efaf95c7900896511e68febd13a4cb0668ae6c953e13cf320754536b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiFormBuilder.vue": {
+      "class": "managed",
+      "hash": "sha256-4d3ea86c36f6483ef0ad0531143fda908fa508817d1154660b5374c7d87df462",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiFormField.vue": {
+      "class": "managed",
+      "hash": "sha256-52d5dc5dcb566da6e2f36aa038b2d6dd1249cd106cd3fa36e7b93112f8d6a8db",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiFormGroup.vue": {
+      "class": "managed",
+      "hash": "sha256-9bf3b725182eca972e3a3259363084b1d3bd1c68c02e7f9b3afc956fef10c578",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiFormRepeater.vue": {
+      "class": "managed",
+      "hash": "sha256-7beb76ada4f3d7059d3e5d6c56f1f02e76b664e1f2b77c34390dfa7dcd136ca3",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiMentionsField.vue": {
+      "class": "managed",
+      "hash": "sha256-15c88d870c3b381aebc7e5e29b4b8e2cea199c26f1aade9f35d83e8da712d907",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiMonthPicker.vue": {
+      "class": "managed",
+      "hash": "sha256-f21bf0163a7c2b8864df657ff98c3e42e7908829640c32e41afb0a33300de861",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiMonthRangePicker.vue": {
+      "class": "managed",
+      "hash": "sha256-326c5324422f84fd7af68ca3a7785ce91d1f2fe6457b31f881b827ad15cc12b5",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiNumberField.vue": {
+      "class": "managed",
+      "hash": "sha256-37c8b64212c896bdc1e6a4f499ae8b93e7678ee408840501d791166e651b3825",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiOption.vue": {
+      "class": "managed",
+      "hash": "sha256-b4e3df3460cbd540aad5cf90cfc68f0d2bd60fee781d58b2e65a0517c167b2dc",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiOptionGroup.vue": {
+      "class": "managed",
+      "hash": "sha256-92cb088e82455b361c4c7d15f4cfe12cc21da6471a5732be0e34b500067983ab",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiOTPField.vue": {
+      "class": "managed",
+      "hash": "sha256-db658fbc353257aa1ba0d2b39d8e7af36e8cddb3a9fd217573c0e09f504394ea",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiPageHeader.vue": {
+      "class": "managed",
+      "hash": "sha256-46a57e02d2941001d31e7688abd11d3090971349cce17ac19562836b9d20da13",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiPanel.vue": {
+      "class": "managed",
+      "hash": "sha256-8f819cba31a6a5bf9e64583a9e295f2755d49123a432abd7a244b95e35ad282a",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiPopover.vue": {
+      "class": "managed",
+      "hash": "sha256-232342380a361b7cb2c4af631732d6c84f83df6be5d9bd814eb005919fed6c34",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiProgress.vue": {
+      "class": "managed",
+      "hash": "sha256-6ac4a1d71e0dd7be53e168e087ef3f4b75e5dae27949a6e1e18e14107d0a62b4",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiRadioGroup.vue": {
+      "class": "managed",
+      "hash": "sha256-f5bf7375fce601be4381ca233c92e03a7f61f0bc9c7532f2cc881b94b07f72ce",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiRangeSlider.vue": {
+      "class": "managed",
+      "hash": "sha256-442bfbe7cdef9f5576f10894872869de14045dfb620a8cd59bdbea7c0359a6ae",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiRatingField.vue": {
+      "class": "managed",
+      "hash": "sha256-42e9c6c1324f6880192a38b53d67fec2c6ce282714de892e7959fe31637b8f42",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSearchField.vue": {
+      "class": "managed",
+      "hash": "sha256-5e3f139cadea7185a99ff37227b69973f8cf337284c01616777f2c561b006426",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSelect.vue": {
+      "class": "managed",
+      "hash": "sha256-aa3f95252cf89c0e295eb2bd7f92dcf1dbe702762e01392ba92cfb2cd0bc2932",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSeparator.vue": {
+      "class": "managed",
+      "hash": "sha256-745dc91437141203b480308b9ba092d5342d6098225c4d8368dd725a8b537293",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSheet.vue": {
+      "class": "managed",
+      "hash": "sha256-687202364f2d9ebe721602666a23550a3ef2f4a2f5407132c176a179821467d8",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSkeleton.vue": {
+      "class": "managed",
+      "hash": "sha256-229a77ff279c1cb50413bb3c147ebebf96ec700f64569a4dd150dbd9d2004997",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSlider.vue": {
+      "class": "managed",
+      "hash": "sha256-6185b4d7bbdb2dd86a8383042dc7220c69db2fddea22222085bfebfb6eb64827",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiStatCard.vue": {
+      "class": "managed",
+      "hash": "sha256-de0f766698e786c1f64785ca63959dddad9fe47c86676168791c3f4976852f1b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSteppedForm.vue": {
+      "class": "managed",
+      "hash": "sha256-ae28e3bbe00e329e459f9a3d6f578ca5a7164ea857d5e5227d88d2df28190b53",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiStepper.vue": {
+      "class": "managed",
+      "hash": "sha256-4cb38ce6892d7b99cb899501a35c89b3966cba96749bb2dd2c2f42ee59a772ca",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiSwitch.vue": {
+      "class": "managed",
+      "hash": "sha256-a88c128c3a86a02129e5ae4a6a2d1244120c6408cd2bdb571ed771c0fc1a4cf9",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTabs.vue": {
+      "class": "managed",
+      "hash": "sha256-24b768d02e6f666262a1dea23f69239e6be4acf59ed1389c283a85c4ccf75d3f",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTagsField.vue": {
+      "class": "managed",
+      "hash": "sha256-8f49db578f0085f7d6d3c11cf9302e75fce2dd8a268373e84b114bada03d1a03",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTextarea.vue": {
+      "class": "managed",
+      "hash": "sha256-3e973624912c855bdc91367276bf7b06bd12d0c2f6cd04c78b35d840bcb2e751",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTextField.vue": {
+      "class": "managed",
+      "hash": "sha256-1759c9940de6869e57eb6b472128c9d0c27805a0238e2a3108f57e1085fa07c0",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTimeField.vue": {
+      "class": "managed",
+      "hash": "sha256-a5c5508a9f5dde8e7e4a5577fb4999ebd8110cfc7ae4ac98edf4636891124b66",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTimeRangePicker.vue": {
+      "class": "managed",
+      "hash": "sha256-ef7bfccac1f334dced1b7f27ce21b2d250a4fedc74c469ae3a9787152595df87",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiToast.vue": {
+      "class": "managed",
+      "hash": "sha256-8d7b5c0b05410cfcd5e35ad1f685b0ad62d409f364a42bb9c93c432335cd8b8b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiToggle.vue": {
+      "class": "managed",
+      "hash": "sha256-be055e52b0fae7c6ac2b56b71c3ddaeb7e7be35a72b35cbfc36aeba156f96d20",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiToggleGroup.vue": {
+      "class": "managed",
+      "hash": "sha256-0baee14896163b8a01de583efaa92158bc7ff303dbc891da813a1ee28a16264a",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTooltip.vue": {
+      "class": "managed",
+      "hash": "sha256-66db68cffa458a4f4841a879dbef4378c48ebbb649969e0d42d4478aed7185d2",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTreeSelect.vue": {
+      "class": "managed",
+      "hash": "sha256-0312b6d91cd1b0074427e33d2389a27736eea579ad6eb2c0c28bb8388657a921",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiTrendDelta.vue": {
+      "class": "managed",
+      "hash": "sha256-b0fdbe36cf7c9c0ec99e13c717b894fe301bdcf15d7bc12b0653d2d24dce1ba1",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiYearPicker.vue": {
+      "class": "managed",
+      "hash": "sha256-7c48ac9701c3c3f254ccbc7e48056d2273f1bbefd34b40e5209ea7e6fd35cea6",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/components/ui/UiYearRangePicker.vue": {
+      "class": "managed",
+      "hash": "sha256-289021049e0e4984ff12cd14dbe7ca6448a8784e54e374fb7ba5bb6d89502260",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/index.ts": {
+      "class": "managed",
+      "hash": "sha256-79b0c9ff1cce42c08a14305ed0c7afa96a2df217f4cb3636be3c778bcdf60c29",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useFormwerkElementRef.ts": {
+      "class": "managed",
+      "hash": "sha256-7c4fbe24f57173a0616c0fe4007adb5d8ac88963f31b91f126bd75ce31613fac",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiCheckbox.ts": {
+      "class": "managed",
+      "hash": "sha256-5075505f77d2b1a7da32e18d981a5622f19b94ebc03e8dbf87195796180b3183",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiColorPicker.ts": {
+      "class": "managed",
+      "hash": "sha256-47ba5e36dc82f2df586204db88143f791098c425fbaa12ebba32b6949b2ba6b8",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiComboBox.ts": {
+      "class": "managed",
+      "hash": "sha256-771ae558bd33a57108a0258ca9b9dcdb7e0c9879f00d40cf547d288303493190",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiDateField.ts": {
+      "class": "managed",
+      "hash": "sha256-a13128a1f10f139641b082a858463fd316f2d45aaeefa9be4cac2a5273a6fd58",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiEditable.ts": {
+      "class": "managed",
+      "hash": "sha256-a4603a37932a3647cbc770cd0b032bae7e7dde0525d23d3269a4f08bce22c814",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiFileUpload.ts": {
+      "class": "managed",
+      "hash": "sha256-e53043aa70caaf81551c5de5916fb8e7d1a63a046a4c6a2047a84958f8e5b31a",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiMentionsField.ts": {
+      "class": "managed",
+      "hash": "sha256-b59fec6a9c80b299c4bacb06b56e4a62fece5c220817483e9a9dc75306c665df",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiNumberField.ts": {
+      "class": "managed",
+      "hash": "sha256-43af50561aba1628a31767d4a6ab68bffb3e7399698f35ba6d105a699b26c048",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiOtpField.ts": {
+      "class": "managed",
+      "hash": "sha256-6051b30fb008a64e5fc406ac543377a94fa00c1afd9790813fd0bf6a6a4f9630",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiRadioGroup.ts": {
+      "class": "managed",
+      "hash": "sha256-85269f9744c81f5c9dd4f65e56a8ff479163b18030e8db75bc3de4238bcd5472",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiRatingField.ts": {
+      "class": "managed",
+      "hash": "sha256-dfb33aa796f0737738f58632dda980d8d4cb4156f9d43c90ce58ef66a7611ed9",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiSearchField.ts": {
+      "class": "managed",
+      "hash": "sha256-6534189d1bfc47d4aaf3ce41e9d6d48f51977abdcd167a2789b78ee27d2099c5",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiSelect.ts": {
+      "class": "managed",
+      "hash": "sha256-5397b52bb998f7db6a779925f0ee950eddafb8d925cf5f207851bbdfdfbf8aac",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiSlider.ts": {
+      "class": "managed",
+      "hash": "sha256-c3f2639e1408921ed6ac6b7cb0f9fd0a3178e36b91d48dff960ff317d4aab347",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiSteppedForm.ts": {
+      "class": "managed",
+      "hash": "sha256-94819a5a17e1a1b3d00de37ef092e80d4e8374c458c8b2337015461ef7ee04f8",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiSwitch.ts": {
+      "class": "managed",
+      "hash": "sha256-84b1cabcc043b7bb75a601846ff065ce148a1a34888028ecddab66dfebc3b65e",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiTagsField.ts": {
+      "class": "managed",
+      "hash": "sha256-1824eeb86eefd1d6d218ab64c2e3ecd0400f3d1fb643c88b4d2e955d415aa7f4",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiTextarea.ts": {
+      "class": "managed",
+      "hash": "sha256-db2f9a6f175c86b27c28ffc94304235a08ba56bcc5b185c023fcc273fb7047ae",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiTextField.ts": {
+      "class": "managed",
+      "hash": "sha256-04d9a228f5016edb3a6854df38d84dbc584b105d9381f069aa45027f220c60ce",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiTimeField.ts": {
+      "class": "managed",
+      "hash": "sha256-a624388e1ccb741fe90b4ac375be9b22b9dd7b17c9dea17beb4a27eaae962054",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiToggle.ts": {
+      "class": "managed",
+      "hash": "sha256-4046698ae8db20b8d713395d9278bd7ceccb9dfc99cc6499423964113572a02d",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiToggleGroup.ts": {
+      "class": "managed",
+      "hash": "sha256-3df9e3a913c1c039fd0e07eb478e1a500673a24d4999bfb6213c60557b7e3934",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/composables/forms/useUiTreeSelect.ts": {
+      "class": "managed",
+      "hash": "sha256-e87dd5e6a47ad813f0167a48385b9bad12c9d377ba48c9a695f7f7b092e35c80",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/config/app.overrides.ts": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/locales/ar.overrides.json": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/locales/en.overrides.json": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/locales/fr.overrides.json": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/brand.css": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/motion.css": {
+      "class": "managed",
+      "hash": "sha256-2e20113b683cb3809dd328912dae0a3ec4b7d2f2be3a0fc4a293546c7cacfe01",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/semantic.css": {
+      "class": "managed",
+      "hash": "sha256-7c1ed7ac38ede64abbb13150daff30738b89d879d0e2c42a7dadcbffa2f75262",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/analog.css": {
+      "class": "managed",
+      "hash": "sha256-76e07ae56ca7f3d32513df510b0867bc0aa4bd252f868e4c3a9ef9d86823ba86",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/blueprint.css": {
+      "class": "managed",
+      "hash": "sha256-749cdd2f3b48631584eb6f46fe39ffa9ad0a0f186181ac7b7dd8e13ee1754d02",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/brutalist.css": {
+      "class": "managed",
+      "hash": "sha256-3bf163bbe21e65ea1996bdf7ec199cf68225a2dfcc137a8b4aefe2ae0f98fed3",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/forest.css": {
+      "class": "managed",
+      "hash": "sha256-7441e91818e3dd8a268cc5fcf2522c7381d1ce800b26d8789f36ded98247c405",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/ghibli.css": {
+      "class": "managed",
+      "hash": "sha256-1507f7ef39189b9c1acefb72024cb7eb5793526f48b7288fb7294aabe203c16e",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/harbour.css": {
+      "class": "managed",
+      "hash": "sha256-bdc1fabf91554d6790a477a1392f3308966e574dbf30d5d22ac29ff51f1a73e9",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/ocean.css": {
+      "class": "managed",
+      "hash": "sha256-d8778687bd3a90b4ff170ba140cc0c32f53275dfd28e92c8bb7877f2f7573671",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/pro.css": {
+      "class": "managed",
+      "hash": "sha256-edcaa7cd238e997e818787f31917cf01dd784db728c24a1056de1d175882af5d",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/rose.css": {
+      "class": "managed",
+      "hash": "sha256-2fe542d0420f7b31329e829735966b862ffa79bf1bd7c10cb53898a51f481d3e",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/sunset.css": {
+      "class": "managed",
+      "hash": "sha256-6cae2bc69b4e9c1971276c37e2b5afacb2761de34a7063d0f4660cea3856e5ec",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/app/styles/themes/terminal.css": {
+      "class": "managed",
+      "hash": "sha256-43d0b57c2cb69b48fc27eba1557ed669e70071b45645226ca519f2e3378030bf",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/api/auth-interceptor.ts": {
+      "class": "managed",
+      "hash": "sha256-b1bac5f1de6dab1696b9dc534cf9b5e0e6eda4ecf9440726a5c788a15ea07ec9",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/api/client.ts": {
+      "class": "managed",
+      "hash": "sha256-64b32b619178c060a6054f2a00439665ed8cfd5aaced6e9ae3be29f11c1b9c47",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/api/collection-queries.ts": {
+      "class": "managed",
+      "hash": "sha256-b78ee58374f76f93813a8f9fde9cac3b412d4ba251659cf4ffc33ce960e28dad",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/api/types.ts": {
+      "class": "managed",
+      "hash": "sha256-7dcab201923f6010be028cee305642534631452105a5caca5c0b5e797e64a6c6",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/auth/session-persistence.ts": {
+      "class": "managed",
+      "hash": "sha256-33fa3309754ac7f01a9ab0730ae6b54ef8310292780ec4798e8627bbf78e8428",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/cn.ts": {
+      "class": "managed",
+      "hash": "sha256-57b8e36b68bc5e7e1cf3eaac062ce65785f94dcaf75fd51f6afda6832959630b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/config/env.schema.ts": {
+      "class": "managed",
+      "hash": "sha256-67bb81d0dde89ba2f0d9855bea8e22a16f41135ce78a5e5edf4becb0a9da0c59",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/config/index.ts": {
+      "class": "managed",
+      "hash": "sha256-423bad302e5e456a1d3e6ef518ecb0295355559659de27d778b03fbd51568f9b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/echarts-setup.ts": {
+      "class": "managed",
+      "hash": "sha256-cf1ecd63929b8404cb29283ef2b1d4d65a9dd92eddc8b339926fd3eb7258179b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/errors/index.ts": {
+      "class": "managed",
+      "hash": "sha256-15ba197ccd619508968c380544838a4c21e10d2713333b3c7132fc5400a7026c",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/errors/reporter.ts": {
+      "class": "managed",
+      "hash": "sha256-f54888620b742b1bf1c5da2edef48ed806aba5589f0087fe81e1d9e7903bbfe3",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/events.ts": {
+      "class": "managed",
+      "hash": "sha256-ce3bbd23ff0beb2edbe1e4eb3daa94b3513b420c3ee3f6c5c8e8aa9bd2de08d9",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/logger/index.ts": {
+      "class": "managed",
+      "hash": "sha256-40e3846a59256db3672720c37d77b4c056f43debf7f3ad3fdd7cf90eae67fb68",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/money.ts": {
+      "class": "managed",
+      "hash": "sha256-3a154b8a7abb91a59c04c2b1d8b3cf360b0fcb850a6a80f7b68858eac5073218",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/observability/performance.ts": {
+      "class": "managed",
+      "hash": "sha256-51b2a641b2ea4ee531497bc7fcfcc347468c1e57418dfed4a3cc1c85e2b08494",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/query-keys.ts": {
+      "class": "managed",
+      "hash": "sha256-c88799b8c35b3fc8ee8fddef24a6a8716f982200195ad6611f2a468de517aa1b",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/query-utils.ts": {
+      "class": "managed",
+      "hash": "sha256-81b2b964d835c5d369e3b7d3fbf3e54ae72286cb38891612d1932ab0e6ef8773",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/checks.ts": {
+      "class": "managed",
+      "hash": "sha256-7d332af3def009421547db1b17a66b9727700b4f714a8a8209fd1017f7d8c4cc",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/hooks.ts": {
+      "class": "managed",
+      "hash": "sha256-6d318a0e509122e8eea23e38ae8ac725fd0fbce799a1ca70ad9c9956b7486287",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/index.ts": {
+      "class": "managed",
+      "hash": "sha256-d034a80092d1b09b4860a7c821141f8744cc9196768e2255bf65e41c95831d4c",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/inheritance.ts": {
+      "class": "managed",
+      "hash": "sha256-1af539fb21e7ec6c871a4f199bde7f1f5d9fee1f39a1626a21a6d0e2e60747df",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/namespace.ts": {
+      "class": "managed",
+      "hash": "sha256-4c34e4f2d3f39fa38015041a3247fdfcdda1ffd6a31200d8cf5c2bd241415bed",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/predicates.ts": {
+      "class": "managed",
+      "hash": "sha256-c175ff6b44759ddd546df0f418cf304b0d019ceed4286966552e25cb3c40eae7",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/registry.ts": {
+      "class": "managed",
+      "hash": "sha256-bb9c5b60e41bc3f796fad579bf7db50fa87a4457e6638890164412cff4ed2fa4",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/rbac/types.ts": {
+      "class": "managed",
+      "hash": "sha256-9cea2c7654c28bf669b8c0ff69585c7f7c6f1651f73684dfc325c6500e6cc9ac",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/runtime.ts": {
+      "class": "managed",
+      "hash": "sha256-68a28ee4b12c3c0bca012d334e53385d9a90f40baf34baa23a713e08208a74c5",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/validation/adapters/zod.ts": {
+      "class": "managed",
+      "hash": "sha256-41a9111194e8915d87fa179959d7cbc31896159960bb15528bf1f953ba36c275",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/validation/i18n.ts": {
+      "class": "managed",
+      "hash": "sha256-f4759aca9887c9a1372944ec95d32122551f3cd3a76cb36c6b072ef1bfcce0db",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/validation/index.ts": {
+      "class": "managed",
+      "hash": "sha256-7e1af3b885d955d32a39964028a1b80e934d8e92bd998c094238e6117e3fee43",
+      "since": "1.0.1-alpha.4"
+    },
+    "src/modules/core/lib/validation/types.ts": {
+      "class": "managed",
+      "hash": "sha256-f112119e47451ad83824b744c18d2c095f5e8f64f19d977828cddbc652a95108",
+      "since": "1.0.1-alpha.4"
+    }
+  },
+  "regions": {},
+  "ejected": []
+}

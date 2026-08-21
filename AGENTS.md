@@ -38,6 +38,45 @@ Highest authority above this file: `.specify/memory/constitution.md`. Read it
 before major implementation, and flag conflicts rather than silently violating
 them.
 
+## Who owns which file
+
+Projects built from this template take releases through `vuestrata upgrade`,
+which can only work because every file the tooling writes belongs to exactly one
+side. Before editing anything under `src/modules/app/` or `src/modules/core/`,
+know which of these it is.
+
+| Class     | Meaning                                   | On upgrade                                     |
+| --------- | ----------------------------------------- | ---------------------------------------------- |
+| `managed` | Vuestrata's                               | Replaced, unless the project edited it         |
+| `seeded`  | Written once, then the project's          | Never touched again                            |
+| `merged`  | The project's, except one anchored region | Only the region between the markers is written |
+
+`packages/cli/src/lib/managed.mjs` is the list. In short: the `Ui*` layer,
+`composables/forms/`, `styles/themes/`, `core/lib/` and the layout components
+are `managed`; `brand.css`, `app.overrides.ts`, `Logo.vue` and the locale
+overrides are `seeded`; the registries are `merged`.
+
+**Every registry carries two sentinel regions**, and they must not be merged
+back into one:
+
+```ts
+// vuestrata:modules-start   an upgrade writes here
+// vuestrata:modules-end
+// app:modules-start         generators write here; upstream never does
+// app:modules-end
+```
+
+Generators write to `app:`. If you are adding something Vuestrata ships, it goes
+in `vuestrata:`. `vuestrata doctor` reports any region that has gone missing.
+
+**Do not edit a `managed` file to change something a seam already covers.** A
+colour belongs in `brand.css`, a string in `<locale>.overrides.json`, the product
+name and footer links in `app.overrides.ts`. Editing the underlying file works,
+and costs that file its updates forever.
+
+Breaking any of the contracts in `RELEASE.md` requires a migration under
+`packages/cli/migrations/<version>/`. That is a release rule, not a preference.
+
 ## Extending the template
 
 Most extension tasks have a generator. Each writes the files **and** the
@@ -200,6 +239,7 @@ adds six project rules. `vpr test --run` includes `test/unit/architecture/`.
 | `registry-drift` test   | a module never added to `setup.ts`                                                                          |
 | `verify-bundle.mjs`     | MSW reaching a production bundle; the bundle size budgets (demo credentials too, behind `--strict-demo`)    |
 | `check-toolchain-pins`  | Node/pnpm/Vite+ pinned differently in the Dockerfile, `vercel.json` and CI                                  |
+| `module-contract` test  | (also) a module that declares no `origin`, which `eject` cannot classify                                    |
 | `sync-headers --check`  | the security headers drifting between their four generated targets                                          |
 
 If a rule blocks you, fix the cause. Reach for an escape hatch only with a
