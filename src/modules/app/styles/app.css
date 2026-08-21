@@ -8,15 +8,21 @@
 @import './themes/terminal.css';
 @import './themes/blueprint.css';
 @import './themes/harbour.css';
-/* gen:theme-imports-start */
+/* vuestrata:theme-imports-start */
 @import './themes/pro.css';
 @import './themes/analog.css';
-/* gen:theme-imports-end */
+/* vuestrata:theme-imports-end */
+/* app:theme-imports-start */
+/* app:theme-imports-end */
 /* AFTER the themes: semantic tokens alias whichever ramp the active theme
    installed, and the single `:root.dark` block there gives every theme a real
    dark-mode surface flip. */
 @import './semantic.css';
 @import './motion.css';
+/* LAST, so it wins: brand.css is yours, and Vuestrata never writes to it.
+   Override any semantic token there rather than editing semantic.css, which
+   an upgrade replaces wholesale. */
+@import './brand.css';
 @plugin './icons-plugin.mjs';
 @custom-variant dark (&:where(.dark, .dark *));
 

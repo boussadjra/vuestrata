@@ -20,6 +20,10 @@ export const NAV_GROUPS: readonly ModuleNavGroupDefinition[] = [
   { id: 'organization', label: 'nav_group_organization', order: 40 },
   { id: 'account', label: 'nav_group_account', order: 50 },
   { id: 'reference', label: 'nav_group_reference', order: 60 },
+  // vuestrata:nav-groups-start
+  // vuestrata:nav-groups-end
+  // app:nav-groups-start
+  // app:nav-groups-end
 ] as const
 
 /** Group used by nav items that do not declare one. */

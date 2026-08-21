@@ -67,5 +67,7 @@ export { default as UiTrendDelta } from './UiTrendDelta.vue'
 export { default as UiEmptyState } from './UiEmptyState.vue'
 export { default as UiPageHeader } from './UiPageHeader.vue'
 export { default as UiPanel } from './UiPanel.vue'
-// gen:ui-components-start
-// gen:ui-components-end
+// vuestrata:ui-components-start
+// vuestrata:ui-components-end
+// app:ui-components-start
+// app:ui-components-end

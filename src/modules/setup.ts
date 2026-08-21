@@ -70,6 +70,8 @@ export const appModules: ModuleDefinition[] = [
   // Generated modules append below. The entries above are ordered by role
   // rather than alphabetically, so `vpr gen:module` adds to the end instead
   // of guessing where a new domain belongs — move it up if it has a natural home.
-  // gen:modules-start
-  // gen:modules-end
+  // vuestrata:modules-start
+  // vuestrata:modules-end
+  // app:modules-start
+  // app:modules-end
 ]

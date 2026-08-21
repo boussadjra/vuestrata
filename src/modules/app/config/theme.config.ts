@@ -12,10 +12,12 @@ const builtinThemes: ThemeConfig[] = [
   { name: 'terminal', label: 'Terminal', cssClass: 'theme-terminal' },
   { name: 'blueprint', label: 'Blueprint', cssClass: 'theme-blueprint' },
   { name: 'harbour', label: 'Harbour', cssClass: 'theme-harbour' },
-  // gen:themes-start
+  // vuestrata:themes-start
   { name: 'pro', label: 'Pro', cssClass: 'theme-pro' },
   { name: 'analog', label: 'Analog', cssClass: 'theme-analog' },
-  // gen:themes-end
+  // vuestrata:themes-end
+  // app:themes-start
+  // app:themes-end
 ]
 
 /** Register a custom theme at runtime */

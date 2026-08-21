@@ -27,5 +27,7 @@ export { useUiMentionsField, type MentionsFieldProps, type MentionItem } from '.
 export { useUiRatingField, type RatingFieldProps } from './useUiRatingField'
 export { useUiSteppedForm, type SteppedFormProps } from './useUiSteppedForm'
 export { useFormwerkElementRef, type FormwerkInputProps } from './useFormwerkElementRef'
-// gen:form-composables-start
-// gen:form-composables-end
+// vuestrata:form-composables-start
+// vuestrata:form-composables-end
+// app:form-composables-start
+// app:form-composables-end
