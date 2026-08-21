@@ -6,6 +6,16 @@ import type { Permission, Role, User } from '@/types'
 
 const DEMO_GLOBAL_KEYS = ['__vuestrataDemoPersistence', '__vuestrataDemoStorage'] as const
 
+/**
+ * A fully privileged fixture, covering only permissions the template itself
+ * owns.
+ *
+ * Deliberately excludes the demo modules' permissions (`customers:*`,
+ * `reports:read`, …). `vuestrata eject` withdraws those along with the modules
+ * that declared them, and a shared helper that names them would stop compiling
+ * in every project that ejected — a failure in a file nobody on that project
+ * ever opened. Tests that need a demo permission should name it themselves.
+ */
 export const ALL_TEST_PERMISSIONS: Permission[] = [
   'users:read',
   'users:create',
@@ -19,9 +29,7 @@ export const ALL_TEST_PERMISSIONS: Permission[] = [
   'dashboard:export',
   'settings:read',
   'settings:update',
-  'reports:read',
   'reports:create',
-  'reports:export',
   'audit:read',
 ]
 

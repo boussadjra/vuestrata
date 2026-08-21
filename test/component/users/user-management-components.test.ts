@@ -158,7 +158,7 @@ describe('UserPermissionsPanel', () => {
     const wrapper = mountPanel(user)
 
     expect(permissionToggle(wrapper, 'users:read').attributes('aria-checked')).toBe('true')
-    expect(permissionToggle(wrapper, 'reports:read').attributes('aria-checked')).toBe('false')
+    expect(permissionToggle(wrapper, 'settings:update').attributes('aria-checked')).toBe('false')
   })
 
   it('falls back to role default permissions when explicit permissions are absent', () => {

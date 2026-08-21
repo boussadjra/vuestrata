@@ -72,7 +72,12 @@ describe('RBAC - Role Definitions', () => {
     expect(ROLE_DEFINITIONS.member.permissions.length).toBeGreaterThan(
       ROLE_DEFINITIONS.viewer.permissions.length,
     )
-    expect(ROLE_DEFINITIONS.viewer.permissions.length).toBeGreaterThan(
+    // `>=` rather than `>` for this pair alone. Every permission that separates
+    // a viewer from a guest is a read on one of the demo domains, so a project
+    // that ran `vuestrata eject` has the two roles level until it adds domains
+    // of its own — which is correct, not broken. The ordering property this
+    // test exists for is asserted properly by the monotonicity test below.
+    expect(ROLE_DEFINITIONS.viewer.permissions.length).toBeGreaterThanOrEqual(
       ROLE_DEFINITIONS.guest.permissions.length,
     )
   })
@@ -209,14 +214,21 @@ describe('RBAC - Role Inheritance', () => {
     expect(perms).toHaveLength(1)
   })
 
-  it('viewer inherits everything guest has and adds read access', () => {
+  it('viewer inherits everything guest has and adds only read access', () => {
     const perms = resolveRolePermissions('viewer')
     for (const permission of resolveRolePermissions('guest')) {
       expect(perms).toContain(permission)
     }
-    expect(perms).toContain('reports:read')
-    // A viewer must never gain a write capability, whatever modules are added.
-    expect(perms.filter((permission) => permission.endsWith(':manage'))).toEqual([])
+
+    // Stated as a property rather than by naming a permission. Naming one meant
+    // naming `reports:read`, which belongs to a demo module and disappears with
+    // it — so the assertion failed in any project that ejected, in a file its
+    // authors never touched. The property is also the stronger claim: whatever
+    // a project grants a viewer, none of it may write.
+    const writes = perms.filter((permission) =>
+      /:(manage|create|update|delete|assign|export)$/.test(permission),
+    )
+    expect(writes).toEqual([])
   })
 
   it('permissions accumulate monotonically up the hierarchy', () => {
