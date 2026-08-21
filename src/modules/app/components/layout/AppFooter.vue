@@ -1,11 +1,41 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Logo from '@/components/Logo.vue'
+import { brand, type BrandLink } from '~/config/app.overrides'
 
 const { t } = useI18n()
 
 const year = new Date().getFullYear()
+
+/**
+ * Vuestrata's own footer links, used until a project declares its own.
+ *
+ * Keeping them as a fallback rather than as literals in the template is what
+ * lets `app.overrides.ts` replace them without editing this file — which an
+ * upgrade replaces wholesale.
+ */
+const DEFAULT_LINKS: BrandLink[] = [
+  { label: 'common_documentation', to: '/docs', icon: 'document' },
+  {
+    label: 'GitHub',
+    href: 'https://github.com/boussadjra/vuestrata',
+    iconClass: 'i-solar-github-bold',
+  },
+]
+
+const name = computed(() => brand.copyright ?? brand.name ?? 'Vuestrata')
+const links = computed(() => brand.links ?? DEFAULT_LINKS)
+
+/**
+ * Link labels are i18n keys when a key exists and literals otherwise, so a
+ * project can write "GitHub" or "Status" without inventing a translation for a
+ * proper noun.
+ */
+function label(link: BrandLink): string {
+  return t(link.label) === link.label ? link.label : t(link.label)
+}
 </script>
 
 <template>
@@ -21,7 +51,7 @@ const year = new Date().getFullYear()
         </span>
         <div class="min-w-0">
           <p class="text-muted-foreground text-sm">
-            © {{ year }} Vuestrata. {{ t('home_footer') }}
+            © {{ year }} {{ name }}. {{ t('home_footer') }}
           </p>
         </div>
       </div>
@@ -32,22 +62,38 @@ const year = new Date().getFullYear()
            dark grey on near-black at 2.63:1. `muted-foreground` is re-pointed
            per theme precisely so callers do not have to know that. -->
       <div class="flex flex-wrap items-center gap-2">
-        <RouterLink
-          to="/docs"
-          class="border-border bg-muted text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
-        >
-          <span class="i-solar-document-text-bold h-4 w-4" />
-          {{ t('common_documentation') }}
-        </RouterLink>
-        <a
-          href="https://github.com/boussadjra/vuestrata"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="border-border bg-muted text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
-        >
-          <span class="i-solar-github-bold h-4 w-4" />
-          <span>GitHub</span>
-        </a>
+        <template v-for="link in links" :key="link.label">
+          <RouterLink
+            v-if="link.to"
+            :to="link.to"
+            class="border-border bg-muted text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+          >
+            <AppIcon v-if="link.icon" :name="link.icon" size="sm" />
+            <span
+              v-else-if="link.iconClass"
+              :class="link.iconClass"
+              class="h-4 w-4"
+              aria-hidden="true"
+            />
+            {{ label(link) }}
+          </RouterLink>
+          <a
+            v-else
+            :href="link.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="border-border bg-muted text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+          >
+            <AppIcon v-if="link.icon" :name="link.icon" size="sm" />
+            <span
+              v-else-if="link.iconClass"
+              :class="link.iconClass"
+              class="h-4 w-4"
+              aria-hidden="true"
+            />
+            <span>{{ label(link) }}</span>
+          </a>
+        </template>
       </div>
     </div>
   </footer>

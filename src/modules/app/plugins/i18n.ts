@@ -5,8 +5,11 @@ import { createI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 
 import ar from '../locales/ar.json'
+import arOverrides from '../locales/ar.overrides.json'
 import en from '../locales/en.json'
+import enOverrides from '../locales/en.overrides.json'
 import fr from '../locales/fr.json'
+import frOverrides from '../locales/fr.overrides.json'
 // `appearance.ts` owns the locale list — it also holds LOCALE_METADATA and
 // RTL_LOCALES, so adding a language stays a single-file change. This module
 // used to re-declare the same tuple, which meant a fourth locale could be
@@ -17,11 +20,30 @@ function toSupportedLocale(locale: string): SupportedLocale {
   return SUPPORTED_LOCALES.includes(locale as SupportedLocale) ? (locale as SupportedLocale) : 'en'
 }
 
+/**
+ * Shell copy, with your overrides applied on top.
+ *
+ * `<locale>.json` is Vuestrata's and is replaced wholesale by an upgrade; the
+ * `.overrides.json` beside it is yours and is never written to. Rewording a
+ * label therefore means adding one key to a file nobody upstream touches,
+ * rather than editing a 665-key catalog that a future release will also edit.
+ *
+ * Shallow by design: the shell catalog is flat, and a deep merge would invite
+ * partial overrides of a nested object that then disagree about shape.
+ */
+function withOverrides<T extends object>(base: T, overrides: object): T {
+  return { ...base, ...overrides }
+}
+
 export const i18n = createI18n({
   legacy: false,
   locale: 'en',
   fallbackLocale: 'en',
-  messages: { en, fr, ar },
+  messages: {
+    en: withOverrides(en, enOverrides),
+    fr: withOverrides(fr, frOverrides),
+    ar: withOverrides(ar, arOverrides),
+  },
 })
 
 /**
@@ -41,6 +63,10 @@ if (import.meta.hot) {
   import.meta.hot.accept('../locales/en.json', (mod) => hotMergeLocale('en', mod))
   import.meta.hot.accept('../locales/fr.json', (mod) => hotMergeLocale('fr', mod))
   import.meta.hot.accept('../locales/ar.json', (mod) => hotMergeLocale('ar', mod))
+  // The overrides merge last for the same reason they win at build time.
+  import.meta.hot.accept('../locales/en.overrides.json', (mod) => hotMergeLocale('en', mod))
+  import.meta.hot.accept('../locales/fr.overrides.json', (mod) => hotMergeLocale('fr', mod))
+  import.meta.hot.accept('../locales/ar.overrides.json', (mod) => hotMergeLocale('ar', mod))
 }
 
 export function getI18n() {

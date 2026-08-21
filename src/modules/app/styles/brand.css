@@ -1,0 +1,54 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * This file is yours. Vuestrata never modifies it.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * `semantic.css` is replaced wholesale by `vuestrata upgrade`, so editing it
+ * means either losing your brand on the next upgrade or blocking the upgrade
+ * that would have replaced it. Put brand overrides here instead: app.css
+ * imports this file last, so anything declared here wins.
+ *
+ * It ships empty on purpose. An empty override file costs one HTTP-free import
+ * and is the difference between "change this one value" and "fork the token
+ * layer", which is the moment a project stops being able to take upstream fixes.
+ *
+ * ── What belongs here ──────────────────────────────────────────────────────
+ *
+ * Overriding a semantic token, in both colour modes:
+ *
+ *     :root {
+ *       --color-primary-700: #0b5fff;
+ *       --radius-card: 0.25rem;
+ *     }
+ *
+ *     :root.dark {
+ *       --color-primary-700: #4d8bff;
+ *     }
+ *
+ * Overriding one token for one theme only — the theme class is on the same
+ * element, so add it to the selector rather than editing the theme file:
+ *
+ *     :root.theme-ocean {
+ *       --color-accent-500: #00b4d8;
+ *     }
+ *
+ * Redefining a component recipe's shared surface, when a whole family should
+ * change rather than a single component:
+ *
+ *     :root {
+ *       --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06);
+ *     }
+ *
+ * ── What does not belong here ──────────────────────────────────────────────
+ *
+ * Raw palette values applied to elements (`.my-button { background: #f00 }`).
+ * The `no-raw-palette` rule exists because a hard-coded colour ignores the
+ * active theme and needs a hand-written `dark:` twin. Override the token, not
+ * the element.
+ *
+ * A whole new theme. Themes are four ramps in both colour modes and are wired
+ * into four files; `vpr gen:theme <name>` writes all of them.
+ * See docs/9.recipes/3.add-a-theme.md.
+ *
+ * The full token reference is in src/modules/app/styles/semantic.css.
+ */
