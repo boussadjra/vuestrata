@@ -39,7 +39,7 @@
     "components.d.ts",
     "typed-router.d.ts"
   ],
-  "exclude": ["dist", "node_modules", "e2e"],
+  "exclude": ["dist", "node_modules", "e2e", "packages/cli/payload"],
   "vueCompilerOptions": {
     "plugins": ["vue-router/volar/sfc-route-blocks", "vue-router/volar/sfc-typed-router"]
   }

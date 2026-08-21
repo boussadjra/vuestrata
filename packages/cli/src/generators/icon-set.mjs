@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { inSlot, slot } from '../lib/manifest.mjs'
 import { camel, kebab } from '../lib/naming.mjs'
 import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
 
@@ -25,17 +26,18 @@ export function planIconSet({ plan, root, positional, options }) {
   const varName = `${camel(name)}IconMap`
   const prefix = options.prefix ?? name
 
-  const iconNames = readIconNames(root)
+  const iconNames = readIconNames(root, slot(plan.manifest, 'appTypes'))
   if (iconNames.length === 0) {
-    throw new Error('could not read the IconName union from src/modules/app/types/index.ts')
+    throw new Error(`could not read the IconName union from ${slot(plan.manifest, 'appTypes')}`)
   }
 
   plan.addFile(
-    `src/modules/app/icons/maps/${name}.ts`,
+    inSlot(plan.manifest, 'iconMaps', `${name}.ts`),
     mapTemplate({ name, varName, prefix, iconNames }),
+    { own: 'seeded' },
   )
 
-  plan.addEdit('src/modules/app/icons/index.ts', `export ${varName}`, (source) =>
+  plan.addEdit(slot(plan.manifest, 'iconBarrel'), `export ${varName}`, (source) =>
     insertBeforeSentinel(source, SENTINELS.iconMaps, `export { ${varName} } from './maps/${name}'`),
   )
 
@@ -59,8 +61,8 @@ export function planIconSet({ plan, root, positional, options }) {
   return plan
 }
 
-function readIconNames(root) {
-  const source = fs.readFileSync(path.join(root, 'src/modules/app/types/index.ts'), 'utf8')
+function readIconNames(root, typesPath) {
+  const source = fs.readFileSync(path.join(root, typesPath), 'utf8')
   const start = source.indexOf('export type IconName')
   if (start === -1) return []
 

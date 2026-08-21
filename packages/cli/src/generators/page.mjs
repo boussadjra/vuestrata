@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { inSlot, slot } from '../lib/manifest.mjs'
 import { camel, kebab, pascal, title } from '../lib/naming.mjs'
 
 /**
@@ -26,7 +27,7 @@ export function planPage({ plan, root, positional, options }) {
   }
 
   const id = kebab(moduleId)
-  const moduleDir = path.join(root, 'src/modules', id)
+  const moduleDir = path.join(root, slot(plan.manifest, 'modulesDir'), id)
   const barrelPath = path.join(moduleDir, 'index.ts')
 
   if (!fs.existsSync(barrelPath)) {
@@ -46,26 +47,36 @@ export function planPage({ plan, root, positional, options }) {
   const titleKey = `${id}_${camel(name)}_title`
   const routePath = kind === 'detail' ? `/dashboard/${id}/${name}/:id` : `/dashboard/${id}/${name}`
 
-  plan.addFile(`src/modules/${id}/pages/${name}.vue`, pageTemplate({ id, name, kind, titleKey }))
+  plan.addFile(
+    inSlot(plan.manifest, 'modulesDir', id, 'pages', `${name}.vue`),
+    pageTemplate({ id, name, kind, titleKey }),
+    { own: 'seeded' },
+  )
 
-  plan.addEdit(`src/modules/${id}/index.ts`, `add the ${name} route`, (source) =>
-    insertRoute(source, {
-      id,
-      name,
-      routePath,
-      titleKey,
-      isDynamic: routePath.includes(':'),
-    }),
+  plan.addEdit(
+    inSlot(plan.manifest, 'modulesDir', id, 'index.ts'),
+    `add the ${name} route`,
+    (source) =>
+      insertRoute(source, {
+        id,
+        name,
+        routePath,
+        titleKey,
+        isDynamic: routePath.includes(':'),
+      }),
   )
 
   if (options.nav) {
-    plan.addEdit(`src/modules/${id}/index.ts`, `add a nav item for ${name}`, (source) =>
-      insertNavItem(source, { id, name, routePath, titleKey, icon: options.icon ?? 'widget' }),
+    plan.addEdit(
+      inSlot(plan.manifest, 'modulesDir', id, 'index.ts'),
+      `add a nav item for ${name}`,
+      (source) =>
+        insertNavItem(source, { id, name, routePath, titleKey, icon: options.icon ?? 'widget' }),
     )
   }
 
   for (const locale of ['en', 'fr', 'ar']) {
-    const rel = `src/modules/${id}/i18n/${locale}.json`
+    const rel = inSlot(plan.manifest, 'modulesDir', id, 'i18n', `${locale}.json`)
     plan.addEdit(rel, `add "${titleKey}"`, (source) => addLocaleKey(source, titleKey, Label))
   }
 

@@ -1,3 +1,4 @@
+import { inSlot, slot } from '../lib/manifest.mjs'
 import { kebab, title } from '../lib/naming.mjs'
 import { insertBeforeSentinel, insertUnionMember, SENTINELS } from '../lib/registry.mjs'
 
@@ -29,10 +30,12 @@ export function planTheme({ plan, positional, options }) {
 
   const label = options.label ?? title(name)
 
-  plan.addFile(`src/modules/app/styles/themes/${name}.css`, stylesheet(name, label))
+  plan.addFile(inSlot(plan.manifest, 'themeStyles', `${name}.css`), stylesheet(name, label), {
+    own: 'seeded',
+  })
 
   plan.addEdit(
-    'src/modules/app/styles/app.css',
+    slot(plan.manifest, 'styleEntry'),
     `@import the ${name} stylesheet before semantic.css`,
     (source) =>
       insertBeforeSentinel(source, SENTINELS.themeImports, `@import './themes/${name}.css';`, {
@@ -41,7 +44,7 @@ export function planTheme({ plan, positional, options }) {
   )
 
   plan.addEdit(
-    'src/modules/app/config/theme.config.ts',
+    slot(plan.manifest, 'themeRegistry'),
     `register ${name} in builtinThemes`,
     (source) =>
       insertBeforeSentinel(
@@ -51,7 +54,7 @@ export function planTheme({ plan, positional, options }) {
       ),
   )
 
-  plan.addEdit('src/modules/app/types/index.ts', `add '${name}' to the ThemeName union`, (source) =>
+  plan.addEdit(slot(plan.manifest, 'appTypes'), `add '${name}' to the ThemeName union`, (source) =>
     insertUnionMember(source, 'ThemeName', name),
   )
 

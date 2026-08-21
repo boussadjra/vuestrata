@@ -1,3 +1,4 @@
+import { inSlot, slot } from '../lib/manifest.mjs'
 import { insertBeforeSentinel, insertImport, SENTINELS } from '../lib/registry.mjs'
 
 /**
@@ -20,33 +21,35 @@ import { insertBeforeSentinel, insertImport, SENTINELS } from '../lib/registry.m
  */
 export function planModule({ plan, names, options }) {
   const n = names
-  const dir = `src/modules/${n.moduleId}`
+  const dir = inSlot(plan.manifest, 'modulesDir', n.moduleId)
   const nav = options.navGroup ?? 'work'
   const icon = options.icon ?? 'widget'
 
-  plan.addFile(`${dir}/types.ts`, typesTemplate(n))
-  plan.addFile(`${dir}/query-keys.ts`, queryKeysTemplate(n))
-  plan.addFile(`${dir}/presentation.ts`, presentationTemplate(n))
-  plan.addFile(`${dir}/composables/use${n.Entities}.ts`, composablesTemplate(n))
-  plan.addFile(`${dir}/mocks/fixtures.ts`, fixturesTemplate(n))
-  plan.addFile(`${dir}/mocks/${n.moduleId}.handlers.ts`, handlersTemplate(n))
-  plan.addFile(`${dir}/pages/index.vue`, listPageTemplate(n))
-  plan.addFile(`${dir}/pages/detail.vue`, detailPageTemplate(n))
-  plan.addFile(`${dir}/pages/form.vue`, formPageTemplate(n))
-  plan.addFile(`${dir}/index.ts`, barrelTemplate(n, { nav, icon }))
+  plan.addFile(`${dir}/types.ts`, typesTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/query-keys.ts`, queryKeysTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/presentation.ts`, presentationTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/composables/use${n.Entities}.ts`, composablesTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/mocks/fixtures.ts`, fixturesTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/mocks/${n.moduleId}.handlers.ts`, handlersTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/pages/index.vue`, listPageTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/pages/detail.vue`, detailPageTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/pages/form.vue`, formPageTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/index.ts`, barrelTemplate(n, { nav, icon }), { own: 'seeded' })
 
-  for (const locale of ['en', 'fr', 'ar']) {
-    plan.addFile(`${dir}/i18n/${locale}.json`, localeTemplate(n, locale))
+  for (const locale of plan.manifest.conventions.locales) {
+    plan.addFile(`${dir}/i18n/${locale}.json`, localeTemplate(n, locale), { own: 'seeded' })
   }
 
-  plan.addEdit('src/modules/setup.ts', `import ${n.entities}Module`, (source) =>
+  plan.addEdit(slot(plan.manifest, 'moduleRegistry'), `import ${n.entities}Module`, (source) =>
     insertImport(source, `import ${n.entities}Module from './${n.moduleId}'`, {
       matching: /^import \w+Module from '\.\//,
     }),
   )
 
-  plan.addEdit('src/modules/setup.ts', `register ${n.entities}Module in appModules`, (source) =>
-    insertBeforeSentinel(source, SENTINELS.modules, `${n.entities}Module,`),
+  plan.addEdit(
+    slot(plan.manifest, 'moduleRegistry'),
+    `register ${n.entities}Module in appModules`,
+    (source) => insertBeforeSentinel(source, SENTINELS.modules, `${n.entities}Module,`),
   )
 
   // `BuiltinPermission` is a closed union, so a module's own permissions must
@@ -54,7 +57,7 @@ export function planModule({ plan, names, options }) {
   // module does not compile — which is the type system doing its job, but it
   // is not something the generator should leave for a human to discover.
   plan.addEdit(
-    'src/modules/core/lib/rbac/types.ts',
+    slot(plan.manifest, 'permissions'),
     `declare '${n.moduleId}:read' and '${n.moduleId}:manage'`,
     (source) => {
       let next = insertBeforeSentinel(source, SENTINELS.permissions, `| '${n.moduleId}:read'`)
@@ -534,6 +537,9 @@ ${header(
 const ${n.entities}Module: ModuleDefinition = {
   config: {
     id: '${n.moduleId}',
+    // Yours. Nothing upstream reasons about an \`app\` module — \`eject\` will not
+    // remove it and \`upgrade\` will not touch its files.
+    origin: 'app',
     name: '${n.Label}',
     description: '${n.Label} records',
     version: '1.0.0',

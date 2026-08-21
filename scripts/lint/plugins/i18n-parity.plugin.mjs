@@ -58,7 +58,15 @@ export function i18nParityPlugin() {
             problems.push({ dir: rel, invalid: `${file}: ${error.message}` })
             continue
           }
-          byLocale.set(file.replace(/\.json$/, ''), flattenKeys(parsed))
+          // `en.overrides.json` is folded into `en` rather than compared as a
+          // locale of its own. It is the same language — the split is about who
+          // owns the file, not what it says — and treating it separately would
+          // report every shell key as missing from a file that only ever holds
+          // the handful someone chose to reword.
+          const locale = localeOf(file)
+          const keys = byLocale.get(locale) ?? new Set()
+          for (const key of flattenKeys(parsed)) keys.add(key)
+          byLocale.set(locale, keys)
           totalFiles++
         }
 
@@ -90,8 +98,12 @@ export function i18nParityPlugin() {
             logger.error(`- ${problem.dir}: invalid JSON — ${problem.invalid}`)
             continue
           }
+          // Name both files. The overrides one is usually the right place —
+          // sending someone to edit the upstream catalog is how a project ends
+          // up with a locale file an upgrade cannot replace.
           logger.error(
-            `- ${problem.dir}/${problem.locale}.json is missing ${problem.missing.length} key(s):`,
+            `- locale "${problem.locale}" in ${problem.dir} is missing ${problem.missing.length} key(s). ` +
+              `Add them to ${problem.locale}.overrides.json (yours) or ${problem.locale}.json (Vuestrata's):`,
           )
           for (const key of problem.missing.slice(0, MAX_REPORTED)) {
             logger.error(`    ${key}`)
@@ -112,6 +124,14 @@ export function i18nParityPlugin() {
       return { ok: true }
     },
   }
+}
+
+/**
+ * The locale a file contributes to: `fr.json` and `fr.overrides.json` both
+ * answer `fr`.
+ */
+function localeOf(file) {
+  return file.replace(/(\.overrides)?\.json$/, '')
 }
 
 /** The shell catalog plus every module that ships an `i18n/` folder. */

@@ -30,8 +30,8 @@ playwright-report/
 test-results/
 
 # Generated types (auto-regenerated)
-src/auto-imports.d.ts
-src/components.d.ts
+auto-imports.d.ts
+components.d.ts
 typed-router.d.ts
 
 # Build cache
@@ -42,3 +42,9 @@ typed-router.d.ts
 docker-compose.override.yml
 .scratch/
 .scratch/
+
+# CLI upgrade payload — a byte-for-byte copy of every managed file, so
+# `vuestrata upgrade` has something to install. Built at pack time from the
+# source beside it; committing it would duplicate ~15k lines that already
+# exist in this repository, and guarantee they drift.
+packages/cli/payload/

@@ -1,3 +1,4 @@
+import { inSlot, slot } from '../lib/manifest.mjs'
 import { camel, pascal } from '../lib/naming.mjs'
 import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
 
@@ -28,10 +29,11 @@ export function planComponent({ plan, positional, options }) {
 
   if (options.field) {
     plan.addFile(
-      `src/modules/app/composables/forms/useUi${base}.ts`,
+      inSlot(plan.manifest, 'formComposables', `useUi${base}.ts`),
       composableTemplate(base, dataUi),
+      { own: 'seeded' },
     )
-    plan.addEdit('src/modules/app/composables/forms/index.ts', `export useUi${base}`, (source) =>
+    plan.addEdit(slot(plan.manifest, 'formComposablesBarrel'), `export useUi${base}`, (source) =>
       insertBeforeSentinel(
         source,
         SENTINELS.formComposables,
@@ -41,11 +43,12 @@ export function planComponent({ plan, positional, options }) {
   }
 
   plan.addFile(
-    `src/modules/app/components/ui/${componentName}.vue`,
+    inSlot(plan.manifest, 'uiComponents', `${componentName}.vue`),
     options.field ? fieldComponentTemplate(base, dataUi) : plainComponentTemplate(base, dataUi),
+    { own: 'seeded' },
   )
 
-  plan.addEdit('src/modules/app/components/ui/index.ts', `export ${componentName}`, (source) =>
+  plan.addEdit(slot(plan.manifest, 'uiBarrel'), `export ${componentName}`, (source) =>
     insertBeforeSentinel(
       source,
       SENTINELS.uiComponents,
@@ -79,6 +82,8 @@ function plainComponentTemplate(base, dataUi) {
  * border-border, …), never a raw palette utility — see
  * src/modules/app/styles/semantic.css.
  */
+import { cn } from '~/lib/cn'
+
 export interface ${base}Props {
   variant?: 'default' | 'subtle'
   size?: 'sm' | 'md' | 'lg'
@@ -89,13 +94,40 @@ const props = withDefaults(defineProps<${base}Props>(), {
   size: 'md',
 })
 
-const sizeClass = computed(
-  () => ({ sm: 'text-xs px-2 py-1', md: 'text-sm px-3 py-1.5', lg: 'text-base px-4 py-2' })[props.size],
+// Manual forwarding so the incoming \`class\` reaches \`cn\` and is merged
+// rather than concatenated.
+defineOptions({ inheritAttrs: false })
+
+const attrs = useAttrs()
+
+const sizeClasses: Record<string, string> = {
+  sm: 'text-xs px-2 py-1',
+  md: 'text-sm px-3 py-1.5',
+  lg: 'text-base px-4 py-2',
+}
+
+const variantClasses: Record<string, string> = {
+  default: '',
+  subtle: 'bg-muted text-muted-foreground',
+}
+
+const classes = computed(() =>
+  cn(
+    'bg-card text-foreground border-border rounded-md border',
+    sizeClasses[props.size],
+    variantClasses[props.variant],
+    attrs.class as string | undefined,
+  ),
 )
+
+const forwardedAttrs = computed(() => {
+  const { class: _incoming, ...rest } = attrs
+  return rest
+})
 </script>
 
 <template>
-  <div :class="sizeClass" :data-variant="variant" data-ui="${dataUi}" class="bg-card text-foreground border-border rounded-md border">
+  <div v-bind="forwardedAttrs" :class="classes" :data-variant="variant" data-ui="${dataUi}">
     <slot />
   </div>
 </template>
