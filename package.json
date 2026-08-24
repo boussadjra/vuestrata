@@ -142,7 +142,7 @@
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",
-    "taze": "^20.0.0",
+    "taze": "^21.1.0",
     "tsx": "^4.23.11",
     "typescript": "^6.0.3",
     "unplugin-auto-import": "^21.1.0",
