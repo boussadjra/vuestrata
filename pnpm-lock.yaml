@@ -176,8 +176,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       taze:
-        specifier: ^20.0.0
-        version: 20.0.1
+        specifier: ^21.1.0
+        version: 21.1.0
       tsx:
         specifier: ^4.23.11
         version: 4.23.12
@@ -3285,8 +3285,8 @@ packages:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
-  taze@20.0.1:
-    resolution: {integrity: sha512-eMaxsasw9WZfwXeiRNynqo9uSukB876oHlk+obmaaW4z8ue+LvFXSZC7O+RSABOlWNUqZmxXcDJS/O7MxW6tlw==}
+  taze@21.1.0:
+    resolution: {integrity: sha512-NkFkadmqqpaVZ9x3bV4cul1xQnUknhs1HzE3Q/VXHKS7np2Kg7ZNL7nNsEsBXKsafmgepa+aZNtzoegDgsymPw==}
     hasBin: true
 
   tinybench@2.9.0:
@@ -6462,7 +6462,7 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  taze@20.0.1:
+  taze@21.1.0:
     dependencies:
       '@antfu/ni': 30.5.0
       '@henrygd/queue': 1.2.0
