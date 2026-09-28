@@ -1,11 +1,11 @@
 # speckit-constitution Skill
 
-Use to review, check, or amend the constitution.
+Use to review, check, or amend the project rules in `AGENTS.md`.
 
 ## Rules
 
-1. Read `.specify/memory/constitution.md` first.
-2. For review, show current principles and governance.
-3. For compliance, check the proposed change against each principle.
-4. For amendments, require justification, correct SemVer bump, and a recorded amendment entry.
-5. Do not weaken principles without the required version change.
+1. Read `AGENTS.md` first. It is the highest authority; there is no separate constitution file.
+2. For review, show the current rules.
+3. For compliance, check the proposed change against each rule.
+4. For amendments, require a justification and make the edit in `AGENTS.md` itself.
+5. Do not weaken a rule without saying so, and why, in the change's description.

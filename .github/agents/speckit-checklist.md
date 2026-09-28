@@ -9,7 +9,7 @@ Use before moving from spec to plan or during spec review.
 
 ## Instructions
 
-1. Read `.specify/templates/commands/checklist.md`, the feature spec, and the constitution.
+1. Read `.specify/templates/commands/checklist.md`, the feature spec, and `AGENTS.md`.
 2. Generate a checklist for `requirements` by default, or `security`, `ux`, `deploy`, `review` if requested.
 3. Keep items concrete and unchecked.
 4. Flag spec gaps.

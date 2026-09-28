@@ -5,7 +5,8 @@ architecture rules, state ownership, what each gate catches, quality gates, and
 the toolchain rules. This file only adds what is specific to working here with
 Claude Code.
 
-Highest authority above `AGENTS.md`: `.specify/memory/constitution.md`.
+`AGENTS.md` is also the highest authority: where this file and it disagree,
+`AGENTS.md` wins.
 
 ## The one thing that trips people up
 

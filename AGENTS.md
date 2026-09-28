@@ -34,9 +34,9 @@ Everything below is project-specific and is not managed by Vite+.
 `CLAUDE.md` point here rather than repeating it, so there is one place to change
 when a rule changes.
 
-Highest authority above this file: `.specify/memory/constitution.md`. Read it
-before major implementation, and flag conflicts rather than silently violating
-them.
+It is also the highest authority: no other document in the repository
+overrides it. Where code or another document conflicts with it, flag the
+conflict rather than silently violating either.
 
 ## Who owns which file
 
