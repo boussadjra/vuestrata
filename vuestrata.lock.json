@@ -642,12 +642,12 @@
     },
     "src/modules/core/lib/errors/index.ts": {
       "class": "managed",
-      "hash": "sha256-15ba197ccd619508968c380544838a4c21e10d2713333b3c7132fc5400a7026c",
+      "hash": "sha256-45c5ba46ff347963efeb2965934931cda4d1dcea07bbf54d3877152beda6afbc",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/errors/reporter.ts": {
       "class": "managed",
-      "hash": "sha256-f54888620b742b1bf1c5da2edef48ed806aba5589f0087fe81e1d9e7903bbfe3",
+      "hash": "sha256-a8a91d159de443deac1de3b2fc67625e44ea2d7733530c269afcbb0f04090051",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/events.ts": {
