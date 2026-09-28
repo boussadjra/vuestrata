@@ -63,7 +63,7 @@ test.describe('Forms page — structure', () => {
   test('profile form is pre-filled with demo data', async ({ page }) => {
     // The profile form's email is the 2nd type="email" on the page
     // (nth(0)=contact, nth(1)=profile, nth(2)=primitives)
-    await expect(page.locator('input[type="email"]').nth(1)).toHaveValue('demo@vuestrata.dev')
+    await expect(page.locator('input[type="email"]').nth(1)).toHaveValue('demo.user@example.com')
   })
 })
 
@@ -277,7 +277,7 @@ test.describe('Profile form', () => {
 
     // nth(0)=contact email (empty), nth(1)=profile email (pre-filled), nth(2)=primitives email (empty)
     const emailInputs = page.locator('input[type="email"]')
-    await expect(emailInputs.nth(1)).toHaveValue('demo@vuestrata.dev')
+    await expect(emailInputs.nth(1)).toHaveValue('demo.user@example.com')
   })
 
   test('role select has developer pre-selected', async ({ page }) => {
