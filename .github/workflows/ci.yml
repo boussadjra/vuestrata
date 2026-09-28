@@ -191,15 +191,18 @@ jobs:
 
       - name: Build the image
         run: |
-          docker build             --build-arg VUESTRATA_RELEASE=${{ github.sha }}             --build-arg VUESTRATA_API_URL=/api             -t vuestrata:ci .
+          docker build \
+            --build-arg VUESTRATA_RELEASE=${{ github.sha }} \
+            --build-arg VUESTRATA_API_URL=/api \
+            -t vuestrata:ci .
 
       - name: Start the container
         run: |
           docker run -d --name vuestrata-ci -p 8080:8080 vuestrata:ci
-          # The image declares a HEALTHCHECK; wait for it rather than sleeping
+          # Poll the endpoint the image's HEALTHCHECK uses rather than sleeping
           # an arbitrary number of seconds.
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8080/ >/dev/null 2>&1; then
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
               echo "Container is serving."
               exit 0
             fi
@@ -227,6 +230,28 @@ jobs:
           name: playwright-report-docker
           path: playwright-report/
           retention-days: 7
+
+      # The image must also build for arm64 (Apple Silicon, Graviton). It could
+      # not until the Dockerfile chose the vite-plus binding per platform, and
+      # nothing here would have noticed. Build only, under QEMU, and last: it is
+      # the slowest step and says nothing about the artifact tested above.
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+      - id: buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          # Keep the default builder for the steps above: this one's
+          # docker-container driver does not put images in the local store.
+          use: false
+      - name: Build the image for arm64 (build only)
+        run: |
+          docker buildx build \
+            --builder ${{ steps.buildx.outputs.name }} \
+            --platform linux/arm64 \
+            --build-arg VUESTRATA_RELEASE=${{ github.sha }} \
+            --build-arg VUESTRATA_API_URL=/api \
+            .
 
   # The CLI edits projects built from this template, and the only test that
   # proves a generator still wires what it claims to wire is running it against
