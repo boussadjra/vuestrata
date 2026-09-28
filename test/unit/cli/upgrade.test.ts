@@ -3,12 +3,17 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 // @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
+import { diagnose } from '../../../packages/cli/src/commands/doctor.mjs'
+// @ts-expect-error - see above.
+import { runInit } from '../../../packages/cli/src/commands/init.mjs'
+// @ts-expect-error - see above.
 import { runUpgrade } from '../../../packages/cli/src/commands/upgrade.mjs'
 // @ts-expect-error - see above.
-import { readLock, writeLock, emptyLock } from '../../../packages/cli/src/lib/lockfile.mjs'
+import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
+import { writePayload } from './fixture'
 
 /**
  * The upgrade contract: an untouched file updates, a file the project added is
@@ -17,6 +22,8 @@ import { readLock, writeLock, emptyLock } from '../../../packages/cli/src/lib/lo
  * Run against a temp directory with a payload built for the occasion — the
  * alternative is publishing two releases to test an upgrade between them.
  */
+
+const { driftedFiles, emptyLock, hashFor, readLock, writeLock } = lockfile
 
 const FLAGS = { 'allow-dirty': true, 'no-format': true }
 
@@ -268,6 +275,36 @@ describe('upgrade', () => {
     expect(read('src/ui/Clash.vue')).toBe('export const Clash = "ours"\n')
     expect(exists('.vuestrata/incoming/src/ui/Clash.vue')).toBe(true)
   })
+
+  it('refuses to move a project back to an older release', async () => {
+    seedProject()
+    const lock = readLock(project)
+    lock.template = '1.2.0'
+    writeLock(project, lock)
+    buildPayload('1.1.0', { 'src/ui/Button.vue': 'export const Button = "v2"\n' })
+
+    const payloadSource = await source()
+    const exit = vi.spyOn(process, 'exit').mockImplementation((code) => {
+      throw new Error(`exit ${code}`)
+    })
+
+    try {
+      expect(() =>
+        runUpgrade({
+          root: project,
+          version: '1.1.0',
+          flags: FLAGS,
+          apply: true,
+          source: payloadSource,
+        }),
+      ).toThrow('exit 1')
+    } finally {
+      exit.mockRestore()
+    }
+
+    expect(read('src/ui/Button.vue')).toBe('export const Button = "v1"\n')
+    expect(readLock(project).template).toBe('1.2.0')
+  })
 })
 
 describe('diff', () => {
@@ -333,5 +370,366 @@ describe('diff', () => {
     expect(preview.written).toEqual(actual.written)
     expect(preview.incoming).toEqual(actual.incoming)
     expect(preview.skipped).toEqual(actual.skipped)
+  })
+})
+
+// ── Seeded, merged, regions, promotions; doctor and init ─────────────────────
+
+const BARREL = 'src/modules/app/components/ui/index.ts'
+const THEMES = 'src/modules/app/config/theme.config.ts'
+const SEAM = 'src/modules/app/config/api.overrides.ts'
+const STORE = 'src/modules/app/stores/auth.ts'
+const TAG = "export { default as UiTag } from './UiTag.vue'"
+const BADGE = "export { default as UiBadge } from './UiBadge.vue'"
+
+/** The Ui barrel: `upstream` lines Vuestrata ships, `app` lines a generator added. */
+function barrel(app = '', upstream = '') {
+  return [
+    "export { default as UiButton } from './UiButton.vue'",
+    ...(upstream ? [upstream] : []),
+    '// vuestrata:ui-components-start',
+    '// vuestrata:ui-components-end',
+    '// app:ui-components-start',
+    ...(app ? [app] : []),
+    '// app:ui-components-end',
+    '',
+  ].join('\n')
+}
+
+function upgradeWith(spec: Parameters<typeof writePayload>[1], apply = true) {
+  return runUpgrade({
+    root: project,
+    version: spec.version,
+    flags: FLAGS,
+    apply,
+    source: writePayload(payload, spec),
+    migrations: [],
+  })
+}
+
+describe('diff, across every phase', () => {
+  it('previews seams, merged files, regions and promotions exactly as upgrade does them', () => {
+    const lock = emptyLock('1.1.0')
+    lock.files[BARREL] = {
+      class: 'merged',
+      hash: hashFor(BARREL, barrel(), 'merged'),
+      since: '1.0.0',
+    }
+    writeLock(project, lock)
+    write(BARREL, barrel(TAG))
+    write(THEMES, '// vuestrata:themes-start\n// vuestrata:themes-end\n')
+    write(STORE, 'released\n')
+
+    const upgradeTo = (apply: boolean) =>
+      runUpgrade({
+        root: project,
+        version: '1.2.0',
+        flags: FLAGS,
+        apply,
+        source: writePayload(payload, {
+          version: '1.2.0',
+          files: { [STORE]: 'fixed\n' },
+          merged: { [BARREL]: barrel('', BADGE) },
+          seeded: { [SEAM]: 'export default {}\n' },
+          regions: { themeRegistry: { themes: ["{ name: 'midnight' },"] } },
+        }),
+        migrations: [
+          {
+            version: '1.2.0',
+            description: 'promote the auth store',
+            steps: [{ kind: 'promote', file: STORE, pristine: [hash('released\n')] }],
+          },
+        ],
+      })
+
+    const preview = upgradeTo(false)
+    expect(read(BARREL)).toBe(barrel(TAG))
+    expect(read(STORE)).toBe('released\n')
+    expect(exists(SEAM)).toBe(false)
+    expect(readLock(project).files[STORE]).toBeUndefined()
+
+    const actual = upgradeTo(true)
+    for (const key of ['adopted', 'written', 'regions', 'skipped', 'incoming', 'notes']) {
+      expect(preview[key]).toEqual(actual[key])
+    }
+    expect(actual.written.map((entry: { rel: string }) => entry.rel)).toEqual([SEAM, BARREL, STORE])
+    expect(actual.regions).toHaveLength(1)
+    expect(read(BARREL)).toBe(barrel(TAG, BADGE))
+  })
+})
+
+describe('seeded files', () => {
+  beforeEach(() => {
+    writeLock(project, emptyLock('1.1.0'))
+  })
+
+  it('are written once, then never overwritten', () => {
+    upgradeWith({ version: '1.2.0', seeded: { [SEAM]: 'export default { timeoutMs: 10_000 }\n' } })
+
+    expect(read(SEAM)).toBe('export default { timeoutMs: 10_000 }\n')
+    expect(readLock(project).files[SEAM]).toEqual({ class: 'seeded', since: '1.2.0' })
+
+    // The project makes it its own; the next release ships a new default.
+    write(SEAM, 'export default { timeoutMs: 30_000 }\n')
+    const report = upgradeWith({ version: '1.3.0', seeded: { [SEAM]: 'export default {}\n' } })
+
+    expect(read(SEAM)).toBe('export default { timeoutMs: 30_000 }\n')
+    expect(report.written).toEqual([])
+    expect(report.incoming).toEqual([])
+  })
+
+  it("stay deleted once the lock knows them: deleting a seam was the project's call", () => {
+    upgradeWith({ version: '1.2.0', seeded: { [SEAM]: 'export default {}\n' } })
+    fs.rmSync(path.join(project, SEAM))
+
+    upgradeWith({ version: '1.3.0', seeded: { [SEAM]: 'export default {}\n' } })
+    expect(exists(SEAM)).toBe(false)
+  })
+
+  it('are adopted, not replaced, when the project already wrote one', () => {
+    write(SEAM, 'export default { mine: true }\n')
+
+    const report = upgradeWith({ version: '1.2.0', seeded: { [SEAM]: 'export default {}\n' } })
+
+    expect(read(SEAM)).toBe('export default { mine: true }\n')
+    expect(report.adopted).toEqual([{ rel: SEAM, class: 'seeded', reason: 'already here' }])
+  })
+
+  it('are not written when ejected', () => {
+    const lock = readLock(project)
+    lock.ejected = [SEAM]
+    writeLock(project, lock)
+
+    upgradeWith({ version: '1.2.0', seeded: { [SEAM]: 'export default {}\n' } })
+    expect(exists(SEAM)).toBe(false)
+  })
+})
+
+describe('merged files', () => {
+  function seedMerged(contents: string, recordedFrom = barrel()) {
+    write(BARREL, contents)
+    const lock = emptyLock('1.1.0')
+    lock.files[BARREL] = {
+      class: 'merged',
+      hash: hashFor(BARREL, recordedFrom, 'merged'),
+      since: '1.0.0',
+    }
+    writeLock(project, lock)
+  }
+
+  it('are not drift when only their app: regions changed', () => {
+    // What `vuestrata add component Tag` does to the barrel.
+    seedMerged(barrel(TAG))
+    expect(driftedFiles(project, readLock(project))).toEqual([])
+  })
+
+  it('keep their app: entries through an upgrade, and stay clean after it', () => {
+    seedMerged(barrel(TAG))
+
+    const report = upgradeWith({ version: '1.2.0', merged: { [BARREL]: barrel('', BADGE) } })
+
+    expect(read(BARREL)).toBe(barrel(TAG, BADGE))
+    expect(report.written).toEqual([{ rel: BARREL, reason: 'updated, app: regions kept' }])
+    expect(report.incoming).toEqual([])
+    expect(driftedFiles(project, readLock(project))).toEqual([])
+  })
+
+  it('are offered beside an edit outside their app: regions, with the entries already in', () => {
+    const edited = barrel(TAG).replace('UiButton', 'UiButtonRestyled')
+    seedMerged(edited)
+
+    const report = upgradeWith({ version: '1.2.0', merged: { [BARREL]: barrel('', BADGE) } })
+
+    expect(read(BARREL)).toBe(edited)
+    expect(read(`.vuestrata/incoming/${BARREL}`)).toBe(barrel(TAG, BADGE))
+    expect(report.incoming).toEqual([
+      {
+        rel: BARREL,
+        incoming: `.vuestrata/incoming/${BARREL}`,
+        reason: 'edited outside its app: regions',
+      },
+    ])
+  })
+
+  it('are not written when the release dropped an app: region that holds entries', () => {
+    seedMerged(barrel(TAG))
+    const withoutRegion = "export { default as UiButton } from './UiButton.vue'\n"
+
+    const report = upgradeWith({ version: '1.2.0', merged: { [BARREL]: withoutRegion } })
+
+    expect(read(BARREL)).toBe(barrel(TAG))
+    expect(report.incoming.map((entry: { reason: string }) => entry.reason)).toEqual([
+      'app: region removed upstream',
+    ])
+    expect(report.notes[0].text).toContain(TAG)
+  })
+
+  it('upgrade a record from before the file was merged, and rewrite it as merged', () => {
+    write(BARREL, barrel())
+    const lock = emptyLock('1.1.0')
+    lock.files[BARREL] = { class: 'managed', hash: hash(barrel()), since: '1.0.0' }
+    writeLock(project, lock)
+
+    const report = upgradeWith({ version: '1.2.0', merged: { [BARREL]: barrel('', BADGE) } })
+
+    expect(read(BARREL)).toBe(barrel('', BADGE))
+    expect(report.adopted).toEqual([{ rel: BARREL, class: 'merged', reason: 'reclassified' }])
+    expect(readLock(project).files[BARREL].class).toBe('merged')
+  })
+})
+
+describe('doctor', () => {
+  const texts = (findings: { notes: string[]; warnings: string[]; errors: string[] }) =>
+    [...findings.notes, ...findings.warnings, ...findings.errors].join('\n')
+
+  it('does not report generated app: entries in a merged file as an edit', () => {
+    write(BARREL, barrel(TAG))
+    const lock = emptyLock('1.2.0')
+    lock.files[BARREL] = {
+      class: 'merged',
+      hash: hashFor(BARREL, barrel(), 'merged'),
+      since: '1.2.0',
+    }
+    writeLock(project, lock)
+
+    const source = writePayload(payload, { version: '1.2.0', merged: { [BARREL]: barrel() } })
+    expect(
+      texts(diagnose({ root: project, version: '1.2.0', source, migrations: [] })),
+    ).not.toContain(BARREL)
+  })
+
+  it('notes a merged file edited outside its app: regions', () => {
+    write(BARREL, barrel(TAG).replace('UiButton', 'UiButtonRestyled'))
+    const lock = emptyLock('1.2.0')
+    lock.files[BARREL] = {
+      class: 'merged',
+      hash: hashFor(BARREL, barrel(), 'merged'),
+      since: '1.2.0',
+    }
+    writeLock(project, lock)
+
+    const { notes } = diagnose({
+      root: project,
+      version: '1.2.0',
+      source: undefined,
+      migrations: [],
+    })
+    expect(notes.join('\n')).toContain(`${BARREL} was edited outside its app: regions`)
+  })
+
+  it('errors when a tracked seam is missing, and notes one the next upgrade writes', () => {
+    const lock = emptyLock('1.2.0')
+    lock.files[SEAM] = { class: 'seeded', since: '1.2.0' }
+    writeLock(project, lock)
+    const newSeam = 'src/modules/app/config/auth.config.ts'
+
+    const source = writePayload(payload, {
+      version: '1.2.0',
+      seeded: { [SEAM]: 'export default {}\n', [newSeam]: 'export default {}\n' },
+    })
+    const findings = diagnose({ root: project, version: '1.2.0', source, migrations: [] })
+
+    expect(findings.errors.join('\n')).toMatch(new RegExp(`${SEAM} is missing`))
+    expect(findings.notes.join('\n')).toContain(`${newSeam} is not here yet`)
+  })
+
+  it('warns about a shipped file that is untracked here and differs (pending adoption)', () => {
+    write(STORE, 'ours\n')
+    writeLock(project, emptyLock('1.2.0'))
+
+    const source = writePayload(payload, { version: '1.2.0', files: { [STORE]: 'fixed\n' } })
+    const { warnings } = diagnose({ root: project, version: '1.2.0', source, migrations: [] })
+
+    expect(warnings.join('\n')).toMatch(/auth\.ts is shipped by Vuestrata but not tracked.*adopt/s)
+  })
+
+  it('notes a promotion the next upgrade will adopt', () => {
+    write(STORE, 'released\n')
+    writeLock(project, emptyLock('1.1.0'))
+
+    const source = writePayload(payload, { version: '1.2.0', files: { [STORE]: 'fixed\n' } })
+    const promotion = { kind: 'promote', file: STORE, pristine: [hash('released\n')] }
+    const { notes, warnings } = diagnose({
+      root: project,
+      version: '1.2.0',
+      source,
+      migrations: [{ version: '1.2.0', description: 'promote', steps: [promotion] }],
+    })
+
+    expect(notes.join('\n')).toContain(`${STORE} is maintained by Vuestrata from 1.2.0`)
+    expect(warnings.join('\n')).not.toContain(STORE)
+  })
+
+  it('warns, and plans nothing, when the project is newer than the CLI', () => {
+    write(STORE, 'ours\n')
+    writeLock(project, emptyLock('1.3.0'))
+
+    const source = writePayload(payload, { version: '1.2.0', files: { [STORE]: 'fixed\n' } })
+    const { warnings } = diagnose({ root: project, version: '1.2.0', source, migrations: [] })
+
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatch(/at 1\.3\.0, newer than the 1\.2\.0 this CLI ships/)
+  })
+
+  it('does not suggest adopting a promoted file the project moved', () => {
+    write('vuestrata.config.json', JSON.stringify({ slots: { iconProvider: 'src/icons.ts' } }))
+    write('src/icons.ts', 'released\n')
+    writeLock(project, emptyLock('1.1.0'))
+
+    const shipped = 'src/modules/app/config/icon-provider.ts'
+    const source = writePayload(payload, { version: '1.2.0', files: { [shipped]: 'fixed\n' } })
+    const promotion = { kind: 'promote', slot: 'iconProvider', pristine: [hash('released\n')] }
+    const { warnings } = diagnose({
+      root: project,
+      version: '1.2.0',
+      source,
+      migrations: [{ version: '1.2.0', description: 'promote', steps: [promotion] }],
+    })
+
+    const text = warnings.join('\n')
+    expect(text).toMatch(/src\/icons\.ts is maintained by Vuestrata.*moved from .*icon-provider/s)
+    expect(text).not.toContain('vuestrata adopt src/icons.ts')
+  })
+})
+
+describe('init --force', () => {
+  const UI = 'src/modules/app/components/ui'
+
+  it('rebuilds the baselines and keeps the decisions: seeded stays seeded, ejected stays ejected', () => {
+    write(`${UI}/UiButton.vue`, '<template><button /></template>\n')
+    write(`${UI}/UiTag.vue`, '<template><span /></template>\n')
+    write(BARREL, barrel(TAG))
+    write('src/modules/app/styles/brand.css', ':root {}\n')
+    write(THEMES, "// vuestrata:themes-start\n{ name: 'pro' },\n// vuestrata:themes-end\n")
+
+    const lock = emptyLock('1.1.0')
+    lock.files[`${UI}/UiTag.vue`] = { class: 'seeded', hash: 'sha256-generated', since: '1.1.0' }
+    lock.ejected = ['src/modules/app/pages/docs.vue']
+    writeLock(project, lock)
+
+    runInit({
+      root: project,
+      version: '1.2.0',
+      flags: { force: true, pristine: true, 'no-format': true },
+    })
+
+    const rebuilt = readLock(project)
+    expect(rebuilt.files[`${UI}/UiTag.vue`]).toEqual({
+      class: 'seeded',
+      hash: 'sha256-generated',
+      since: '1.1.0',
+    })
+    expect(rebuilt.files[`${UI}/UiButton.vue`]).toMatchObject({ class: 'managed' })
+    expect(rebuilt.files[BARREL]).toEqual({
+      class: 'merged',
+      hash: hashFor(BARREL, barrel(), 'merged'),
+      since: '1.2.0',
+    })
+    expect(rebuilt.files['src/modules/app/styles/brand.css']).toEqual({
+      class: 'seeded',
+      since: '1.2.0',
+    })
+    expect(rebuilt.regions[THEMES]['vuestrata:themes']).toBeDefined()
+    expect(rebuilt.ejected).toEqual(['src/modules/app/pages/docs.vue'])
   })
 })

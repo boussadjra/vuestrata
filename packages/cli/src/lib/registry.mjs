@@ -42,6 +42,8 @@ export const REGIONS = {
   permissions: 'permissions',
   env: 'env',
   tokens: 'tokens',
+  /** Built-in permissions a project takes away, rather than editing the union. */
+  withdrawn: 'withdrawn',
 }
 
 /**
@@ -50,6 +52,9 @@ export const REGIONS = {
  *
  * `hadLegacyMarker` is history, not configuration: `navGroups` and `env` gained
  * their regions in 1.1.0, so there was no old marker to rewrite.
+ *
+ * `keyedBy: 'variable'` makes an upgrade compare `.env.example` entries by the
+ * variable they document rather than line by line — see `regionEntries`.
  */
 export const ANCHORED_REGISTRIES = [
   { slot: 'moduleRegistry', region: REGIONS.modules, comment: '//', hadLegacyMarker: true },
@@ -65,7 +70,13 @@ export const ANCHORED_REGISTRIES = [
   },
   { slot: 'iconBarrel', region: REGIONS.iconMaps, comment: '//', hadLegacyMarker: true },
   { slot: 'permissions', region: REGIONS.permissions, comment: '//', hadLegacyMarker: true },
-  { slot: 'envExample', region: REGIONS.env, comment: '#', hadLegacyMarker: false },
+  {
+    slot: 'envExample',
+    region: REGIONS.env,
+    comment: '#',
+    hadLegacyMarker: false,
+    keyedBy: 'variable',
+  },
 ]
 
 /** Build a scoped sentinel name, e.g. `app:modules`. */
@@ -154,6 +165,190 @@ export function readRegion(source, name, { comment = '//' } = {}) {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
+}
+
+// ── Whole regions ──────────────────────────────────────────────────────────
+//
+// What an upgrade needs: which lines of a file belong to which side. Unlike
+// the helpers above these are strict — an exact `scope:region` marker pair and
+// no `gen:` fallback — because an upgrade that mistook a legacy region for
+// Vuestrata's would write upstream entries into the project's own list.
+
+/** A marker line, in any of the three comment styles the registries use. */
+const MARKER = /^\s*(?:\/\/|\/\*|#)\s*([a-z]+):([a-z][a-z0-9-]*)-(start|end)\b/
+
+function parseMarker(line) {
+  const match = MARKER.exec(line)
+  return match ? { scope: match[1], region: match[2], edge: match[3] } : undefined
+}
+
+/**
+ * Every balanced region of `scope` in `lines`, as the indexes of its two marker
+ * lines. An unclosed start or a stray end is ignored rather than guessed at: a
+ * region that cannot be delimited cannot be blanked or spliced safely.
+ */
+function regionPairs(lines, scope) {
+  const pairs = []
+  let open
+
+  for (let index = 0; index < lines.length; index++) {
+    const marker = parseMarker(lines[index])
+    if (!marker || marker.scope !== scope) continue
+
+    if (marker.edge === 'start') {
+      open = { region: marker.region, start: index }
+    } else if (open?.region === marker.region) {
+      pairs.push({ ...open, end: index })
+      open = undefined
+    }
+  }
+
+  return pairs
+}
+
+/** The names of the balanced `scope:` regions in `source`, in order. */
+export function regionNames(source, { scope = APP_SCOPE } = {}) {
+  return regionPairs(source.split(/\r?\n/), scope).map((pair) => pair.region)
+}
+
+/**
+ * `contents` with the body of every `app:` region removed and the markers kept.
+ *
+ * This is what a merged file is hashed as: the entries a generator appends
+ * there are the project's, so adding one is not an edit to Vuestrata's file.
+ */
+export function blankRegions(contents, { scope = APP_SCOPE } = {}) {
+  const lines = contents.split('\n')
+  const dropped = new Set()
+
+  for (const pair of regionPairs(lines, scope)) {
+    for (let index = pair.start + 1; index < pair.end; index++) dropped.add(index)
+  }
+
+  return lines.filter((_, index) => !dropped.has(index)).join('\n')
+}
+
+/**
+ * `incoming` with each `app:` region body replaced by the one in `current` — a
+ * new release of a merged file that keeps the project's entries.
+ *
+ * A region `current` lacks comes out empty. A region `current` has and
+ * `incoming` dropped cannot be carried anywhere, so it is returned in
+ * `warnings` with the lines it held, for the caller to refuse or report; it is
+ * never dropped silently.
+ *
+ * @returns {{ contents: string, warnings: { region: string, lines: string[] }[] }}
+ */
+export function spliceRegions(incoming, current, { scope = APP_SCOPE } = {}) {
+  const eol = incoming.includes('\r\n') ? '\r\n' : '\n'
+  const incomingLines = incoming.split(/\r?\n/)
+  const currentLines = current.split(/\r?\n/)
+
+  // Matched by name and occurrence, so a region that appears twice pairs up
+  // in order rather than one copy vanishing.
+  const bodies = new Map()
+  for (const pair of regionPairs(currentLines, scope)) {
+    const queue = bodies.get(pair.region) ?? []
+    queue.push(currentLines.slice(pair.start + 1, pair.end))
+    bodies.set(pair.region, queue)
+  }
+
+  const out = []
+  let cursor = 0
+
+  for (const pair of regionPairs(incomingLines, scope)) {
+    out.push(...incomingLines.slice(cursor, pair.start + 1))
+    out.push(...(bodies.get(pair.region)?.shift() ?? []))
+    cursor = pair.end
+  }
+  out.push(...incomingLines.slice(cursor))
+
+  const warnings = []
+  for (const [region, queue] of bodies) {
+    for (const body of queue) {
+      warnings.push({
+        region: `${scope}:${region}`,
+        lines: body.map((line) => line.trim()).filter(Boolean),
+      })
+    }
+  }
+
+  return { contents: out.join(eol), warnings }
+}
+
+/**
+ * The raw lines inside an exact `scope:region` pair, or `undefined` when the
+ * file does not carry that pair.
+ */
+export function regionLines(source, name) {
+  const [scope, region] = name.split(':')
+  const lines = source.split(/\r?\n/)
+  const pair = regionPairs(lines, scope).find((candidate) => candidate.region === region)
+  return pair ? lines.slice(pair.start + 1, pair.end) : undefined
+}
+
+/** `KEY=value` or a commented-out `# KEY=value`: the line an env entry documents. */
+const ENV_ASSIGNMENT = /^#?\s*([A-Z][A-Z0-9_]*)=/
+
+/**
+ * A region's entries, each with the key an append-only sync compares by.
+ *
+ * Most registries hold one entry per line, compared trimmed so that a re-indent
+ * is not an edit. `.env.example` holds documented variables — a comment block
+ * and the `VUESTRATA_X=` line it describes — keyed by the variable alone, so a
+ * changed default or a reworded comment is still the same entry. Comment lines
+ * after the last variable form one trailing entry of their own.
+ *
+ * @returns {{ key: string, lines: string[] }[]}
+ */
+export function regionEntries(lines, { keyedBy = 'line' } = {}) {
+  const trimmed = lines.map((line) => line.trim()).filter(Boolean)
+
+  if (keyedBy !== 'variable') return trimmed.map((line) => ({ key: line, lines: [line] }))
+
+  const entries = []
+  let comments = []
+
+  for (const line of trimmed) {
+    const assignment = ENV_ASSIGNMENT.exec(line)
+    if (!assignment) {
+      comments.push(line)
+      continue
+    }
+    entries.push({ key: assignment[1], lines: [...comments, line] })
+    comments = []
+  }
+
+  if (comments.length > 0) entries.push({ key: comments.join('\n'), lines: comments })
+  return entries
+}
+
+/**
+ * Insert `entries` at the end of an exact `scope:region` pair, in order, with
+ * the closing marker's indentation. Variable-keyed entries are separated by a
+ * blank line, the way `.env.example` documents them.
+ */
+export function appendToRegion(source, name, entries, { keyedBy = 'line' } = {}) {
+  const [scope, region] = name.split(':')
+  const eol = source.includes('\r\n') ? '\r\n' : '\n'
+  const lines = source.split(/\r?\n/)
+  const pair = regionPairs(lines, scope).find((candidate) => candidate.region === region)
+
+  if (!pair) {
+    throw new Error(`region "${name}" not found. Run \`vuestrata doctor\` to see which have gone.`)
+  }
+
+  const indent = /^\s*/.exec(lines[pair.end])[0]
+  const inserted = []
+
+  for (const entry of entries) {
+    const occupied = pair.end > pair.start + 1 || inserted.length > 0
+    if (keyedBy === 'variable' && occupied) inserted.push('')
+    inserted.push(...entry.lines.map((line) => `${indent}${line}`))
+  }
+
+  lines.splice(pair.end, 0, ...inserted)
+  return lines.join(eol)
 }
 
 /**

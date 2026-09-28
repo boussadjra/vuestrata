@@ -1,6 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { DEFAULT_SLOTS } from './manifest.mjs'
+import { ANCHORED_REGISTRIES } from './registry.mjs'
+
 /**
  * What Vuestrata owns, defined once — `init` baselines these and
  * `build-payload.mjs` ships them, so the two lists must agree.
@@ -8,6 +11,10 @@ import path from 'node:path'
  * Narrow on purpose: a path belongs here only when Vuestrata keeps improving it
  * *and* a project has an alternative to editing it. Hence the component layer,
  * the framework-agnostic core and the themes, but not `pages/`.
+ *
+ * Each list is the whole of its class. Promoting a file to managed, or shipping
+ * a new seam, is one line here; the payload, `init`, `upgrade` and `doctor` all
+ * read these lists rather than keeping their own.
  */
 
 /** Directories whose every file is managed. */
@@ -29,6 +36,22 @@ export const MANAGED_FILES = [
   'src/modules/app/components/layout/SkipLink.vue',
 ]
 
+/**
+ * Vuestrata's files except for their `app:` regions — the registries that sit
+ * inside a managed directory. A generator appends to the `app:` region, so a
+ * whole-file hash would call the first `vuestrata add` an edit and stop the
+ * file updating. These are hashed with those region bodies removed, and an
+ * upgrade carries the project's entries into the new version.
+ *
+ * Every file listed must carry at least one `app:` region; `build-payload.mjs`
+ * refuses to ship one that does not.
+ */
+export const MERGED_FILES = [
+  'src/modules/app/components/ui/index.ts',
+  'src/modules/app/composables/forms/index.ts',
+  'src/modules/core/lib/rbac/types.ts',
+]
+
 /** The seams: written once, then the project's, so the files above stay pristine. */
 export const SEEDED_FILES = [
   'src/modules/app/styles/brand.css',
@@ -39,21 +62,59 @@ export const SEEDED_FILES = [
   'src/modules/app/locales/ar.overrides.json',
 ]
 
+/**
+ * Registries the project owns outright, except for their `vuestrata:` region,
+ * which an upgrade appends to and never rewrites. Every anchored registry that
+ * is not a merged file: a merged file's upstream region travels with the rest
+ * of the file.
+ */
+export const PROJECT_REGISTRIES = ANCHORED_REGISTRIES.filter(
+  (registry) => !MERGED_FILES.includes(DEFAULT_SLOTS[registry.slot]),
+)
+
 /** Never shipped or tracked, whatever directory it sits in. */
 export const EXCLUDE = [/\.test\.ts$/, /__tests__/, /\.snap$/]
 
-/** Every managed path that exists under `root`, sorted. */
+/**
+ * The class Vuestrata gives a path, or `null` for a path it does not ship.
+ *
+ * Merged is checked before managed because every merged file sits inside a
+ * managed directory. This describes the template, not a project: a file a
+ * generator wrote into `components/ui/` is `managed` here and `seeded` in that
+ * project's lock, and the lock wins.
+ *
+ * @returns {'managed' | 'seeded' | 'merged' | null}
+ */
+export function classify(rel) {
+  const normalized = rel.replaceAll('\\', '/')
+
+  if (EXCLUDE.some((pattern) => pattern.test(normalized))) return null
+  if (MERGED_FILES.includes(normalized)) return 'merged'
+  if (SEEDED_FILES.includes(normalized)) return 'seeded'
+  if (MANAGED_FILES.includes(normalized)) return 'managed'
+  if (MANAGED_DIRS.some((dir) => normalized.startsWith(`${dir}/`))) return 'managed'
+  return null
+}
+
+/** Every managed or merged path that exists under `root`, sorted. */
 export function collectManaged(root) {
   const found = []
 
   for (const dir of MANAGED_DIRS) found.push(...walk(root, dir))
-  for (const rel of MANAGED_FILES) {
+  for (const rel of [...MANAGED_FILES, ...MERGED_FILES]) {
     if (fs.existsSync(path.join(root, rel))) found.push(rel)
   }
 
-  return found
+  return [...new Set(found)]
     .filter((rel) => !EXCLUDE.some((pattern) => pattern.test(rel)))
     .sort((a, b) => a.localeCompare(b))
+}
+
+/** Every seeded path that exists under `root`, sorted. */
+export function collectSeeded(root) {
+  return SEEDED_FILES.filter((rel) => fs.existsSync(path.join(root, rel))).sort((a, b) =>
+    a.localeCompare(b),
+  )
 }
 
 /** Every file under `dir`, as root-relative forward-slash paths. */

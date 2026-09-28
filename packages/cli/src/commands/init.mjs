@@ -2,21 +2,31 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { formatTouchedFiles, logger } from '../lib/cli.mjs'
-import { emptyLock, LOCKFILE_NAME, lockPath, writeLock } from '../lib/lockfile.mjs'
-import { collectManaged, SEEDED_FILES } from '../lib/managed.mjs'
+import {
+  createRecord,
+  emptyLock,
+  LOCKFILE_NAME,
+  lockPath,
+  readLock,
+  regionHash,
+  writeLock,
+} from '../lib/lockfile.mjs'
+import { classify, collectManaged, collectSeeded, PROJECT_REGISTRIES } from '../lib/managed.mjs'
 import {
   describeMissingSlot,
   loadManifest,
   MANIFEST_FILENAME,
   missingSlots,
+  slot,
 } from '../lib/manifest.mjs'
-import { hashContents } from '../lib/plan.mjs'
+import { regionEntries, regionLines, sentinel, UPSTREAM_SCOPE } from '../lib/registry.mjs'
 
 /**
  * Start tracking an existing project.
  *
  * One file appears: a lockfile saying what came from Vuestrata and what it
- * looked like on arrival.
+ * looked like on arrival — each managed file whole, each merged file with its
+ * `app:` regions blanked, and the `vuestrata:` region of each registry.
  *
  * No manifest is written: an untouched project's paths already match the
  * defaults, and a copy of them would only go stale. It stays opt-in.
@@ -25,6 +35,12 @@ import { hashContents } from '../lib/plan.mjs'
  * records the *current* contents as the baseline, so those edits become
  * invisible to `upgrade`. That is the right trade for adopting the CLI late —
  * the alternative is tracking nothing — and the warning below says so.
+ *
+ * `--force` rebuilds the baselines, not the decisions behind them. A file
+ * already handed to the project stays seeded — a generated `UiTag.vue` sits in
+ * the managed `ui/` directory, and re-recording it as managed would put it back
+ * in Vuestrata's hands — and an ejected path stays ejected, or the next upgrade
+ * would restore it.
  */
 export function runInit({ root, version, flags }) {
   const written = []
@@ -42,19 +58,38 @@ export function runInit({ root, version, flags }) {
   if (fs.existsSync(lockPath(root)) && !flags.force) {
     logger.info(`${LOCKFILE_NAME} already exists; leaving it alone. Pass --force to rebuild it.`)
   } else {
+    const previous = fs.existsSync(lockPath(root)) ? readLock(root, { version }) : undefined
     const lock = emptyLock(version)
+    const exists = (rel) => fs.existsSync(path.join(root, rel))
 
-    for (const rel of collectManaged(root)) {
-      lock.files[rel] = {
-        class: 'managed',
-        hash: hashContents(fs.readFileSync(path.join(root, rel), 'utf8')),
-        since: version,
+    if (previous) {
+      lock.ejected = [...previous.ejected]
+      for (const [rel, record] of Object.entries(previous.files)) {
+        if (record.class === 'seeded' && exists(rel)) lock.files[rel] = record
       }
     }
 
-    for (const rel of SEEDED_FILES) {
-      if (!fs.existsSync(path.join(root, rel))) continue
-      lock.files[rel] = { class: 'seeded', since: version }
+    for (const rel of collectManaged(root)) {
+      if (lock.files[rel] || lock.ejected.includes(rel)) continue
+      const contents = fs.readFileSync(path.join(root, rel), 'utf8')
+      lock.files[rel] = createRecord(rel, contents, classify(rel), version)
+    }
+
+    for (const rel of collectSeeded(root)) {
+      if (lock.files[rel] || lock.ejected.includes(rel)) continue
+      lock.files[rel] = createRecord(rel, '', 'seeded', version)
+    }
+
+    for (const registry of PROJECT_REGISTRIES) {
+      const rel = slot(manifest, registry.slot)
+      if (!exists(rel)) continue
+
+      const name = sentinel(registry.region, UPSTREAM_SCOPE)
+      const lines = regionLines(fs.readFileSync(path.join(root, rel), 'utf8'), name)
+      if (lines === undefined) continue // `doctor` reports the missing markers
+
+      const entries = regionEntries(lines, { keyedBy: registry.keyedBy })
+      lock.regions[rel] = { ...lock.regions[rel], [name]: regionHash(entries) }
     }
 
     writeLock(root, lock)
