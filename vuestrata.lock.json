@@ -41,7 +41,7 @@
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/ui/index.ts": {
-      "class": "managed",
+      "class": "merged",
       "hash": "sha256-ac125768526345230bdf91fd5cf112f92569055f1a6f97443c833c5be64836b1",
       "since": "1.0.1-alpha.6"
     },
@@ -386,7 +386,7 @@
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/composables/forms/index.ts": {
-      "class": "managed",
+      "class": "merged",
       "hash": "sha256-79b0c9ff1cce42c08a14305ed0c7afa96a2df217f4cb3636be3c778bcdf60c29",
       "since": "1.0.1-alpha.6"
     },
@@ -716,7 +716,7 @@
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/rbac/types.ts": {
-      "class": "managed",
+      "class": "merged",
       "hash": "sha256-9cea2c7654c28bf669b8c0ff69585c7f7c6f1651f73684dfc325c6500e6cc9ac",
       "since": "1.0.1-alpha.6"
     },
@@ -746,6 +746,25 @@
       "since": "1.0.1-alpha.6"
     }
   },
-  "regions": {},
+  "regions": {
+    ".env.example": {
+      "vuestrata:env": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "src/modules/app/config/theme.config.ts": {
+      "vuestrata:themes": "sha256-600438ccf174bf0ffe8ef102721664cdbb701246c49fcd84c45147a394d966d7"
+    },
+    "src/modules/app/icons/index.ts": {
+      "vuestrata:icon-maps": "sha256-b8ad3ac6368ba030315d56eb7f7cf86b4dcb48697eab81ff2905fe28537f1cc0"
+    },
+    "src/modules/app/styles/app.css": {
+      "vuestrata:theme-imports": "sha256-3681c66993815d9984e6b539d01c9597b68c4533bf0a6620e3a2c7bdf93ad5e4"
+    },
+    "src/modules/nav-groups.ts": {
+      "vuestrata:nav-groups": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "src/modules/setup.ts": {
+      "vuestrata:modules": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
   "ejected": []
 }
