@@ -17,10 +17,14 @@ import {
   useQueryClient,
   type UseMutationReturnType,
 } from '@tanstack/vue-query'
+import type { FetchResponse } from 'ofetch'
 import type { MaybeRef, Ref } from 'vue'
 import { z, type ZodType } from 'zod'
 
-import { apiDelete, apiGet, apiPatch, apiPost } from './client'
+import { AppError, ERROR_MESSAGE_KEYS } from '~/lib/errors'
+import { createScopedLogger } from '~/lib/logger'
+
+import { apiFetch, apiGet } from './client'
 
 /** Filters every collection list accepts. Domains extend this with their own. */
 export interface CollectionFilters {
@@ -97,6 +101,72 @@ export interface CollectionApi<T, TFilters extends CollectionFilters, TCreate, T
   useRemove: () => UseMutationReturnType<void, Error, string, unknown>
 }
 
+const collectionLogger = createScopedLogger('collection')
+
+/**
+ * Success statuses a write may answer without the record: a 201 that only
+ * names it in `Location`, a 204 that by definition has no body, a 200 some
+ * backends leave empty. Any other status that fails to parse is a broken
+ * contract, not a missing body.
+ */
+const RECORDLESS_WRITE_STATUSES = new Set([200, 201, 204])
+
+function isEmptyBody(body: unknown): boolean {
+  return body === undefined || body === null || (typeof body === 'string' && body.trim() === '')
+}
+
+/** The id in an id-only body such as `{ "id": "ORD-1042" }`, or `undefined`. */
+function idOnlyBody(body: unknown): string | undefined {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return undefined
+  const id = (body as { id?: unknown }).id
+  if (Object.keys(body).length !== 1) return undefined
+  return typeof id === 'string' || typeof id === 'number' ? String(id) : undefined
+}
+
+/**
+ * Where a 201's `Location` points, resolved against the URL that answered —
+ * as RFC 9110 reads a relative `Location`, and not as the client resolves its
+ * own paths, which would put the API prefix in twice. Only a same-origin
+ * target is followed: the follow-up request carries the session's credentials.
+ */
+function createdLocation(response: FetchResponse<unknown>): string | undefined {
+  const location = response.headers.get('location')
+  if (!location || !response.url) return undefined
+  try {
+    const target = new URL(location, response.url)
+    return target.origin === new URL(response.url).origin ? target.href : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * A response that arrived but does not have the agreed shape.
+ *
+ * The zod issues go into `details`, keyed by their path in the body. The log
+ * line carries paths and issue codes only: never the body, and not the issue
+ * messages either, which a custom refinement is free to fill with the value it
+ * rejected.
+ */
+function contractMismatch(resource: string, issues: readonly z.core.$ZodIssue[]): AppError {
+  const details: Record<string, string[]> = {}
+  for (const issue of issues) {
+    const path = issue.path.map(String).join('.') || '(root)'
+    ;(details[path] ??= []).push(issue.message)
+  }
+  collectionLogger.error(`The response for "${resource}" does not match its schema`, {
+    issues: issues.map((issue) => ({ path: issue.path.map(String).join('.'), code: issue.code })),
+  })
+  return new AppError({
+    message: 'The server sent a response this app could not read.',
+    code: 'CONTRACT_MISMATCH',
+    kind: 'contract',
+    retryable: false,
+    messageKey: ERROR_MESSAGE_KEYS.contract,
+    details,
+  })
+}
+
 export function createCollectionApi<
   T,
   TFilters extends CollectionFilters = CollectionFilters,
@@ -109,13 +179,63 @@ export function createCollectionApi<
 }): CollectionApi<T, TFilters, TCreate, TUpdate> {
   const { resource, schema, keys } = config
   const listSchema = z.object({ data: z.array(schema), meta: pageMetaSchema })
+  const recordPath = (id: string) => `/${resource}/${id}`
+
+  /** Validate a response body, or fail as a contract mismatch. */
+  function parse<S>(target: ZodType<S>, body: unknown): S {
+    const result = target.safeParse(body)
+    if (result.success) return result.data
+    throw contractMismatch(resource, result.error.issues)
+  }
+
+  /**
+   * Where to read the record back from, when a write's success carried none:
+   * the id that was updated, or for a create its `Location`, else the id it
+   * returned. `undefined` when the response is not recordless or names nothing.
+   */
+  function followUpPath(
+    response: FetchResponse<unknown>,
+    updatedId: string | undefined,
+  ): string | undefined {
+    if (!RECORDLESS_WRITE_STATUSES.has(response.status)) return undefined
+    const returnedId = idOnlyBody(response._data)
+    if (!isEmptyBody(response._data) && returnedId === undefined) return undefined
+    if (updatedId !== undefined) return recordPath(updatedId)
+    return (
+      createdLocation(response) ?? (returnedId === undefined ? undefined : recordPath(returnedId))
+    )
+  }
+
+  /**
+   * The record a write produced.
+   *
+   * A body that parses is used as is, so the common case costs no extra
+   * request. A success without the record — a 201 with only a `Location`, a
+   * 204, an empty 200, a bare `{ id }` — is followed by a GET of what was
+   * written, so mutations stay typed `T`. Parsing those bodies directly used
+   * to report a failed save for a write that had succeeded, and invite the
+   * user to submit it again.
+   */
+  async function writtenRecord(response: FetchResponse<unknown>, updatedId?: string): Promise<T> {
+    const parsed = schema.safeParse(response._data)
+    if (parsed.success) return parsed.data
+
+    const path = followUpPath(response, updatedId)
+    if (path === undefined) throw contractMismatch(resource, parsed.error.issues)
+    return parse(schema, await apiGet<unknown>(path))
+  }
 
   function useList(filters: Ref<TFilters>) {
     const query = useQuery({
       queryKey: computed(() => keys.list(toQueryParams(filters.value))),
-      queryFn: async () => {
-        const raw = await apiGet<unknown>(`/${resource}`, { query: toQueryParams(filters.value) })
-        return listSchema.parse(raw)
+      queryFn: async ({ signal }) => {
+        const raw = await apiGet<unknown>(`/${resource}`, {
+          query: toQueryParams(filters.value),
+          // A superseded page or search is aborted rather than left to run:
+          // nothing will read it, and the server can stop working on it.
+          signal,
+        })
+        return parse(listSchema, raw)
       },
       // Hold the previous page while the next one loads. Without it every
       // filter keystroke empties the table and the layout jumps.
@@ -137,7 +257,8 @@ export function createCollectionApi<
   function useDetail(id: MaybeRef<string | undefined>) {
     const query = useQuery({
       queryKey: computed(() => keys.detail(toValue(id) ?? '')),
-      queryFn: async () => schema.parse(await apiGet<unknown>(`/${resource}/${toValue(id)}`)),
+      queryFn: async ({ signal }) =>
+        parse(schema, await apiGet<unknown>(`/${resource}/${toValue(id)}`, { signal })),
       // Route params arrive before the component that reads them has mounted;
       // firing `/orders/undefined` produces a 404 the user briefly sees.
       enabled: computed(() => Boolean(toValue(id))),
@@ -158,6 +279,10 @@ export function createCollectionApi<
    * Deliberately broad: a create changes which page a record falls on, an
    * update can change its sort position, and a delete shifts every subsequent
    * page. Surgically patching one cached list leaves the other twelve wrong.
+   *
+   * Wired to `onSettled`, not `onSuccess`: a write that failed after reaching
+   * the server — a timeout, an unreadable response — may well have happened,
+   * and the lists must show it rather than keep the stale copy.
    */
   function useInvalidate() {
     const queryClient = useQueryClient()
@@ -168,8 +293,13 @@ export function createCollectionApi<
     const invalidate = useInvalidate()
     return useMutation<T, Error, TCreate>({
       mutationFn: async (payload) =>
-        schema.parse(await apiPost<unknown>(`/${resource}`, payload as Record<string, unknown>)),
-      onSuccess: invalidate,
+        writtenRecord(
+          await apiFetch.raw<unknown>(`/${resource}`, {
+            method: 'POST',
+            body: payload as Record<string, unknown>,
+          }),
+        ),
+      onSettled: invalidate,
     })
   }
 
@@ -177,10 +307,14 @@ export function createCollectionApi<
     const invalidate = useInvalidate()
     return useMutation<T, Error, { id: string; patch: TUpdate }>({
       mutationFn: async ({ id, patch }) =>
-        schema.parse(
-          await apiPatch<unknown>(`/${resource}/${id}`, patch as Record<string, unknown>),
+        writtenRecord(
+          await apiFetch.raw<unknown>(recordPath(id), {
+            method: 'PATCH',
+            body: patch as Record<string, unknown>,
+          }),
+          id,
         ),
-      onSuccess: invalidate,
+      onSettled: invalidate,
     })
   }
 
@@ -188,9 +322,9 @@ export function createCollectionApi<
     const invalidate = useInvalidate()
     return useMutation<void, Error, string>({
       mutationFn: async (id) => {
-        await apiDelete<void>(`/${resource}/${id}`)
+        await apiFetch.raw(recordPath(id), { method: 'DELETE' })
       },
-      onSuccess: invalidate,
+      onSettled: invalidate,
     })
   }
 

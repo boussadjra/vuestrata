@@ -607,7 +607,7 @@
     },
     "src/modules/core/lib/api/collection-queries.ts": {
       "class": "managed",
-      "hash": "sha256-b78ee58374f76f93813a8f9fde9cac3b412d4ba251659cf4ffc33ce960e28dad",
+      "hash": "sha256-e3317f48d8865c2528a5c2706504f757aa8182bcd500778e36e0798f4f147bed",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/failure.ts": {
