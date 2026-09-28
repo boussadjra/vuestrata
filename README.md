@@ -21,10 +21,9 @@ ones executable:
   icon-name parity, and the four files a theme must appear in.
 - **Four architecture tests** — module registry drift, the module contract,
   docs registration, demo-only access.
-- **Bundle verification** — `verify-bundle.mjs` fails the build if an MSW chunk
-  or the mock worker reaches a production artifact, or if a size budget is
-  exceeded. (The demo-credential markers are checked too, behind
-  `--strict-demo`, which CI does not yet enable.)
+- **Bundle verification** — `verify-bundle.mjs` fails the build if an MSW chunk,
+  the mock worker, or the demo account and its state reach a production
+  artifact — the in-app docs included — or if a size budget is exceeded.
 - **Drift checks** — toolchain pins and security headers are generated from one
   definition each, and CI fails when a copy disagrees.
 - **Generators** — `vpr gen:module`, `gen:page`, `gen:theme`, `gen:component`,

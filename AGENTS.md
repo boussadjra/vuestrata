@@ -237,7 +237,7 @@ adds six project rules. `vpr test --run` includes `test/unit/architecture/`.
 | `theme-registry`        | a theme wired in 3 of 4 files, or imported after `semantic.css`                                             |
 | `module-contract` test  | bad layout, nav group, icon or i18n key; dynamic route shadowing a static one; unconditional `mockHandlers` |
 | `registry-drift` test   | a module never added to `setup.ts`                                                                          |
-| `verify-bundle.mjs`     | MSW reaching a production bundle; the bundle size budgets (demo credentials too, behind `--strict-demo`)    |
+| `verify-bundle.mjs`     | MSW or the demo account and state reaching a production bundle, in-app docs included; the size budgets      |
 | `check-toolchain-pins`  | Node/pnpm/Vite+ pinned differently in the Dockerfile, `vercel.json` and CI                                  |
 | `module-contract` test  | (also) a module that declares no `origin`, which `eject` cannot classify                                    |
 | `sync-headers --check`  | the security headers drifting between their four generated targets                                          |
