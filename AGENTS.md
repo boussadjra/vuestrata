@@ -45,16 +45,23 @@ which can only work because every file the tooling writes belongs to exactly one
 side. Before editing anything under `src/modules/app/` or `src/modules/core/`,
 know which of these it is.
 
-| Class     | Meaning                                   | On upgrade                                     |
-| --------- | ----------------------------------------- | ---------------------------------------------- |
-| `managed` | Vuestrata's                               | Replaced, unless the project edited it         |
-| `seeded`  | Written once, then the project's          | Never touched again                            |
-| `merged`  | The project's, except one anchored region | Only the region between the markers is written |
+| Class     | Meaning                                | On upgrade                                           |
+| --------- | -------------------------------------- | ---------------------------------------------------- |
+| `managed` | Vuestrata's                            | Replaced, unless the project edited it               |
+| `merged`  | Vuestrata's, except its `app:` regions | Replaced, with the project's `app:` entries kept     |
+| `seeded`  | Written once, then the project's       | Written if the project has none, never touched again |
 
 `packages/cli/src/lib/managed.mjs` is the list. In short: the `Ui*` layer,
 `composables/forms/`, `styles/themes/`, `core/lib/` and the layout components
-are `managed`; `brand.css`, `app.overrides.ts`, `Logo.vue` and the locale
-overrides are `seeded`; the registries are `merged`.
+are `managed`; the `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts`
+are `merged`; `brand.css`, `app.overrides.ts`, `Logo.vue` and the locale
+overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
+so what a generator appends there is not an edit.
+
+The other registries — `setup.ts`, `nav-groups.ts`, `theme.config.ts`,
+`app.css`, `icons/index.ts`, `.env.example` — are the project's files. An
+upgrade only appends to their `vuestrata:` region, and leaves one the project
+has edited alone.
 
 **Every registry carries two sentinel regions**, and they must not be merged
 back into one:
@@ -67,7 +74,11 @@ back into one:
 ```
 
 Generators write to `app:`. If you are adding something Vuestrata ships, it goes
-in `vuestrata:`. `vuestrata doctor` reports any region that has gone missing.
+in `vuestrata:` — the payload build refuses a merged file with entries in `app:`.
+`vuestrata doctor` reports any region that has gone missing.
+
+A file an upgrade could not take over is left in `.vuestrata/incoming/`. Merge
+it by hand, then `vuestrata adopt <path>` records the result as clean.
 
 **Do not edit a `managed` file to change something a seam already covers.** A
 colour belongs in `brand.css`, a string in `<locale>.overrides.json`, the product

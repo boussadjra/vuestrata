@@ -26,11 +26,11 @@ step. `vuestrata init` exists only for a project that predates the CLI; see
 
 Every file the tooling writes belongs to exactly one side, and it says which.
 
-| Class     | Who owns it                     | What `upgrade` does                                       |
-| --------- | ------------------------------- | --------------------------------------------------------- |
-| `managed` | Vuestrata                       | Replaces it — unless you edited it, then hands you a copy |
-| `seeded`  | You, from the first write       | Never touches it again                                    |
-| `merged`  | You, except one anchored region | Edits only inside the markers                             |
+| Class     | Who owns it                          | What `upgrade` does                                             |
+| --------- | ------------------------------------ | --------------------------------------------------------------- |
+| `managed` | Vuestrata                            | Replaces it — unless you edited it, then hands you a copy       |
+| `merged`  | Vuestrata, except its `app:` regions | Replaces it around your `app:` entries, which it carries across |
+| `seeded`  | You, from the first write            | Writes it once if you have none, then never touches it again    |
 
 `vuestrata.lock.json` records the class of every file plus a hash of what was
 written there. That hash is the whole mechanism: it is what distinguishes a file
@@ -43,6 +43,35 @@ nobody touched from one you spent a week restyling.
 - **Not in the lock** → yours outright. Untouched, and never reported.
 
 Nothing is ever overwritten on a guess.
+
+### Merged files
+
+Three files sit inside directories Vuestrata manages, yet `vuestrata add` writes
+to them: the `Ui*` barrel (`components/ui/index.ts`), the forms barrel
+(`composables/forms/index.ts`) and the permission union (`core/lib/rbac/types.ts`).
+Each carries an `app:` region, and that region is yours.
+
+A merged file is hashed with every `app:` region emptied, so the entries a
+generator adds there are not an edit. An upgrade replaces the rest of the file
+and writes your `app:` entries back into the new version. Edit it _outside_
+those regions and it is treated like any edited managed file: yours stays, and
+the copy in `.vuestrata/incoming/` already holds your entries, so the diff shows
+only what really differs. A release that removes an `app:` region you have
+entries in is never written over them; it is offered the same way.
+
+### Seams a release adds
+
+A new release can ship a new seam — a data-only file such as `brand.css` that is
+yours from the start. `upgrade` writes it only if you have none: a file already
+at that path is adopted as yours, and one you deleted after it arrived stays
+deleted. (`doctor` reports that, because Vuestrata's own code imports the seam.)
+
+### Files that change hands
+
+A release can also move a file you have owned until now into Vuestrata's care,
+so that fixes to it can reach you. If your copy matches a release that shipped
+it, the upgrade adopts it and updates it. If you edited it, your copy stays and
+the new version goes to `.vuestrata/incoming/`, like any other edit.
 
 ## The seams
 
@@ -90,9 +119,40 @@ Every registry the tooling writes into carries two marked regions:
 // app:modules-end
 ```
 
+In the three merged files the `vuestrata:` region is simply part of the file an
+upgrade replaces. The other registries — `setup.ts`, `nav-groups.ts`,
+`theme.config.ts`, `app.css`, `icons/index.ts` and `.env.example` — are your
+files, and an upgrade touches only their `vuestrata:` region, append-only:
+
+- It adds what a release adds there, and nothing else. An entry the release
+  dropped stays; nothing is reordered; an entry already anywhere in the file is
+  not added a second time.
+- `.env.example` entries are matched by variable name, so a changed value or
+  comment is still the same entry.
+- The lockfile records each region as it was last written. If you have edited
+  one since — removed an entry on purpose, say — the upgrade leaves it alone and
+  tells you what it would have added, rather than undo your change.
+
 Keep both pairs of markers. Deleting them does not break the build — it means
 whatever a release wanted to add there silently never arrives. `vuestrata
 doctor` reports any that have gone missing.
+
+## Taking a version by hand
+
+When an upgrade leaves a file in `.vuestrata/incoming/`, merge what you want
+from it into your copy, then record the result as clean:
+
+```bash
+vuestrata adopt src/modules/app/components/ui/UiButton.vue
+```
+
+From then on the file updates again. Given a registry, `adopt` re-records its
+`vuestrata:` region instead, so later releases can append to it again.
+
+Adopting says the file now matches Vuestrata, so any difference you leave in it
+counts as Vuestrata's and goes the next time that file changes upstream. Move a
+change you want to keep into a seam first; `adopt` warns when the file still
+differs from the release.
 
 ## Starting from a clean slate
 
@@ -144,8 +204,11 @@ vuestrata doctor
 ```
 
 Checks that every slot in `vuestrata.config.json` resolves, that every registry
-still has its markers, and that the lockfile agrees with what is on disk. Run it
-before an upgrade, not during one.
+still has its markers, that every seam Vuestrata's code imports is still there,
+and that the lockfile agrees with what is on disk. It also names the files an
+upgrade will not be able to take over for you: shipped files you have but that
+are not tracked, waiting for `vuestrata adopt`. Run it before an upgrade, not
+during one.
 
 `upgrade` refuses to run on a dirty working tree, because `git checkout .` is
 the entire recovery plan and it only works from a clean one. `--allow-dirty`
