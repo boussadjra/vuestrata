@@ -335,27 +335,10 @@ as GitHub prereleases by the release workflow. See `RELEASE.md` for the full rel
 
 ## Publish Checklist
 
-Before publishing a new template version:
-
-```bash
-vp check
-vpr test --run
-vpr test:e2e
-vpr docker:build
-```
-
-Then:
-
-1. Update `CHANGELOG.md`.
-2. Bump the version with one of the `vpr version:*` scripts.
-3. Tag the release as `v<version>`.
-4. Push the tag so the GitHub release workflow can publish the artifact.
-
-## History
-
-Vuestrata supersedes _Vueye_, a simpler Vue 3 starter template. Nothing here
-depends on knowing that; it matters only if you are coming from Vueye and
-wondering where it went.
+The release checklist lives in [RELEASE.md](RELEASE.md), and only there, so two
+copies cannot disagree. Beyond the gates, it covers writing the migration for a
+contract change, rebuilding the shipped lockfile after the version bump, and
+publishing `@vuestrata/cli` — without which a tag reaches no existing project.
 
 ## Community
 
@@ -367,41 +350,3 @@ wondering where it went.
 ## License
 
 MIT
-
-### GitHub Template
-
-[Create a repo from this template on GitHub](https://github.com/boussadjra/vuestrata/generate).
-
-### Clone to local
-
-If you prefer to do it manually with the cleaner git history
-
-```bash
-vp dlx degit boussadjra/vuestrata my-app
-cd my-app
-vp install
-```
-
-## Usage
-
-### Development
-
-Just run and visit http://localhost:3333
-
-```bash
-vpr dev
-```
-
-### Build
-
-To build the App, run
-
-```bash
-vpr build
-```
-
-And you will see the generated file in `dist` that ready to be served.
-
-### Deploy on Netlify
-
-Go to [Netlify](https://app.netlify.com/start) and select your clone, `OK` along the way, and your App will be live in a minute.
