@@ -116,22 +116,22 @@ vpr dev
 # Project checks (format, lint, typecheck)
 vp check
 
-# Lint
+# Lint: Oxlint, the six custom rules, and the MSW-worker, drift and docs-link checks
 vpr lint
 
-# Custom lint rules (chained after `vpr lint` via the package.json
-# `lint` script; run standalone if you invoke `vpr lint` directly):
-#   - inline-vue-handlers: forbids inline `@event` handlers in <template>
+# The six custom rules on their own. `vpr lint` already runs them; the built-in
+# `vp lint` does not.
+#   - inline-vue-handlers: forbids multi-line inline `@event` handlers under app/
 #   - module-scope-state: forbids top-level mutable state in src/**
 #     (use `createGlobalState` for simple shared state, Pinia for
-#     complex orchestration; see docs/2.architecture/1.overview.md).
-#     Hard-fails the build on violation.
+#     complex orchestration; see docs/2.architecture/1.overview.md)
+#   - no-raw-palette, i18n-parity, icon-parity, theme-registry: see AGENTS.md
 node scripts/lint/run-custom-rules.mjs
 
 # Format
 vpr fmt
 
-# Unit tests
+# Unit, component and integration tests
 vpr test --run
 
 # E2E tests
@@ -270,13 +270,14 @@ discovering it at click time.
 
 | Adapter | Transport | Register | Social | Magic link | MFA | Refresh | Code exchange |
 | ------- | --------- | -------- | ------ | ---------- | --- | ------- | ------------- |
-| `mock`  | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | —             |
-| `jwt`   | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | —             |
-| `oauth` | cookie    | —        | ✅     | —          | —   | ✅      | ✅            |
+| `mock`  | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | ✅            |
+| `jwt`   | bearer    | ✅       | —      | ✅         | ✅  | ✅      | —             |
+| `oauth` | cookie    | —        | ✅     | —          | —   | —       | ✅            |
 
-`jwt` and `oauth` are complete against the documented endpoint contract and
-verified by `msw/node` contract tests. They need a backend that implements it —
-see [Real production deployment](docs/8.deployment/2.real-production.md).
+`jwt` and `oauth` implement the documented endpoint contract, and unit tests pin
+the requests each one sends. Nothing in this repository runs them against a
+server, so they need a backend that implements the contract — see
+[Real production deployment](docs/8.deployment/2.real-production.md).
 
 ## Environment Variables
 
