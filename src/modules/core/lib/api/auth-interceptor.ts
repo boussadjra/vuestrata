@@ -36,9 +36,16 @@ export function getAuthTransport(): ApiAuthTransport {
  * itself, and an `Authorization` header there would be a second, unasked-for
  * credential — at best ignored, at worst routed down a different code path on
  * the backend than the one that enforces CSRF.
+ *
+ * Also a no-op when the request already carries `Authorization`. A caller that
+ * set one chose that credential — a token for another audience, the fresh
+ * token a session resume is probing with — and replacing it with the session's
+ * token would send the wrong credential, possibly to a party that should never
+ * see it.
  */
 export function applyAuthHeaders(headers: Headers): void {
   if (getAuthTransport() === 'cookie') return
+  if (headers.has('Authorization')) return
 
   const provider = tryGetApiAuthBackend()?.getProvider() ?? null
   const token = provider?.getToken()
@@ -50,6 +57,9 @@ export function applyAuthHeaders(headers: Headers): void {
 /**
  * Attempt to refresh the access token after a 401 response.
  * Returns true if refresh succeeded and headers were updated for retry.
+ *
+ * `options.headers` comes back carrying the new bearer token; the API client
+ * replays the original request with them, once.
  */
 export async function handleTokenRefresh(
   baseURL: string,
