@@ -83,12 +83,12 @@
     },
     "src/modules/app/components/layout/AppFooter.vue": {
       "class": "managed",
-      "hash": "sha256-ae5f01f1a4ed45166164a33f36cb823db9ed6def7d932bf109576f812eeeb398",
+      "hash": "sha256-a4ee02069dcd74c26cf3576513a4661f5e32b05934ebac989362ca08cb4071fe",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/layout/AppHeader.vue": {
       "class": "managed",
-      "hash": "sha256-95b812122d70f67076c4109984c3f236722fa37b358db425f335705ac6bf598b",
+      "hash": "sha256-08ff3958496cda8a4d2a7b913d35af5fb61cf72e58bd97dade22f7d599e429d4",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/layout/AppRoot.vue": {
@@ -599,6 +599,10 @@
       "class": "seeded",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/app/config/rbac.overrides.ts": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/app/locales/ar.json": {
       "class": "managed",
       "hash": "sha256-e2b602f14591cc0f3d74fc28713f0cca32d5d3485e899bc80b189ac52071ba4b",
@@ -663,7 +667,7 @@
     },
     "src/modules/app/state/runtime-backends.ts": {
       "class": "managed",
-      "hash": "sha256-71e610a29fe110860a119cafa9caeacd1bc57ea06612cdf69c4d6b57df722ec0",
+      "hash": "sha256-a6fe88b7878eab4ee3b936bdf9e67f6c7f3d169bb17ce75cb13947f36212e7cb",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/stores/api-runtime.ts": {
@@ -907,17 +911,22 @@
     },
     "src/modules/core/lib/rbac/index.ts": {
       "class": "managed",
-      "hash": "sha256-d034a80092d1b09b4860a7c821141f8744cc9196768e2255bf65e41c95831d4c",
+      "hash": "sha256-f33cb2d449e6d780685269ed807b27908602839a4b7760ff323c531d2bfffcbb",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/rbac/inheritance.ts": {
       "class": "managed",
-      "hash": "sha256-1af539fb21e7ec6c871a4f199bde7f1f5d9fee1f39a1626a21a6d0e2e60747df",
+      "hash": "sha256-4053a4b6c2d3c6cc8b13cf60276c4df24d076121da7005fab5a33697c900a81a",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/rbac/namespace.ts": {
       "class": "managed",
       "hash": "sha256-4c34e4f2d3f39fa38015041a3247fdfcdda1ffd6a31200d8cf5c2bd241415bed",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/core/lib/rbac/overrides.ts": {
+      "class": "managed",
+      "hash": "sha256-1fc563489694700bab8b79930f240a5eefff604ec186afd13c7e36b022326f1c",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/rbac/predicates.ts": {
@@ -932,12 +941,12 @@
     },
     "src/modules/core/lib/rbac/types.ts": {
       "class": "merged",
-      "hash": "sha256-9cea2c7654c28bf669b8c0ff69585c7f7c6f1651f73684dfc325c6500e6cc9ac",
+      "hash": "sha256-e4c8718cb327f5044a3a542b88eafd80e9fe78a1b84601417457d467511e1c01",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/runtime.ts": {
       "class": "managed",
-      "hash": "sha256-68a28ee4b12c3c0bca012d334e53385d9a90f40baf34baa23a713e08208a74c5",
+      "hash": "sha256-8c10ae46a8dbf9515e7147c143e37e7295bb29006dcdb03348fcf7706a5063fd",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/validation/adapters/zod.ts": {
