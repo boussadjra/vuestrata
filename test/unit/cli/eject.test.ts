@@ -133,6 +133,28 @@ test('the account page', async ({ page }) => {
 })
 `
 
+const HELPER_SPEC = `import { test, expect, type Page } from '@playwright/test'
+
+async function ordersPage(page: Page) {
+  await page.goto('/dashboard/orders')
+}
+
+test('the account page', async ({ page }) => {
+  await page.goto('/dashboard/account')
+  await expect(page).toHaveURL(/account/)
+})
+
+test('orders, through a helper', async ({ page }) => {
+  await ordersPage(page)
+})
+`
+
+const PALETTE_RULE = `const BASELINE = new Map([
+  ['src/modules/orders/pages/index.vue', 25],
+  ['src/modules/users/presentation.ts', 20],
+])
+`
+
 let fixture: Fixture
 let before: { types: string; inheritance: string }
 
@@ -214,6 +236,8 @@ function seed() {
     "import { test } from '@playwright/test'\n\ntest('orders', async ({ page }) => {\n  await page.goto('/dashboard/orders')\n})\n",
   )
   f.write('e2e/auth.spec.ts', AUTH_SPEC)
+  f.write('e2e/helper.spec.ts', HELPER_SPEC)
+  f.write('scripts/lint/plugins/no-raw-palette.plugin.mjs', PALETTE_RULE)
   f.write('e2e/mixed.spec.ts', MIXED_SPEC)
 
   const lock = emptyLock('1.0.0')
@@ -378,6 +402,25 @@ describe('eject and the end-to-end specs', () => {
     expect(spec).not.toContain('/dashboard/orders')
     expect(spec).toContain("test('the account page'")
     expect(spec).not.toContain('an orders page')
+  })
+})
+
+describe('eject and what else names the removed files', () => {
+  it('drops a test that reaches a removed route through a helper, and the helper and import it leaves behind', () => {
+    eject()
+
+    const spec = fixture.read('e2e/helper.spec.ts')
+    expect(spec).toContain("test('the account page'")
+    expect(spec).not.toContain('ordersPage')
+    expect(spec).toContain("import { test, expect } from '@playwright/test'")
+  })
+
+  it('drops the raw-palette baseline entries of files that no longer exist', () => {
+    eject()
+
+    const rule = fixture.read('scripts/lint/plugins/no-raw-palette.plugin.mjs')
+    expect(rule).not.toContain('src/modules/orders/pages/index.vue')
+    expect(rule).toContain("['src/modules/users/presentation.ts', 20],")
   })
 })
 

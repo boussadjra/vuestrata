@@ -8,6 +8,7 @@ import { pruneSpec, removedRoutePrefixes } from '../lib/eject/e2e.mjs'
 import {
   dropCliRoundtrip,
   dropNotFoundDocsLink,
+  dropRawPaletteBaseline,
   dropVendorCopy,
   packageOf,
   rewriteDocLinks,
@@ -92,6 +93,7 @@ const HOME_PAGE = 'src/modules/app/pages/index.vue'
 const ROUTER_FILE = 'src/modules/app/plugins/router.ts'
 const NOT_FOUND_PAGE = 'src/modules/app/pages/[...notfound].vue'
 const CI_WORKFLOW = '.github/workflows/ci.yml'
+const PALETTE_RULE = 'scripts/lint/plugins/no-raw-palette.plugin.mjs'
 const DOC_LINK_FILES = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md']
 
 /**
@@ -277,6 +279,17 @@ export function planEject({ root, manifest, flags }) {
       edits.set(NOT_FOUND_PAGE, {
         path: NOT_FOUND_PAGE,
         reason: 'drop the link to the removed docs',
+        contents,
+      })
+    }
+  }
+
+  if (fs.existsSync(path.join(root, PALETTE_RULE))) {
+    const contents = dropRawPaletteBaseline(readOf(root, PALETTE_RULE), isRemoved)
+    if (contents !== undefined) {
+      edits.set(PALETTE_RULE, {
+        path: PALETTE_RULE,
+        reason: 'drop the raw-palette baseline entries of removed files',
         contents,
       })
     }

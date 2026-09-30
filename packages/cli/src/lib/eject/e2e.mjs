@@ -138,7 +138,7 @@ export function pruneSpec(source, prefixes) {
     if (next === before) break
   }
 
-  next = removeUnusedHelpers(next).replace(/\n{3,}/g, '\n\n')
+  next = removeUnusedImports(removeUnusedHelpers(next)).replace(/\n{3,}/g, '\n\n')
 
   const remaining = stripComments(next)
   return {
@@ -312,4 +312,33 @@ function removeUnusedHelpers(source) {
 
     if (!removed) return next
   }
+}
+
+/**
+ * Drop named imports nothing uses any more: `Page` once the tests that took a
+ * `page: Page` helper are gone, or `expect` once no test asserts. A warning if
+ * left, but a warning nobody wrote is a poor first lint run.
+ */
+function removeUnusedImports(source) {
+  return source.replace(
+    /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+(['"][^'"]+['"])\s*;?\n/gm,
+    (whole, typeOnly = '', list, from) => {
+      const rest = stripComments(source.replace(whole, ''))
+      const names = list
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean)
+      const used = names.filter((name) => {
+        const local = name
+          .replace(/^type\s+/, '')
+          .split(/\s+as\s+/)
+          .pop()
+        return new RegExp(`\\b${local}\\b`).test(rest)
+      })
+
+      if (used.length === names.length) return whole
+      if (used.length === 0) return ''
+      return `import ${typeOnly}{ ${used.join(', ')} } from ${from}\n`
+    },
+  )
 }

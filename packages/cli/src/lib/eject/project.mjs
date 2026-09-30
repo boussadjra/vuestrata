@@ -191,3 +191,20 @@ export function rewriteDocLinks(source, ref) {
     })
     .join('')
 }
+
+/**
+ * The `no-raw-palette` lint rule keeps a ratchet: a map of files that still hold
+ * raw Tailwind palette classes, with how many. It fails when a file in the map
+ * has fewer, which is what deleting the file is — so an entry for a removed file
+ * must go with it (the showcase's `tables.vue` is one).
+ */
+export function dropRawPaletteBaseline(source, removed) {
+  const next = source
+    .split('\n')
+    .filter((line) => {
+      const entry = /^\s*\['([^']+)',\s*\d+\],?\s*$/.exec(line)
+      return !(entry && removed(entry[1]))
+    })
+    .join('\n')
+  return next === source ? undefined : next
+}
