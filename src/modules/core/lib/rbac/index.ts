@@ -7,6 +7,8 @@ export type {
   Permission,
   RoleDefinition,
   BuiltinPermission,
+  AppPermissions,
+  RbacOverrides,
   RbacUserSource,
   AuthorizationEvent,
   AuthorizationHookFn,
@@ -23,6 +25,9 @@ export {
   validatePermissions,
   clearRegistry,
 } from './registry'
+
+// Project overrides
+export { defineRbacOverrides, resolveRbacOverrides } from './overrides'
 
 // Inheritance & role hierarchy
 export {

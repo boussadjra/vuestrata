@@ -44,6 +44,8 @@ export const REGIONS = {
   tokens: 'tokens',
   /** Built-in permissions a project takes away, rather than editing the union. */
   withdrawn: 'withdrawn',
+  /** Permissions handed to a role, in `rbac.overrides.ts`. */
+  grants: 'grants',
 }
 
 /**
@@ -55,6 +57,10 @@ export const REGIONS = {
  *
  * `keyedBy: 'variable'` makes an upgrade compare `.env.example` entries by the
  * variable they document rather than line by line — see `regionEntries`.
+ *
+ * `upstream: false` marks a registry in a seeded file. The project owns all of
+ * it, so it carries `app:` regions only: nothing upstream appends to it, and
+ * an upgrade never rewrites it.
  */
 export const ANCHORED_REGISTRIES = [
   { slot: 'moduleRegistry', region: REGIONS.modules, comment: '//', hadLegacyMarker: true },
@@ -76,6 +82,30 @@ export const ANCHORED_REGISTRIES = [
     comment: '#',
     hadLegacyMarker: false,
     keyedBy: 'variable',
+  },
+  // rbac.overrides.ts: the project's permission declarations, grants and
+  // withdrawals. Generators write to these; `hadLegacyMarker` is false because
+  // the file is new.
+  {
+    slot: 'rbacOverrides',
+    region: REGIONS.permissions,
+    comment: '//',
+    hadLegacyMarker: false,
+    upstream: false,
+  },
+  {
+    slot: 'rbacOverrides',
+    region: REGIONS.grants,
+    comment: '//',
+    hadLegacyMarker: false,
+    upstream: false,
+  },
+  {
+    slot: 'rbacOverrides',
+    region: REGIONS.withdrawn,
+    comment: '//',
+    hadLegacyMarker: false,
+    upstream: false,
   },
 ]
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vite-plus/test'
+import { describe, it, expect, expectTypeOf, beforeEach } from 'vite-plus/test'
 
 import {
   ROLE_DEFINITIONS,
@@ -18,8 +18,11 @@ import {
   registerPredicate,
   evaluatePredicate,
   clearPredicates,
+  defineRbacOverrides,
+  resolveRbacOverrides,
 } from '@/lib/rbac'
 import type { AuthorizationEvent } from '@/lib/rbac/types'
+import { installRbacConfig, tryGetRbacConfig } from '@/lib/runtime'
 import type { Role, Permission } from '@/types'
 
 describe('RBAC - Role Definitions', () => {
@@ -383,5 +386,112 @@ describe('RBAC - Permission Predicates', () => {
   it('hasPermission falls back to role-based check when no predicate', () => {
     expect(hasPermission('admin', undefined, 'users:update')).toBe(true)
     expect(hasPermission('guest', undefined, 'users:update')).toBe(false)
+  })
+})
+
+// ─── Project overrides ───────────────────────────────────
+// Everything a project changes about the permission model goes through
+// `app/config/rbac.overrides.ts`, so these use only platform permissions: a
+// project that ejected the demo modules keeps this file, and its own grants
+// must not change what is asserted here.
+
+describe('RBAC - project overrides: grants and withdrawn', () => {
+  const allRoles: Role[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
+
+  it('changes nothing when the overrides are empty', () => {
+    for (const role of allRoles) {
+      expect(resolveRolePermissions(role, resolveRbacOverrides({}))).toEqual(
+        resolveRolePermissions(role, null),
+      )
+    }
+  })
+
+  it('installs the seeded overrides for the app', () => {
+    expect(tryGetRbacConfig()).not.toBeNull()
+  })
+
+  it('grants a permission to a role and to every role above it', () => {
+    installRbacConfig(resolveRbacOverrides({ grants: { member: ['billing:manage'] } }))
+
+    for (const role of ['super_admin', 'admin', 'manager', 'member'] as const) {
+      expect(resolveRolePermissions(role), role).toContain('billing:manage')
+    }
+    // Below the role it was granted to, nothing changes.
+    expect(resolveRolePermissions('viewer')).not.toContain('billing:manage')
+    expect(resolveRolePermissions('guest')).not.toContain('billing:manage')
+  })
+
+  it('withdraws a permission from every role', () => {
+    installRbacConfig(resolveRbacOverrides({ withdrawn: ['users:delete', 'audit:read'] }))
+
+    for (const role of allRoles) {
+      const held = resolveRolePermissions(role)
+      expect(held, role).not.toContain('users:delete')
+      expect(held, role).not.toContain('audit:read')
+    }
+    // Everything else the top role held is still there.
+    expect(resolveRolePermissions('super_admin')).toContain('users:read')
+  })
+
+  it('lets a withdrawal win over a grant', () => {
+    installRbacConfig(
+      resolveRbacOverrides({
+        grants: { viewer: ['billing:manage'] },
+        withdrawn: ['billing:manage'],
+      }),
+    )
+    expect(resolveRolePermissions('super_admin')).not.toContain('billing:manage')
+  })
+
+  it('applies to ROLE_DEFINITIONS and hasPermission, which are built before bootstrap', () => {
+    installRbacConfig(
+      resolveRbacOverrides({ grants: { guest: ['billing:read'] }, withdrawn: ['users:delete'] }),
+    )
+
+    expect(ROLE_DEFINITIONS.guest.permissions).toContain('billing:read')
+    expect(ROLE_DEFINITIONS.super_admin.permissions).not.toContain('users:delete')
+    expect(hasPermission('guest', undefined, 'billing:read')).toBe(true)
+    expect(hasPermission('super_admin', undefined, 'users:delete')).toBe(false)
+    expect(getRolePermissions('guest')).toEqual(resolveRolePermissions('guest'))
+  })
+})
+
+// A project's own permissions are declared by merging into `AppPermissions`.
+// Declared here for the test alone: the augmentation is program-wide, so the
+// name is one no real permission would use.
+declare module '~/lib/rbac/types' {
+  interface AppPermissions {
+    'widened-by-test:read': true
+  }
+}
+
+describe('RBAC - project overrides: declared permissions', () => {
+  it('widens Permission with what AppPermissions declares', () => {
+    expectTypeOf<'widened-by-test:read'>().toExtend<Permission>()
+    expectTypeOf<'users:read'>().toExtend<Permission>()
+  })
+
+  it('keeps Permission closed: a typo is still not one', () => {
+    expectTypeOf<'widened-by-test:raed'>().not.toExtend<Permission>()
+    expectTypeOf<'invoice:read'>().not.toExtend<Permission>()
+  })
+
+  it('accepts a declared permission in grants and withdrawn, and rejects an undeclared one', () => {
+    const overrides = defineRbacOverrides({
+      grants: { manager: ['widened-by-test:read'] },
+      withdrawn: ['widened-by-test:read'],
+    })
+    expect(overrides.grants?.manager).toEqual(['widened-by-test:read'])
+
+    defineRbacOverrides({
+      // @ts-expect-error -- not declared in AppPermissions
+      grants: { manager: ['never-declared:read'] },
+    })
+  })
+
+  it('a granted, declared permission reaches the role that holds it', () => {
+    installRbacConfig(resolveRbacOverrides({ grants: { manager: ['widened-by-test:read'] } }))
+    expect(hasPermission('manager', undefined, 'widened-by-test:read')).toBe(true)
+    expect(hasPermission('member', undefined, 'widened-by-test:read')).toBe(false)
   })
 })

@@ -45,12 +45,22 @@ export const DEFAULT_SLOTS = {
   // ── Core ─────────────────────────────────────────────────────────────────
   permissions: 'src/modules/core/lib/rbac/types.ts',
   rbacInheritance: 'src/modules/core/lib/rbac/inheritance.ts',
+  /** Where a project declares, grants and withdraws its own permissions. */
+  rbacOverrides: 'src/modules/app/config/rbac.overrides.ts',
   envSchema: 'src/modules/core/lib/config/env.schema.ts',
 
   // ── Project root ─────────────────────────────────────────────────────────
   envExample: '.env.example',
   e2eAccessibility: 'e2e/accessibility.spec.ts',
 }
+
+/**
+ * Slots whose file Vuestrata writes once and the project then owns. A project
+ * that has not upgraded since one was introduced lacks it, and that is not a
+ * broken layout: `upgrade` writes it. Kept in step with `SEEDED_FILES` in
+ * managed.mjs, which a test asserts.
+ */
+export const SEEDED_SLOTS = ['rbacOverrides']
 
 export const DEFAULT_CONVENTIONS = {
   /** Locale codes every module must provide. Order is not significant. */
@@ -124,8 +134,14 @@ export function inSlot(manifest, name, ...segments) {
   return [slot(manifest, name), ...segments].join('/')
 }
 
-/** Slots whose target is missing on disk. */
-export function missingSlots(manifest, names = Object.keys(manifest.slots)) {
+/**
+ * Slots whose target is missing on disk. Seeded slots are left out by default:
+ * a file the next `upgrade` writes is not a path the project got wrong.
+ */
+export function missingSlots(
+  manifest,
+  names = Object.keys(manifest.slots).filter((name) => !SEEDED_SLOTS.includes(name)),
+) {
   return names
     .filter((name) => !fs.existsSync(slotPath(manifest, name)))
     .map((name) => ({ slot: name, path: slot(manifest, name) }))

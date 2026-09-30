@@ -54,8 +54,8 @@ know which of these it is.
 `packages/cli/src/lib/managed.mjs` is the list. In short: the `Ui*` layer,
 `composables/forms/`, `styles/themes/`, `core/lib/` and the layout components
 are `managed`; the `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts`
-are `merged`; `brand.css`, `app.overrides.ts`, `Logo.vue` and the locale
-overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
+are `merged`; `brand.css`, `app.overrides.ts`, `rbac.overrides.ts`, `Logo.vue` and
+the locale overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
 so what a generator appends there is not an edit.
 
 The other registries — `setup.ts`, `nav-groups.ts`, `theme.config.ts`,

@@ -1,3 +1,5 @@
+import { tryGetRbacConfig, type RbacConfig } from '~/lib/runtime'
+
 import type { Role, Permission, RoleDefinition } from './types'
 
 // ─── Role Hierarchy ───────────────────────────────────────
@@ -77,8 +79,16 @@ const ROLE_DELTA_DEFINITIONS: Record<
 /**
  * Resolve the full permission set for a role by walking the hierarchy
  * from guest up to the given role, accumulating deltas.
+ *
+ * The project's grants accumulate the same way, and its withdrawn permissions
+ * come off last, so a withdrawal wins over a grant. `config` defaults to the
+ * installed one; it is a parameter so the app layer can resolve the seed set at
+ * import, before bootstrap has installed anything.
  */
-export function resolveRolePermissions(role: Role): Permission[] {
+export function resolveRolePermissions(
+  role: Role,
+  config: RbacConfig | null = tryGetRbacConfig(),
+): Permission[] {
   const roleIndex = ROLE_HIERARCHY.indexOf(role)
   if (roleIndex === -1) return []
 
@@ -90,12 +100,25 @@ export function resolveRolePermissions(role: Role): Permission[] {
     for (const perm of ROLE_DELTA_DEFINITIONS[r].delta) {
       permSet.add(perm)
     }
+    for (const perm of config?.grants[r] ?? []) {
+      permSet.add(perm)
+    }
+  }
+
+  for (const perm of config?.withdrawn ?? []) {
+    permSet.delete(perm)
   }
 
   return [...permSet] as Permission[]
 }
 
-/** Build full RoleDefinition objects from delta definitions. */
+/**
+ * Build full RoleDefinition objects from delta definitions.
+ *
+ * `permissions` is read live rather than captured: `ROLE_DEFINITIONS` is built
+ * when the RBAC barrel is first imported, which is before bootstrap installs the
+ * project's grants and withdrawals.
+ */
 export function buildRoleDefinitions(): Record<Role, RoleDefinition> {
   const result = {} as Record<Role, RoleDefinition>
   for (const role of ROLE_HIERARCHY) {
@@ -104,7 +127,9 @@ export function buildRoleDefinitions(): Record<Role, RoleDefinition> {
       name: role,
       label: def.label,
       description: def.description,
-      permissions: resolveRolePermissions(role),
+      get permissions() {
+        return resolveRolePermissions(role)
+      },
     }
   }
   return result

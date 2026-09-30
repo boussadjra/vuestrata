@@ -13,5 +13,7 @@ Scaffold a domain module named `$ARGUMENTS`.
    domain shape — everything else in the module derives from it.
 5. Verify: `vp check && vpr test --run`
 
-Do not hand-write the module files or the `setup.ts` / `BuiltinPermission`
-registry entries; the generator handles those and forgetting them fails silently.
+Do not hand-write the module files, the `setup.ts` entry or the permission
+declarations in `src/modules/app/config/rbac.overrides.ts`; the generator handles
+those and forgetting them fails silently. Granting the permissions to roles is
+yours to do, in the same file.

@@ -13,7 +13,7 @@
  */
 
 import type { ApiAuthProvider } from './api/types'
-import type { AuthorizationHookFn, PredicateFn } from './rbac/types'
+import type { AuthorizationHookFn, Permission, PredicateFn, Role } from './rbac/types'
 
 /** Backend that owns API-auth runtime state (provider, refresh, CSRF cache). */
 export interface ApiAuthBackend {
@@ -42,6 +42,16 @@ export interface RbacBackend {
   reset(): void
 }
 
+/**
+ * What the project changed about the permission model, installed once at
+ * bootstrap from `app/config/rbac.overrides.ts`. Optional: with none installed
+ * every role holds exactly what the built-in hierarchy gives it.
+ */
+export interface RbacConfig {
+  grants: Partial<Record<Role, readonly Permission[]>>
+  withdrawn: readonly Permission[]
+}
+
 /** Backend that owns the lazy validation-adapter cache. */
 export interface ValidationCacheBackend<T = unknown> {
   get(name: string): T | undefined
@@ -53,6 +63,7 @@ export interface ValidationCacheBackend<T = unknown> {
 let apiAuthBackend: ApiAuthBackend | null = null
 let rbacBackend: RbacBackend | null = null
 let validationCacheBackend: ValidationCacheBackend | null = null
+let rbacConfig: RbacConfig | null = null
 
 export function installApiAuthBackend(backend: ApiAuthBackend): void {
   apiAuthBackend = backend
@@ -83,6 +94,13 @@ export function tryGetRbacBackend(): RbacBackend | null {
   return rbacBackend
 }
 
+export function installRbacConfig(config: RbacConfig): void {
+  rbacConfig = config
+}
+export function tryGetRbacConfig(): RbacConfig | null {
+  return rbacConfig
+}
+
 export function installValidationCacheBackend<T>(backend: ValidationCacheBackend<T>): void {
   validationCacheBackend = backend as ValidationCacheBackend
 }
@@ -100,4 +118,5 @@ export function __resetRuntimeSlots(): void {
   apiAuthBackend = null
   rbacBackend = null
   validationCacheBackend = null
+  rbacConfig = null
 }

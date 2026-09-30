@@ -1,12 +1,13 @@
 export type Role = 'super_admin' | 'admin' | 'manager' | 'member' | 'viewer' | 'guest'
 
 /**
- * Every permission the application knows about, as a closed union.
+ * Every permission Vuestrata itself ships, as a closed union.
  *
  * Closed on purpose: a `string`-typed permission means `can('user:read')` — note
  * the missing plural — compiles, always returns false, and silently hides a
- * page. Adding a domain means adding its permissions here and granting them in
- * `inheritance.ts`; the compiler then finds every place that needs updating.
+ * page. A project adds its own permissions through `AppPermissions` below
+ * rather than editing this union, so the compiler still finds every place that
+ * needs updating.
  */
 export type BuiltinPermission =
   // ─── Platform ───────────────────────────────────────────
@@ -44,9 +45,48 @@ export type BuiltinPermission =
 // app:permissions-start
 // app:permissions-end
 
-// Permission type: strict union of built-in literals enforced at compile time.
-// Dynamic permissions should be added to BuiltinPermission or validated at runtime.
-export type Permission = BuiltinPermission
+/**
+ * The permissions a project declares itself.
+ *
+ * Empty here, filled by declaration merging from `app/config/rbac.overrides.ts`:
+ *
+ *     declare module '~/lib/rbac/types' {
+ *       interface AppPermissions {
+ *         'invoices:read': true
+ *       }
+ *     }
+ *
+ * The keys are what matter; the value type is not read. An interface rather
+ * than a union because a union cannot be extended from another file, and this
+ * file belongs to Vuestrata — a project that edits it stops receiving updates
+ * to it.
+ */
+// oxlint-disable-next-line typescript/no-empty-object-type -- extended by declaration merging
+export interface AppPermissions {}
+
+// Permission type: a strict union, enforced at compile time — the built-in
+// literals plus whatever the project declared in `AppPermissions`. Permissions
+// only known at runtime should be validated at runtime, not typed as `string`.
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `never` until a project augments it
+export type Permission = BuiltinPermission | keyof AppPermissions
+
+/**
+ * What a project changes about the permission model without editing it.
+ * Written in `app/config/rbac.overrides.ts` through `defineRbacOverrides`.
+ */
+export interface RbacOverrides {
+  /**
+   * Permissions given to a role. Like the built-in deltas they accumulate up
+   * the hierarchy, so a permission granted to `viewer` is held by every role
+   * above it as well.
+   */
+  grants?: Partial<Record<Role, readonly Permission[]>>
+  /**
+   * Permissions taken away from every role and left out of the registry — how
+   * `vuestrata eject` retires the permissions of the modules it removes.
+   */
+  withdrawn?: readonly Permission[]
+}
 
 export interface RoleDefinition {
   name: Role
