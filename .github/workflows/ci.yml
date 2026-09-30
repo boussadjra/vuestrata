@@ -244,14 +244,21 @@ jobs:
           # Keep the default builder for the steps above: this one's
           # docker-container driver does not put images in the local store.
           use: false
+      # build-push-action rather than a bare `docker buildx build`, because it
+      # hands the runner's cache credentials to BuildKit. The emulated build is
+      # slow, and its layers do not change between most runs.
       - name: Build the image for arm64 (build only)
-        run: |
-          docker buildx build \
-            --builder ${{ steps.buildx.outputs.name }} \
-            --platform linux/arm64 \
-            --build-arg VUESTRATA_RELEASE=${{ github.sha }} \
-            --build-arg VUESTRATA_API_URL=/api \
-            .
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/arm64
+          push: false
+          build-args: |
+            VUESTRATA_RELEASE=${{ github.sha }}
+            VUESTRATA_API_URL=/api
+          cache-from: type=gha,scope=docker-arm64
+          cache-to: type=gha,scope=docker-arm64,mode=max
 
   # The CLI edits projects built from this template, and the only test that
   # proves a generator still wires what it claims to wire is running it against
