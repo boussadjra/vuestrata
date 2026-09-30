@@ -13,14 +13,15 @@ vp add -D @vuestrata/cli
 
 ## Commands
 
-| Command                       | What it does                                                                |
-| ----------------------------- | --------------------------------------------------------------------------- |
-| `vuestrata doctor`            | Can this project still be upgraded, and what will an upgrade skip?          |
-| `vuestrata diff`              | Show exactly what an upgrade would change. Writes nothing.                  |
-| `vuestrata upgrade`           | Run migrations and install this release, preserving files you edited.       |
-| `vuestrata add <kind> <name>` | Scaffold a module, page, component, theme or icon set — and its registries. |
-| `vuestrata eject`             | Remove the demo modules, showcase and docs site, and stop tracking them.    |
-| `vuestrata init`              | Start tracking a project that predates the CLI.                             |
+| Command                       | What it does                                                                 |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `vuestrata doctor`            | Can this project still be upgraded, and what will an upgrade skip?           |
+| `vuestrata diff`              | Show exactly what an upgrade would change. Writes nothing.                   |
+| `vuestrata upgrade`           | Run migrations and install this release, preserving files you edited.        |
+| `vuestrata add <kind> <name>` | Scaffold a module, page, component, theme or icon set — and its registries.  |
+| `vuestrata adopt <path>`      | After merging a file from `.vuestrata/incoming/` by hand, count it as clean. |
+| `vuestrata eject`             | Remove the demo modules, showcase and docs site, and stop tracking them.     |
+| `vuestrata init`              | Start tracking a project that predates the CLI.                              |
 
 Every command takes `--dry-run` and `--json`.
 
@@ -35,6 +36,10 @@ is what tells an untouched file apart from one you spent a week restyling.
   written to `.vuestrata/incoming/<path>` with the `git diff --no-index` command
   printed so you can decide what to take.
 - **Not tracked** — yours outright. Never touched, never reported.
+
+Three files are both Vuestrata's and a generator's target — the `Ui*` barrel, the
+forms barrel and the permission union. They are compared without their `app:`
+regions, and an upgrade carries your entries there into the new version.
 
 Nothing is ever overwritten on a guess.
 

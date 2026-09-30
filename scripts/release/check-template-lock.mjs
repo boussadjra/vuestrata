@@ -3,9 +3,20 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import { readLock } from '../../packages/cli/src/lib/lockfile.mjs'
-import { collectManaged, SEEDED_FILES } from '../../packages/cli/src/lib/managed.mjs'
-import { hashContents } from '../../packages/cli/src/lib/plan.mjs'
+import { hashFor, readLock, regionHash } from '../../packages/cli/src/lib/lockfile.mjs'
+import {
+  classify,
+  collectManaged,
+  PROJECT_REGISTRIES,
+  SEEDED_FILES,
+} from '../../packages/cli/src/lib/managed.mjs'
+import { loadManifest, slot } from '../../packages/cli/src/lib/manifest.mjs'
+import {
+  regionEntries,
+  regionLines,
+  sentinel,
+  UPSTREAM_SCOPE,
+} from '../../packages/cli/src/lib/registry.mjs'
 
 /**
  * Is the committed `vuestrata.lock.json` still true?
@@ -58,9 +69,26 @@ for (const rel of managed) {
     problems.push(`${rel} is managed but not tracked`)
     continue
   }
-  const actual = hashContents(fs.readFileSync(path.join(repoRoot, rel), 'utf8'))
-  if (record.hash !== actual) problems.push(`${rel} has changed since it was recorded`)
   tracked.delete(rel)
+
+  // A merged file is hashed with its app: regions blanked; recorded as managed
+  // it would read as edited the moment a project generated anything into it.
+  const cls = classify(rel)
+  if (record.class === 'seeded') {
+    // `init --force` never takes a file back from a project, so a rebuild
+    // cannot fix this one: the entry has to go by hand first.
+    problems.push(
+      `${rel} is recorded as seeded, but it is ${cls}. Delete its entry from ${LOCKFILE}, ` +
+        'then rebuild',
+    )
+    continue
+  }
+  if (record.class !== cls) {
+    problems.push(`${rel} is recorded as ${record.class}, but it is ${cls}`)
+    continue
+  }
+  const actual = hashFor(rel, fs.readFileSync(path.join(repoRoot, rel), 'utf8'), cls)
+  if (record.hash !== actual) problems.push(`${rel} has changed since it was recorded`)
 }
 
 for (const rel of SEEDED_FILES) {
@@ -73,6 +101,25 @@ for (const rel of SEEDED_FILES) {
 // deleted or reclassified, which an upgrade would still try to reason about.
 for (const rel of tracked) problems.push(`${rel} is tracked but no longer managed`)
 
+// The registries' vuestrata: regions are baselines too. A stale one makes a
+// fresh clone's first upgrade think the project edited the region, and skip it.
+const manifest = loadManifest(repoRoot)
+for (const registry of PROJECT_REGISTRIES) {
+  const rel = slot(manifest, registry.slot)
+  const name = sentinel(registry.region, UPSTREAM_SCOPE)
+  const full = path.join(repoRoot, rel)
+  const lines = fs.existsSync(full) ? regionLines(fs.readFileSync(full, 'utf8'), name) : undefined
+  if (lines === undefined) continue // `doctor` and the payload build report missing markers
+
+  const recorded = lock.regions[rel]?.[name]
+  const actual = regionHash(regionEntries(lines, { keyedBy: registry.keyedBy }))
+  if (recorded === undefined) problems.push(`${name} in ${rel} is not recorded`)
+  else if (recorded !== actual) problems.push(`${name} in ${rel} has changed since it was recorded`)
+}
+
 if (problems.length > 0) fail(problems)
 
-console.log(`[template-lock] ${LOCKFILE} matches ${managed.length} managed file(s) at ${version}.`)
+console.log(
+  `[template-lock] ${LOCKFILE} matches ${managed.length} managed or merged file(s) and ` +
+    `${PROJECT_REGISTRIES.length} registry region(s) at ${version}.`,
+)

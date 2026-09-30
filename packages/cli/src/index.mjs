@@ -5,6 +5,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { GENERATORS, runAdd } from './commands/add.mjs'
+import { runAdopt } from './commands/adopt.mjs'
 import { runDoctor } from './commands/doctor.mjs'
 import { runEject } from './commands/eject.mjs'
 import { runInit } from './commands/init.mjs'
@@ -48,6 +49,10 @@ const COMMANDS = {
   doctor: {
     usage: 'doctor [--json]',
     summary: 'Check that slots resolve, anchors survive, and the lockfile agrees with disk.',
+  },
+  adopt: {
+    usage: 'adopt <path...> [--dry-run] [--json]',
+    summary: 'After merging a file from .vuestrata/incoming/ by hand, record it as clean.',
   },
   eject: {
     usage: 'eject [--keep <ids>] [--keep-docs] [--dry-run]',
@@ -121,6 +126,9 @@ async function main() {
 
     case 'doctor':
       return runDoctor({ root, version, flags })
+
+    case 'adopt':
+      return runAdopt({ root, version, positional, flags })
 
     case 'eject':
       return runEject({ root, flags })
