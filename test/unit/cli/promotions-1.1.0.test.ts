@@ -178,6 +178,11 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
 
     const report = await upgrade()
 
+    // The one reminder that follows a replaced generator pair.
+    expect(notesFor(report, HEADERS).map((note) => note.text)).toEqual([
+      expect.stringContaining('vpr security:headers'),
+    ])
+
     const adopted = report.adopted.map((entry: { rel: string }) => entry.rel)
     for (const rel of PROMOTED) expect(adopted, rel).toContain(rel)
     for (const rel of PROMOTED) {
@@ -300,6 +305,7 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
     expect(again.adopted).toEqual([])
     expect(again.written).toEqual([])
     expect(again.incoming).toEqual([])
+    expect(again.notes).toEqual([])
     expect(again.migrations.flatMap((entry: { changed: string[] }) => entry.changed)).toEqual([])
     for (const [rel, contents] of Object.entries(before))
       expect(fixture.read(rel), rel).toBe(contents)

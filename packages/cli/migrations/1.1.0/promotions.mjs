@@ -340,6 +340,12 @@ export default [
       {
         kind: 'note',
         file: HEADERS_SCRIPTS[0],
+        // Notes run before the ownership steps, so while headers.mjs is still a
+        // release's copy this upgrade is the one about to replace it. Once it has
+        // been, the reminder is done and stays quiet on the next prerelease. An
+        // edited copy has its own note above.
+        pending: (source) =>
+          PRISTINE[HEADERS_SCRIPTS[0]].includes(hashFor(HEADERS_SCRIPTS[0], source, 'managed')),
         note:
           'If scripts/security/headers.mjs and sync-headers.mjs were replaced (no incoming copy ' +
           'is listed for them above), run `vpr security:headers`: it regenerates public/_headers, ' +
