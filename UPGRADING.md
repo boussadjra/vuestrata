@@ -51,8 +51,9 @@ to them: the `Ui*` barrel (`components/ui/index.ts`), the forms barrel
 (`composables/forms/index.ts`) and the permission union (`core/lib/rbac/types.ts`).
 Each carries an `app:` region, and that region is yours.
 
-A merged file is hashed with every `app:` region emptied, so the entries a
-generator adds there are not an edit. An upgrade replaces the rest of the file
+A merged file is hashed with every `app:` region emptied and its region markers
+flush left, so neither the entries a generator adds there nor the formatter
+indenting the markers around them is an edit. An upgrade replaces the rest of the file
 and writes your `app:` entries back into the new version. Edit it _outside_
 those regions and it is treated like any edited managed file: yours stays, and
 the copy in `.vuestrata/incoming/` already holds your entries, so the diff shows
@@ -72,6 +73,12 @@ A release can also move a file you have owned until now into Vuestrata's care,
 so that fixes to it can reach you. If your copy matches a release that shipped
 it, the upgrade adopts it and updates it. If you edited it, your copy stays and
 the new version goes to `.vuestrata/incoming/`, like any other edit.
+
+A file you moved to another path is never adopted, whatever it contains: yours
+stays, the new version goes to `.vuestrata/incoming/` under your path, and the
+shipped path is recorded as ejected so no later release installs a second copy
+there. Move it back and run `vuestrata adopt` if you want upgrades to keep it
+updated.
 
 ## The seams
 
@@ -128,7 +135,8 @@ files, and an upgrade touches only their `vuestrata:` region, append-only:
   dropped stays; nothing is reordered; an entry already anywhere in the file is
   not added a second time.
 - `.env.example` entries are matched by variable name, so a changed value or
-  comment is still the same entry.
+  comment is still the same entry. A comment that documents no variable is not an entry
+  and never arrives.
 - The lockfile records each region as it was last written. If you have edited
   one since — removed an entry on purpose, say — the upgrade leaves it alone and
   tells you what it would have added, rather than undo your change.

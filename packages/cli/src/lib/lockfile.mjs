@@ -3,7 +3,7 @@ import path from 'node:path'
 
 import { classify } from './managed.mjs'
 import { hashContents } from './plan.mjs'
-import { blankRegions } from './registry.mjs'
+import { blankRegions, dedentMarkers } from './registry.mjs'
 
 /**
  * What this project received from Vuestrata, and what it hashed to on arrival.
@@ -66,14 +66,15 @@ export function writeLock(root, lock) {
 /**
  * The hash the lock records for `contents` at `rel`.
  *
- * A merged file is hashed with its `app:` region bodies removed: those entries
- * are the project's, so a generator appending one leaves the file clean.
- * Everything else is hashed whole. `cls` defaults to the class Vuestrata gives
- * the path, but callers holding a lock record pass its class — a record written
- * before a file became merged holds a whole-file hash.
+ * A merged file is hashed with its `app:` region bodies removed and its region
+ * markers at column 0: those entries are the project's, so neither a generator
+ * appending one nor the formatter re-indenting the markers around it makes the
+ * file look edited. Everything else is hashed whole. `cls` defaults to the class
+ * Vuestrata gives the path, but callers holding a lock record pass its class — a
+ * record written before a file became merged holds a whole-file hash.
  */
 export function hashFor(rel, contents, cls = classify(rel)) {
-  return hashContents(cls === 'merged' ? blankRegions(contents) : contents)
+  return hashContents(cls === 'merged' ? dedentMarkers(blankRegions(contents)) : contents)
 }
 
 /**

@@ -174,6 +174,36 @@ describe('promote', () => {
     expect(report.notes[0].text).toMatch(/keeps it at src\/icons\.ts/)
   })
 
+  it('does not install a second copy at a later release either', () => {
+    fixture.write(
+      'vuestrata.config.json',
+      JSON.stringify({ slots: { iconProvider: 'src/icons.ts' } }),
+    )
+    fixture.write('src/icons.ts', RELEASED)
+
+    const shipped = 'src/modules/app/config/icon-provider.ts'
+    upgrade({
+      files: { [shipped]: FIXED },
+      steps: [{ kind: 'promote', slot: 'iconProvider', pristine: [hash(RELEASED)] }],
+    })
+    expect(readLock(fixture.project).ejected).toContain(shipped)
+
+    // The 1.2.0 migration is out of range now; only the record says no.
+    const later = 'export const useIcons = "1.3.0"\n'
+    const report = runUpgrade({
+      root: fixture.project,
+      version: '1.3.0',
+      flags: FLAGS,
+      apply: true,
+      source: writePayload(fixture.payload, { version: '1.3.0', files: { [shipped]: later } }),
+      migrations: [migration('1.2.0', [])],
+    })
+
+    expect(fixture.exists(shipped)).toBe(false)
+    expect(report.written).toEqual([])
+    expect(fixture.read('src/icons.ts')).toBe(RELEASED)
+  })
+
   it('does nothing while its pending guard says there is nothing to do', () => {
     fixture.write(STORE, RELEASED)
 
@@ -405,7 +435,9 @@ describe('validateMigration', () => {
     [{ kind: 'promote', file: 'x' }, /no pristine/],
     [{ kind: 'promote', pristine: [] }, /no file or slot/],
     [{ kind: 'note' }, /no note/],
-    [{ kind: 'reclassify', file: 'x', to: 'seeded' }, /managed or merged/],
+    [{ kind: 'reclassify', file: 'x', to: 'seeded' }, /can only be merged/],
+    // Demoting would let the sync replace a file that may hold app: entries.
+    [{ kind: 'reclassify', file: 'x', to: 'managed' }, /can only be merged/],
   ])('rejects %o', (step, message) => {
     expect(() => validateMigration(migration('1.2.0', [step]))).toThrow(message)
   })

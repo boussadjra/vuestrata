@@ -42,14 +42,20 @@ import { incomingPath } from './workspace.mjs'
  *     already matches this release; the sync then keeps it updated. Otherwise it
  *     was edited: it stays as it is, this release's version goes to
  *     .vuestrata/incoming/, and the note says to merge it and run
- *     `vuestrata adopt`. A file the project moved elsewhere is never adopted.
+ *     `vuestrata adopt`. A file the project moved elsewhere is never adopted:
+ *     it gets the same copy and note, and its shipped path is recorded as
+ *     ejected so no later release installs a second copy there.
  *
  *   reclassify              { file, to = 'merged', pristine?: [hash, ...], note? }
- *     A tracked file changes class. Its record's old hash counts as clean this
- *     once, and so does any `pristine` hash, computed the new way (blanked, for
- *     merged): either way the record is rewritten under the new class and never
- *     consulted the old way again. An edited file keeps its old record and gets
- *     the note.
+ *     A tracked managed file becomes merged. Its record's whole-file hash counts
+ *     as clean this once, and so does any `pristine` hash, computed the merged
+ *     way (app: regions blanked): either way the record is rewritten as merged
+ *     and never consulted the old way again. An edited file keeps its old record
+ *     and gets the note. Merged is the only destination: a merged file judged
+ *     clean may hold the project's app: entries, and a record demoted to
+ *     managed would let the sync replace the file without them. A release that
+ *     drops a file's app: regions needs no step — the sync offers it in
+ *     .vuestrata/incoming/ with the stranded entries named.
  *
  * Any step targeting a file may carry `pending(source)`; while it returns false,
  * the step has nothing to do there.
@@ -168,8 +174,11 @@ export function validateMigration(migration) {
     if (kind === 'promote' && !Array.isArray(step.pristine)) {
       throw new Error(`${label} has no pristine hash list`)
     }
-    if (kind === 'reclassify' && !['managed', 'merged'].includes(step.to ?? 'merged')) {
-      throw new Error(`${label}: \`to\` must be managed or merged`)
+    if (kind === 'reclassify' && (step.to ?? 'merged') !== 'merged') {
+      throw new Error(
+        `${label}: \`to\` can only be merged. Demoting a merged file would let the next sync ` +
+          "replace it without the project's app: entries.",
+      )
     }
     if (step.pending !== undefined && typeof step.pending !== 'function') {
       throw new Error(`${label}: pending must be a function of the source`)
@@ -296,49 +305,60 @@ function runPromote(step, migration, { ws, lock, manifest, source, version, resu
 
   // Edited, or moved: either way not Vuestrata's to replace. The new version
   // goes beside the project's copy, under the path the project uses.
+  const moved = rel !== shipped
   if (incoming !== undefined) {
     const copy = cls === 'merged' ? spliceRegions(incoming, current).contents : incoming
     ws.write(incomingPath(rel), copy)
     result.incoming.push({
       rel,
       incoming: incomingPath(rel),
-      reason: rel === shipped ? 'promoted' : `promoted, moved from ${shipped}`,
+      reason: moved ? `promoted, moved from ${shipped}` : 'promoted',
+      ...(moved && { shipped }),
     })
   }
   result.handled.add(shipped)
+
+  // The project chose where this file lives, and upgrades only track a managed
+  // file where it ships. Once this migration is out of range nothing else says
+  // so, and the sync would install the release's copy at the shipped path — a
+  // second one. Ejecting that path is the record that it stays empty.
+  if (moved) lock.ejected.push(shipped)
 
   result.notes.push({
     version: migration.version,
     rel,
     text:
       step.note ??
-      (rel === shipped
-        ? `${rel} is maintained by Vuestrata from ${migration.version}, but this copy differs from ` +
+      (moved
+        ? `${shipped} is maintained by Vuestrata from ${migration.version}, but this project keeps ` +
+          `it at ${rel}, and upgrades only track a managed file where it ships. Yours was left ` +
+          `alone; compare it with ${incomingPath(rel)}. ${shipped} is now recorded as ejected, so ` +
+          `no release installs a second copy there, and later releases will not offer this file ` +
+          `again. To have upgrades keep it updated, move it back to ${shipped}, update ` +
+          `vuestrata.config.json to match, and run \`vuestrata adopt ${shipped}\`.`
+        : `${rel} is maintained by Vuestrata from ${migration.version}, but this copy differs from ` +
           `every release that shipped it, so it was left alone. Merge what you want from ` +
-          `${incomingPath(rel)}, then run \`vuestrata adopt ${rel}\` so later releases can update it.`
-        : `${shipped} is maintained by Vuestrata from ${migration.version}, but this project keeps ` +
-          `it at ${rel}, and upgrades only track a managed file where it ships. It was left alone; ` +
-          `compare it with ${incomingPath(rel)}.`),
+          `${incomingPath(rel)}, then run \`vuestrata adopt ${rel}\` so later releases can update it.`),
   })
 }
 
 function runReclassify(step, migration, { ws, lock, manifest, result }) {
   const rel = stepTarget(step, manifest)
-  const to = step.to ?? 'merged'
   const record = lock.files[rel]
 
-  if (!record || record.class === to || record.class === 'seeded') return
+  // Only a managed record moves: seeded is the project's, and merged is done.
+  if (record?.class !== 'managed') return
   if (!ws.exists(rel)) return // deleted here; the sync reports it
 
   const current = ws.read(rel)
   if (step.pending && !step.pending(current, manifest)) return
 
-  const hash = hashFor(rel, current, to)
-  const legacyClean = hashFor(rel, current, record.class) === record.hash
+  const hash = hashFor(rel, current, 'merged')
+  const legacyClean = hashFor(rel, current, 'managed') === record.hash
 
   if (legacyClean || (step.pristine ?? []).includes(hash)) {
-    lock.files[rel] = { ...record, class: to, hash }
-    result.adopted.push({ rel, class: to, reason: 'reclassified' })
+    lock.files[rel] = { ...record, class: 'merged', hash }
+    result.adopted.push({ rel, class: 'merged', reason: 'reclassified' })
     return
   }
 
@@ -347,10 +367,9 @@ function runReclassify(step, migration, { ws, lock, manifest, result }) {
     rel,
     text:
       step.note ??
-      `${rel} becomes a ${to} file in ${migration.version}, but it was edited` +
-        (to === 'merged' ? ' outside its app: regions' : '') +
-        `, so it keeps its old record and the new version goes to ${incomingPath(rel)}. Merge ` +
-        `what you want, then run \`vuestrata adopt ${rel}\`.`,
+      `${rel} becomes a merged file in ${migration.version}, but it was edited outside its ` +
+        `app: regions, so it keeps its old record and the new version goes to ` +
+        `${incomingPath(rel)}. Merge what you want, then run \`vuestrata adopt ${rel}\`.`,
   })
 }
 

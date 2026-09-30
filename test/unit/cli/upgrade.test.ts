@@ -578,6 +578,80 @@ describe('merged files', () => {
   })
 })
 
+describe('merged files, through the generator and the formatter', () => {
+  // The one merged file whose markers the formatter moves: once permissions sit
+  // in app:permissions they are union members, so oxfmt indents the markers
+  // above them. Read from this repository, since a fixture would hide what the
+  // real file does.
+  const RBAC = 'src/modules/core/lib/rbac/types.ts'
+  const pristine = fs.readFileSync(path.join(process.cwd(), RBAC), 'utf8')
+
+  /** What `vuestrata add module payments` does to it. */
+  const generated = pristine.replace(
+    '// app:permissions-end',
+    "| 'payments:read'\n| 'payments:manage'\n// app:permissions-end",
+  )
+
+  /** What `vp fmt` then does: the union's members and the markers before them move in. */
+  const formatted = generated
+    .replace(/^\/\/ (vuestrata:permissions-(?:start|end)|app:permissions-start)$/gm, '  // $1')
+    .replace(/^\| ('payments:\w+')$/gm, '  | $1')
+
+  function seedRbac() {
+    write(RBAC, formatted)
+    const lock = emptyLock('1.0.0')
+    lock.files[RBAC] = { class: 'merged', hash: hashFor(RBAC, pristine, 'merged'), since: '1.0.0' }
+    writeLock(project, lock)
+  }
+
+  it('models what the formatter does: markers indented, entries still inside app:', () => {
+    expect(formatted).toContain('  // vuestrata:permissions-start\n')
+    expect(formatted).toContain("  // app:permissions-start\n  | 'payments:read'")
+    expect(formatted).not.toBe(generated)
+  })
+
+  it('stays clean after the generator and the formatter', () => {
+    seedRbac()
+    expect(driftedFiles(project, readLock(project))).toEqual([])
+  })
+
+  it('is not reported by doctor, and is not offered as an edit by upgrade', () => {
+    seedRbac()
+
+    const source = writePayload(payload, { version: '1.0.0', merged: { [RBAC]: pristine } })
+    const findings = diagnose({ root: project, version: '1.0.0', source, migrations: [] })
+    expect([...findings.notes, ...findings.warnings, ...findings.errors].join('\n')).not.toContain(
+      RBAC,
+    )
+
+    const report = upgradeWith({ version: '1.0.0', merged: { [RBAC]: pristine } })
+    expect(report.incoming).toEqual([])
+    expect(read(RBAC)).toBe(formatted)
+  })
+
+  it('takes a release change outside the regions, keeping the entries, and stays clean', () => {
+    seedRbac()
+    const next = pristine.replace('Permission type: strict', 'Permission type, revised: strict')
+    expect(next).not.toBe(pristine)
+
+    const report = upgradeWith({ version: '1.1.0', merged: { [RBAC]: next } })
+
+    expect(report.incoming).toEqual([])
+    expect(report.written).toEqual([{ rel: RBAC, reason: 'updated, app: regions kept' }])
+    expect(read(RBAC)).toContain('Permission type, revised: strict')
+    expect(read(RBAC)).toContain("| 'payments:manage'")
+    expect(driftedFiles(project, readLock(project))).toEqual([])
+  })
+
+  it('still notices a real edit outside the regions', () => {
+    seedRbac()
+    write(RBAC, formatted.replace("'guest'", "'guest' | 'auditor'"))
+    expect(
+      driftedFiles(project, readLock(project)).map((entry: { rel: string }) => entry.rel),
+    ).toEqual([RBAC])
+  })
+})
+
 describe('doctor', () => {
   const texts = (findings: { notes: string[]; warnings: string[]; errors: string[] }) =>
     [...findings.notes, ...findings.warnings, ...findings.errors].join('\n')

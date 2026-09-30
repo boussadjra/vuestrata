@@ -196,12 +196,15 @@ export function diagnose({ root, version, source, migrations }) {
   }
 
   for (const entry of plan?.incoming ?? []) {
-    if (entry.reason?.startsWith('promoted, moved')) {
-      // `adopt` cannot help here: the lock tracks a managed file where it ships.
+    if (entry.shipped !== undefined) {
+      // `adopt` cannot help at this path: the lock tracks a managed file where it ships.
       findings.warnings.push(
         `${entry.rel} is maintained by Vuestrata from ${plan.to} (${entry.reason}), and upgrades ` +
-          `cannot take over a file at another path. Compare it with ${incomingPath(entry.rel)} ` +
-          'after each upgrade, or move it back.',
+          'only take over a file where it ships. The next upgrade leaves yours alone, writes ' +
+          `this release's version to ${incomingPath(entry.rel)} to compare against, and records ` +
+          `${entry.shipped} as ejected so no second copy is installed there; later releases will ` +
+          `not offer it again. To hand it over instead, move it back to ${entry.shipped} and ` +
+          'update vuestrata.config.json to match before you upgrade.',
       )
       continue
     }

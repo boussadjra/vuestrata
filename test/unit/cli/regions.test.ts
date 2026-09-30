@@ -152,7 +152,6 @@ describe('regionEntries', () => {
         '',
         '# Optional.',
         '# VUESTRATA_TRACE=false',
-        '# A trailing remark.',
       ],
       { keyedBy: 'variable' },
     )
@@ -160,8 +159,26 @@ describe('regionEntries', () => {
     expect(entries).toEqual([
       { key: 'VUESTRATA_API_URL', lines: ['# Where the API lives.', 'VUESTRATA_API_URL=/api'] },
       { key: 'VUESTRATA_TRACE', lines: ['# Optional.', '# VUESTRATA_TRACE=false'] },
-      { key: '# A trailing remark.', lines: ['# A trailing remark.'] },
     ])
+  })
+
+  it('does not count a comment that documents no variable as an entry', () => {
+    // Trailing, or set apart from the variable below by a blank line: keyed by
+    // its text it would never be found in a file read whole, so it would be
+    // appended again on every upgrade.
+    const entries = regionEntries(
+      [
+        '# Where the API lives.',
+        'VUESTRATA_API_URL=/api',
+        '',
+        '# More arrive later.',
+        '',
+        '# Alone.',
+      ],
+      { keyedBy: 'variable' },
+    )
+
+    expect(entries.map((entry: { key: string }) => entry.key)).toEqual(['VUESTRATA_API_URL'])
   })
 
   it('hashes what an entry is, not how it is written', () => {
@@ -370,6 +387,34 @@ describe('region sync', () => {
         '',
       ].join('\n'),
     )
+  })
+
+  it('does not append a trailing comment again on each upgrade', () => {
+    // The shape that grew by one copy per upgrade: a note after the last variable.
+    const region = [
+      '# Where the API lives.',
+      'VUESTRATA_API_URL=/api',
+      '',
+      '# More variables arrive in later releases.',
+    ]
+    const shipped = (lines: string[]) =>
+      [
+        '# vuestrata:env-start',
+        ...lines,
+        '# vuestrata:env-end',
+        '# app:env-start',
+        '# app:env-end',
+        '',
+      ].join('\n')
+
+    fixture.write(ENV, shipped(region))
+    writeLock(fixture.project, emptyLock('1.0.0'))
+
+    for (let round = 0; round < 3; round++) {
+      const report = upgrade({ envExample: { env: region } })
+      expect(report.regions).toEqual([])
+      expect(fixture.read(ENV)).toBe(shipped(region))
+    }
   })
 
   it('previews the same append in diff and writes nothing', () => {

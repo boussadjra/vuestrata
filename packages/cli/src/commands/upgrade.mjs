@@ -297,6 +297,11 @@ function syncFiles({ source, ws, lock, report, target, handled }) {
       continue
     }
 
+    // Unchanged upstream outside the app: regions. Splicing anyway would write
+    // the release's column-0 markers over the ones the project's formatter
+    // indented — a rewrite on every upgrade that the next format undoes.
+    if (record.class === 'merged' && record.hash === hashFor(rel, incoming, 'merged')) continue
+
     const { contents, warnings } = spliceRegions(incoming, current)
     const stranded = warnings.filter((warning) => warning.lines.length > 0)
 
@@ -410,7 +415,7 @@ function recordRegion(lock, rel, name, hash) {
 }
 
 function describeEntries(entries) {
-  return entries.map((entry) => entry.key.split('\n')[0]).join(', ')
+  return entries.map((entry) => entry.key).join(', ')
 }
 
 function printReport(report, { apply }) {
@@ -438,7 +443,7 @@ function printReport(report, { apply }) {
     logger.log(
       `  append  ${entry.rel}  (${entry.region}: ${count} ${count === 1 ? 'entry' : 'entries'})`,
     )
-    for (const key of entry.added) logger.log(`            ${key.split('\n')[0]}`)
+    for (const key of entry.added) logger.log(`            ${key}`)
   }
   for (const entry of report.skipped) logger.log(`  skip    ${entry.rel}  (${entry.reason})`)
 

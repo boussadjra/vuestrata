@@ -229,6 +229,23 @@ export function blankRegions(contents, { scope = APP_SCOPE } = {}) {
 }
 
 /**
+ * `contents` with every region marker moved to column 0, whatever its scope.
+ *
+ * The other half of what a merged file is hashed as. The formatter indents a
+ * marker by what follows it: in the permission union, the three markers above
+ * the first `app:` member move right once `vuestrata add module` puts one
+ * there, and move back when an upgrade writes the release's copy. So a
+ * marker's indentation says where the project's entries are, never whether
+ * Vuestrata's part of the file was edited.
+ */
+export function dedentMarkers(contents) {
+  return contents
+    .split('\n')
+    .map((line) => (parseMarker(line) ? line.trimStart() : line))
+    .join('\n')
+}
+
+/**
  * `incoming` with each `app:` region body replaced by the one in `current` — a
  * new release of a merged file that keeps the project's entries.
  *
@@ -294,22 +311,37 @@ const ENV_ASSIGNMENT = /^#?\s*([A-Z][A-Z0-9_]*)=/
  * A region's entries, each with the key an append-only sync compares by.
  *
  * Most registries hold one entry per line, compared trimmed so that a re-indent
- * is not an edit. `.env.example` holds documented variables — a comment block
- * and the `VUESTRATA_X=` line it describes — keyed by the variable alone, so a
- * changed default or a reworded comment is still the same entry. Comment lines
- * after the last variable form one trailing entry of their own.
+ * is not an edit. `.env.example` holds documented variables — the comment block
+ * directly above a `VUESTRATA_X=` line, and the line — keyed by the variable
+ * alone, so a changed default or a reworded comment is still the same entry.
+ *
+ * A comment that documents no variable — a trailing note, or a block a blank
+ * line sets apart from the variable below it — is not an entry. Keyed by its
+ * text it would never be found in the file read whole, where it runs into the
+ * region's markers, so it would be appended on every upgrade; folded into the
+ * next variable instead, a note that upstream later writes a variable after
+ * would arrive a second time. `build-payload` refuses to ship one.
  *
  * @returns {{ key: string, lines: string[] }[]}
  */
 export function regionEntries(lines, { keyedBy = 'line' } = {}) {
-  const trimmed = lines.map((line) => line.trim()).filter(Boolean)
-
-  if (keyedBy !== 'variable') return trimmed.map((line) => ({ key: line, lines: [line] }))
+  if (keyedBy !== 'variable') {
+    return lines
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => ({ key: line, lines: [line] }))
+  }
 
   const entries = []
   let comments = []
 
-  for (const line of trimmed) {
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      comments = []
+      continue
+    }
+
     const assignment = ENV_ASSIGNMENT.exec(line)
     if (!assignment) {
       comments.push(line)
@@ -319,7 +351,6 @@ export function regionEntries(lines, { keyedBy = 'line' } = {}) {
     comments = []
   }
 
-  if (comments.length > 0) entries.push({ key: comments.join('\n'), lines: comments })
   return entries
 }
 

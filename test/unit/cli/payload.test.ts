@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 // @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
-import { buildPayload } from '../../../packages/cli/scripts/build-payload.mjs'
+import * as buildScript from '../../../packages/cli/scripts/build-payload.mjs'
 // @ts-expect-error - see above.
 import { runUpgrade } from '../../../packages/cli/src/commands/upgrade.mjs'
 // @ts-expect-error - see above.
@@ -16,12 +16,15 @@ import * as managed from '../../../packages/cli/src/lib/managed.mjs'
 import { createPayloadSource } from '../../../packages/cli/src/lib/payload.mjs'
 import { createFixture, type Fixture, hash, writePayload } from './fixture'
 
+const SCRIPT = path.resolve(process.cwd(), 'packages/cli/scripts/build-payload.mjs')
+
 /**
  * The payload is the release: what an upgrade installs, and what it is told
  * each file is. Its index has had two shapes, and a CLI that could not read
  * the first would strand every payload built before the second.
  */
 
+const { buildPayload, isEntryPoint, unsyncableLines } = buildScript
 const { emptyLock, hashFor, readLock, writeLock } = lockfile
 const { MERGED_FILES, SEEDED_FILES } = managed
 
@@ -196,5 +199,59 @@ describe('build-payload', () => {
     expect(result.ok).toBe(false)
     expect(result.stale).toContain(SEEDED_FILES[0])
     expect(result.stale).toContain('orphan.ts (no longer in the repository)')
+  })
+})
+
+describe('build-payload: what a region may ship', () => {
+  const line = { keyedBy: 'line' }
+  const variable = { keyedBy: 'variable' }
+  const check = (lines: string[], registry = line) =>
+    unsyncableLines('theme.config.ts', 'vuestrata:themes', lines, registry)
+
+  it('accepts one whole entry per line', () => {
+    expect(check(["{ name: 'pro', label: 'Pro' },", 'fooModule,'])).toEqual([])
+  })
+
+  it('refuses an entry the formatter wrapped, which would arrive in pieces', () => {
+    const problems = check(['{', "  name: 'pro',", '},'])
+    expect(problems).toHaveLength(2)
+    expect(problems[0]).toMatch(/"\{" in vuestrata:themes is not a whole entry/)
+  })
+
+  it('ignores brackets inside strings and comments', () => {
+    expect(check(["'(' + name,", 'value, // }'])).toEqual([])
+  })
+
+  it('accepts documented variables, and refuses a comment that documents none', () => {
+    expect(check(['# Where the API lives.', 'VUESTRATA_API_URL=/api'], variable)).toEqual([])
+
+    const problems = check(['VUESTRATA_A=1', '', '# More arrive later.'], variable)
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toMatch(/documents no variable/)
+  })
+})
+
+describe('build-payload: running as a script', () => {
+  let link: string
+
+  afterEach(() => {
+    if (link) fs.rmSync(link, { recursive: true, force: true })
+  })
+
+  it('recognises itself, and not another script', () => {
+    expect(isEntryPoint(SCRIPT)).toBe(true)
+    expect(isEntryPoint(path.resolve(process.cwd(), 'package.json'))).toBe(false)
+    expect(isEntryPoint(undefined)).toBe(false)
+  })
+
+  it('recognises itself when run through a symlink or junction', () => {
+    // Node loads the main module by its real path; argv[1] keeps the link's.
+    // A plain comparison skipped main() and exited 0 having checked nothing.
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'vuestrata-link-'))
+    link = base
+    const scripts = path.join(base, 'scripts')
+    fs.symlinkSync(path.dirname(SCRIPT), scripts, 'junction')
+
+    expect(isEntryPoint(path.join(scripts, 'build-payload.mjs'))).toBe(true)
   })
 })

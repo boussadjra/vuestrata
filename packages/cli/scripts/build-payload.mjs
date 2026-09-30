@@ -9,6 +9,7 @@ import { loadManifest, slot } from '../src/lib/manifest.mjs'
 import { hashContents } from '../src/lib/plan.mjs'
 import {
   blankRegions,
+  regionEntries,
   regionLines,
   regionNames,
   sentinel,
@@ -96,6 +97,7 @@ export function buildPayload({
       problems.push(`${rel} has no ${name} region, so a release could never add to it.`)
       continue
     }
+    problems.push(...unsyncableLines(rel, name, lines, registry))
 
     index.regions[registry.slot] = {
       ...index.regions[registry.slot],
@@ -137,6 +139,63 @@ export function buildPayload({
   fs.mkdirSync(payloadRoot, { recursive: true })
   fs.writeFileSync(indexPath, serialized)
   return { ok: true, problems: [], stale: [], index }
+}
+
+/**
+ * What in a registry's `vuestrata:` region an upgrade could not deliver whole.
+ *
+ * Region sync appends, one at a time, the entries a project's copy lacks
+ * anywhere in the file. Most registries are compared line by line, so an entry
+ * the formatter wrapped over several lines would arrive in pieces: a lone `},`
+ * is already in the file, and the lines around it are not. `.env.example` is
+ * compared by variable, and a comment that documents none is not an entry
+ * (see `regionEntries`), so it would never arrive at all.
+ */
+export function unsyncableLines(rel, name, lines, registry) {
+  const present = lines.map((line) => line.trim()).filter(Boolean)
+
+  if (registry.keyedBy !== 'variable') {
+    return present
+      .filter((line) => !balanced(line))
+      .map(
+        (line) =>
+          `${rel}: "${line}" in ${name} is not a whole entry. An upgrade appends the lines a ` +
+          'project lacks one at a time, so an entry wrapped over several lines would arrive in ' +
+          'pieces. Keep each entry on one line.',
+      )
+  }
+
+  // The lines no entry claimed, counted rather than matched: `#` repeats.
+  const claimed = regionEntries(lines, { keyedBy: 'variable' }).flatMap((entry) => entry.lines)
+  const stray = present.filter((line) => {
+    const at = claimed.indexOf(line)
+    if (at !== -1) claimed.splice(at, 1)
+    return at === -1
+  })
+
+  return stray.length === 0
+    ? []
+    : [
+        `${rel}: ${stray.map((line) => `"${line}"`).join(', ')} in ${name} documents no ` +
+          'variable. An upgrade appends each variable with the comment block directly above ' +
+          'it, so this would never arrive. Move it onto the variable it describes, or out of ' +
+          'the region.',
+      ]
+}
+
+/** Whether `line` closes every bracket it opens, ignoring strings and comments. */
+function balanced(line) {
+  const code = line
+    .replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '')
+    .replace(/\/\*.*?\*\//g, '')
+    .replace(/\/\/.*$/, '')
+
+  let depth = 0
+  for (const char of code) {
+    if ('([{'.includes(char)) depth++
+    else if (')]}'.includes(char) && --depth < 0) return false
+  }
+  return depth === 0
 }
 
 function existingPayloadFiles(payloadRoot) {
@@ -186,6 +245,21 @@ function main() {
   )
 }
 
-// Run as a script, not when a test imports `buildPayload`.
-const entry = process.argv[1] ? path.resolve(process.argv[1]).toLowerCase() : ''
-if (entry === fileURLToPath(import.meta.url).toLowerCase()) main()
+/**
+ * Whether this module is the script Node was asked to run, rather than one a
+ * test imported for `buildPayload`. Compared by real path: Node loads the main
+ * module through its realpath, so run through a symlink or junction `argv[1]`
+ * names the link, and a plain comparison would skip `main()` and exit 0 having
+ * checked nothing.
+ */
+export function isEntryPoint(argv1) {
+  if (!argv1) return false
+  try {
+    const real = (file) => fs.realpathSync(file).toLowerCase()
+    return real(path.resolve(argv1)) === real(fileURLToPath(import.meta.url))
+  } catch {
+    return false
+  }
+}
+
+if (isEntryPoint(process.argv[1])) main()
