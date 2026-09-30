@@ -9,9 +9,9 @@ import Layouts from 'vite-plugin-vue-layouts'
 import { defineConfig } from 'vite-plus'
 import VueRouter from 'vue-router/vite'
 
-// Vuestrata's own plugin: environment validation and the build-target defines.
-// It lives in its own file so that Vuestrata can own it while this config
-// stays yours.
+// Vuestrata's own plugin: environment validation, the build-target defines,
+// and the dev-server proxy to `DEV_API_TARGET`. It lives in its own file so
+// that Vuestrata can own it while this config stays yours.
 import { vuestrataEnv } from './scripts/vite/vuestrata-plugin.mjs'
 
 export default defineConfig({
