@@ -34,9 +34,9 @@ Everything below is project-specific and is not managed by Vite+.
 `CLAUDE.md` point here rather than repeating it, so there is one place to change
 when a rule changes.
 
-Highest authority above this file: `.specify/memory/constitution.md`. Read it
-before major implementation, and flag conflicts rather than silently violating
-them.
+It is also the highest authority: no other document in the repository
+overrides it. Where code or another document conflicts with it, flag the
+conflict rather than silently violating either.
 
 ## Who owns which file
 
@@ -248,7 +248,7 @@ adds six project rules. `vpr test --run` includes `test/unit/architecture/`.
 | `theme-registry`        | a theme wired in 3 of 4 files, or imported after `semantic.css`                                             |
 | `module-contract` test  | bad layout, nav group, icon or i18n key; dynamic route shadowing a static one; unconditional `mockHandlers` |
 | `registry-drift` test   | a module never added to `setup.ts`                                                                          |
-| `verify-bundle.mjs`     | MSW reaching a production bundle; the bundle size budgets (demo credentials too, behind `--strict-demo`)    |
+| `verify-bundle.mjs`     | MSW or the demo account and state reaching a production bundle, in-app docs included; the size budgets      |
 | `check-toolchain-pins`  | Node/pnpm/Vite+ pinned differently in the Dockerfile, `vercel.json` and CI                                  |
 | `module-contract` test  | (also) a module that declares no `origin`, which `eject` cannot classify                                    |
 | `sync-headers --check`  | the security headers drifting between their four generated targets                                          |

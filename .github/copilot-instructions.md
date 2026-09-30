@@ -10,21 +10,21 @@ codebase it writes.
 
 ## Copilot-specific notes
 
-- **Highest authority** is `.specify/memory/constitution.md`. Read it before
-  major implementation and flag conflicts rather than silently violating them.
+- **Highest authority** is `AGENTS.md` itself. Flag conflicts with it rather
+  than silently violating them.
 - **Skills** live in `.github/skills/`: the domain set
   (`vuestrata-spec-workflow`, `vuestrata-quality-gates`,
   `vuestrata-module-organization`, `vuestrata-docs-parity`,
   `vuestrata-auth-contract-checks`), the `speckit-*` workflow set, and the
   `i-*` design set.
-- **Custom agents** for the spec workflow are in `.github/agents/`; their bodies
-  live in `.specify/templates/commands/`.
+- **Custom agents** for the spec workflow are in `.github/agents/`. They and the
+  `speckit-*` skills read and write a `.specify/` directory that this repository
+  does not ship; create it before relying on them.
 - **Hooks** in `.github/hooks/hooks.json` run `vp check` after each file edit
   and `vp check` + `vpr test --run` at session end. That is a Copilot-schema
   file; it does not apply to other harnesses.
 - **Planning**: prefer lightweight implementation notes for non-trivial changes
-  over mandatory spec-folder scaffolding. Templates remain in
-  `.specify/templates/` if structured documentation is warranted.
+  over mandatory spec-folder scaffolding.
 
 ## Before you finish
 

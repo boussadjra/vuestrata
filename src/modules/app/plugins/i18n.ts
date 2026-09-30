@@ -23,10 +23,11 @@ function toSupportedLocale(locale: string): SupportedLocale {
 /**
  * Shell copy, with your overrides applied on top.
  *
- * `<locale>.json` is Vuestrata's and is replaced wholesale by an upgrade; the
- * `.overrides.json` beside it is yours and is never written to. Rewording a
- * label therefore means adding one key to a file nobody upstream touches,
- * rather than editing a 665-key catalog that a future release will also edit.
+ * `<locale>.json` is the catalog Vuestrata ships and keeps changing; the
+ * `.overrides.json` beside it is yours and nothing upstream ever writes to it.
+ * Rewording a label therefore means adding one key to a file nobody upstream
+ * touches, rather than editing a 665-key catalog that a future release will
+ * also edit.
  *
  * Shallow by design: the shell catalog is flat, and a deep merge would invite
  * partial overrides of a nested object that then disagree about shape.

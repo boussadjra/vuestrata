@@ -66,5 +66,6 @@ Failures that have actually happened here, and what caused them.
   entirely, and a real auth adapter talks to your API.
 
 The difference is verified mechanically rather than by inspection —
-`scripts/build/verify-bundle.mjs` runs eight assertions against the production
-artifact in CI. See [Environment](/docs/configuration/environment).
+`scripts/build/verify-bundle.mjs` checks the production artifact for MSW, the
+demo account and state, and published sourcemaps in CI. See
+[Environment](/docs/configuration/environment).

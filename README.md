@@ -21,10 +21,9 @@ ones executable:
   icon-name parity, and the four files a theme must appear in.
 - **Four architecture tests** — module registry drift, the module contract,
   docs registration, demo-only access.
-- **Bundle verification** — `verify-bundle.mjs` fails the build if an MSW chunk
-  or the mock worker reaches a production artifact, or if a size budget is
-  exceeded. (The demo-credential markers are checked too, behind
-  `--strict-demo`, which CI does not yet enable.)
+- **Bundle verification** — `verify-bundle.mjs` fails the build if an MSW chunk,
+  the mock worker, or the demo account and its state reach a production
+  artifact — the in-app docs included — or if a size budget is exceeded.
 - **Drift checks** — toolchain pins and security headers are generated from one
   definition each, and CI fails when a copy disagrees.
 - **Generators** — `vpr gen:module`, `gen:page`, `gen:theme`, `gen:component`,
@@ -117,22 +116,22 @@ vpr dev
 # Project checks (format, lint, typecheck)
 vp check
 
-# Lint
+# Lint: Oxlint, the six custom rules, and the MSW-worker, drift and docs-link checks
 vpr lint
 
-# Custom lint rules (chained after `vpr lint` via the package.json
-# `lint` script; run standalone if you invoke `vpr lint` directly):
-#   - inline-vue-handlers: forbids inline `@event` handlers in <template>
+# The six custom rules on their own. `vpr lint` already runs them; the built-in
+# `vp lint` does not.
+#   - inline-vue-handlers: forbids multi-line inline `@event` handlers under app/
 #   - module-scope-state: forbids top-level mutable state in src/**
 #     (use `createGlobalState` for simple shared state, Pinia for
-#     complex orchestration; see docs/2.architecture/1.overview.md).
-#     Hard-fails the build on violation.
+#     complex orchestration; see docs/2.architecture/1.overview.md)
+#   - no-raw-palette, i18n-parity, icon-parity, theme-registry: see AGENTS.md
 node scripts/lint/run-custom-rules.mjs
 
 # Format
 vpr fmt
 
-# Unit tests
+# Unit, component and integration tests
 vpr test --run
 
 # E2E tests
@@ -271,13 +270,14 @@ discovering it at click time.
 
 | Adapter | Transport | Register | Social | Magic link | MFA | Refresh | Code exchange |
 | ------- | --------- | -------- | ------ | ---------- | --- | ------- | ------------- |
-| `mock`  | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | —             |
-| `jwt`   | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | —             |
-| `oauth` | cookie    | —        | ✅     | —          | —   | ✅      | ✅            |
+| `mock`  | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | ✅            |
+| `jwt`   | bearer    | ✅       | —      | ✅         | ✅  | ✅      | —             |
+| `oauth` | cookie    | —        | ✅     | —          | —   | —       | ✅            |
 
-`jwt` and `oauth` are complete against the documented endpoint contract and
-verified by `msw/node` contract tests. They need a backend that implements it —
-see [Real production deployment](docs/8.deployment/2.real-production.md).
+`jwt` and `oauth` implement the documented endpoint contract, and unit tests pin
+the requests each one sends. Nothing in this repository runs them against a
+server, so they need a backend that implements the contract — see
+[Real production deployment](docs/8.deployment/2.real-production.md).
 
 ## Environment Variables
 
@@ -350,27 +350,10 @@ as GitHub prereleases by the release workflow. See `RELEASE.md` for the full rel
 
 ## Publish Checklist
 
-Before publishing a new template version:
-
-```bash
-vp check
-vpr test --run
-vpr test:e2e
-vpr docker:build
-```
-
-Then:
-
-1. Update `CHANGELOG.md`.
-2. Bump the version with one of the `vpr version:*` scripts.
-3. Tag the release as `v<version>`.
-4. Push the tag so the GitHub release workflow can publish the artifact.
-
-## History
-
-Vuestrata supersedes _Vueye_, a simpler Vue 3 starter template. Nothing here
-depends on knowing that; it matters only if you are coming from Vueye and
-wondering where it went.
+The release checklist lives in [RELEASE.md](RELEASE.md), and only there, so two
+copies cannot disagree. Beyond the gates, it covers writing the migration for a
+contract change, rebuilding the shipped lockfile after the version bump, and
+publishing `@vuestrata/cli` — without which a tag reaches no existing project.
 
 ## Community
 
@@ -382,41 +365,3 @@ wondering where it went.
 ## License
 
 MIT
-
-### GitHub Template
-
-[Create a repo from this template on GitHub](https://github.com/boussadjra/vuestrata/generate).
-
-### Clone to local
-
-If you prefer to do it manually with the cleaner git history
-
-```bash
-vp dlx degit boussadjra/vuestrata my-app
-cd my-app
-vp install
-```
-
-## Usage
-
-### Development
-
-Just run and visit http://localhost:3333
-
-```bash
-vpr dev
-```
-
-### Build
-
-To build the App, run
-
-```bash
-vpr build
-```
-
-And you will see the generated file in `dist` that ready to be served.
-
-### Deploy on Netlify
-
-Go to [Netlify](https://app.netlify.com/start) and select your clone, `OK` along the way, and your App will be live in a minute.
