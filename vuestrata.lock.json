@@ -1,9 +1,84 @@
 {
   "template": "1.0.1-alpha.6",
   "files": {
+    "scripts/build/verify-bundle.mjs": {
+      "class": "managed",
+      "hash": "sha256-ac87d18ae5632bcc58200c9adf3985829d970909d8278f35700c02539737ff93",
+      "since": "1.0.1-alpha.6"
+    },
+    "scripts/build/write-version.mjs": {
+      "class": "managed",
+      "hash": "sha256-f6572718e4021771ef388f8d607b82b81b2a8917b6724d0086fba2c5a6332336",
+      "since": "1.0.1-alpha.6"
+    },
+    "scripts/security/headers.mjs": {
+      "class": "managed",
+      "hash": "sha256-6be9c62cab027bdb50e861567b98728d473b02c638e75a99a9c9e376cefe4a86",
+      "since": "1.0.1-alpha.6"
+    },
+    "scripts/security/sync-headers.mjs": {
+      "class": "managed",
+      "hash": "sha256-3d10a23be5bf4a7111528ba332a42727d5417fa290c5e693aff9b51ab58f4e45",
+      "since": "1.0.1-alpha.6"
+    },
+    "scripts/vite/vuestrata-plugin.d.mts": {
+      "class": "managed",
+      "hash": "sha256-fa5b33d121911a550548c10ec3e294730c3d96edf101683994440658e15936b9",
+      "since": "1.0.1-alpha.6"
+    },
+    "scripts/vite/vuestrata-plugin.mjs": {
+      "class": "managed",
+      "hash": "sha256-94683dfd3ed96f7c7be7fe19c90f35ca62cff247db29a64e4742e112c49cd2db",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/app-loader.ts": {
+      "class": "managed",
+      "hash": "sha256-ac4f1644b4524fddeae85b93daf830c98e1a9502a119f8b98b84076ca629b0af",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/auth-wiring.ts": {
+      "class": "managed",
+      "hash": "sha256-4cde33cdcf9ee7d792ada871e1f95476a9653042a197c342146bb11292a1b355",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/boot-error.ts": {
+      "class": "managed",
+      "hash": "sha256-0eb24dce09dba6d5768204a9804a2cf384517334565fd748cbb15471d6d8aac6",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/demo.ts": {
+      "class": "managed",
+      "hash": "sha256-c09ddf4546327bc126a26b0ae6de0610e32ca84a555b216a1e87bf3e7b3ad2ef",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/index.ts": {
+      "class": "managed",
+      "hash": "sha256-1e04af7a0a295998e7a1773fedb7fd9f29c62ab755855747bbe254aa12cd0508",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/mocks.ts": {
+      "class": "managed",
+      "hash": "sha256-cd518a44e4c8545738ac6d73b8aedb3f14d539fc26983f434358526015ac62b1",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/query-client.ts": {
+      "class": "managed",
+      "hash": "sha256-eaeb8d043b2b60ac82e979037f8f0511f10645cef2951a7d983670eb3029eda0",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/seams.ts": {
+      "class": "managed",
+      "hash": "sha256-068ae5af0fcd1c984530168d0ff4381c9c3bfe746b17f493c33f07f60ecd2e1c",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/app/components/layout/AppBreadcrumb.vue": {
       "class": "managed",
       "hash": "sha256-c074c68af013befc5458dbc7ec754640865ff1f06863efed36ab1b3bdd72f197",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/components/layout/AppErrorBoundary.vue": {
+      "class": "managed",
+      "hash": "sha256-f46eb177b35a8ccbcc4a0b39f4528d99bc832a7c167c96294f4c88fa623558c7",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/layout/AppFooter.vue": {
@@ -14,6 +89,11 @@
     "src/modules/app/components/layout/AppHeader.vue": {
       "class": "managed",
       "hash": "sha256-95b812122d70f67076c4109984c3f236722fa37b358db425f335705ac6bf598b",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/components/layout/AppRoot.vue": {
+      "class": "managed",
+      "hash": "sha256-1fc08ec33a389f03ced938733669e935cee29da1550674b04e598721ccdd59aa",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/layout/AppSidebar.vue": {
@@ -510,20 +590,90 @@
       "hash": "sha256-e87dd5e6a47ad813f0167a48385b9bad12c9d377ba48c9a695f7f7b092e35c80",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/app/composables/useRbac.ts": {
+      "class": "managed",
+      "hash": "sha256-9e95b180a713a0022a4769028b8ee1de16a97ab4fb765988c25c7ee4da4dac3f",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/app/config/app.overrides.ts": {
       "class": "seeded",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/locales/ar.json": {
+      "class": "managed",
+      "hash": "sha256-e2b602f14591cc0f3d74fc28713f0cca32d5d3485e899bc80b189ac52071ba4b",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/locales/ar.overrides.json": {
       "class": "seeded",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/app/locales/en.json": {
+      "class": "managed",
+      "hash": "sha256-9397de125b3d545505976cf90b53178deb5a0df22a1ae08f55b67e4158d51b80",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/app/locales/en.overrides.json": {
       "class": "seeded",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/app/locales/fr.json": {
+      "class": "managed",
+      "hash": "sha256-7e619bdc10491d87d041086dbba61e179f914c751d3328434cf56ae3ddb9a920",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/app/locales/fr.overrides.json": {
       "class": "seeded",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/mocks/collection.ts": {
+      "class": "managed",
+      "hash": "sha256-4d8bbdff18070dbc633de5c257be4652c1a8e6d2906e299dbedff296874c4cef",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/mocks/seed.ts": {
+      "class": "managed",
+      "hash": "sha256-0e569cbdc3a3543a26e89a95f75c9472ece192e5c541f32262178825802e3e86",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/mocks/utils.ts": {
+      "class": "managed",
+      "hash": "sha256-c561839b83157d786926cbc8e7f61b99cd582b235ffe6bdae1930c51fc445372",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/plugins/route-guard.ts": {
+      "class": "managed",
+      "hash": "sha256-f193295439014c087115a55611e2b02d4f476a61606fb383b004339e32b8e311",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/plugins/session-restore.ts": {
+      "class": "managed",
+      "hash": "sha256-4613308c94ee51d6fc95098e11a39a9c461b116ef81df8cf803f841e25f1df97",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/plugins/vue-query.ts": {
+      "class": "managed",
+      "hash": "sha256-a9d2dd192a1a8b14d5bb7b0cef6f1bfc1f827a30b952402c30c09ae164a94f5e",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/state/build-info.ts": {
+      "class": "managed",
+      "hash": "sha256-f56fe89183e03c11eef803c01ec8ce71e5e269636b2399d2667f71e5168641f8",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/state/runtime-backends.ts": {
+      "class": "managed",
+      "hash": "sha256-71e610a29fe110860a119cafa9caeacd1bc57ea06612cdf69c4d6b57df722ec0",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/stores/api-runtime.ts": {
+      "class": "managed",
+      "hash": "sha256-3051578bbf0fc36e105a828d5c106e4b5e2e7912076c2b2433584c7a6ed78689",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/stores/auth.ts": {
+      "class": "managed",
+      "hash": "sha256-30092cfe5184cc4889fa00741f7cc8508b7331e0a70d8d036c4a549b4a9c3adf",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/styles/brand.css": {
@@ -593,6 +743,61 @@
     "src/modules/app/styles/themes/terminal.css": {
       "class": "managed",
       "hash": "sha256-43d0b57c2cb69b48fc27eba1557ed669e70071b45645226ca519f2e3378030bf",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/types/button-group.ts": {
+      "class": "managed",
+      "hash": "sha256-c7ca55b938648c3f4f252566ce1eea6d7c482f9e352509f088eff488be083067",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/types/forms.ts": {
+      "class": "managed",
+      "hash": "sha256-85b25c7c7101ba3cb7f5ddb1e061d575a12ac6d0396be3ca005d3572f11ac5c1",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/adapters/base.ts": {
+      "class": "managed",
+      "hash": "sha256-aa2b7be151ea115628fcfb2cf7f8a1d4776e7094a6c44264d582db946b9559e5",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/adapters/index.ts": {
+      "class": "managed",
+      "hash": "sha256-cfb47e9183c09f2df523d293a3343ace94d05e6f472bce4c50409fc6a790c4ca",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/adapters/jwt.ts": {
+      "class": "managed",
+      "hash": "sha256-21623d4fd60a4ea22d9fba8c08f7b907ed9f96a209547aa107e0f34c32462f7a",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/adapters/mock.ts": {
+      "class": "managed",
+      "hash": "sha256-8c81d92716549f886ed05ea6171d1e2c2fac19076c408644c3086920a1347fb8",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/adapters/oauth.ts": {
+      "class": "managed",
+      "hash": "sha256-9090f5d684ca70b825bc73f0b9d7e005a0096fe2905c73a2cead1dc75fbb7d93",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/adapters/pkce-state.ts": {
+      "class": "managed",
+      "hash": "sha256-7fce70310a4db06a0ee88a56e03550798215f04c2de9addf18e207b20a0d3e03",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/adapters/types.ts": {
+      "class": "managed",
+      "hash": "sha256-1e8888d30b05ff08b5f57e20899067837020344a3305cf9217e3d892f4cd00ad",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/composables/useAuth.ts": {
+      "class": "managed",
+      "hash": "sha256-912d6a8c51d203ffb65ea29c4cece88fc23da184396bdc88b3cdb154112d624c",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/auth/lib/pkce.ts": {
+      "class": "managed",
+      "hash": "sha256-d33606c8b80bb8086ae02ba4a8feae827fefc3758a15374d9cf9c1fc97c847bd",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/auth-interceptor.ts": {

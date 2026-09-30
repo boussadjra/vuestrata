@@ -1,67 +1,13 @@
 <script setup lang="ts">
-import { ConfigProvider } from 'reka-ui'
-import { useI18n } from 'vue-i18n'
-
-import { useActiveLocale, useLocaleSync } from '@/composables/useActiveLocale'
-import { useDocumentTitle } from '@/composables/useDocumentTitle'
-import { useShapeSync } from '@/composables/useShape'
-import { useThemeSync } from '@/composables/useTheme'
-
-// Root-owned DOM sync for theme, dark mode, locale, and shape classes.
-useThemeSync()
-useLocaleSync()
-useShapeSync()
-// Keeps <title> in step with the route. Without it every page shared one
-// title, which also made useRouteAnnouncer's document.title fallback useless.
-useDocumentTitle()
-
-const { t } = useI18n()
-const { current, dir } = useActiveLocale()
-const appError = ref<Error | null>(null)
-
-// Reka portals default to dir=ltr unless ConfigProvider supplies the reading
-// direction. html[dir] is not inherited by a teleported tree that Reka then
-// stamps with dir="ltr".
-
-// Only capture errors that originate from async component setup (Suspense).
-// Transient render-cycle errors (e.g. a computed accessing data before onMounted fills it)
-// recover on the next tick and must NOT be trapped.
-onErrorCaptured((err, _instance, info) => {
-  // Suspense-related info strings that indicate a fatal async setup failure
-  const isSuspenseError = typeof info === 'string' && info.includes('async')
-  if (!isSuspenseError) {
-    // Let Vue's default handler (or app.config.errorHandler) deal with it
-    return true
-  }
-  appError.value = err instanceof Error ? err : new Error(String(err))
-  return false
-})
+import AppRoot from '@/components/layout/AppRoot.vue'
 </script>
 
+<!--
+  Yours. The root component is AppRoot, which Vuestrata maintains: theme and
+  locale sync, the error boundary and the route outlet. Wrap it, or put
+  something beside it (a global toast host, a cookie banner), rather than
+  copying its contents here, since a copy stops receiving fixes.
+-->
 <template>
-  <ConfigProvider :dir="dir" :locale="current">
-    <div
-      v-if="appError"
-      role="alert"
-      class="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center"
-    >
-      <p class="text-surface-600 dark:text-surface-400 text-sm">
-        {{ t('common_error_generic') }}
-      </p>
-    </div>
-
-    <Suspense v-else>
-      <RouterView />
-
-      <template #fallback>
-        <div
-          class="flex min-h-screen items-center justify-center"
-          role="status"
-          :aria-label="t('common_loading_aria')"
-        >
-          <AppIcon name="spinner" size="xl" class="text-primary-500 animate-spin" />
-        </div>
-      </template>
-    </Suspense>
-  </ConfigProvider>
+  <AppRoot />
 </template>

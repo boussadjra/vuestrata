@@ -128,16 +128,34 @@ can rewrite their code but only where a migration tells it how. So:
 
 A change is breaking if it alters any of these:
 
-| Contract                   | Where it lives                                         |
-| -------------------------- | ------------------------------------------------------ |
-| A slot path                | `DEFAULT_SLOTS` in `packages/cli/src/lib/manifest.mjs` |
-| A sentinel region name     | `REGIONS` in `packages/cli/src/lib/registry.mjs`       |
-| A `Ui*` prop, emit or slot | `src/modules/app/components/ui/`                       |
-| A module barrel export     | `src/modules/*/index.ts`                               |
-| A `core/lib` export        | `src/modules/core/lib/`                                |
-| A semantic token name      | `src/modules/app/styles/semantic.css`                  |
-| An `IconName` member       | `src/modules/app/types/index.ts`                       |
-| A `VUESTRATA_*` variable   | `src/modules/core/lib/config/env.schema.ts`            |
+| Contract                                          | Where it lives                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------------- |
+| A slot path                                       | `DEFAULT_SLOTS` in `packages/cli/src/lib/manifest.mjs`           |
+| A sentinel region name                            | `REGIONS` in `packages/cli/src/lib/registry.mjs`                 |
+| A `Ui*` prop, emit or slot                        | `src/modules/app/components/ui/`                                 |
+| A module barrel export                            | `src/modules/*/index.ts`                                         |
+| A `core/lib` export                               | `src/modules/core/lib/`                                          |
+| A semantic token name                             | `src/modules/app/styles/semantic.css`                            |
+| An `IconName` member                              | `src/modules/app/types/index.ts`                                 |
+| A `VUESTRATA_*` variable                          | `src/modules/core/lib/config/env.schema.ts`                      |
+| The `boot()` signature                            | `src/modules/app/bootstrap/index.ts`                             |
+| An auth store member boot uses                    | `src/modules/app/stores/auth.ts`                                 |
+| An `AuthAdapter` member boot uses                 | `src/modules/auth/adapters/types.ts`                             |
+| A function or export boot reads from another file | `state/`, `plugins/`, `config/app.config.ts`, `modules/setup.ts` |
+
+What the last four rows name, exactly:
+
+- `boot(App, options?)` and its options: `beforeMount`, `queryOptions` and `deps` (`BootDeps`).
+- The auth store members `user`, `token`, `refreshToken`, `isAuthenticated`, `setAuth`,
+  `setUser`, `clearAuth` and `setRefreshHandler`, which `bootstrap/auth-wiring.ts` reads
+  through `AuthWiringStore`.
+- The adapter members `transport`, `capabilities.refresh`, `refreshToken`, `getUser` and
+  `resumeSession`.
+- `installRuntimeBackends`, `useBuildInfo().start`, `restoreSession` (with `SessionRestoreDeps`),
+  `router` and `layoutMap` (`plugins/router.ts`), `appModules` (`modules/setup.ts`), `appConfig` and
+  `authAdapter` (`config/app.config.ts`), and `bootstrapTheme`, `installI18n`,
+  `installErrorReporting`, `installPerformanceMonitoring`, `installStaleChunkRecovery`
+  (`plugins/*`).
 
 Prefer a migration. Add it at `packages/cli/migrations/<version>/index.mjs` as a
 list of idempotent `{ file, apply }` steps, each resolving its target through
@@ -145,6 +163,13 @@ the manifest so it still finds the file in a project that moved it. When a
 change genuinely cannot be automated, write the manual step in `UPGRADING.md`
 under that version — but treat that as the exception, because a release note is
 a request and a migration is a fix.
+
+A file that becomes managed keeps its path, and a project that edited it keeps its
+copy: the migration leaves it, with the release's version in `.vuestrata/incoming/`.
+So for one minor after a promotion, managed code must not assume the edited copy has
+what the release added. A member a release adds to the auth store or to an adapter is
+declared optional where the bootstrap reads it, and called only after a
+`typeof member === 'function'` check; it becomes required in the next minor.
 
 Deprecate rather than rename where you can: keep the old name working for one
 minor with a console warning, and remove it in the next.

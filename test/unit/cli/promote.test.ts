@@ -529,3 +529,114 @@ describe.skipIf(!CLI_PRESENT)('adopt', () => {
     expect(lock.regions[THEMES]['vuestrata:themes']).toBeDefined()
   })
 })
+
+describe('promote units', () => {
+  const SCRIPT_A = 'scripts/security/headers.mjs'
+  const SCRIPT_B = 'scripts/security/sync-headers.mjs'
+  const OLD_A = 'export const headers = "1.0"\n'
+  const OLD_B = 'export const sync = "1.0"\n'
+  const NEW_A = 'export const headers = "1.1"\n'
+  const NEW_B = 'export const sync = "1.1"\n'
+
+  const unitSteps = (): Step[] => [
+    {
+      kind: 'promote',
+      file: SCRIPT_A,
+      unit: 'headers',
+      pristine: [hash(OLD_A)],
+      note: 'Both, or neither.',
+    },
+    {
+      kind: 'promote',
+      file: SCRIPT_B,
+      unit: 'headers',
+      pristine: [hash(OLD_B)],
+      note: 'Never shown.',
+    },
+  ]
+
+  const run = (steps = unitSteps()) =>
+    upgrade({ files: { [SCRIPT_A]: NEW_A, [SCRIPT_B]: NEW_B }, steps })
+
+  beforeEach(() => {
+    writeLock(fixture.project, emptyLock('1.1.0'))
+  })
+
+  it('adopts every member when all are pristine', () => {
+    fixture.write(SCRIPT_A, OLD_A)
+    fixture.write(SCRIPT_B, OLD_B)
+
+    const report = run()
+
+    expect(report.adopted.map((entry: { rel: string }) => entry.rel)).toEqual([SCRIPT_A, SCRIPT_B])
+    expect(fixture.read(SCRIPT_A)).toBe(NEW_A)
+    expect(fixture.read(SCRIPT_B)).toBe(NEW_B)
+    expect(report.notes).toEqual([])
+    expect(report.incoming).toEqual([])
+  })
+
+  it('adopts neither when one is edited, writes both copies, and says so once', () => {
+    fixture.write(SCRIPT_A, 'export const headers = "ours"\n')
+    fixture.write(SCRIPT_B, OLD_B)
+
+    const report = run()
+
+    // The pristine one is held back too: it was written against the other.
+    expect(fixture.read(SCRIPT_A)).toBe('export const headers = "ours"\n')
+    expect(fixture.read(SCRIPT_B)).toBe(OLD_B)
+    expect(fixture.read(`.vuestrata/incoming/${SCRIPT_A}`)).toBe(NEW_A)
+    expect(fixture.read(`.vuestrata/incoming/${SCRIPT_B}`)).toBe(NEW_B)
+    expect(readLock(fixture.project).files[SCRIPT_A]).toBeUndefined()
+    expect(readLock(fixture.project).files[SCRIPT_B]).toBeUndefined()
+    expect(report.adopted).toEqual([])
+    expect(report.notes.map((note: { text: string }) => note.text)).toEqual(['Both, or neither.'])
+  })
+
+  it('holds back the first member for an edited second one, and the note still comes once', () => {
+    fixture.write(SCRIPT_A, OLD_A)
+    fixture.write(SCRIPT_B, 'export const sync = "ours"\n')
+
+    const report = run()
+
+    expect(report.adopted).toEqual([])
+    expect(fixture.read(SCRIPT_A)).toBe(OLD_A)
+    expect(report.incoming).toHaveLength(2)
+    expect(report.notes).toHaveLength(1)
+  })
+
+  it('judges only the members the project has', () => {
+    // No sync-headers.mjs at all: nothing to hold back, and the sync installs it.
+    fixture.write(SCRIPT_A, OLD_A)
+
+    const report = run()
+
+    expect(report.adopted.map((entry: { rel: string }) => entry.rel)).toEqual([SCRIPT_A])
+    expect(fixture.read(SCRIPT_A)).toBe(NEW_A)
+    expect(fixture.read(SCRIPT_B)).toBe(NEW_B)
+  })
+
+  it('does not hold a member back for one that is already tracked', () => {
+    fixture.write(SCRIPT_A, OLD_A)
+    fixture.write(SCRIPT_B, OLD_B)
+    run()
+
+    // A later prerelease re-runs the migration. Both are tracked, so nothing to judge.
+    const lock = readLock(fixture.project)
+    lock.template = '1.2.0-alpha.0'
+    writeLock(fixture.project, lock)
+    const again = run()
+
+    expect(again.adopted).toEqual([])
+    expect(again.incoming).toEqual([])
+    expect(again.notes).toEqual([])
+  })
+
+  it('only accepts a unit name on a promote step', () => {
+    expect(() =>
+      validateMigration(
+        migration('1.2.0', [{ kind: 'codemod', file: 'a.ts', apply: (s: string) => s, unit: 'x' }]),
+      ),
+    ).toThrow(/unit/)
+    expect(() => validateMigration(migration('1.2.0', unitSteps()))).not.toThrow()
+  })
+})

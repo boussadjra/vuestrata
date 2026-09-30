@@ -213,8 +213,8 @@ src/
 │   ├── settings/           # Settings module (Pinia pattern)
 │   ├── setup.ts            # appModules — the module registry
 │   └── nav-groups.ts       # Sidebar sections
-├── App.vue                 # Root component
-└── main.ts                 # Bootstrap entry
+├── App.vue                 # Thin shell: renders <AppRoot />
+└── main.ts                 # Thin shell: boot(App); the sequence is in app/bootstrap/
 ```
 
 ## Theme System

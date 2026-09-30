@@ -36,7 +36,7 @@ import { incomingPath } from './workspace.mjs'
  *     Nothing automatic. Shown on every upgrade that crosses this version — or,
  *     given a `file`, only while `pending(source)` holds for it.
  *
- *   promote                 { file, pristine: [hash, ...], note? }
+ *   promote                 { file, pristine: [hash, ...], note?, unit? }
  *     A file the project owned becomes Vuestrata's. Adopted when its hash is in
  *     `pristine` — what it hashed to in the releases that shipped it — or
  *     already matches this release; the sync then keeps it updated. Otherwise it
@@ -45,6 +45,11 @@ import { incomingPath } from './workspace.mjs'
  *     `vuestrata adopt`. A file the project moved elsewhere is never adopted:
  *     it gets the same copy and note, and its shipped path is recorded as
  *     ejected so no later release installs a second copy there.
+ *
+ *     Files that only work together carry the same `unit` name and move as one.
+ *     If any file of a unit that the project has is edited, none is adopted and
+ *     each gets its incoming copy, and only the first of them says so — put the
+ *     note that covers the whole unit on that one.
  *
  *   reclassify              { file, to = 'merged', pristine?: [hash, ...], note? }
  *     A tracked managed file becomes merged. Its record's whole-file hash counts
@@ -180,6 +185,9 @@ export function validateMigration(migration) {
           "replace it without the project's app: entries.",
       )
     }
+    if (step.unit !== undefined && (kind !== 'promote' || typeof step.unit !== 'string')) {
+      throw new Error(`${label}: unit is a name that promote steps share`)
+    }
     if (step.pending !== undefined && typeof step.pending !== 'function') {
       throw new Error(`${label}: pending must be a function of the source`)
     }
@@ -274,18 +282,23 @@ function runNote(step, migration, { ws, manifest, result }) {
   result.notes.push({ version: migration.version, rel, text: step.note })
 }
 
-function runPromote(step, migration, { ws, lock, manifest, source, version, result }) {
+/**
+ * What a promote step would do to the project's copy, or `null` when there is
+ * nothing to do: the file is ejected or already tracked, this release does not
+ * ship it, the project has none, or the step's `pending` says it is done.
+ */
+function inspectPromote(step, { ws, lock, manifest, source }) {
   const rel = stepTarget(step, manifest)
   // Where the release ships it, which is where the payload sync looks for it.
   const shipped = stepTarget(step, { ...manifest, slots: DEFAULT_SLOTS })
 
-  if (lock.ejected.includes(rel) || lock.ejected.includes(shipped)) return
-  if (lock.files[rel] || lock.files[shipped]) return // already tracked: done on an earlier run
-  if (!source?.files || !Object.hasOwn(source.files, shipped)) return // not in this release
-  if (!ws.exists(rel)) return // nothing to adopt; the sync installs it as new
+  if (lock.ejected.includes(rel) || lock.ejected.includes(shipped)) return null
+  if (lock.files[rel] || lock.files[shipped]) return null // already tracked: done on an earlier run
+  if (!source?.files || !Object.hasOwn(source.files, shipped)) return null // not in this release
+  if (!ws.exists(rel)) return null // nothing to adopt; the sync installs it as new
 
   const current = ws.read(rel)
-  if (step.pending && !step.pending(current, manifest)) return
+  if (step.pending && !step.pending(current, manifest)) return null
 
   // The release decides the class: it ships the file in `files`, so managed
   // unless it also lists it as merged.
@@ -297,15 +310,37 @@ function runPromote(step, migration, { ws, lock, manifest, source, version, resu
     step.pristine.includes(hash) ||
     (incoming !== undefined && hash === hashFor(shipped, incoming, cls))
 
-  if (rel === shipped && pristine) {
+  return { step, rel, shipped, current, cls, hash, incoming, pristine, moved: rel !== shipped }
+}
+
+function runPromote(step, migration, context) {
+  const { ws, lock, version, result } = context
+  const found = inspectPromote(step, context)
+  if (!found) return
+  const { rel, shipped, current, cls, hash, incoming, moved } = found
+
+  // A unit moves whole. Judge every member the project has: one edited copy
+  // holds the rest back, since each is written against the others.
+  let adoptable = found.pristine && !moved
+  let speaks = true
+  if (step.unit !== undefined) {
+    const members = migration.steps
+      .filter((other) => other.kind === 'promote' && other.unit === step.unit)
+      .map((other) => (other === step ? found : inspectPromote(other, context)))
+      .filter(Boolean)
+    if (members.some((member) => !member.pristine || member.moved)) adoptable = false
+    speaks = members[0]?.step === step
+  }
+
+  if (adoptable) {
     lock.files[rel] = { class: cls, hash, since: version }
     result.adopted.push({ rel, class: cls, reason: 'promoted' })
     return
   }
 
-  // Edited, or moved: either way not Vuestrata's to replace. The new version
-  // goes beside the project's copy, under the path the project uses.
-  const moved = rel !== shipped
+  // Edited, moved, or held back by a member of its unit: either way not
+  // Vuestrata's to replace. The new version goes beside the project's copy,
+  // under the path the project uses.
   if (incoming !== undefined) {
     const copy = cls === 'merged' ? spliceRegions(incoming, current).contents : incoming
     ws.write(incomingPath(rel), copy)
@@ -323,6 +358,8 @@ function runPromote(step, migration, { ws, lock, manifest, source, version, resu
   // so, and the sync would install the release's copy at the shipped path — a
   // second one. Ejecting that path is the record that it stays empty.
   if (moved) lock.ejected.push(shipped)
+
+  if (!speaks) return
 
   result.notes.push({
     version: migration.version,
