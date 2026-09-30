@@ -23,6 +23,10 @@ export const MANAGED_DIRS = [
   'src/modules/app/composables/forms',
   'src/modules/app/styles/themes',
   'src/modules/core/lib',
+  // The auth adapters and their helpers: what a token or a cookie session
+  // means is not something a project should have to carry a fix for.
+  'src/modules/auth/adapters',
+  'src/modules/auth/lib',
 ]
 
 /** Managed files that do not sit under a managed directory. */
@@ -34,6 +38,38 @@ export const MANAGED_FILES = [
   'src/modules/app/components/layout/AppSidebar.vue',
   'src/modules/app/components/layout/AppBreadcrumb.vue',
   'src/modules/app/components/layout/SkipLink.vue',
+
+  // Promoted from the project's files in 1.1.0 (same paths; `migrations/1.1.0/
+  // promotions.mjs` adopts an unedited copy). Each one is plumbing that every
+  // correctness fix in this release lands in, and each has a seam a project can
+  // use instead of editing it.
+  'src/modules/app/stores/auth.ts',
+  'src/modules/app/stores/api-runtime.ts',
+  'src/modules/app/state/runtime-backends.ts',
+  'src/modules/app/state/build-info.ts',
+  'src/modules/app/plugins/route-guard.ts',
+  'src/modules/app/plugins/session-restore.ts',
+  'src/modules/app/composables/useRbac.ts',
+  'src/modules/auth/composables/useAuth.ts',
+  // Generated modules import these three.
+  'src/modules/app/mocks/collection.ts',
+  'src/modules/app/mocks/utils.ts',
+  'src/modules/app/mocks/seed.ts',
+  // Managed code reads these types, and a type a managed file reads must itself
+  // be managed, or a new prop would fail type-checking in every project.
+  'src/modules/app/types/forms.ts',
+  'src/modules/app/types/button-group.ts',
+  // <locale>.overrides.json is the seam; the catalogs are Vuestrata's.
+  'src/modules/app/locales/en.json',
+  'src/modules/app/locales/fr.json',
+  'src/modules/app/locales/ar.json',
+  // Deployment tooling.
+  'scripts/security/headers.mjs',
+  'scripts/security/sync-headers.mjs',
+  'scripts/build/verify-bundle.mjs',
+  'scripts/build/write-version.mjs',
+  'scripts/vite/vuestrata-plugin.mjs',
+  'scripts/vite/vuestrata-plugin.d.mts',
 ]
 
 /**
