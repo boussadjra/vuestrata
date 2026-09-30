@@ -23,6 +23,9 @@ export const MANAGED_DIRS = [
   'src/modules/app/composables/forms',
   'src/modules/app/styles/themes',
   'src/modules/core/lib',
+  // `boot()` and the steps it runs. `src/main.ts` and `src/App.vue` are thin
+  // shells the project owns; everything they used to do is here.
+  'src/modules/app/bootstrap',
   // The auth adapters and their helpers: what a token or a cookie session
   // means is not something a project should have to carry a fix for.
   'src/modules/auth/adapters',
@@ -38,6 +41,8 @@ export const MANAGED_FILES = [
   'src/modules/app/components/layout/AppSidebar.vue',
   'src/modules/app/components/layout/AppBreadcrumb.vue',
   'src/modules/app/components/layout/SkipLink.vue',
+  'src/modules/app/components/layout/AppRoot.vue',
+  'src/modules/app/components/layout/AppErrorBoundary.vue',
 
   // Promoted from the project's files in 1.1.0 (same paths; `migrations/1.1.0/
   // promotions.mjs` adopts an unedited copy). Each one is plumbing that every
