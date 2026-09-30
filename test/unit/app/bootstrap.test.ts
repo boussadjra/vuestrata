@@ -4,6 +4,7 @@ import type { Router } from 'vue-router'
 
 import { boot, type BootDeps } from '@/bootstrap'
 import { renderBootFailure } from '@/bootstrap/boot-error'
+import { VueQueryPlugin, vueQueryOptions } from '@/bootstrap/query-client'
 import { installSeams } from '@/bootstrap/seams'
 import type { createAuthAdapter } from '@/modules/auth'
 
@@ -221,6 +222,23 @@ describe('boot order', () => {
   it('never rejects', async () => {
     const { deps } = harness()
     await expect(boot(root, { deps })).resolves.toBeUndefined()
+  })
+})
+
+describe('the query plugin', () => {
+  it('is installed with the bootstrap options unless the project passes its own', async () => {
+    const { deps, app } = harness()
+    delete deps.installQuery
+
+    await boot(root, { deps })
+    const use = vi.mocked(app.use)
+    const installed = use.mock.calls.find(([plugin]) => plugin === VueQueryPlugin)
+    expect(installed?.[1]).toBe(vueQueryOptions)
+
+    use.mockClear()
+    const own = { queryClientConfig: { defaultOptions: { queries: { staleTime: 1 } } } }
+    await boot(root, { deps, queryOptions: own })
+    expect(use.mock.calls.find(([plugin]) => plugin === VueQueryPlugin)?.[1]).toBe(own)
   })
 })
 

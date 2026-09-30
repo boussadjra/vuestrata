@@ -1,4 +1,5 @@
 import { configure as configureFormwerk } from '@formwerk/core'
+import type { VueQueryPluginOptions } from '@tanstack/vue-query'
 import type { Pinia } from 'pinia'
 import { createApp, type App, type Component } from 'vue'
 import type { RouteComponent, Router } from 'vue-router'
@@ -82,11 +83,17 @@ export interface BootOptions {
    * anything but `boot(App)`.
    */
   beforeMount?: (app: App) => void | Promise<void>
+  /**
+   * Replaces the query client options wholesale, including the retry policy
+   * in `bootstrap/query-client.ts`. Spread `vueQueryOptions` (exported there)
+   * to change one setting and keep the rest.
+   */
+  queryOptions?: VueQueryPluginOptions
   /** Replace any dependency. Meant for tests; production code passes nothing. */
   deps?: Partial<BootDeps>
 }
 
-function defaultDeps(): BootDeps {
+function defaultDeps(options: BootOptions): BootDeps {
   return {
     bootstrapTheme,
     configureFormwerk,
@@ -100,7 +107,7 @@ function defaultDeps(): BootDeps {
     installSeams,
     useAuthStore,
     createAuthAdapter,
-    installQuery: (app) => app.use(VueQueryPlugin, vueQueryOptions),
+    installQuery: (app) => app.use(VueQueryPlugin, options.queryOptions ?? vueQueryOptions),
     installI18n,
     setupModules,
     appModules,
@@ -135,7 +142,7 @@ function setupVueErrorHandler(app: App): void {
  * `renderBootFailure()`; `boot()` itself never rejects.
  */
 export async function boot(root: Component, options: BootOptions = {}): Promise<void> {
-  const deps: BootDeps = { ...defaultDeps(), ...options.deps }
+  const deps: BootDeps = { ...defaultDeps(options), ...options.deps }
 
   try {
     await runBoot(root, options, deps)
