@@ -53,7 +53,11 @@ know which of these it is.
 
 `packages/cli/src/lib/managed.mjs` is the list. In short: the `Ui*` layer,
 `composables/forms/`, `styles/themes/`, `core/lib/` and the layout components
-are `managed`; the `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts`
+are `managed`, and so is the plumbing they run on: the bootstrap, the auth store and
+adapters, the runtime backends, the route guard and session restore, the mock
+helpers, the locale catalogs and the deployment scripts. `src/main.ts` and
+`src/App.vue` are not: they are thin shells the project owns, calling `boot(App)`
+and rendering `<AppRoot />`. The `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts`
 are `merged`; `brand.css`, `app.overrides.ts`, `Logo.vue` and the locale
 overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
 so what a generator appends there is not an edit.
@@ -115,23 +119,24 @@ you (domain fields, permission grants, translations).
 
 ## Repo map
 
-| Path                                 | What lives there                                                      |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| `src/modules/app/`                   | The application shell. Aliased `@` and `~`.                           |
-| `src/modules/app/components/ui/`     | `Ui*` wrappers — the public component surface.                        |
-| `src/modules/app/components/layout/` | App shell UI (header, sidebar, footer).                               |
-| `src/modules/app/composables/forms/` | Field behaviour behind the `Ui*` field wrappers.                      |
-| `src/modules/app/layouts/`           | Layout components. Must also be in `layoutMap` (`plugins/router.ts`). |
-| `src/modules/app/pages/`             | File-routed shell pages (home, docs, 403, showcase).                  |
-| `src/modules/app/state/`             | `createGlobalState` singletons.                                       |
-| `src/modules/app/stores/`            | App-level Pinia stores.                                               |
-| `src/modules/app/styles/`            | Tailwind entry, `semantic.css`, `themes/`.                            |
-| `src/modules/core/lib/`              | Framework-agnostic. Aliased `@/lib`, `~/lib`.                         |
-| `src/modules/<domain>/`              | Feature modules. `customers` is the reference implementation.         |
-| `src/modules/setup.ts`               | `appModules` — the module registry.                                   |
-| `src/modules/nav-groups.ts`          | Sidebar sections.                                                     |
-| `docs/`                              | Markdown, rendered in-app at `/docs`.                                 |
-| `test/{unit,component,integration}/` | Vitest. `e2e/` is Playwright.                                         |
+| Path                                 | What lives there                                                                                |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `src/modules/app/`                   | The application shell. Aliased `@` and `~`.                                                     |
+| `src/modules/app/bootstrap/`         | `boot()`, the boot sequence (managed). `src/main.ts` and `src/App.vue` are thin shells over it. |
+| `src/modules/app/components/ui/`     | `Ui*` wrappers — the public component surface.                                                  |
+| `src/modules/app/components/layout/` | App shell UI (header, sidebar, footer) and `AppRoot.vue`, the root component.                   |
+| `src/modules/app/composables/forms/` | Field behaviour behind the `Ui*` field wrappers.                                                |
+| `src/modules/app/layouts/`           | Layout components. Must also be in `layoutMap` (`plugins/router.ts`).                           |
+| `src/modules/app/pages/`             | File-routed shell pages (home, docs, 403, showcase).                                            |
+| `src/modules/app/state/`             | `createGlobalState` singletons.                                                                 |
+| `src/modules/app/stores/`            | App-level Pinia stores (`auth` and `api-runtime` are managed).                                  |
+| `src/modules/app/styles/`            | Tailwind entry, `semantic.css`, `themes/`.                                                      |
+| `src/modules/core/lib/`              | Framework-agnostic. Aliased `@/lib`, `~/lib`.                                                   |
+| `src/modules/<domain>/`              | Feature modules. `customers` is the reference implementation.                                   |
+| `src/modules/setup.ts`               | `appModules` — the module registry.                                                             |
+| `src/modules/nav-groups.ts`          | Sidebar sections.                                                                               |
+| `docs/`                              | Markdown, rendered in-app at `/docs`.                                                           |
+| `test/{unit,component,integration}/` | Vitest. `e2e/` is Playwright.                                                                   |
 
 Aliases: `@` and `~` are synonyms for `src/modules/app`. **`@/` is not `src/`.**
 `@/lib` → `core/lib`, `@/modules` → `src/modules`.
