@@ -18,6 +18,14 @@ const CLI_ROOT = path.resolve(process.cwd(), 'packages/cli')
 export const CLI_PRESENT = fs.existsSync(path.join(CLI_ROOT, 'src/index.mjs'))
 
 /**
+ * Whether this run is a template maintainer's. Suites that read THIS
+ * repository as the template — building its payload, say — assume a pristine
+ * checkout, which a project stops being at its first `add module`. Turned on by
+ * VUESTRATA_MAINTAINER=1, as for the public-surface snapshots.
+ */
+export const MAINTAINER = process.env.VUESTRATA_MAINTAINER === '1'
+
+/**
  * A module of the CLI package, by path inside it — `src/lib/lockfile.mjs`.
  * Resolves to an empty object when the package is absent, so a suite can
  * destructure at module scope and be skipped rather than crash.

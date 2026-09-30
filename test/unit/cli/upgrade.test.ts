@@ -14,6 +14,7 @@ const { diagnose } = await loadCli('src/commands/doctor.mjs')
 const { runInit } = await loadCli('src/commands/init.mjs')
 const { runUpgrade } = await loadCli('src/commands/upgrade.mjs')
 const lockfile = await loadCli('src/lib/lockfile.mjs')
+const { blankRegions } = await loadCli('src/lib/registry.mjs')
 
 /**
  * The upgrade contract: an untouched file updates, a file the project added is
@@ -579,9 +580,12 @@ describe.skipIf(!CLI_PRESENT)('merged files, through the generator and the forma
   // The one merged file whose markers the formatter moves: once permissions sit
   // in app:permissions they are union members, so oxfmt indents the markers
   // above them. Read from this repository, since a fixture would hide what the
-  // real file does.
+  // real file does — with its app: regions emptied, so a project that has
+  // already generated a module reads the same file the template ships.
   const RBAC = 'src/modules/core/lib/rbac/types.ts'
-  const pristine = fs.readFileSync(path.join(process.cwd(), RBAC), 'utf8')
+  const pristine = CLI_PRESENT
+    ? blankRegions(fs.readFileSync(path.join(process.cwd(), RBAC), 'utf8'))
+    : ''
 
   /** What `vuestrata add module payments` does to it. */
   const generated = pristine.replace(

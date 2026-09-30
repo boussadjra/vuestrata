@@ -4,7 +4,7 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { CLI_PRESENT, loadCli } from './cli'
+import { CLI_PRESENT, loadCli, MAINTAINER } from './cli'
 import { createFixture, type Fixture, hash, writePayload } from './fixture'
 
 // Loaded rather than imported, so a project without `packages/cli` skips this
@@ -131,7 +131,11 @@ describe.skipIf(!CLI_PRESENT)('an upgrade from a v1 payload', () => {
   })
 })
 
-describe.skipIf(!CLI_PRESENT)('build-payload', () => {
+// Template maintainers only. These build the payload from THIS repository and
+// expect the template as released; a project that has run `add module` no
+// longer is one (its permissions sit in an app: region, which a payload refuses
+// to ship). The build's own behaviour is covered by the suites around this one.
+describe.skipIf(!CLI_PRESENT || !MAINTAINER)('build-payload', () => {
   // Built from this repository into a directory of its own: the same code
   // `prepack` runs, pointed somewhere a test may write.
   let out: string
