@@ -637,7 +637,7 @@
     },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
-      "hash": "sha256-1cb3de8bf777d302ab756cabf5146ec893654a1726b69d4ebbab18f5d5ef9947",
+      "hash": "sha256-6ef0ec7ddc6962b5b66f246aa7c29434505b7ef5993816e828b39b1851313012",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/config/index.ts": {
