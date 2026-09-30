@@ -54,6 +54,8 @@ export const MANAGED_FILES = [
   'src/modules/app/state/build-info.ts',
   'src/modules/app/plugins/route-guard.ts',
   'src/modules/app/plugins/session-restore.ts',
+  // Re-exports the query options from the bootstrap, which is where they live.
+  'src/modules/app/plugins/vue-query.ts',
   'src/modules/app/composables/useRbac.ts',
   'src/modules/auth/composables/useAuth.ts',
   // Generated modules import these three.

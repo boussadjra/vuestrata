@@ -1,6 +1,7 @@
 import { slot } from '../../src/lib/manifest.mjs'
 import { ANCHORED_REGISTRIES } from '../../src/lib/registry.mjs'
 import { splitRegion } from '../split-regions.mjs'
+import promotions from './promotions.mjs'
 
 /**
  * Give every registry two sentinel regions instead of one.
@@ -20,7 +21,7 @@ import { splitRegion } from '../split-regions.mjs'
  * real and being aspirational.
  */
 
-export default {
+const regionSplit = {
   description: 'split each gen: sentinel into vuestrata: and app: regions',
   steps: ANCHORED_REGISTRIES.filter((registry) => registry.hadLegacyMarker).map((registry) => ({
     file: (manifest) => slot(manifest, registry.slot),
@@ -28,3 +29,6 @@ export default {
       splitRegion(source, registry.region, { comment: registry.comment, keepIn: 'app' }),
   })),
 }
+
+// One release, several changes, each with a line of its own in the upgrade report.
+export default [regionSplit, ...promotions]
