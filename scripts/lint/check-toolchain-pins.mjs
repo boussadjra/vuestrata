@@ -22,7 +22,7 @@
  *
  * Wired into `vpr lint` and CI.
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -88,13 +88,18 @@ function expectAll(file, label, pattern, expected) {
 // Dockerfile
 expectAll('Dockerfile', 'Node', /^FROM node:(\d+)/gm, nodeMajor)
 expectAll('Dockerfile', 'pnpm', /pnpm@([\d.]+)/g, pnpmVersion)
-expectAll('Dockerfile', 'Vite\\+', /vite-plus[a-z-]*@([\d.]+)/g, vitePlusVersion)
+// The digits matter: the platform bindings are named for their target
+// (`vite-plus-linux-x64-gnu`, `-linux-arm64-gnu`), and without them in the
+// class the x64 pin was never matched, so it could drift unchecked.
+expectAll('Dockerfile', 'Vite\\+', /vite-plus[a-z0-9-]*@([\d.]+)/g, vitePlusVersion)
 
 // vercel.json
 expectAll('vercel.json', 'Vite+', /vite-plus@([\d.]+)/g, vitePlusVersion)
 
-// Workflows
+// Workflows. `eject` removes deploy-demo.yml and release.yml, and a project may
+// delete any of them, so one that is not there has nothing to drift.
 for (const workflow of ['ci.yml', 'deploy-demo.yml', 'release.yml']) {
+  if (!existsSync(resolve(root, `.github/workflows/${workflow}`))) continue
   expectAll(`.github/workflows/${workflow}`, 'Node', /NODE_VERSION: '(\d+)'/g, nodeMajor)
 }
 
