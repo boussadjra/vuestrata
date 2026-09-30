@@ -32,7 +32,11 @@ import {
  * just quietly stop arriving.
  *
  * So it is checked like the toolchain pins and the security headers are.
- * Rebuild with `vuestrata init --force --pristine`.
+ *
+ * FOR TEMPLATE MAINTAINERS. Run through `vpr lint:maintainer`, never through
+ * a project's `vpr lint`: a project bumps its own version, edits managed files
+ * and generates seeded ones as a matter of course, and every one of those would
+ * fail here. A project's equivalent is `vuestrata doctor`.
  */
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -43,7 +47,14 @@ function fail(problems) {
   for (const problem of problems.slice(0, 20)) console.error(`  - ${problem}`)
   if (problems.length > 20) console.error(`  … and ${problems.length - 20} more`)
   console.error('')
-  console.error('  Rebuild it:  node packages/cli/src/index.mjs init --force --pristine')
+  console.error('  This gate is for template maintainers. It checks the lockfile this repository')
+  console.error('  ships, so it goes stale when a managed file changes without it being rebuilt.')
+  console.error('  Maintainers rebuild it with:')
+  console.error('    node packages/cli/src/index.mjs init --force --pristine --no-format')
+  console.error('')
+  console.error('  In a project built from the template, do NOT do that: it records your edits as')
+  console.error('  the upstream copy, and the next upgrade then replaces them. Run')
+  console.error('  `vuestrata doctor` instead, which reports drift without changing anything.')
   process.exit(1)
 }
 
@@ -99,7 +110,15 @@ for (const rel of SEEDED_FILES) {
 
 // Anything left is tracked but no longer part of the template — a file that was
 // deleted or reclassified, which an upgrade would still try to reason about.
-for (const rel of tracked) problems.push(`${rel} is tracked but no longer managed`)
+//
+// Except a seeded record. `add module|component|theme` writes the files it
+// generates as seeded and records each, so a lockfile that has seen one holds
+// entries for files that are not seams and never will be. They belong to the
+// project, and `upgrade` never touches them, so they are not stale.
+for (const rel of tracked) {
+  if (lock.files[rel].class === 'seeded') continue
+  problems.push(`${rel} is tracked but no longer managed`)
+}
 
 // The registries' vuestrata: regions are baselines too. A stale one makes a
 // fresh clone's first upgrade think the project edited the region, and skip it.

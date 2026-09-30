@@ -18,6 +18,11 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
+    env:
+      # Turns on test/unit/architecture/public-surface.test.ts, which snapshots
+      # this repository's own modules and permissions. Empty in a project built
+      # from the template, which would fail it on its first `add module`.
+      VUESTRATA_MAINTAINER: ${{ github.repository == 'boussadjra/vuestrata' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: voidzero-dev/setup-vp@v1
@@ -28,6 +33,12 @@ jobs:
       - run: vp check
       - run: node scripts/lint/run-custom-rules.mjs
       - run: node scripts/msw/check-worker-version.mjs
+      # The shipped lockfile and CLI payload describe THIS release. Both go
+      # stale silently: nothing errors, projects just stop receiving updates.
+      # Neither was checked by any workflow before a tag was pushed.
+      - name: Maintainer gates (template lock, CLI payload)
+        if: github.repository == 'boussadjra/vuestrata'
+        run: vpr lint:maintainer
       - run: vpr test --run
 
   smoke:

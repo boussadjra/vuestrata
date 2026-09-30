@@ -47,7 +47,7 @@ vpr version:prerelease -- --preid beta
 Every release, in order.
 
 1. `vp check`
-2. `vpr lint`
+2. `vpr lint` and `vpr lint:maintainer -- --tests`
 3. `vpr test --run`
 4. `vpr test:e2e` — for a user-visible or routing change
 5. **Write the migration**, if the change touches any contract in the table
@@ -60,8 +60,8 @@ Every release, in order.
    vpr version:prerelease        # or version:patch / :minor / :major
    ```
 
-8. Rebuild the shipped lockfile — the bump invalidated it, and `vpr lint` fails
-   until it is current
+8. Rebuild the shipped lockfile — the bump invalidated it, and `vpr lint:maintainer`
+   fails until it is current
 
    ```bash
    node packages/cli/src/index.mjs init --force --pristine
@@ -98,6 +98,26 @@ cd packages/cli && vp pm publish --access public --tag alpha
     ```bash
     vp pm view @vuestrata/cli dist-tags
     ```
+
+## Consumer Gates And Maintainer Gates
+
+A project built from Vuestrata inherits `vpr lint` and `vpr test --run`, and both
+have to pass on ordinary development: a version bump, an edited managed file,
+the first `add module`. So they carry only checks that hold for any project.
+
+Checks that describe a _release_ of the template do not, and run for maintainers
+only:
+
+- `vpr lint:maintainer` checks that the shipped `vuestrata.lock.json` and the CLI
+  payload match this checkout. `-- --tests` adds the public-surface snapshots.
+- `test/unit/architecture/public-surface.test.ts` snapshots this repository's
+  modules and permissions, so it runs only with `VUESTRATA_MAINTAINER=1`. CI and
+  the release workflow set it in the template's own repository, and only there.
+
+A project's equivalent of the lockfile check is `vuestrata doctor`. If the
+lockfile looks stale in a project, do **not** rebuild it with
+`init --force --pristine`: that records the project's edits as the upstream copy,
+and the next upgrade replaces them.
 
 ## The Compatibility Rule
 
