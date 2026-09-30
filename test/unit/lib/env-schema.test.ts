@@ -216,6 +216,15 @@ describe('serving (vp dev) versus building', () => {
     )
   })
 
+  it('does not suggest /api for a backend served from its root', () => {
+    // The proxy forwards the path unchanged, so /api would reach a root-served
+    // backend as /api/users instead of /users.
+    const rootBackend = { ...localBackend, VUESTRATA_API_URL: 'http://localhost:8000' }
+
+    expect(() => parseRuntimeEnv(rootBackend)).toThrow(/accepts this URL while serving/)
+    expect(() => parseRuntimeEnv(rootBackend)).not.toThrow(/VUESTRATA_API_URL=\/api with/)
+  })
+
   it('keeps that dev-server advice out of the browser, where it cannot help', () => {
     // Only the strict parser adds it. The lenient one ships in the bundle, and
     // a dev-only variable has no business being named there.

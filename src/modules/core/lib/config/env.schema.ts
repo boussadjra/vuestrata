@@ -364,7 +364,17 @@ function describeApiUrlIssue(
  * bundle, where the lenient parser could do nothing with either.
  */
 function describeDevProxyAlternative(apiUrl: URL): string {
-  const path = apiUrl.pathname.replace(/\/+$/, '') || '/api'
+  const path = apiUrl.pathname.replace(/\/+$/, '')
+  // A backend served from its root cannot sit behind /api: the proxy forwards
+  // the path unchanged, so it would receive /api/users instead of /users.
+  if (!path) {
+    return (
+      'A build must point at the real API. For development, `vp dev` accepts this ' +
+      'URL while serving, provided the backend answers CORS; if the API lives under a ' +
+      `path, keep it same-origin instead with ${ENV_KEYS.apiUrl}=/<path> and ` +
+      `DEV_API_TARGET=${apiUrl.origin}.`
+    )
+  }
   return (
     'A build must point at the real API. For development, keep the API same-origin ' +
     `instead: ${ENV_KEYS.apiUrl}=${path} with DEV_API_TARGET=${apiUrl.origin} in ` +
