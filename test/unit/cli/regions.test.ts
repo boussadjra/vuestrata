@@ -3,15 +3,15 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
-// @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
-import { runUpgrade } from '../../../packages/cli/src/commands/upgrade.mjs'
-// @ts-expect-error - see above.
-import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
-// @ts-expect-error - see above.
-import { MERGED_FILES } from '../../../packages/cli/src/lib/managed.mjs'
-// @ts-expect-error - see above.
-import * as registry from '../../../packages/cli/src/lib/registry.mjs'
+import { CLI_PRESENT, loadCli } from './cli'
 import { createFixture, type Fixture, writePayload } from './fixture'
+
+// Loaded rather than imported, so a project without `packages/cli` skips this
+// file instead of failing to collect it.
+const { runUpgrade } = await loadCli('src/commands/upgrade.mjs')
+const lockfile = await loadCli('src/lib/lockfile.mjs')
+const { MERGED_FILES } = await loadCli('src/lib/managed.mjs')
+const registry = await loadCli('src/lib/registry.mjs')
 
 /**
  * The region primitives an upgrade stands on: which lines of a file are the
@@ -35,7 +35,7 @@ const BARREL = [
   '',
 ].join('\n')
 
-describe('blankRegions', () => {
+describe.skipIf(!CLI_PRESENT)('blankRegions', () => {
   it('drops the body of every app: region and keeps the markers', () => {
     expect(blankRegions(BARREL)).toBe(
       [
@@ -76,7 +76,7 @@ describe('blankRegions', () => {
   })
 })
 
-describe('spliceRegions', () => {
+describe.skipIf(!CLI_PRESENT)('spliceRegions', () => {
   const incoming = [
     "export { default as UiButton } from './UiButton.vue'",
     "export { default as UiBadge } from './UiBadge.vue'",
@@ -136,7 +136,7 @@ describe('spliceRegions', () => {
   })
 })
 
-describe('regionEntries', () => {
+describe.skipIf(!CLI_PRESENT)('regionEntries', () => {
   it('keys ordinary registries by the trimmed line', () => {
     expect(regionEntries(['  fooModule,', '', '  barModule,'])).toEqual([
       { key: 'fooModule,', lines: ['fooModule,'] },
@@ -188,7 +188,7 @@ describe('regionEntries', () => {
   })
 })
 
-describe('appendToRegion', () => {
+describe.skipIf(!CLI_PRESENT)('appendToRegion', () => {
   it('appends before the closing marker, at its indentation', () => {
     const source = 'export const x = [\n  // vuestrata:themes-start\n  // vuestrata:themes-end\n]\n'
     const next = appendToRegion(source, 'vuestrata:themes', [
@@ -219,16 +219,16 @@ describe('appendToRegion', () => {
   })
 })
 
-describe('the merged files in this repository', () => {
+describe.skipIf(!CLI_PRESENT)('the merged files in this repository', () => {
   // A merged file with nothing to merge would be a managed file under a
   // misleading name. The payload build refuses one; this says which.
-  it.each(MERGED_FILES as string[])('%s carries an app: region', (rel) => {
+  it.each((MERGED_FILES ?? []) as string[])('%s carries an app: region', (rel) => {
     const source = fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
     expect(regionNames(source).length).toBeGreaterThan(0)
   })
 })
 
-describe('region sync', () => {
+describe.skipIf(!CLI_PRESENT)('region sync', () => {
   let fixture: Fixture
 
   const THEMES = 'src/modules/app/config/theme.config.ts'

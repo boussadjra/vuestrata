@@ -5,15 +5,15 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-// @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
-import { diagnose } from '../../../packages/cli/src/commands/doctor.mjs'
-// @ts-expect-error - see above.
-import { runInit } from '../../../packages/cli/src/commands/init.mjs'
-// @ts-expect-error - see above.
-import { runUpgrade } from '../../../packages/cli/src/commands/upgrade.mjs'
-// @ts-expect-error - see above.
-import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
+import { CLI_PRESENT, loadCli } from './cli'
 import { writePayload } from './fixture'
+
+// Loaded rather than imported, so a project without `packages/cli` skips this
+// file instead of failing to collect it.
+const { diagnose } = await loadCli('src/commands/doctor.mjs')
+const { runInit } = await loadCli('src/commands/init.mjs')
+const { runUpgrade } = await loadCli('src/commands/upgrade.mjs')
+const lockfile = await loadCli('src/lib/lockfile.mjs')
 
 /**
  * The upgrade contract: an untouched file updates, a file the project added is
@@ -69,10 +69,7 @@ function buildPayload(version: string, files: Record<string, string>) {
 
 function source() {
   // Imported lazily so each test sees the payload it just built.
-  // @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
-  return import('../../../packages/cli/src/lib/payload.mjs').then((module) =>
-    module.createPayloadSource(payload),
-  )
+  return loadCli('src/lib/payload.mjs').then((module) => module.createPayloadSource(payload))
 }
 
 beforeEach(() => {
@@ -109,7 +106,7 @@ function seedProject() {
   return { original }
 }
 
-describe('upgrade', () => {
+describe.skipIf(!CLI_PRESENT)('upgrade', () => {
   it('replaces a managed file the project never touched', async () => {
     seedProject()
     buildPayload('1.1.0', {
@@ -307,7 +304,7 @@ describe('upgrade', () => {
   })
 })
 
-describe('diff', () => {
+describe.skipIf(!CLI_PRESENT)('diff', () => {
   it('writes nothing at all', async () => {
     const { original } = seedProject()
     buildPayload('1.1.0', {
@@ -407,7 +404,7 @@ function upgradeWith(spec: Parameters<typeof writePayload>[1], apply = true) {
   })
 }
 
-describe('diff, across every phase', () => {
+describe.skipIf(!CLI_PRESENT)('diff, across every phase', () => {
   it('previews seams, merged files, regions and promotions exactly as upgrade does them', () => {
     const lock = emptyLock('1.1.0')
     lock.files[BARREL] = {
@@ -458,7 +455,7 @@ describe('diff, across every phase', () => {
   })
 })
 
-describe('seeded files', () => {
+describe.skipIf(!CLI_PRESENT)('seeded files', () => {
   beforeEach(() => {
     writeLock(project, emptyLock('1.1.0'))
   })
@@ -505,7 +502,7 @@ describe('seeded files', () => {
   })
 })
 
-describe('merged files', () => {
+describe.skipIf(!CLI_PRESENT)('merged files', () => {
   function seedMerged(contents: string, recordedFrom = barrel()) {
     write(BARREL, contents)
     const lock = emptyLock('1.1.0')
@@ -578,7 +575,7 @@ describe('merged files', () => {
   })
 })
 
-describe('merged files, through the generator and the formatter', () => {
+describe.skipIf(!CLI_PRESENT)('merged files, through the generator and the formatter', () => {
   // The one merged file whose markers the formatter moves: once permissions sit
   // in app:permissions they are union members, so oxfmt indents the markers
   // above them. Read from this repository, since a fixture would hide what the
@@ -652,7 +649,7 @@ describe('merged files, through the generator and the formatter', () => {
   })
 })
 
-describe('doctor', () => {
+describe.skipIf(!CLI_PRESENT)('doctor', () => {
   const texts = (findings: { notes: string[]; warnings: string[]; errors: string[] }) =>
     [...findings.notes, ...findings.warnings, ...findings.errors].join('\n')
 
@@ -766,7 +763,7 @@ describe('doctor', () => {
   })
 })
 
-describe('init --force', () => {
+describe.skipIf(!CLI_PRESENT)('init --force', () => {
   const UI = 'src/modules/app/components/ui'
 
   it('rebuilds the baselines and keeps the decisions: seeded stays seeded, ejected stays ejected', () => {

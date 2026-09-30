@@ -4,17 +4,16 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
-// @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
-import * as buildScript from '../../../packages/cli/scripts/build-payload.mjs'
-// @ts-expect-error - see above.
-import { runUpgrade } from '../../../packages/cli/src/commands/upgrade.mjs'
-// @ts-expect-error - see above.
-import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
-// @ts-expect-error - see above.
-import * as managed from '../../../packages/cli/src/lib/managed.mjs'
-// @ts-expect-error - see above.
-import { createPayloadSource } from '../../../packages/cli/src/lib/payload.mjs'
+import { CLI_PRESENT, loadCli } from './cli'
 import { createFixture, type Fixture, hash, writePayload } from './fixture'
+
+// Loaded rather than imported, so a project without `packages/cli` skips this
+// file instead of failing to collect it.
+const buildScript = await loadCli('scripts/build-payload.mjs')
+const { runUpgrade } = await loadCli('src/commands/upgrade.mjs')
+const lockfile = await loadCli('src/lib/lockfile.mjs')
+const managed = await loadCli('src/lib/managed.mjs')
+const { createPayloadSource } = await loadCli('src/lib/payload.mjs')
 
 const SCRIPT = path.resolve(process.cwd(), 'packages/cli/scripts/build-payload.mjs')
 
@@ -41,7 +40,7 @@ afterEach(() => {
   fixture.cleanup()
 })
 
-describe('createPayloadSource', () => {
+describe.skipIf(!CLI_PRESENT)('createPayloadSource', () => {
   it('reads a v1 index: every file managed, nothing seeded, merged or region-scoped', () => {
     const source = writePayload(
       fixture.payload,
@@ -84,7 +83,7 @@ describe('createPayloadSource', () => {
   })
 })
 
-describe('an upgrade from a v1 payload', () => {
+describe.skipIf(!CLI_PRESENT)('an upgrade from a v1 payload', () => {
   it("still installs managed files, and keeps a merged file's app: entries", () => {
     const upstream = [
       "export { default as UiButton } from './UiButton.vue'",
@@ -132,7 +131,7 @@ describe('an upgrade from a v1 payload', () => {
   })
 })
 
-describe('build-payload', () => {
+describe.skipIf(!CLI_PRESENT)('build-payload', () => {
   // Built from this repository into a directory of its own: the same code
   // `prepack` runs, pointed somewhere a test may write.
   let out: string
@@ -202,7 +201,7 @@ describe('build-payload', () => {
   })
 })
 
-describe('build-payload: what a region may ship', () => {
+describe.skipIf(!CLI_PRESENT)('build-payload: what a region may ship', () => {
   const line = { keyedBy: 'line' }
   const variable = { keyedBy: 'variable' }
   const check = (lines: string[], registry = line) =>
@@ -231,7 +230,7 @@ describe('build-payload: what a region may ship', () => {
   })
 })
 
-describe('build-payload: running as a script', () => {
+describe.skipIf(!CLI_PRESENT)('build-payload: running as a script', () => {
   let link: string
 
   afterEach(() => {
