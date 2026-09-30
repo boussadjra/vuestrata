@@ -163,16 +163,35 @@ function nginxLocation(
  * The body of the 502 for an unrouted API path. `code` is the field the app's
  * API client reads into its error, so the console names this failure instead
  * of reporting a bare 502.
+ *
+ * nginx reads it inside a single-quoted string, where `'` would end the
+ * string, `$` start a variable and `\` an escape. None may appear, and a
+ * message edited to contain one fails the generation rather than the
+ * container start.
  */
 function apiNotRoutedBody(apiPath) {
-  return JSON.stringify({
+  const body = JSON.stringify({
     error: 'api_not_routed',
     code: 'API_NOT_ROUTED',
     message:
       `No backend is routed at ${apiPath}/. Route it to your API at the ingress or ` +
       'reverse proxy in front of this container.',
   })
+  if (/['$\\]/.test(body)) {
+    throw new Error(
+      `The unrouted-API response body cannot sit in a quoted nginx string: ${body}`,
+    )
+  }
+  return body
 }
+
+/**
+ * Scripts, stylesheets, images and fonts: paths that name a file rather than
+ * an SPA route. The list stays short on purpose, because a deep link to a
+ * route whose last segment ends in one of these (`/files/logo.png`) would 404
+ * on reload.
+ */
+const STATIC_FILE_LOCATION = '~* \\.(?:js|mjs|css|png|jpe?g|gif|ico|svg|webp|avif|woff2?|ttf|otf)$'
 
 export function renderNginxConf({ apiUrl = DEFAULT_API_URL } = {}) {
   const apiPath = sameOriginApiPath(apiUrl)
@@ -190,35 +209,62 @@ export function renderNginxConf({ apiUrl = DEFAULT_API_URL } = {}) {
   ]
 
   if (apiPath) {
+    const unrouted = {
+      // `types { }` empties the extension-to-type map, so default_type applies
+      // to every path: /api/export.html would otherwise go out as text/html.
+      directives: ['types { }', 'default_type application/json;'],
+      headers: [['Cache-Control', 'no-store']],
+      // The error is the whole response here, and 502 is not a status
+      // nginx adds headers to by default.
+      always: true,
+      reply: `return 502 '${apiNotRoutedBody(apiPath)}';`,
+    }
     blocks.push(
       nginxLocation(`^~ ${apiPath}/`, {
+        ...unrouted,
         comment:
           `The app calls its API at ${apiPath}/ on this origin (VUESTRATA_API_URL). Routing\n` +
           'that path to the backend is the job of the ingress or reverse proxy in front\n' +
           'of this container, not of this server. When nothing routes it, the SPA\n' +
           'fallback below would answer an API call with index.html (a 200 for a GET, a\n' +
           '405 for a POST) and the app would fail far from the cause. This names it.',
-        directives: ['default_type application/json;'],
-        headers: [['Cache-Control', 'no-store']],
-        // The error is the whole response here, and 502 is not a status
-        // nginx adds headers to by default.
-        always: true,
-        reply: `return 502 '${apiNotRoutedBody(apiPath)}';`,
+      }),
+      nginxLocation(`= ${apiPath}`, {
+        ...unrouted,
+        comment: `${apiPath} itself, which the prefix block above does not match.`,
       }),
     )
   }
 
   for (const rule of CACHE_RULES) {
     if (!rule.nginxLocation) continue
+    const isCatchAll = rule.nginxLocation === '/'
+
     blocks.push(
       nginxLocation(rule.nginxLocation, {
         comment: rule.comment,
         // The SPA fallback belongs to the catch-all; its rule says why that
         // does not put routes under the catch-all's cache policy.
-        directives: rule.nginxLocation === '/' ? ['try_files $uri $uri/ /index.html;'] : [],
+        directives: isCatchAll ? ['try_files $uri $uri/ /index.html;'] : [],
         headers: rule.headers,
       }),
     )
+
+    // The catch-all's policy also covers files with a static extension, in a
+    // block of their own so that a missing one is a 404.
+    if (isCatchAll) {
+      blocks.push(
+        nginxLocation(STATIC_FILE_LOCATION, {
+          comment:
+            'Scripts, stylesheets, images and fonts get the same hour, but a missing one\n' +
+            'is a 404: through the fallback above, a stale image link or a removed script\n' +
+            'would get index.html with a 200, and nothing would look broken. A matching\n' +
+            'regex beats the `/` prefix; the exact and ^~ locations still beat the regex.',
+          directives: ['try_files $uri =404;'],
+          headers: rule.headers,
+        }),
+      )
+    }
   }
 
   const lines = [

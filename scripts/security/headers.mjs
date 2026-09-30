@@ -201,7 +201,9 @@ export const CACHE_RULES = [
     // nginx only. A hosted platform matches headers on the request path, and a
     // pattern broad enough for these files also covers every SPA route — see
     // the note above. Those hosts keep their own default here, which
-    // revalidates on every request.
+    // revalidates on every request. The generator applies these headers to two
+    // blocks: `location /`, and the one that answers a missing script, image
+    // or font with a 404 rather than the app.
     match: null,
     nginxLocation: '/',
     headers: [['Cache-Control', 'public, max-age=3600']],

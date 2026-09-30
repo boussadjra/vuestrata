@@ -19,6 +19,8 @@ import * as sync from '../../../scripts/security/sync-headers.mjs'
 
 const SCRIPT = path.join(process.cwd(), 'scripts/security/sync-headers.mjs')
 const SNIPPET_INCLUDE = 'include /etc/nginx/snippets/security-headers.conf;'
+/** The regex location for files that name a script, style, image or font. */
+const STATIC_FILES = '~* \\.(?:js|mjs|css|png|jpe?g|gif|ico|svg|webp|avif|woff2?|ttf|otf)$'
 
 /** Location → trimmed body lines. No block nests another, so a flat scan is enough. */
 function nginxLocations(conf: string): Map<string, string[]> {
@@ -102,8 +104,11 @@ describe('renderNginxConf', () => {
   describe('an unrouted same-origin API path', () => {
     it.each([
       ['/api', '^~ /api/'],
+      ['/api', '= /api'],
       ['/api/', '^~ /api/'],
+      ['/api/', '= /api'],
       ['/backend/v1', '^~ /backend/v1/'],
+      ['/backend/v1', '= /backend/v1'],
     ])('VUESTRATA_API_URL=%s answers a JSON 502 at %s', (apiUrl, location) => {
       const body = nginxLocations(sync.renderNginxConf({ apiUrl })).get(location) ?? []
 
@@ -115,6 +120,19 @@ describe('renderNginxConf', () => {
         .find((match) => match !== undefined)
       expect(payload, 'no `return 502` with a quoted body').toBeDefined()
       expect(JSON.parse(payload ?? '')).toMatchObject({ error: 'api_not_routed' })
+      // nginx reads the body inside a single-quoted string.
+      expect(payload).not.toMatch(/['$\\]/)
+    })
+
+    it('labels the body JSON whatever extension the request path ends in', () => {
+      // default_type only applies to a path whose extension mime.types does not
+      // know, so /api/export.html would go out as text/html without this.
+      for (const location of ['^~ /api/', '= /api']) {
+        const body = blocks.get(location) ?? []
+        const types = body.indexOf('types { }')
+        expect(types, `location ${location}`).toBeGreaterThanOrEqual(0)
+        expect(types).toBeLessThan(body.indexOf('default_type application/json;'))
+      }
     })
 
     it.each(['https://api.example.com', 'https://api.example.com/api', '/'])(
@@ -124,6 +142,7 @@ describe('renderNginxConf', () => {
 
         expect(rendered).not.toContain('return 502')
         expect([...nginxLocations(rendered).keys()]).not.toContain('^~ /api/')
+        expect([...nginxLocations(rendered).keys()]).not.toContain('= /api')
       },
     )
 
@@ -143,13 +162,33 @@ describe('renderNginxConf', () => {
     expect(policy).toEqual({
       '= /healthz': 'no-store',
       '^~ /api/': 'no-store',
+      '= /api': 'no-store',
       '= /index.html': 'no-cache',
       '^~ /assets/': 'public, max-age=31536000, immutable',
       '= /version.json': 'no-store',
       '= /runtime-config.js': 'no-store',
       '= /mockServiceWorker.js': 'no-cache, no-store, must-revalidate',
       '/': 'public, max-age=3600',
+      [STATIC_FILES]: 'public, max-age=3600',
     })
+  })
+
+  it('404s a missing script, image or font instead of falling back to the app', () => {
+    // The old regex location had no fallback, so a stale <img> or a removed
+    // script was a 404. Through `location /` it would get index.html with a
+    // 200, and nothing would look broken.
+    const body = blocks.get(STATIC_FILES) ?? []
+
+    expect(body).toContain('try_files $uri =404;')
+    expect(body).not.toContain('try_files $uri $uri/ /index.html;')
+    for (const extension of ['js', 'css', 'png', 'svg', 'ico', 'woff2']) {
+      expect(STATIC_FILES).toContain(extension)
+    }
+    // Only the catch-all falls back to the app.
+    for (const [location, other] of blocks) {
+      if (location === '/') continue
+      expect(other, `location ${location}`).not.toContain('try_files $uri $uri/ /index.html;')
+    }
   })
 
   it('puts a cache lifetime on successful responses only', () => {
@@ -158,7 +197,7 @@ describe('renderNginxConf', () => {
     // unrouted-API 502 is the exception, because the error is the response.
     for (const [location, body] of blocks) {
       const cacheControl = body.find((line) => line.startsWith('add_header Cache-Control '))
-      if (location === '^~ /api/') {
+      if (location === '^~ /api/' || location === '= /api') {
         expect(cacheControl).toMatch(/ always;$/)
       } else {
         expect(cacheControl, `location ${location}`).not.toMatch(/ always;$/)
