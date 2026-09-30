@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 // @ts-expect-error - see above.
 import { APP_SHELL, MAIN_SHELL } from '../../../packages/cli/migrations/1.1.0/promotions.mjs'
@@ -28,6 +28,11 @@ import { createFixture, type Fixture, writePayload } from './fixture'
 
 // Vitest runs from the repository root, as every script here does.
 const REPO = process.cwd()
+
+// Each upgrade writes a project to disk and runs the whole migration list, and
+// the tag checks start a git process per file: slow next to the default 5 s
+// while the rest of the suite is running.
+vi.setConfig({ testTimeout: 60_000 })
 const TAGS = ['v1.0.1-alpha.5', 'v1.0.1-alpha.6']
 
 function git(...args: string[]) {
@@ -38,10 +43,16 @@ const hasTags = TAGS.every(
   (tag) => git('rev-parse', '--verify', '--quiet', `${tag}^{commit}`).status === 0,
 )
 
-/** A file as a release shipped it. */
+const shown = new Map<string, string | null>()
+
+/** A file as a release shipped it. Cached: each lookup is a `git show` process. */
 function atTag(tag: string, rel: string): string | null {
-  const shown = git('show', `${tag}:${rel}`)
-  return shown.status === 0 ? shown.stdout : null
+  const key = `${tag}:${rel}`
+  if (!shown.has(key)) {
+    const result = git('show', key)
+    shown.set(key, result.status === 0 ? result.stdout : null)
+  }
+  return shown.get(key) ?? null
 }
 
 const inRepo = (rel: string) => fs.readFileSync(path.join(REPO, rel), 'utf8')
