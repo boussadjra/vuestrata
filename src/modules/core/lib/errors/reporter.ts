@@ -84,11 +84,28 @@ export function getErrorReporter(): ErrorReporter {
 }
 
 /**
+ * A request the app cancelled on purpose: an `AppError` of kind `aborted`, or
+ * the `AbortError` native fetch rejects with. Checked structurally because
+ * `AppError` lives in `./index`, which imports this file.
+ */
+function isDeliberateAbort(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  const candidate = error as { kind?: unknown; name?: unknown }
+  return candidate.kind === 'aborted' || candidate.name === 'AbortError'
+}
+
+/**
  * Report an error. Safe to call unconditionally: with no reporter installed
  * this is a no-op, and a reporter that throws is contained here rather than
  * being allowed to replace the original error with its own.
+ *
+ * A deliberate abort is dropped here, at the one choke point every sink goes
+ * through. It rejects like a failure — and can surface through a component's
+ * async setup as easily as through `unhandledrejection` — but there is nothing
+ * to fix, and a reporter full of cancelled searches is one nobody reads.
  */
 export function reportError(error: unknown, context: ErrorReportContext): void {
+  if (isDeliberateAbort(error)) return
   try {
     getErrorReporter().captureException(error, context)
   } catch (reporterError) {
