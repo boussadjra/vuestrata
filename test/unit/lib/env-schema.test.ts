@@ -171,3 +171,104 @@ describe('resolveRuntimeEnv (lenient, browser)', () => {
     expect(env.title).toBe('Vuestrata')
   })
 })
+
+/**
+ * `serving` is true under `vp dev`. A developer pointing production mode at a
+ * backend on their own machine is the normal case there, and a build doing the
+ * same is the mistake the placeholder rule exists to catch — so that one rule,
+ * and only that one, depends on it.
+ */
+describe('serving (vp dev) versus building', () => {
+  const localBackend = { ...productionEnv, [ENV_KEYS.apiUrl]: 'http://localhost:8000/api' }
+
+  it('accepts a local backend with a real adapter while serving', () => {
+    for (const apiUrl of [
+      'http://localhost:8000/api',
+      'http://127.0.0.1:3000',
+      'http://0.0.0.0:8080',
+    ]) {
+      const env = parseRuntimeEnv(
+        { ...productionEnv, [ENV_KEYS.apiUrl]: apiUrl },
+        { serving: true },
+      )
+      expect(env.apiUrl).toBe(apiUrl)
+      expect(env.authAdapter).toBe('jwt')
+      expect(env.useMocks).toBe(false)
+    }
+  })
+
+  it('leaves that URL alone in the browser rather than "correcting" it to /api', () => {
+    const onWarn = vi.fn()
+    const env = resolveRuntimeEnv(localBackend, { isDev: true, serving: true, onWarn })
+
+    expect(env.apiUrl).toBe('http://localhost:8000/api')
+    expect(onWarn).not.toHaveBeenCalled()
+  })
+
+  it('still rejects the same URL in a build, and names the dev proxy instead', () => {
+    expect(() => parseRuntimeEnv(localBackend, { serving: false })).toThrow(
+      /placeholder host "localhost"/,
+    )
+    // The message splits the rejected URL into the setup that works, so it can
+    // be copied into .env.development.local as-is.
+    expect(() => parseRuntimeEnv(localBackend)).toThrow(
+      'VUESTRATA_API_URL=/api with DEV_API_TARGET=http://localhost:8000 in .env.development.local',
+    )
+  })
+
+  it('keeps that dev-server advice out of the browser, where it cannot help', () => {
+    // Only the strict parser adds it. The lenient one ships in the bundle, and
+    // a dev-only variable has no business being named there.
+    const onWarn = vi.fn()
+    resolveRuntimeEnv(localBackend, { onWarn })
+
+    expect(onWarn).toHaveBeenCalledWith(expect.stringMatching(/placeholder host "localhost"/))
+    expect(onWarn).not.toHaveBeenCalledWith(expect.stringMatching(/DEV_API_TARGET/))
+  })
+
+  it('relaxes nothing but the placeholder rule', () => {
+    const serving = { serving: true }
+    expect(() =>
+      parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: 'localhost/api' }, serving),
+    ).toThrow(/neither an absolute URL nor a same-origin path/)
+    expect(() =>
+      parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: 'ftp://localhost/api' }, serving),
+    ).toThrow(/must use http or https/)
+    expect(() =>
+      parseRuntimeEnv({ ...localBackend, [ENV_KEYS.authAdapter]: 'mock' }, serving),
+    ).toThrow(/mock.*not valid in production/i)
+    expect(() =>
+      parseRuntimeEnv({ ...localBackend, [ENV_KEYS.useMocks]: 'true' }, serving),
+    ).toThrow(/must be "false"/)
+  })
+
+  it('still forces MSW and the mock adapter in demo mode', () => {
+    const serving = { isDev: true, serving: true }
+    expect(() => parseRuntimeEnv({ ...demoEnv, [ENV_KEYS.useMocks]: 'false' }, serving)).toThrow(
+      /must be "true"/,
+    )
+    expect(() => parseRuntimeEnv({ ...demoEnv, [ENV_KEYS.authAdapter]: 'jwt' }, serving)).toThrow(
+      /must be "mock"/,
+    )
+
+    const env = resolveRuntimeEnv(
+      {
+        ...demoEnv,
+        [ENV_KEYS.useMocks]: 'false',
+        [ENV_KEYS.authAdapter]: 'jwt',
+        [ENV_KEYS.apiUrl]: 'http://localhost:8000/api',
+      },
+      serving,
+    )
+    expect(env.useMocks).toBe(true)
+    expect(env.authAdapter).toBe('mock')
+  })
+
+  it('keeps the strict and lenient parsers in agreement while serving', () => {
+    for (const raw of [demoEnv, productionEnv, localBackend, {}]) {
+      expect(resolveRuntimeEnv(raw, { serving: true })).toEqual(
+        parseRuntimeEnv(raw, { serving: true }),
+      )
+    }
+  })
+})

@@ -3,8 +3,9 @@
  *
  * This module is deliberately dependency-free apart from `zod`: it imports no
  * Vue, no logger, and — critically — no path aliases. That is what allows it to
- * be imported from BOTH `vite.config.ts` (which runs in Node before aliases
- * exist) and from application code via `app.config.ts`.
+ * be imported from BOTH the Vite plugin in `scripts/vite/vuestrata-plugin.mjs`
+ * (which runs in Node before aliases exist) and from application code via
+ * `app.config.ts`.
  *
  * Two entry points, two failure modes:
  *   - `parseRuntimeEnv`   — strict. Throws. Used at build time so a misconfigured
@@ -22,7 +23,7 @@ import { z } from 'zod'
 /**
  * The build target. This is the single switch that decides which of the two
  * artifacts we are producing, and it is resolved at BUILD time — see the
- * `__VUESTRATA_DEMO__` define in vite.config.ts.
+ * `__VUESTRATA_DEMO__` define in scripts/vite/vuestrata-plugin.mjs.
  *
  *   demo       — public showcase. MSW intercepts everything; mock auth only.
  *   production — real deployment. No MSW, no demo state, real auth adapter.
@@ -100,7 +101,8 @@ export const AUTH_ADAPTER_ENV_KEY = ENV_KEYS.authAdapter
 
 /**
  * `VUESTRATA_API_URL` values that are obviously scaffolding rather than a real
- * backend. Allowed in demo mode, rejected in production mode.
+ * backend. Allowed in demo mode and by the dev server (see
+ * `ResolveOptions.serving`), rejected in a production build.
  */
 const PLACEHOLDER_API_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', 'api.example.com'])
 
@@ -217,7 +219,12 @@ export function isDemoRuntime(env: Pick<RuntimeEnv, 'runtimeMode'>): boolean {
 
 // ─── Combination rules ────────────────────────────────────────────────────────
 
-type Correction = { message: string; apply: (draft: RuntimeEnv) => void }
+type Correction = {
+  message: string
+  apply: (draft: RuntimeEnv) => void
+  /** Set by the placeholder-host rule, for `describeDevProxyAlternative`. */
+  placeholderApiUrl?: URL
+}
 
 /**
  * The cross-field rules that were entirely missing before: nothing stopped a
@@ -227,7 +234,7 @@ type Correction = { message: string; apply: (draft: RuntimeEnv) => void }
  * Each rule carries a correction so the lenient path can recover instead of
  * throwing. The strict path ignores the corrections and reports the messages.
  */
-function collectCombinationIssues(env: RuntimeEnv): Correction[] {
+function collectCombinationIssues(env: RuntimeEnv, serving: boolean): Correction[] {
   const issues: Correction[] = []
 
   if (env.runtimeMode === 'demo') {
@@ -299,10 +306,11 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
     })
   }
 
-  const apiUrlIssue = describeApiUrlIssue(env.apiUrl)
+  const apiUrlIssue = describeApiUrlIssue(env.apiUrl, serving)
   if (apiUrlIssue) {
     issues.push({
-      message: `${ENV_KEYS.apiUrl} is not usable in production: ${apiUrlIssue}`,
+      message: `${ENV_KEYS.apiUrl} is not usable in production: ${apiUrlIssue.message}`,
+      placeholderApiUrl: apiUrlIssue.placeholder,
       apply: (draft) => {
         draft.apiUrl = '/api'
       },
@@ -312,8 +320,14 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
   return issues
 }
 
-/** Returns a human-readable problem with the URL, or null when it is fine. */
-function describeApiUrlIssue(apiUrl: string): string | null {
+/**
+ * A human-readable problem with the URL, or null when it is fine. `placeholder`
+ * is set when the only problem is the host, which the dev server accepts.
+ */
+function describeApiUrlIssue(
+  apiUrl: string,
+  serving: boolean,
+): { message: string; placeholder?: URL } | null {
   // A same-origin path is legitimate — it means "behind a reverse proxy".
   if (apiUrl.startsWith('/')) return null
 
@@ -321,16 +335,41 @@ function describeApiUrlIssue(apiUrl: string): string | null {
   try {
     parsed = new URL(apiUrl)
   } catch {
-    return `"${apiUrl}" is neither an absolute URL nor a same-origin path starting with "/".`
+    return {
+      message: `"${apiUrl}" is neither an absolute URL nor a same-origin path starting with "/".`,
+    }
   }
 
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return `"${apiUrl}" must use http or https.`
+    return { message: `"${apiUrl}" must use http or https.` }
   }
-  if (PLACEHOLDER_API_HOSTS.has(parsed.hostname)) {
-    return `"${apiUrl}" points at the placeholder host "${parsed.hostname}".`
+  if (!serving && PLACEHOLDER_API_HOSTS.has(parsed.hostname)) {
+    return {
+      message: `"${apiUrl}" points at the placeholder host "${parsed.hostname}".`,
+      placeholder: parsed,
+    }
   }
   return null
+}
+
+/**
+ * How to develop against a backend the build has just refused: its URL split
+ * into a same-origin path for the app and an origin for the dev proxy. The
+ * proxy forwards the path unchanged, so the backend receives the requests it
+ * would have before. A URL with no path gets `/api`, because the proxy cannot
+ * take over the site root.
+ *
+ * Only the strict parser — which runs in Node, in the Vite plugin — calls this,
+ * so the advice and the dev-only variable it names stay out of the browser
+ * bundle, where the lenient parser could do nothing with either.
+ */
+function describeDevProxyAlternative(apiUrl: URL): string {
+  const path = apiUrl.pathname.replace(/\/+$/, '') || '/api'
+  return (
+    'A build must point at the real API. For development, keep the API same-origin ' +
+    `instead: ${ENV_KEYS.apiUrl}=${path} with DEV_API_TARGET=${apiUrl.origin} in ` +
+    `.env.development.local, and \`vp dev\` proxies ${path} there.`
+  )
 }
 
 // ─── Resolution ───────────────────────────────────────────────────────────────
@@ -338,6 +377,18 @@ function describeApiUrlIssue(apiUrl: string): string | null {
 interface ResolveOptions {
   /** Drives the `runtimeMode` default. Pass `import.meta.env.DEV` or `mode !== 'production'`. */
   isDev?: boolean
+  /**
+   * True when the app is being served rather than bundled: under `vp dev`, and
+   * under `vp preview`, whose bundle was validated when it was built. False for
+   * a build.
+   *
+   * Relaxes exactly one rule: the placeholder-host check on the API URL. A
+   * developer running production mode against a backend on their own machine
+   * points at `localhost` on purpose; a BUILD that does the same deploys an app
+   * that cannot reach its API. Every other rule — including demo mode forcing
+   * MSW and the mock adapter — applies either way.
+   */
+  serving?: boolean
   onWarn?: (message: string) => void
 }
 
@@ -390,11 +441,12 @@ function formatFieldIssues(error: z.ZodError): string[] {
 /**
  * Strict parse. Throws an aggregated error listing every problem at once.
  *
- * Call this from `vite.config.ts` so an invalid deployment configuration fails
- * the build rather than reaching a browser.
+ * The Vite plugin (`scripts/vite/vuestrata-plugin.mjs`) calls this, so an
+ * invalid deployment configuration fails the build rather than reaching a
+ * browser.
  */
 export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): RuntimeEnv {
-  const { isDev = false } = options
+  const { isDev = false, serving = false } = options
 
   const parsed = envSchema.safeParse(normalize(raw))
   if (!parsed.success) {
@@ -404,11 +456,15 @@ export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Runt
   }
 
   const resolved = applyDefaults(parsed.data, isDev)
-  const combination = collectCombinationIssues(resolved)
+  const combination = collectCombinationIssues(resolved, serving)
   if (combination.length > 0) {
     throw new Error(
       `[vuestrata:env] Incompatible environment configuration:\n  - ${combination
-        .map((issue) => issue.message)
+        .map((issue) =>
+          issue.placeholderApiUrl
+            ? `${issue.message} ${describeDevProxyAlternative(issue.placeholderApiUrl)}`
+            : issue.message,
+        )
         .join('\n  - ')}`,
     )
   }
@@ -425,7 +481,7 @@ export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Runt
  * values — this path only matters for tests and hand-edited local setups.
  */
 export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): RuntimeEnv {
-  const { isDev = false, onWarn } = options
+  const { isDev = false, serving = false, onWarn } = options
   const warn = onWarn ?? (() => {})
 
   const normalized = normalize(raw)
@@ -447,7 +503,7 @@ export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Ru
   }
 
   const resolved = applyDefaults(data, isDev)
-  for (const issue of collectCombinationIssues(resolved)) {
+  for (const issue of collectCombinationIssues(resolved, serving)) {
     warn(`${issue.message} Auto-correcting.`)
     issue.apply(resolved)
   }

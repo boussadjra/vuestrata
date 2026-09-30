@@ -38,6 +38,11 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Starting a Project',
     description: 'From the template to your own app, and how to keep taking updates afterwards.',
   },
+  '/docs/1.getting-started/4.develop-against-your-backend.md': {
+    title: 'Develop Against Your Backend',
+    description:
+      'Point the dev server at your real API — through its proxy, directly with CORS, or not at all.',
+  },
   '/docs/2.architecture/1.overview.md': {
     title: 'Architecture Overview',
     description: 'Current layered architecture, module ownership, and runtime flow.',
