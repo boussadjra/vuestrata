@@ -627,12 +627,12 @@
     },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
-      "hash": "sha256-67bb81d0dde89ba2f0d9855bea8e22a16f41135ce78a5e5edf4becb0a9da0c59",
+      "hash": "sha256-1cb3de8bf777d302ab756cabf5146ec893654a1726b69d4ebbab18f5d5ef9947",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/config/index.ts": {
       "class": "managed",
-      "hash": "sha256-423bad302e5e456a1d3e6ef518ecb0295355559659de27d778b03fbd51568f9b",
+      "hash": "sha256-5db532bb97c658298f6dbe2c9c1a7472360741f3527d87c96890ac163c2124c9",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/echarts-setup.ts": {
