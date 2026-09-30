@@ -168,17 +168,24 @@ differs from the release.
 vuestrata eject
 ```
 
-Removes the nine demo modules, the marketing home page, the component showcase
-and the documentation site, unwires them from the module registry, withdraws
-their permissions from the closed `BuiltinPermission` union and from the roles
-that were granted them, deletes the tests that covered them, and writes a
-placeholder home route.
+Removes the demo modules (all but `customers`, the reference implementation), the
+marketing home page, the component showcase and the documentation site, and
+unwires them from the module registry. Their permissions are withdrawn in
+`src/modules/app/config/rbac.overrides.ts`, which is yours; eject never edits a
+file Vuestrata owns, so `core/lib/rbac/` keeps receiving upgrades. It deletes the
+tests and end-to-end specs that covered what went, rewrites the `docs/` links in
+`README.md`, `CONTRIBUTING.md` and `SECURITY.md` to the tagged upstream copy,
+prunes the dependencies only the docs site used, removes the maintainer-only
+files (`packages/cli`, the release gates and workflows, the CLI tests), points
+the `gen:*` scripts at the installed `vuestrata` bin, and writes a placeholder
+home route.
 
 Every removed path is recorded in the lockfile's `ejected` list, so no future
 upgrade puts any of it back.
 
-`--keep <ids>` keeps named modules; `--keep-docs` keeps `docs/`; `--dry-run`
-prints the plan.
+`--keep <ids>` keeps named modules; `--no-keep-customers` removes `customers` too;
+`--keep-docs` keeps `docs/`; `--dry-run` prints the plan. Run `vp install` afterwards
+to bring `pnpm-lock.yaml` in line with the pruned dependencies.
 
 ## Adopting the CLI late
 

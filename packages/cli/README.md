@@ -13,15 +13,15 @@ vp add -D @vuestrata/cli
 
 ## Commands
 
-| Command                       | What it does                                                                 |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `vuestrata doctor`            | Can this project still be upgraded, and what will an upgrade skip?           |
-| `vuestrata diff`              | Show exactly what an upgrade would change. Writes nothing.                   |
-| `vuestrata upgrade`           | Run migrations and install this release, preserving files you edited.        |
-| `vuestrata add <kind> <name>` | Scaffold a module, page, component, theme or icon set — and its registries.  |
-| `vuestrata adopt <path>`      | After merging a file from `.vuestrata/incoming/` by hand, count it as clean. |
-| `vuestrata eject`             | Remove the demo modules, showcase and docs site, and stop tracking them.     |
-| `vuestrata init`              | Start tracking a project that predates the CLI.                              |
+| Command                       | What it does                                                                       |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| `vuestrata doctor`            | Can this project still be upgraded, and what will an upgrade skip?                 |
+| `vuestrata diff`              | Show exactly what an upgrade would change. Writes nothing.                         |
+| `vuestrata upgrade`           | Run migrations and install this release, preserving files you edited.              |
+| `vuestrata add <kind> <name>` | Scaffold a module, page, component, theme or icon set — and its registries.        |
+| `vuestrata adopt <path>`      | After merging a file from `.vuestrata/incoming/` by hand, count it as clean.       |
+| `vuestrata eject`             | Remove the demo, showcase, docs site and maintainer-only files; keeps `customers`. |
+| `vuestrata init`              | Start tracking a project that predates the CLI.                                    |
 
 Every command takes `--dry-run` and `--json`.
 
@@ -41,6 +41,10 @@ Three files are both Vuestrata's and a generator's target — the `Ui*` barrel, 
 forms barrel and the permission union. They are compared without their `app:`
 regions, and an upgrade carries your entries there into the new version.
 
+No generator, and not `eject`, edits a file outside those regions: `add module`
+declares a module's permissions in `app/config/rbac.overrides.ts`, and `eject`
+withdraws the removed modules' permissions there. Both are yours.
+
 Nothing is ever overwritten on a guess.
 
 ## Customise through the seams
@@ -54,6 +58,7 @@ to open one has somewhere else to go:
 | Any interface string           | `src/modules/app/locales/<locale>.overrides.json` |
 | Product name, footer links     | `src/modules/app/config/app.overrides.ts`         |
 | The logo                       | `src/modules/app/components/Logo.vue`             |
+| Your permissions and grants    | `src/modules/app/config/rbac.overrides.ts`        |
 
 Those files are yours from the moment you clone; nothing upstream writes to them.
 

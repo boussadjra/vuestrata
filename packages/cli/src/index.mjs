@@ -55,8 +55,9 @@ const COMMANDS = {
     summary: 'After merging a file from .vuestrata/incoming/ by hand, record it as clean.',
   },
   eject: {
-    usage: 'eject [--keep <ids>] [--keep-docs] [--dry-run]',
-    summary: 'Remove the demo modules, showcase and docs site, and stop tracking them.',
+    usage: 'eject [--keep <ids>] [--no-keep-customers] [--keep-docs] [--dry-run]',
+    summary:
+      'Remove the demo modules, showcase, docs site and maintainer-only files, and stop tracking them. Keeps customers, the reference module, unless --no-keep-customers.',
   },
 }
 

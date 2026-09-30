@@ -22,7 +22,7 @@
  *
  * Wired into `vpr lint` and CI.
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -95,6 +95,8 @@ expectAll('vercel.json', 'Vite+', /vite-plus@([\d.]+)/g, vitePlusVersion)
 
 // Workflows
 for (const workflow of ['ci.yml', 'deploy-demo.yml', 'release.yml']) {
+  // `vuestrata eject` removes the two maintainer workflows.
+  if (!existsSync(resolve(root, '.github/workflows', workflow))) continue
   expectAll(`.github/workflows/${workflow}`, 'Node', /NODE_VERSION: '(\d+)'/g, nodeMajor)
 }
 
