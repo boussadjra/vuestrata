@@ -298,10 +298,25 @@ vpr docker:run
 
 # Or with docker-compose
 docker compose up -d
+
+# For arm64 (Apple Silicon, Graviton)
+docker buildx build --platform linux/arm64 -t vuestrata .
 ```
 
 The container build bootstraps the global `vp` CLI once, then uses `vp install --frozen-lockfile`
-and `vpr build` so the Docker path matches the repo's normal toolchain.
+and `vp build` so the Docker path matches the repo's normal toolchain.
+
+The image serves the app with unprivileged nginx on port 8080:
+
+- **Route `/api` at your ingress or reverse proxy.** The container serves the app, not your API.
+  Left unrouted, `/api/*` answers a JSON `502` (`{"error":"api_not_routed"}`) instead of the
+  app's `index.html`.
+- **`GET /healthz`** returns `200 ok` for liveness and readiness probes; the image's
+  `HEALTHCHECK` uses it.
+- **Text assets are gzipped at build time** and served precompressed. Only the content-hashed
+  `/assets/*` are cached as immutable.
+
+Details: [The Docker image](docs/8.deployment/2.real-production.md#the-docker-image).
 
 ## Release and Versioning
 

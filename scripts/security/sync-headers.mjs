@@ -18,31 +18,31 @@
  * four copies were previously kept in step by comments asking the next person
  * to remember, which is not a mechanism.
  *
- * `--api-url` widens `connect-src` for a cross-origin backend. The COMMITTED
- * files are generated for the default same-origin `/api`; a deployment with a
+ * `--api-url` widens `connect-src` for a cross-origin backend, and decides
+ * whether nginx answers an unrouted same-origin API path. The COMMITTED files
+ * are generated for the default same-origin `/api`; a deployment with a
  * separate API origin re-runs this during its build (the Dockerfile does).
+ *
+ * The renderers are exported for the unit tests. The CLI runs only when this
+ * file is the entry point, so importing it writes nothing.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { consola } from 'consola'
 
-import { buildCsp, buildSecurityHeaders, CACHE_RULES, GENERATED_BANNER } from './headers.mjs'
+import {
+  buildCsp,
+  buildSecurityHeaders,
+  CACHE_RULES,
+  DEFAULT_API_URL,
+  GENERATED_BANNER,
+  sameOriginApiPath,
+} from './headers.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const logger = consola.withTag('security-headers')
-
-const args = process.argv.slice(2)
-const checkOnly = args.includes('--check')
-const apiUrl =
-  args
-    .find((arg) => arg.startsWith('--api-url='))
-    ?.split('=')
-    .slice(1)
-    .join('=') ?? '/api'
-
-const securityHeaders = buildSecurityHeaders({ apiUrl })
 
 const NL = '\n'
 
@@ -53,32 +53,39 @@ function hashBanner() {
     .join(NL)
 }
 
+/** A multi-line rule comment as `#` lines, or nothing when there is none. */
+function hashComment(comment, indent = '') {
+  return comment ? comment.split(NL).map((line) => `${indent}# ${line}`) : []
+}
+
 // ─── Renderers ───────────────────────────────────────────────────────────────
 
-function renderHeadersFile() {
+export function renderHeadersFile({ apiUrl = DEFAULT_API_URL } = {}) {
   const lines = [hashBanner(), '', '/*']
-  lines.push(...securityHeaders.map(([name, value]) => `  ${name}: ${value}`))
+  lines.push(...buildSecurityHeaders({ apiUrl }).map(([name, value]) => `  ${name}: ${value}`))
 
   for (const rule of CACHE_RULES) {
-    lines.push('')
-    if (rule.comment) {
-      lines.push(...rule.comment.split(NL).map((line) => `# ${line}`))
-    }
-    lines.push(rule.match)
+    if (!rule.match) continue
+    lines.push('', ...hashComment(rule.comment), rule.match)
     lines.push(...rule.headers.map(([name, value]) => `  ${name}: ${value}`))
   }
 
   return `${lines.join(NL)}${NL}`
 }
 
-function renderVercelHeaders() {
+/** A `_headers` path as a Vercel `source`: dots literal, a trailing `*` a wildcard. */
+function vercelSource(match) {
+  return match.replaceAll('.', '\\.').replace(/\*$/, '(.*)')
+}
+
+export function renderVercelHeaders({ apiUrl = DEFAULT_API_URL } = {}) {
   return [
     {
       source: '/(.*)',
-      headers: securityHeaders.map(([key, value]) => ({ key, value })),
+      headers: buildSecurityHeaders({ apiUrl }).map(([key, value]) => ({ key, value })),
     },
-    ...CACHE_RULES.map((rule) => ({
-      source: rule.match === '/assets/*' ? '/assets/(.*)' : rule.match.replace('.', '\\.'),
+    ...CACHE_RULES.filter((rule) => rule.match).map((rule) => ({
+      source: vercelSource(rule.match),
       headers: rule.headers.map(([key, value]) => ({ key, value })),
     })),
   ]
@@ -95,29 +102,170 @@ function renderVercelHeaders() {
  * response the app actually served. Re-including them per location is what
  * makes them apply.
  */
-function renderNginxHeadersSnippet() {
+export function renderNginxHeadersSnippet({ apiUrl = DEFAULT_API_URL } = {}) {
   const lines = [
     hashBanner(),
     '#',
     '# Included in EVERY location block on purpose: nginx drops inherited',
     '# add_header directives as soon as a block declares one of its own.',
-    ...securityHeaders.map(([name, value]) => `add_header ${name} "${value}" always;`),
+    ...buildSecurityHeaders({ apiUrl }).map(
+      ([name, value]) => `add_header ${name} "${value}" always;`,
+    ),
   ]
   return `${lines.join(NL)}${NL}`
 }
 
-const SNIPPET_INCLUDE = '  include /etc/nginx/snippets/security-headers.conf;'
+const SNIPPET = '/etc/nginx/snippets/security-headers.conf'
 
-function renderNginxConf() {
-  const locations = CACHE_RULES.filter((rule) => rule.nginxLocation).map((rule) => {
-    const isRoot = rule.nginxLocation === '/'
-    const body = [
-      isRoot ? '    try_files $uri $uri/ /index.html;' : '    expires 1y;',
-      `  ${SNIPPET_INCLUDE}`,
-      ...rule.headers.map(([name, value]) => `    add_header ${name} "${value}" always;`),
-    ]
-    return [`  location ${rule.nginxLocation} {`, ...body, '  }'].join(NL)
+/**
+ * What nginx compresses on the fly. Without a list it compresses text/html and
+ * nothing else. Both JavaScript types are listed: nginx's own mime.types says
+ * application/javascript, and RFC 9239 made text/javascript the standard one.
+ */
+const GZIP_TYPES = [
+  'text/plain',
+  'text/css',
+  'text/javascript',
+  'application/javascript',
+  'application/json',
+  'application/wasm',
+  'image/svg+xml',
+]
+
+/**
+ * One location block. Every block re-includes the header snippet — see
+ * `renderNginxHeadersSnippet` for why none may rely on inheriting it. `reply`
+ * goes last for the reader only: nginx adds `add_header` values to a `return`
+ * response wherever the two sit in the block.
+ *
+ * The block's own headers leave out `always` unless asked for it, so nginx
+ * adds them to success and redirect responses only. A cache lifetime on an
+ * error is a bug: a hashed chunk requested mid-deploy from a server that does
+ * not have it yet would otherwise be kept as an immutable 404 for a year.
+ */
+function nginxLocation(
+  location,
+  { comment, directives = [], headers = [], always = false, reply },
+) {
+  const flag = always ? ' always' : ''
+  return [
+    ...hashComment(comment, '  '),
+    `  location ${location} {`,
+    ...directives.map((directive) => `    ${directive}`),
+    `    include ${SNIPPET};`,
+    ...headers.map(([name, value]) => `    add_header ${name} "${value}"${flag};`),
+    ...(reply ? [`    ${reply}`] : []),
+    '  }',
+  ]
+}
+
+/**
+ * The body of the 502 for an unrouted API path. `code` is the field the app's
+ * API client reads into its error, so the console names this failure instead
+ * of reporting a bare 502.
+ *
+ * nginx reads it inside a single-quoted string, where `'` would end the
+ * string, `$` start a variable and `\` an escape. None may appear, and a
+ * message edited to contain one fails the generation rather than the
+ * container start.
+ */
+function apiNotRoutedBody(apiPath) {
+  const body = JSON.stringify({
+    error: 'api_not_routed',
+    code: 'API_NOT_ROUTED',
+    message:
+      `No backend is routed at ${apiPath}/. Route it to your API at the ingress or ` +
+      'reverse proxy in front of this container.',
   })
+  if (/['$\\]/.test(body)) {
+    throw new Error(
+      `The unrouted-API response body cannot sit in a quoted nginx string: ${body}`,
+    )
+  }
+  return body
+}
+
+/**
+ * Scripts, stylesheets, images and fonts: paths that name a file rather than
+ * an SPA route. The list stays short on purpose, because a deep link to a
+ * route whose last segment ends in one of these (`/files/logo.png`) would 404
+ * on reload.
+ */
+const STATIC_FILE_LOCATION = '~* \\.(?:js|mjs|css|png|jpe?g|gif|ico|svg|webp|avif|woff2?|ttf|otf)$'
+
+export function renderNginxConf({ apiUrl = DEFAULT_API_URL } = {}) {
+  const apiPath = sameOriginApiPath(apiUrl)
+
+  const blocks = [
+    nginxLocation('= /healthz', {
+      comment:
+        'Liveness and readiness probe. nginx answers it alone, so it reports whether\n' +
+        'the server is up without fetching the app, and stays out of an access log a\n' +
+        'probe every few seconds would otherwise fill.',
+      directives: ['access_log off;', 'default_type text/plain;'],
+      headers: [['Cache-Control', 'no-store']],
+      reply: 'return 200 "ok";',
+    }),
+  ]
+
+  if (apiPath) {
+    const unrouted = {
+      // `types { }` empties the extension-to-type map, so default_type applies
+      // to every path: /api/export.html would otherwise go out as text/html.
+      directives: ['types { }', 'default_type application/json;'],
+      headers: [['Cache-Control', 'no-store']],
+      // The error is the whole response here, and 502 is not a status
+      // nginx adds headers to by default.
+      always: true,
+      reply: `return 502 '${apiNotRoutedBody(apiPath)}';`,
+    }
+    blocks.push(
+      nginxLocation(`^~ ${apiPath}/`, {
+        ...unrouted,
+        comment:
+          `The app calls its API at ${apiPath}/ on this origin (VUESTRATA_API_URL). Routing\n` +
+          'that path to the backend is the job of the ingress or reverse proxy in front\n' +
+          'of this container, not of this server. When nothing routes it, the SPA\n' +
+          'fallback below would answer an API call with index.html (a 200 for a GET, a\n' +
+          '405 for a POST) and the app would fail far from the cause. This names it.',
+      }),
+      nginxLocation(`= ${apiPath}`, {
+        ...unrouted,
+        comment: `${apiPath} itself, which the prefix block above does not match.`,
+      }),
+    )
+  }
+
+  for (const rule of CACHE_RULES) {
+    if (!rule.nginxLocation) continue
+    const isCatchAll = rule.nginxLocation === '/'
+
+    blocks.push(
+      nginxLocation(rule.nginxLocation, {
+        comment: rule.comment,
+        // The SPA fallback belongs to the catch-all; its rule says why that
+        // does not put routes under the catch-all's cache policy.
+        directives: isCatchAll ? ['try_files $uri $uri/ /index.html;'] : [],
+        headers: rule.headers,
+      }),
+    )
+
+    // The catch-all's policy also covers files with a static extension, in a
+    // block of their own so that a missing one is a 404.
+    if (isCatchAll) {
+      blocks.push(
+        nginxLocation(STATIC_FILE_LOCATION, {
+          comment:
+            'Scripts, stylesheets, images and fonts get the same hour, but a missing one\n' +
+            'is a 404: through the fallback above, a stale image link or a removed script\n' +
+            'would get index.html with a 200, and nothing would look broken. A matching\n' +
+            'regex beats the `/` prefix; the exact and ^~ locations still beat the regex.',
+          directives: ['try_files $uri =404;'],
+          headers: rule.headers,
+        }),
+      )
+    }
+  }
 
   const lines = [
     hashBanner(),
@@ -130,19 +278,37 @@ function renderNginxConf() {
     '',
     '  # Applies to responses served by this level directly (errors, redirects).',
     '  # Every location below re-includes it — see the note in the snippet.',
-    SNIPPET_INCLUDE,
+    `  include ${SNIPPET};`,
     '',
-    ...locations,
-    '',
-    '  # Long-lived caching for any other content-hashed asset.',
-    '  location ~* \\.(?:js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {',
-    '    expires 1y;',
-    `  ${SNIPPET_INCLUDE}`,
-    '    add_header Cache-Control "public, max-age=31536000, immutable" always;',
-    '  }',
+    '  # The image gzips its text assets once, at build time, and gzip_static sends',
+    '  # those .gz files as they are; `gzip` compresses the rest on the fly.',
+    '  # `gzip_proxied any` keeps both on behind a load balancer: by default nginx',
+    '  # compresses nothing for a request that arrives with a Via header.',
+    '  gzip on;',
+    '  gzip_static on;',
+    '  gzip_vary on;',
+    '  gzip_proxied any;',
+    '  gzip_comp_level 6;',
+    '  gzip_min_length 1024;',
+    `  gzip_types ${GZIP_TYPES.join(' ')};`,
+    ...blocks.flatMap((block) => ['', ...block]),
     '}',
   ]
   return `${lines.join(NL)}${NL}`
+}
+
+/** `index.html` with its CSP `<meta>` rewritten. */
+export function renderIndexHtml(current, { apiUrl = DEFAULT_API_URL } = {}) {
+  // `frame-ancestors` is omitted: a <meta> tag cannot express it.
+  const csp = buildCsp({ apiUrl, forMeta: true })
+  const pattern = /(<meta\s+http-equiv="Content-Security-Policy"\s+content=")[^"]*(")/s
+  if (!pattern.test(current)) {
+    throw new Error(
+      'Could not find the Content-Security-Policy <meta> tag in index.html. ' +
+        'If it was renamed or reformatted, update the pattern in sync-headers.mjs.',
+    )
+  }
+  return current.replace(pattern, `$1${csp}$2`)
 }
 
 // ─── Targets ─────────────────────────────────────────────────────────────────
@@ -151,86 +317,111 @@ function renderNginxConf() {
  * Each target reads its current content and returns the desired content.
  * Identical strings mean "in sync".
  */
-const targets = [
-  { path: 'public/_headers', render: () => renderHeadersFile() },
-  { path: 'docker/nginx.conf', render: () => renderNginxConf() },
-  { path: 'docker/security-headers.conf', render: () => renderNginxHeadersSnippet() },
-  {
-    path: 'vercel.json',
-    render: (current) => {
-      const config = JSON.parse(current)
-      config.headers = renderVercelHeaders()
-      return `${JSON.stringify(config, null, 2)}${NL}`
+function targetsFor(apiUrl) {
+  return [
+    { path: 'public/_headers', render: () => renderHeadersFile({ apiUrl }) },
+    { path: 'docker/nginx.conf', render: () => renderNginxConf({ apiUrl }) },
+    { path: 'docker/security-headers.conf', render: () => renderNginxHeadersSnippet({ apiUrl }) },
+    {
+      path: 'vercel.json',
+      render: (current) => {
+        const config = JSON.parse(current)
+        config.headers = renderVercelHeaders({ apiUrl })
+        return `${JSON.stringify(config, null, 2)}${NL}`
+      },
     },
-  },
-  {
-    path: 'index.html',
-    render: (current) => {
-      // `frame-ancestors` is omitted: a <meta> tag cannot express it.
-      const csp = buildCsp({ apiUrl, forMeta: true })
-      const pattern = /(<meta\s+http-equiv="Content-Security-Policy"\s+content=")[^"]*(")/s
-      if (!pattern.test(current)) {
-        throw new Error(
-          'Could not find the Content-Security-Policy <meta> tag in index.html. ' +
-            'If it was renamed or reformatted, update the pattern in sync-headers.mjs.',
-        )
-      }
-      return current.replace(pattern, `$1${csp}$2`)
-    },
-  },
-]
+    { path: 'index.html', render: (current) => renderIndexHtml(current, { apiUrl }) },
+  ]
+}
 
 // ─── Run ─────────────────────────────────────────────────────────────────────
 
-let drifted = 0
+/**
+ * `--api-url=<value>`. Empty means the default, as it does for the app: the
+ * Dockerfile passes its build arg through even when someone set it to "".
+ */
+function parseApiUrl(args) {
+  const value = args
+    .find((arg) => arg.startsWith('--api-url='))
+    ?.slice('--api-url='.length)
+    .trim()
+  return value || DEFAULT_API_URL
+}
 
-for (const target of targets) {
-  const fullPath = resolve(root, target.path)
+function run(args) {
+  const checkOnly = args.includes('--check')
+  const apiUrl = parseApiUrl(args)
 
-  let current = ''
-  try {
-    current = readFileSync(fullPath, 'utf8')
-  } catch {
+  let drifted = 0
+
+  for (const target of targetsFor(apiUrl)) {
+    const fullPath = resolve(root, target.path)
+
+    let current = ''
+    try {
+      current = readFileSync(fullPath, 'utf8')
+    } catch {
+      if (checkOnly) {
+        logger.error(`${target.path} is missing.`)
+        drifted += 1
+        continue
+      }
+    }
+
+    let desired
+    try {
+      desired = target.render(current)
+    } catch (error) {
+      logger.error(`${target.path}: ${error.message}`)
+      process.exit(1)
+    }
+
+    if (current === desired) {
+      if (!checkOnly) logger.success(`${target.path} is up to date`)
+      continue
+    }
+
     if (checkOnly) {
-      logger.error(`${target.path} is missing.`)
+      logger.error(`${target.path} has drifted from scripts/security/headers.mjs`)
       drifted += 1
       continue
     }
+
+    mkdirSync(dirname(fullPath), { recursive: true })
+    writeFileSync(fullPath, desired)
+    logger.success(`${target.path} updated`)
   }
 
-  let desired
-  try {
-    desired = target.render(current)
-  } catch (error) {
-    logger.error(`${target.path}: ${error.message}`)
+  if (checkOnly && drifted > 0) {
+    logger.error(
+      `${drifted} security-header target(s) out of sync.\n` +
+        `The headers are defined once in scripts/security/headers.mjs. Regenerate with:\n` +
+        `  vpr security:headers`,
+    )
     process.exit(1)
   }
 
-  if (current === desired) {
-    if (!checkOnly) logger.success(`${target.path} is up to date`)
-    continue
-  }
-
   if (checkOnly) {
-    logger.error(`${target.path} has drifted from scripts/security/headers.mjs`)
-    drifted += 1
-    continue
+    logger.success('All security-header targets match scripts/security/headers.mjs')
   }
-
-  mkdirSync(dirname(fullPath), { recursive: true })
-  writeFileSync(fullPath, desired)
-  logger.success(`${target.path} updated`)
 }
 
-if (checkOnly && drifted > 0) {
-  logger.error(
-    `${drifted} security-header target(s) out of sync.\n` +
-      `The headers are defined once in scripts/security/headers.mjs. Regenerate with:\n` +
-      `  vpr security:headers`,
-  )
-  process.exit(1)
+/**
+ * True when node was pointed at this file, false when something imported it.
+ *
+ * A false negative here would be silent in the worst way: `--check` would
+ * exit 0 without checking anything. Both sides are compared as real paths
+ * because node resolves symlinks in the entry module's URL but leaves
+ * `process.argv[1]` as typed.
+ */
+function isEntryPoint() {
+  const entry = process.argv[1]
+  if (!entry) return false
+  try {
+    return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url))
+  } catch {
+    return false
+  }
 }
 
-if (checkOnly) {
-  logger.success('All security-header targets match scripts/security/headers.mjs')
-}
+if (isEntryPoint()) run(process.argv.slice(2))

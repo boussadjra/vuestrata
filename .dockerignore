@@ -1,4 +1,7 @@
-node_modules
+# Every node_modules, not only the root one: a workspace package's own
+# (packages/cli/node_modules) holds links into this machine's store, which
+# resolve to nothing inside the image.
+**/node_modules
 dist
 .git
 .github

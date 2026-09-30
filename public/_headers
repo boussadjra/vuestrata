@@ -11,14 +11,28 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
 
+# Names every hashed asset, so it is revalidated on every load: a cached copy
+# would keep a returning user on the previous deploy.
 /index.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache
 
+# Content-hashed by the build: a changed file gets a new name, so a cached copy
+# can never go stale. Nothing else is safe to cache forever.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Fetched to notice that a newer build is live; a cached copy would hide it.
+/version.json
+  Cache-Control: no-store
+
+# Written per environment rather than per build, under a name that never
+# changes, so no cache may keep a copy.
+/runtime-config.js
+  Cache-Control: no-store
+
 # Not content-hashed and controls every request in the demo build — a cached
-# copy would keep serving stale mock handlers after a deploy.
+# copy would keep serving stale mock handlers after a deploy. A production
+# build deletes the file, leaving this rule nothing to apply to.
 /mockServiceWorker.js
   Cache-Control: no-cache, no-store, must-revalidate
   Service-Worker-Allowed: /
