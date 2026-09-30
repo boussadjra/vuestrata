@@ -97,7 +97,7 @@ export function diagnose({ root, version, source, migrations }) {
     const contents = fs.readFileSync(full, 'utf8')
     const rel = slot(manifest, target.slot)
 
-    for (const scope of [UPSTREAM_SCOPE, 'app']) {
+    for (const scope of target.upstream === false ? ['app'] : [UPSTREAM_SCOPE, 'app']) {
       const name = sentinel(target.region, scope)
       if (hasSentinel(contents, name, { comment: target.comment })) continue
       findings.warnings.push(

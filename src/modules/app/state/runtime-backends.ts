@@ -1,15 +1,24 @@
 import { useApiRuntimeStore } from '@/stores/api-runtime'
+import rbacOverrides from '~/config/rbac.overrides'
 import { resolveRolePermissions } from '~/lib/rbac/inheritance'
-import type { AuthorizationHookFn, PredicateFn } from '~/lib/rbac/types'
-import type { BuiltinPermission } from '~/lib/rbac/types'
+import { resolveRbacOverrides } from '~/lib/rbac/overrides'
+import type { AuthorizationHookFn, Permission, PredicateFn } from '~/lib/rbac/types'
 import {
   installApiAuthBackend,
   installRbacBackend,
+  installRbacConfig,
   installValidationCacheBackend,
   type RbacBackend,
   type ValidationCacheBackend,
 } from '~/lib/runtime'
 import type { ValidationAdapter } from '~/types'
+
+/**
+ * The project's `rbac.overrides.ts`, as the runtime slot holds it. Imported
+ * statically on purpose: a deleted seam fails the build instead of quietly
+ * restoring the defaults.
+ */
+const rbacConfig = resolveRbacOverrides(rbacOverrides)
 
 /**
  * Every permission the RBAC registry is seeded with.
@@ -20,8 +29,11 @@ import type { ValidationAdapter } from '~/types'
  * the demo super-admin was seeded without it, so an admin silently lost access
  * to a page. Walking the top of the hierarchy makes drift impossible, because
  * a permission no role can ever hold is a permission that does nothing.
+ *
+ * Resolved against the project's overrides, so its grants are in the seed and
+ * what it withdrew is not.
  */
-export const BUILTIN_PERMISSIONS: BuiltinPermission[] = resolveRolePermissions('super_admin')
+export const BUILTIN_PERMISSIONS: Permission[] = resolveRolePermissions('super_admin', rbacConfig)
 
 /**
  * Build a fresh RBAC backend (Set/Map registries) seeded with built-in
@@ -86,6 +98,7 @@ const validationCacheBackendState = createGlobalState(
 export function installRuntimeBackends(): void {
   const apiRuntime = useApiRuntimeStore()
   installApiAuthBackend(apiRuntime.backend)
+  installRbacConfig(rbacConfig)
   installRbacBackend(rbacBackendState())
   installValidationCacheBackend(validationCacheBackendState())
 }

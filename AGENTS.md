@@ -58,7 +58,7 @@ adapters, the runtime backends, the route guard and session restore, the mock
 helpers, the locale catalogs and the deployment scripts. `src/main.ts` and
 `src/App.vue` are not: they are thin shells the project owns, calling `boot(App)`
 and rendering `<AppRoot />`. The `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts`
-are `merged`; `brand.css`, `app.overrides.ts`, `Logo.vue` and the locale
+are `merged`; `brand.css`, `app.overrides.ts`, `rbac.overrides.ts`, `Logo.vue` and the locale
 overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
 so what a generator appends there is not an edit.
 

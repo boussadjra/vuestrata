@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { inSlot, slot } from '../lib/manifest.mjs'
 import { insertBeforeSentinel, insertImport, SENTINELS } from '../lib/registry.mjs'
 
@@ -18,12 +21,27 @@ import { insertBeforeSentinel, insertImport, SENTINELS } from '../lib/registry.m
  *   - grant the new permissions to any role. That is an access-control
  *     decision, and silently handing `super_admin` a new capability is not the
  *     generator's call to make.
+ *
+ * Nor does it edit anything Vuestrata owns: the module's permissions are
+ * declared in `app/config/rbac.overrides.ts`, a seeded file, never in
+ * `core/lib/rbac/`. An edit there would cost that file its upgrades.
  */
 export function planModule({ plan, names, options }) {
   const n = names
   const dir = inSlot(plan.manifest, 'modulesDir', n.moduleId)
   const nav = options.navGroup ?? 'work'
   const icon = options.icon ?? 'widget'
+  const overrides = slot(plan.manifest, 'rbacOverrides')
+
+  // Checked here rather than left to `plan.validate()`, whose "does not exist"
+  // says nothing about why a project that never moved the file lacks it.
+  if (!fs.existsSync(path.join(plan.root, overrides))) {
+    throw new Error(
+      `${overrides} does not exist. It is where this project declares its permissions, and a ` +
+        'release newer than yours adds it: run `vuestrata upgrade` first, or set ' +
+        'slots.rbacOverrides in vuestrata.config.json if you moved it.',
+    )
+  }
 
   plan.addFile(`${dir}/types.ts`, typesTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/query-keys.ts`, queryKeysTemplate(n), { own: 'seeded' })
@@ -52,19 +70,17 @@ export function planModule({ plan, names, options }) {
     (source) => insertBeforeSentinel(source, SENTINELS.modules, `${n.entities}Module,`),
   )
 
-  // `BuiltinPermission` is a closed union, so a module's own permissions must
-  // be declared there before its routes can reference them. Without this the
-  // module does not compile — which is the type system doing its job, but it
-  // is not something the generator should leave for a human to discover.
-  plan.addEdit(
-    slot(plan.manifest, 'permissions'),
-    `declare '${n.moduleId}:read' and '${n.moduleId}:manage'`,
-    (source) => {
-      let next = insertBeforeSentinel(source, SENTINELS.permissions, `| '${n.moduleId}:read'`)
-      next = insertBeforeSentinel(next, SENTINELS.permissions, `| '${n.moduleId}:manage'`)
-      return next
-    },
-  )
+  // `Permission` is a closed union, so a module's own permissions must be
+  // declared before its routes can reference them. Without this the module does
+  // not compile — which is the type system doing its job, but it is not
+  // something the generator should leave for a human to discover. They go in
+  // the project's own file, by declaration merging, so `core/lib/rbac/` stays
+  // exactly what Vuestrata shipped.
+  plan.addEdit(overrides, `declare '${n.moduleId}:read' and '${n.moduleId}:manage'`, (source) => {
+    let next = insertBeforeSentinel(source, SENTINELS.permissions, `'${n.moduleId}:read': true`)
+    next = insertBeforeSentinel(next, SENTINELS.permissions, `'${n.moduleId}:manage': true`)
+    return next
+  })
 
   plan.addNote(
     `Replace the placeholder fields in ${dir}/types.ts with the real ${n.EntityLabel} shape — ` +
@@ -72,8 +88,8 @@ export function planModule({ plan, names, options }) {
   )
   plan.addNote(
     `Grant '${n.moduleId}:read' / '${n.moduleId}:manage' to whichever roles should have them in ` +
-      'src/modules/core/lib/rbac/inheritance.ts. Until you do, only the permissions already ' +
-      'held by a role apply and the pages stay inaccessible.',
+      `the grants of ${overrides}, e.g. manager: ['${n.moduleId}:read', '${n.moduleId}:manage']. ` +
+      'Until you do, no role holds them and the pages stay inaccessible to everyone.',
   )
   plan.addNote(
     `Translate ${dir}/i18n/fr.json and ar.json — they ship with English copy so the ` +

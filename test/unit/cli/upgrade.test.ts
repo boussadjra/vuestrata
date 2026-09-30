@@ -632,14 +632,14 @@ describe.skipIf(!CLI_PRESENT)('merged files, through the generator and the forma
 
   it('takes a release change outside the regions, keeping the entries, and stays clean', () => {
     seedRbac()
-    const next = pristine.replace('Permission type: strict', 'Permission type, revised: strict')
+    const next = pristine.replace('Permission type: a strict', 'Permission type, revised: a strict')
     expect(next).not.toBe(pristine)
 
     const report = upgradeWith({ version: '1.1.0', merged: { [RBAC]: next } })
 
     expect(report.incoming).toEqual([])
     expect(report.written).toEqual([{ rel: RBAC, reason: 'updated, app: regions kept' }])
-    expect(read(RBAC)).toContain('Permission type, revised: strict')
+    expect(read(RBAC)).toContain('Permission type, revised: a strict')
     expect(read(RBAC)).toContain("| 'payments:manage'")
     expect(driftedFiles(project, readLock(project))).toEqual([])
   })

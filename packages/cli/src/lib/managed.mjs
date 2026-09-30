@@ -99,6 +99,7 @@ export const MERGED_FILES = [
 export const SEEDED_FILES = [
   'src/modules/app/styles/brand.css',
   'src/modules/app/config/app.overrides.ts',
+  'src/modules/app/config/rbac.overrides.ts',
   'src/modules/app/components/Logo.vue',
   'src/modules/app/locales/en.overrides.json',
   'src/modules/app/locales/fr.overrides.json',
@@ -109,10 +110,11 @@ export const SEEDED_FILES = [
  * Registries the project owns outright, except for their `vuestrata:` region,
  * which an upgrade appends to and never rewrites. Every anchored registry that
  * is not a merged file: a merged file's upstream region travels with the rest
- * of the file.
+ * of the file. A seeded file's registries carry no `vuestrata:` region
+ * (`upstream: false`), so there is nothing to append to.
  */
 export const PROJECT_REGISTRIES = ANCHORED_REGISTRIES.filter(
-  (registry) => !MERGED_FILES.includes(DEFAULT_SLOTS[registry.slot]),
+  (registry) => registry.upstream !== false && !MERGED_FILES.includes(DEFAULT_SLOTS[registry.slot]),
 )
 
 /** Never shipped or tracked, whatever directory it sits in. */
