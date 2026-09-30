@@ -148,13 +148,25 @@ test('fails an unrouted API call as JSON, not with the SPA shell', async ({ page
   // builds it that way) and nothing routes /api/ here: that is the ingress's
   // job. The SPA fallback used to answer with index.html and a 200, so the app
   // failed parsing HTML as JSON, far from the actual cause.
-  const response = await page.request.get('/api/anything')
+  //
+  // An image built for an absolute API URL has no such block, and its CSP
+  // names that origin in connect-src. There is nothing to check then.
+  const csp = (await page.request.get('/')).headers()['content-security-policy'] ?? ''
+  const connectSrc = /(?:^|;)\s*connect-src ([^;]*)/.exec(csp)?.[1] ?? ''
+  test.skip(/https?:/.test(connectSrc), 'The image was built for a cross-origin API.')
 
-  expect(response.status()).toBe(502)
-  const contentType = response.headers()['content-type']
-  expect(contentType).toContain('application/json')
-  expect(contentType).not.toContain('text/html')
-  expect(await response.json()).toMatchObject({ error: 'api_not_routed' })
+  // The extensions are there because nginx labels a response from the
+  // request's own extension unless told otherwise: /api/export.html once came
+  // back as text/html, and the client could not read the error in it.
+  for (const path of ['/api/anything', '/api', '/api/export.html']) {
+    const response = await page.request.get(path)
+
+    expect(response.status(), path).toBe(502)
+    const contentType = response.headers()['content-type']
+    expect(contentType, path).toContain('application/json')
+    expect(contentType, path).not.toContain('text/html')
+    expect(await response.json(), path).toMatchObject({ error: 'api_not_routed' })
+  }
 })
 
 test('serves JavaScript compressed', async ({ page }) => {
@@ -179,6 +191,38 @@ test('does not cache a missing asset', async ({ page }) => {
 
   expect(response.status()).toBe(404)
   expect(response.headers()['cache-control'] ?? '').not.toContain('immutable')
+})
+
+test('revalidates the app shell on every load', async ({ page }) => {
+  // Every SPA route is served from index.html, which names every hashed
+  // chunk. The deep link goes through try_files and an internal redirect, so
+  // this is the check that it lands in the no-cache block and not in the
+  // hour-long one for other files. If it did not, a returning user would be
+  // asked for the previous deploy's chunk names.
+  for (const path of ['/', '/dashboard', '/index.html']) {
+    const response = await page.request.get(path)
+
+    expect(response.status(), path).toBe(200)
+    expect(response.headers()['cache-control'], path).toContain('no-cache')
+  }
+})
+
+test('never caches the file that names the running build', async ({ page }) => {
+  const response = await page.request.get('/version.json')
+
+  expect(response.status()).toBe(200)
+  expect(response.headers()['cache-control']).toBe('no-store')
+})
+
+test('answers a missing script or image with a 404, not the app', async ({ page }) => {
+  // Through the SPA fallback a stale <img> or a removed script would get
+  // index.html with a 200, and nothing would look broken.
+  for (const path of ['/removed-script.js', '/missing.png', '/imgs/missing.svg']) {
+    const response = await page.request.get(path)
+
+    expect(response.status(), path).toBe(404)
+    expect(response.headers()['cache-control'] ?? '', path).not.toContain('immutable')
+  }
 })
 
 test('does not cache files outside /assets/ as immutable', async ({ page }) => {
