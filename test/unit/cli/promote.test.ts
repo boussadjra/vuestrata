@@ -1,16 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
-// @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
-import { adoptPaths } from '../../../packages/cli/src/commands/adopt.mjs'
-// @ts-expect-error - see above.
-import { planUpgrade, runUpgrade } from '../../../packages/cli/src/commands/upgrade.mjs'
-// @ts-expect-error - see above.
-import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
-// @ts-expect-error - see above.
-import { loadManifest } from '../../../packages/cli/src/lib/manifest.mjs'
-// @ts-expect-error - see above.
-import * as migrations from '../../../packages/cli/src/lib/migrations.mjs'
+import { CLI_PRESENT, loadCli } from './cli'
 import { createFixture, type Fixture, hash, writePayload } from './fixture'
+
+// Loaded rather than imported, so a project without `packages/cli` skips this
+// file instead of failing to collect it.
+const { adoptPaths } = await loadCli('src/commands/adopt.mjs')
+const { planUpgrade, runUpgrade } = await loadCli('src/commands/upgrade.mjs')
+const lockfile = await loadCli('src/lib/lockfile.mjs')
+const { loadManifest } = await loadCli('src/lib/manifest.mjs')
+const migrations = await loadCli('src/lib/migrations.mjs')
 
 /**
  * Migrations that change who owns a file rather than what is in it.
@@ -83,7 +82,7 @@ const promote = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 })
 
-describe('promote', () => {
+describe.skipIf(!CLI_PRESENT)('promote', () => {
   beforeEach(() => {
     writeLock(fixture.project, emptyLock('1.1.0'))
   })
@@ -225,7 +224,7 @@ describe('promote', () => {
   })
 })
 
-describe('reclassify', () => {
+describe.skipIf(!CLI_PRESENT)('reclassify', () => {
   const BARREL = 'src/modules/app/components/ui/index.ts'
   const released = [
     "export { default as UiButton } from './UiButton.vue'",
@@ -303,7 +302,7 @@ describe('reclassify', () => {
   })
 })
 
-describe('guarded codemods and notes', () => {
+describe.skipIf(!CLI_PRESENT)('guarded codemods and notes', () => {
   const PACKAGE = 'package.json'
   const shipped =
     '{ "scripts": { "lint": "vp lint && node scripts/release/check-template-lock.mjs" } }\n'
@@ -378,7 +377,7 @@ describe('guarded codemods and notes', () => {
   })
 })
 
-describe('which migrations run', () => {
+describe.skipIf(!CLI_PRESENT)('which migrations run', () => {
   it('includes the release migration when the target is its prerelease', () => {
     expect(inMigrationRange('1.2.0', '1.1.0', '1.2.0-alpha.0')).toBe(true)
     expect(inMigrationRange('1.2.0', '1.1.0', '1.2.0')).toBe(true)
@@ -428,7 +427,7 @@ describe('which migrations run', () => {
   })
 })
 
-describe('validateMigration', () => {
+describe.skipIf(!CLI_PRESENT)('validateMigration', () => {
   it.each([
     [{ kind: 'rename', file: 'x' }, /unknown kind/],
     [{ file: 'x' }, /no apply/],
@@ -448,7 +447,7 @@ describe('validateMigration', () => {
   })
 })
 
-describe('adopt', () => {
+describe.skipIf(!CLI_PRESENT)('adopt', () => {
   const BARREL = 'src/modules/app/components/ui/index.ts'
   const barrel = (extra = '') =>
     [

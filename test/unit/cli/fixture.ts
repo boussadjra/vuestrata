@@ -3,10 +3,11 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
-import { hashFor } from '../../../packages/cli/src/lib/lockfile.mjs'
-// @ts-expect-error - see above.
-import { createPayloadSource } from '../../../packages/cli/src/lib/payload.mjs'
+import { loadCli } from './cli'
+
+// Empty when `packages/cli` is absent; every suite that reaches these is skipped.
+const { hashFor } = await loadCli('src/lib/lockfile.mjs')
+const { createPayloadSource } = await loadCli('src/lib/payload.mjs')
 
 /**
  * A throwaway project beside a payload built for the occasion — the
