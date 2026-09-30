@@ -28,6 +28,14 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const { isDark, toggleDark } = useTheme()
 const route = useRoute()
+const router = useRouter()
+
+// `vuestrata eject` deletes the docs site, and a link to it would then land on
+// the not-found page. Asked of the route table rather than a flag, so keeping
+// the docs — or restoring them — needs no other change.
+const hasDocsRoute = router
+  .getRoutes()
+  .some((entry) => entry.path === '/docs' || entry.path.startsWith('/docs/'))
 
 // The locale list, its normalization, and the store round-trip all live in one
 // composable now — this component used to carry its own copy of each.
@@ -166,6 +174,7 @@ const guestAction = computed(() => {
         />
 
         <UiButton
+          v-if="hasDocsRoute"
           to="/docs"
           variant="ghost"
           size="md"
@@ -182,6 +191,7 @@ const guestAction = computed(() => {
           <span class="hidden md:inline">{{ t('common_documentation') }}</span>
         </UiButton>
         <UiButton
+          v-if="hasDocsRoute"
           to="/docs"
           variant="ghost"
           size="md"
