@@ -265,8 +265,16 @@ function main(argv) {
    */
   const LARGEST_EAGER_CHUNK_BUDGET = 850 * 1024
 
-  /** Bytes, raw, of every emitted .js file combined. */
-  const TOTAL_JS_BUDGET = 6.5 * 1024 * 1024
+  /**
+   * Bytes, raw, of every emitted .js file combined.
+   *
+   * Raised from 6.5 to 6.75 MiB on purpose: the demo build bundles every docs
+   * page as a JS chunk, and integration documentation (the endpoint contract,
+   * the develop-against-your-backend page, the corrected auth deep-dive) added
+   * about 13 KB of prose. None of it is on the initial payload, which has its
+   * own budget above.
+   */
+  const TOTAL_JS_BUDGET = 6.75 * 1024 * 1024
 
   const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`
 

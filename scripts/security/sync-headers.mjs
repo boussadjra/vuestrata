@@ -178,9 +178,7 @@ function apiNotRoutedBody(apiPath) {
       'reverse proxy in front of this container.',
   })
   if (/['$\\]/.test(body)) {
-    throw new Error(
-      `The unrouted-API response body cannot sit in a quoted nginx string: ${body}`,
-    )
+    throw new Error(`The unrouted-API response body cannot sit in a quoted nginx string: ${body}`)
   }
   return body
 }
