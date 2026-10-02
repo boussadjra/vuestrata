@@ -21,6 +21,8 @@ const SCRIPT = path.join(process.cwd(), 'scripts/security/sync-headers.mjs')
 const SNIPPET_INCLUDE = 'include /etc/nginx/snippets/security-headers.conf;'
 /** The regex location for files that name a script, style, image or font. */
 const STATIC_FILES = '~* \\.(?:js|mjs|css|png|jpe?g|gif|ico|svg|webp|avif|woff2?|ttf|otf)$'
+/** The regex location for the web app manifest. */
+const MANIFEST = '~* \\.webmanifest$'
 
 /** Location → trimmed body lines. No block nests another, so a flat scan is enough. */
 function nginxLocations(conf: string): Map<string, string[]> {
@@ -170,7 +172,32 @@ describe('renderNginxConf', () => {
       '= /mockServiceWorker.js': 'no-cache, no-store, must-revalidate',
       '/': 'public, max-age=3600',
       [STATIC_FILES]: 'public, max-age=3600',
+      [MANIFEST]: 'public, max-age=3600',
     })
+  })
+
+  it('serves the web app manifest as application/manifest+json', () => {
+    // nginx's mime.types does not know `.webmanifest`, so public/site.webmanifest
+    // went out as application/octet-stream.
+    const body = blocks.get(MANIFEST) ?? []
+
+    // `types { }` first: with the inherited map in place, default_type would
+    // only apply to an extension the map does not know, which is this one
+    // today and may not be after an nginx upgrade.
+    expect(body.slice(0, 2)).toEqual(['types { }', 'default_type application/manifest+json;'])
+    // A file, so a missing one is a 404 and not the app.
+    expect(body).toContain('try_files $uri =404;')
+    // The type is set in this location only. At server level a `types` block
+    // would replace the map every other file gets its type from.
+    expect(conf.match(/types \{/g)).toHaveLength(blocks.has('^~ /api/') ? 3 : 1)
+    expect(conf).not.toMatch(/^ {2}types /m)
+    // Neither regex shadows the other: the manifest is not a "static file".
+    expect(new RegExp(STATIC_FILES.slice(3), 'i').test('/site.webmanifest')).toBe(false)
+    expect(new RegExp(MANIFEST.slice(3), 'i').test('/site.webmanifest')).toBe(true)
+    // And it is compressed on the fly when it is big enough to be worth it.
+    expect(/^ {2}gzip_types (.+);$/m.exec(conf)?.[1]?.split(' ')).toContain(
+      'application/manifest+json',
+    )
   })
 
   it('404s a missing script, image or font instead of falling back to the app', () => {

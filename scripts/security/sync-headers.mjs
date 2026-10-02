@@ -128,6 +128,7 @@ const GZIP_TYPES = [
   'text/javascript',
   'application/javascript',
   'application/json',
+  'application/manifest+json',
   'application/wasm',
   'image/svg+xml',
 ]
@@ -190,6 +191,16 @@ function apiNotRoutedBody(apiPath) {
  * on reload.
  */
 const STATIC_FILE_LOCATION = '~* \\.(?:js|mjs|css|png|jpe?g|gif|ico|svg|webp|avif|woff2?|ttf|otf)$'
+
+/**
+ * The web app manifest. nginx's mime.types has no entry for `.webmanifest`, so
+ * the file went out as application/octet-stream, the type for "a download".
+ * The location names the type itself instead of adding to the server's map: a
+ * `types` block at server level replaces the inherited one, and every other
+ * file would lose its type.
+ */
+const MANIFEST_LOCATION = '~* \\.webmanifest$'
+const MANIFEST_TYPE = 'application/manifest+json'
 
 export function renderNginxConf({ apiUrl = DEFAULT_API_URL } = {}) {
   const apiPath = sameOriginApiPath(apiUrl)
@@ -259,6 +270,14 @@ export function renderNginxConf({ apiUrl = DEFAULT_API_URL } = {}) {
             'would get index.html with a 200, and nothing would look broken. A matching\n' +
             'regex beats the `/` prefix; the exact and ^~ locations still beat the regex.',
           directives: ['try_files $uri =404;'],
+          headers: rule.headers,
+        }),
+        nginxLocation(MANIFEST_LOCATION, {
+          comment:
+            'The web app manifest, under the type its specification gives it: without\n' +
+            'this block it is served as application/octet-stream. Cached for the same\n' +
+            'hour, and a missing one is a 404 like any other file.',
+          directives: ['types { }', `default_type ${MANIFEST_TYPE};`, 'try_files $uri =404;'],
           headers: rule.headers,
         }),
       )
