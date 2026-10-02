@@ -38,7 +38,7 @@
     },
     "src/modules/app/bootstrap/auth-wiring.ts": {
       "class": "managed",
-      "hash": "sha256-7054bf6752b1610192b29460590e92df7b049668608e96e717415755c085a407",
+      "hash": "sha256-1384d29ebc0da2e634bffe5b3f151f68079fe2a43380dc1ec5fff90dff095c50",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/boot-error.ts": {
@@ -677,7 +677,7 @@
     },
     "src/modules/app/stores/auth.ts": {
       "class": "managed",
-      "hash": "sha256-8d7929363c32ec426e545941c1422e800d2479c7a5584b296b947084a48110fb",
+      "hash": "sha256-81146a555213985e27d6d3df275523a6dd6e3467e1b81043e2ecfa4edbd0944e",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/styles/brand.css": {
@@ -771,7 +771,7 @@
     },
     "src/modules/auth/adapters/jwt.ts": {
       "class": "managed",
-      "hash": "sha256-8246b0a550ac39888495d3ab28457b1a0a59ca242a7d07d056cef509d616aab3",
+      "hash": "sha256-64ba0199be14a4c259ff6902f9d536dbdd8268b627f51b392e1e66a98b10a040",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/auth/adapters/mock.ts": {
@@ -796,7 +796,7 @@
     },
     "src/modules/auth/composables/useAuth.ts": {
       "class": "managed",
-      "hash": "sha256-4c3ded148528d1bd58985df124f53d8eaee00a5756c0d25705148882c72fdf29",
+      "hash": "sha256-c812c1896d5ec0e0a6d595c01ca886645867f1bef861903e2e11c6adb3a4de7e",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/auth/lib/pkce.ts": {
@@ -804,9 +804,14 @@
       "hash": "sha256-d33606c8b80bb8086ae02ba4a8feae827fefc3758a15374d9cf9c1fc97c847bd",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/auth/lib/safe-redirect.ts": {
+      "class": "managed",
+      "hash": "sha256-27b372794bf65e89903be9d35ed3441816d657bc398009b8ea729b83c2e0e566",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/core/lib/api/auth-interceptor.ts": {
       "class": "managed",
-      "hash": "sha256-ea2a47cb1223778162d8a651d13053cecca1fd4cf0e04e72f6a5d05af6c670fb",
+      "hash": "sha256-25c7b3bfac54791771464a4be72727d0312b72d8092ca6a847ecfea351d0a5c0",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/client.ts": {
