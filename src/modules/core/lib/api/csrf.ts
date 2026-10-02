@@ -86,7 +86,7 @@ export const csrfPresets: Readonly<{
   spring: CsrfTokenStrategy
   rails: CsrfTokenStrategy
   none: CsrfDisabled
-}> = Object.freeze({
+}> = {
   laravel: {
     source: 'cookie',
     name: 'XSRF-TOKEN',
@@ -98,7 +98,7 @@ export const csrfPresets: Readonly<{
   spring: { source: 'cookie', name: 'XSRF-TOKEN', header: 'X-XSRF-TOKEN' },
   rails: DEFAULT_CSRF_STRATEGY,
   none: { source: 'none' },
-})
+}
 
 /** How long a prime request may take before the request waiting on it goes ahead without. */
 const PRIME_TIMEOUT_MS = 10_000
