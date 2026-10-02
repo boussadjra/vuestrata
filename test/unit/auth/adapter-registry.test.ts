@@ -162,6 +162,13 @@ describe('an adapter the project registered with a factory', () => {
       /"broken" adapter registered in src\/modules\/app\/config\/auth\.config\.ts did not return an auth adapter/,
     )
   })
+
+  it('must say which transport it uses', () => {
+    // Without one the API client would not know whether to send a token.
+    installAuthConfig({ adapters: { vague: () => adapter({ transport: undefined as never }) } })
+
+    expect(() => createAuthAdapter('vague')).toThrow(/did not return an auth adapter/)
+  })
 })
 
 describe('an adapter the project registered to load on demand', () => {

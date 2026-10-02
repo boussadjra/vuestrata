@@ -95,6 +95,7 @@ const isAdapterShaped = (value: unknown): value is AuthAdapter => {
   return (
     typeof adapter === 'object' &&
     adapter !== null &&
+    (adapter.transport === 'bearer' || adapter.transport === 'cookie') &&
     typeof adapter.login === 'function' &&
     typeof adapter.logout === 'function' &&
     typeof adapter.getUser === 'function' &&
