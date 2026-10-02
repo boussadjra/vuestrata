@@ -6,16 +6,20 @@
  * Vuestrata, which keeps improving it, while the config that calls it stays the
  * project's own. `vuestrata-plugin.d.mts` beside it keeps that config typed.
  */
-import { rm } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import { loadEnv } from 'vite-plus'
 
-// Relative import, not an alias: this file runs in Node before `resolve.alias`
-// exists. `env.schema.ts` is dependency-free for exactly this reason.
-// Explicit .ts extension: the config may be loaded as native ESM, which does
-// not do extensionless resolution.
+// Relative imports, not aliases: this file runs in Node before `resolve.alias`
+// exists. `env.schema.ts` and `deploy.ts` are dependency-free for exactly this
+// reason. Explicit .ts extension: the config may be loaded as native ESM,
+// which does not do extensionless resolution.
+import { parseAppEnv } from '../../src/modules/core/lib/config/deploy.ts'
 import { ENV_KEYS, parseRuntimeEnv } from '../../src/modules/core/lib/config/env.schema.ts'
+import { loadDeployConfig } from '../security/deploy-config.mjs'
+import { resolveDeployHeaders, resolveRuntimeKeys } from '../security/headers.mjs'
 
 /**
  * Where `vp dev` forwards API requests. Deliberately NOT `VUESTRATA_`-prefixed:
@@ -24,32 +28,50 @@ import { ENV_KEYS, parseRuntimeEnv } from '../../src/modules/core/lib/config/env
  */
 const DEV_API_TARGET = 'DEV_API_TARGET'
 
-/** The CSP `<meta>` in index.html, split around its policy. */
-const CSP_META_PATTERN = /(<meta\s+http-equiv="Content-Security-Policy"\s+content=")([^"]*)(")/i
+/**
+ * The script every page loads before the app bundle. It assigns
+ * `window.__VUESTRATA_RUNTIME__`, the values a deployment sets when the app
+ * STARTS rather than when it is built (see core/lib/config/runtime-overlay.ts).
+ *
+ * `public/runtime-config.js` is the copy that ships: an empty overlay, which a
+ * deployment replaces — the container entrypoint writes one from its
+ * environment, and nginx serves that instead.
+ */
+const RUNTIME_CONFIG_FILE = 'runtime-config.js'
+
+/** What the file holds when nothing overrides anything. */
+const EMPTY_RUNTIME_CONFIG = 'window.__VUESTRATA_RUNTIME__ ||= {}\n'
 
 /**
  * Resolves and validates the runtime environment, then feeds the result into
  * `define` and `build.sourcemap`. Under `vp dev`, it also connects the dev
- * server to a real backend — see `devApiProxy` and `transformIndexHtml`.
+ * server to a real backend — see `devApiProxy`. And it makes every page load
+ * the runtime configuration first — see `transformIndexHtml`.
  *
  * This lives in a plugin rather than a `defineConfig(({ mode }) => …)` callback
  * because Vite+ reads the `lint`/`fmt`/`staged` fields off a STATIC default
  * export — a function export breaks `vp fmt` and `vp lint`. The `config` hook
  * gets us the resolved mode while keeping the export static.
  *
+ * @param {object} [options]
+ * @param {object} [options.deployConfig] The project's deployment config, in
+ *   place of reading `src/modules/app/config/deploy.config.ts`. For tests.
  * @returns {import('vite-plus').Plugin}
  */
-export function vuestrataEnv() {
+export function vuestrataEnv(options = {}) {
   let isDemoBuild = true
   let outDir = 'dist'
-  /** A cross-origin API the dev page must be allowed to reach, or null. */
-  let devApiOrigin = null
+  let publicDir = 'public'
+  /** Vite's `base`: where the app's own files are served from. */
+  let base = '/'
 
   return {
     name: 'vuestrata:env',
 
     configResolved(resolved) {
       outDir = resolve(resolved.root, resolved.build.outDir)
+      publicDir = resolved.publicDir
+      base = resolved.base
     },
 
     /**
@@ -61,13 +83,45 @@ export function vuestrataEnv() {
      *
      * This runs in `closeBundle` rather than `generateBundle` because public-dir
      * files are copied straight to disk and never enter the rollup bundle.
+     *
+     * The same reasoning, the other way round, for `runtime-config.js`: every
+     * page asks for it, so a build must never lack it. A project whose
+     * `public/` has no copy gets the empty one here, rather than a page whose
+     * first script is a 404 — or, behind an SPA fallback, index.html parsed
+     * as JavaScript.
      */
     async closeBundle() {
+      if (!existsSync(outDir)) return
+      if (!existsSync(resolve(outDir, RUNTIME_CONFIG_FILE))) {
+        await writeFile(resolve(outDir, RUNTIME_CONFIG_FILE), EMPTY_RUNTIME_CONFIG)
+      }
       if (isDemoBuild) return
       await rm(resolve(outDir, 'mockServiceWorker.js'), { force: true })
     },
 
-    config(config, { mode, command, isPreview }) {
+    /**
+     * The dev server's answer for `runtime-config.js` when `public/` has none,
+     * so that `vp dev` behaves like the build above. With the file in place
+     * Vite serves it as it serves anything under `public/`, and this stays out
+     * of the way.
+     */
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const path = request.url?.split('?')[0]
+        if (
+          path !== `${base}${RUNTIME_CONFIG_FILE}` ||
+          (publicDir && existsSync(resolve(publicDir, RUNTIME_CONFIG_FILE)))
+        ) {
+          next()
+          return
+        }
+        response.setHeader('Content-Type', 'text/javascript')
+        response.setHeader('Cache-Control', 'no-store')
+        response.end(EMPTY_RUNTIME_CONFIG)
+      })
+    },
+
+    async config(config, { mode, command, isPreview }) {
       // Nothing is being bundled: `vp dev`, `vp preview`, and Vitest, which
       // resolves as `serve` too. Only a build must refuse a local backend URL.
       const serving = command === 'serve'
@@ -81,9 +135,23 @@ export function vuestrataEnv() {
       // Strict parse: an invalid or self-contradictory configuration fails the
       // BUILD here rather than reaching a browser. The app-side counterpart in
       // core/lib/config runs the same schema leniently.
-      const env = parseRuntimeEnv(loadEnv(mode, envDir, 'VUESTRATA_'), { isDev, serving })
+      const rawEnv = loadEnv(mode, envDir, 'VUESTRATA_')
+      const env = parseRuntimeEnv(rawEnv, { isDev, serving })
       isDemoBuild = env.runtimeMode === 'demo'
-      devApiOrigin = devServer ? crossOriginOf(env.apiUrl) : null
+
+      // The project's own half of the configuration, held to the same standard:
+      // an invalid variable or an impossible header source fails here, with the
+      // file to fix named, rather than in a browser or in a container that will
+      // not start. Vitest is left out. It runs the app's modules, where the
+      // lenient reading applies, and a test run should not need the variables
+      // of a deployment to begin.
+      if (mode !== 'test') {
+        const root = resolve(config.root ?? process.cwd())
+        const deployConfig = options.deployConfig ?? (await loadDeployConfig({ root }))
+        parseAppEnv(deployConfig, rawEnv, { reservedKeys: Object.values(ENV_KEYS) })
+        resolveDeployHeaders(deployConfig.headers)
+        resolveRuntimeKeys([], deployConfig.runtime ?? [])
+      }
 
       // Read only by the dev server: a build never loads it, so it can never
       // reach `define` — and `envPrefix` never matches it, so it never reaches
@@ -113,19 +181,34 @@ export function vuestrataEnv() {
     },
 
     /**
-     * Let the dev page reach a cross-origin API.
+     * Load the runtime configuration before the app.
      *
-     * `index.html` carries a CSP `<meta>` generated for the default same-origin
-     * `/api` (scripts/security/headers.mjs), and the dev server serves it as
-     * is. An absolute `VUESTRATA_API_URL` — which the schema accepts while
-     * serving — would then have every API call blocked by the page's own
-     * policy. So the served copy allows that one origin. A build never takes
-     * this path: a deployment widens its policy from the same variable with
-     * `sync-headers.mjs --api-url`.
+     * A classic script, not a module and not a fetch: a classic script in the
+     * document runs before any module script does, and the values have to be in
+     * place by then — `runtimeEnv` and the API client's base URL are resolved
+     * while their modules are evaluated.
+     *
+     * It is added here, after Vite has processed the page, so that nothing
+     * bundles or inlines it: the file has to stay a separate URL that a
+     * deployment can answer differently, and `script-src 'self'` would refuse
+     * an inline copy anyway. For the same reason the URL is built from `base`
+     * by hand rather than left for Vite to rewrite.
+     *
+     * The page's own CSP `<meta>` needs no help to reach a cross-origin API: it
+     * does not restrict connections (see META_CONNECT_SRC in
+     * scripts/security/headers.mjs).
      */
-    transformIndexHtml(html, ctx) {
-      if (!ctx.server || !devApiOrigin) return html
-      return allowConnectTo(html, devApiOrigin)
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'script',
+          attrs: { src: `${base}${RUNTIME_CONFIG_FILE}` },
+          // First in the document, so it also precedes the module script in
+          // source order: nobody has to know the execution rules to see that
+          // the configuration comes first.
+          injectTo: 'head-prepend',
+        },
+      ]
     },
   }
 }
@@ -212,17 +295,6 @@ function sameOriginPath(apiUrl) {
   return new URL(apiUrl, 'http://localhost').pathname.replace(/\/+$/, '')
 }
 
-/** The origin of an absolute http(s) API URL, or null for a same-origin one. */
-function crossOriginOf(apiUrl) {
-  if (sameOriginPath(apiUrl) !== undefined) return null
-  try {
-    const { origin, protocol } = new URL(apiUrl)
-    return protocol === 'http:' || protocol === 'https:' ? origin : null
-  } catch {
-    return null
-  }
-}
-
 /**
  * The target as given, once it is known to be an http(s) URL. Anything else
  * fails `vp dev` at startup: the developer asked for a proxy, and one that can
@@ -242,34 +314,6 @@ function parseDevApiTarget(value) {
     )
   }
   return value
-}
-
-/**
- * Add `origin` to the `connect-src` of the page's CSP `<meta>`. A policy with
- * no `connect-src` falls back to `default-src` for connections, so that case
- * gets an explicit `connect-src` carrying the same sources plus `origin`.
- */
-function allowConnectTo(html, origin) {
-  return html.replace(CSP_META_PATTERN, (meta, open, policy, close) => {
-    // Each directive as [name, ...sources].
-    const directives = policy
-      .split(';')
-      .map((directive) => directive.trim().split(/\s+/))
-      .filter(([name]) => name)
-    const named = (name) => directives.find(([entry]) => entry.toLowerCase() === name)
-
-    const connect = named('connect-src')
-    const fallback = named('default-src')
-    if (connect) {
-      if (connect.includes(origin)) return meta
-      connect.push(origin)
-    } else if (fallback) {
-      directives.push(['connect-src', ...fallback.slice(1), origin])
-    } else {
-      return meta
-    }
-    return `${open}${directives.map((tokens) => tokens.join(' ')).join('; ')}${close}`
-  })
 }
 
 function escapeRegExp(value) {

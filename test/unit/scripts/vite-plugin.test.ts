@@ -3,22 +3,28 @@ import os from 'node:os'
 import path from 'node:path'
 
 import {
+  build as viteBuild,
   resolveConfig,
   type ConfigEnv,
   type ConfigPluginContext,
+  type Connect,
+  type HtmlTagDescriptor,
   type IndexHtmlTransformContext,
   type MinimalPluginContextWithoutEnvironment,
   type Plugin,
   type ViteDevServer,
 } from 'vite-plus'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { z } from 'zod'
 
-import { vuestrataEnv } from '../../../scripts/vite/vuestrata-plugin.mjs'
+import { vuestrataEnv, type VuestrataEnvOptions } from '../../../scripts/vite/vuestrata-plugin.mjs'
 
 /**
  * The Vite plugin is where the env schema meets the build: it decides what
  * `__VUESTRATA_DEMO__` compiles to, and — under `vp dev` — whether requests for
- * the API path are proxied to `DEV_API_TARGET`.
+ * the API path are proxied to `DEV_API_TARGET`. It is also what makes every
+ * page load `runtime-config.js` before the app, and what holds the project's
+ * own `deploy.config.ts` to the same standard as the built-in variables.
  *
  * That variable is the one thing here with a security edge. It is read from
  * the same `.env` files as everything else, and every `VUESTRATA_*` value in
@@ -52,8 +58,8 @@ function project(files: Record<string, Record<string, string>>): string {
 }
 
 /** Runs the plugin's `config` hook the way Vite does, capturing warnings. */
-async function runConfig(root: string, env: ConfigEnv) {
-  const plugin = vuestrataEnv()
+async function runConfig(root: string, env: ConfigEnv, options?: VuestrataEnvOptions) {
+  const plugin = vuestrataEnv(options)
   const warn = vi.fn()
   const hook = plugin.config
   const handler = typeof hook === 'function' ? hook : hook?.handler
@@ -337,51 +343,300 @@ describe('the build target', () => {
   })
 })
 
-describe('the dev page CSP', () => {
+describe('the runtime configuration script', () => {
   const indexHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8')
-  const server = {} as ViteDevServer
 
-  function connectSrc(html: string): string[] {
-    const policy = /http-equiv="Content-Security-Policy"\s+content="([^"]*)"/.exec(html)?.[1] ?? ''
-    const directive = policy.split(';').find((entry) => entry.trim().startsWith('connect-src'))
-    return directive?.trim().split(/\s+/).slice(1) ?? []
+  /** The plugin after Vite resolved a config for `root`, so it knows `base`. */
+  async function resolved(root: string, config: { base?: string } = {}) {
+    const plugin = vuestrataEnv()
+    await resolveConfig(
+      { configFile: false, root, logLevel: 'silent', plugins: [plugin], ...config },
+      'build',
+      'production',
+    )
+    return plugin
   }
 
-  it('lets the dev page reach a cross-origin API', async () => {
-    const root = project({
-      '.env.development.local': { ...production, VUESTRATA_API_URL: 'http://localhost:8000/api' },
+  async function tags(plugin: Plugin, ctx: Partial<IndexHtmlTransformContext> = {}) {
+    return (await transformHtml(plugin, indexHtml, ctx)) as HtmlTagDescriptor[]
+  }
+
+  it('is loaded by every page, as a separate classic script', async () => {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+
+    const [tag, ...rest] = await tags(await resolved(root))
+
+    expect(rest).toEqual([])
+    // No `type="module"` and no `defer`/`async`: a classic script runs before
+    // any module script, and the app reads the values while its modules are
+    // evaluated. No children: an inline copy could not differ per deployment,
+    // and `script-src 'self'` would refuse it.
+    expect(tag).toEqual({
+      tag: 'script',
+      attrs: { src: '/runtime-config.js' },
+      injectTo: 'head-prepend',
     })
-    const { plugin } = await runConfig(root, serve())
-
-    const html = await transformHtml(plugin, indexHtml, { server })
-
-    expect(typeof html).toBe('string')
-    expect(connectSrc(html as string)).toEqual([...connectSrc(indexHtml), 'http://localhost:8000'])
   })
 
-  it('leaves the page alone for a same-origin API', async () => {
-    const root = project({ '.env.development.local': { ...production, VUESTRATA_API_URL: '/api' } })
-    const { plugin } = await runConfig(root, serve())
+  it('is the same under vp dev, so development behaves like the build', async () => {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+    const plugin = await resolved(root)
 
-    expect(await transformHtml(plugin, indexHtml, { server })).toBe(indexHtml)
+    expect(await tags(plugin, { server: {} as ViteDevServer })).toEqual(await tags(plugin))
   })
 
-  it('never touches a built page', async () => {
-    const root = project({ '.env': { ...production, VUESTRATA_API_URL: 'https://api.acme.test' } })
-    const { plugin } = await runConfig(root, build())
+  it.each([
+    ['/', '/runtime-config.js'],
+    ['/console/', '/console/runtime-config.js'],
+    ['https://cdn.acme.test/app/', 'https://cdn.acme.test/app/runtime-config.js'],
+  ])("follows Vite's base %s", async (base, src) => {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
 
-    expect(await transformHtml(plugin, indexHtml, {})).toBe(indexHtml)
+    const [tag] = await tags(await resolved(root, { base }))
+
+    expect(tag?.attrs).toEqual({ src })
   })
 
-  it('derives connect-src from default-src when the policy has none', async () => {
-    const root = project({
-      '.env.development.local': { ...production, VUESTRATA_API_URL: 'http://localhost:8000/api' },
+  describe('in a real build', () => {
+    /** The smallest project Vite can build: a page and the module it loads. */
+    function buildable(files: Record<string, string> = {}): string {
+      const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+      fs.writeFileSync(
+        path.join(root, 'index.html'),
+        '<!doctype html><html><head><title>t</title></head><body><div id="app"></div>' +
+          '<script type="module" src="/main.js"></script></body></html>',
+      )
+      fs.writeFileSync(path.join(root, 'main.js'), 'document.title = String(Date.now())\n')
+      for (const [name, content] of Object.entries(files)) {
+        fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true })
+        fs.writeFileSync(path.join(root, name), content)
+      }
+      return root
+    }
+
+    const buildIn = (root: string, base?: string) =>
+      viteBuild({
+        configFile: false,
+        root,
+        base,
+        logLevel: 'silent',
+        envPrefix: 'VUESTRATA_',
+        plugins: [vuestrataEnv()],
+      })
+
+    const read = (root: string, file: string) => fs.readFileSync(path.join(root, file), 'utf8')
+
+    it('references the file from the page and never inlines it', async () => {
+      const root = buildable({
+        'public/runtime-config.js': 'window.__VUESTRATA_RUNTIME__ ||= {} // MARKER\n',
+      })
+
+      await buildIn(root)
+      const html = read(root, 'dist/index.html')
+
+      expect(html).toContain('<script src="/runtime-config.js"></script>')
+      // Ahead of the app's module script in the document.
+      expect(html.indexOf('/runtime-config.js')).toBeLessThan(html.indexOf('type="module"'))
+      // Still its own file, byte for byte: a deployment replaces it without a rebuild.
+      expect(html).not.toContain('MARKER')
+      expect(html).not.toContain('__VUESTRATA_RUNTIME__')
+      expect(read(root, 'dist/runtime-config.js')).toBe(
+        'window.__VUESTRATA_RUNTIME__ ||= {} // MARKER\n',
+      )
+      // And no bundled chunk took a copy either.
+      for (const asset of fs.readdirSync(path.join(root, 'dist/assets'))) {
+        expect(read(root, `dist/assets/${asset}`)).not.toContain('MARKER')
+      }
+    }, 60_000)
+
+    it('emits an empty overlay when the project has no copy in public/', async () => {
+      const root = buildable()
+
+      await buildIn(root)
+
+      // Otherwise the page's first script would be a 404 — or, behind an SPA
+      // fallback, index.html parsed as JavaScript.
+      expect(read(root, 'dist/runtime-config.js')).toBe('window.__VUESTRATA_RUNTIME__ ||= {}\n')
+    }, 60_000)
+
+    it('prefixes the script with a subpath base', async () => {
+      const root = buildable()
+
+      await buildIn(root, '/console/')
+
+      expect(read(root, 'dist/index.html')).toContain(
+        '<script src="/console/runtime-config.js"></script>',
+      )
+    }, 60_000)
+  })
+
+  describe('under vp dev, for a project with no copy in public/', () => {
+    /** The middleware the plugin registers, for a dev server rooted at `root`. */
+    async function middleware(root: string) {
+      const plugin = await resolved(root)
+      const use = vi.fn<(handler: Connect.NextHandleFunction) => void>()
+      const hook = plugin.configureServer
+      const handler = typeof hook === 'function' ? hook : hook?.handler
+      if (!handler) throw new Error('vuestrata:env has no configureServer hook')
+      await handler.call(
+        {} as MinimalPluginContextWithoutEnvironment,
+        { middlewares: { use } } as unknown as ViteDevServer,
+      )
+      return use.mock.calls[0]![0]
+    }
+
+    function request(handler: Connect.NextHandleFunction, url: string) {
+      const response = { setHeader: vi.fn(), end: vi.fn() }
+      const next = vi.fn()
+      handler({ url } as Connect.IncomingMessage, response as never, next)
+      return { response, next }
+    }
+
+    it('answers with an empty overlay, uncached', async () => {
+      const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+
+      const { response, next } = request(await middleware(root), '/runtime-config.js?t=1')
+
+      expect(next).not.toHaveBeenCalled()
+      expect(response.end).toHaveBeenCalledWith('window.__VUESTRATA_RUNTIME__ ||= {}\n')
+      expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'text/javascript')
+      expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store')
     })
-    const { plugin } = await runConfig(root, serve())
-    const page = `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'" />`
 
-    const html = await transformHtml(plugin, page, { server })
+    it('leaves the file in public/ to Vite when there is one', async () => {
+      const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+      fs.mkdirSync(path.join(root, 'public'))
+      fs.writeFileSync(path.join(root, 'public/runtime-config.js'), '// the project copy\n')
 
-    expect(connectSrc(html as string)).toEqual(["'self'", 'http://localhost:8000'])
+      const { response, next } = request(await middleware(root), '/runtime-config.js')
+
+      expect(next).toHaveBeenCalledTimes(1)
+      expect(response.end).not.toHaveBeenCalled()
+    })
+
+    it('answers nothing else', async () => {
+      const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+      const handler = await middleware(root)
+
+      for (const url of [
+        '/',
+        '/src/main.ts',
+        '/assets/runtime-config.js',
+        '/runtime-config.json',
+      ]) {
+        const { response, next } = request(handler, url)
+        expect(next, url).toHaveBeenCalledTimes(1)
+        expect(response.end, url).not.toHaveBeenCalled()
+      }
+    })
+  })
+
+  it('needs no help from the plugin to reach a cross-origin API in development', async () => {
+    // The plugin used to widen the page's CSP <meta> for the dev server. The
+    // tag no longer restricts connections, so the page is served as written.
+    const policy = /http-equiv="Content-Security-Policy"\s+content="([^"]*)"/.exec(indexHtml)?.[1]
+
+    expect(policy).toContain('connect-src *;')
+  })
+})
+
+describe("the project's deploy.config.ts", () => {
+  const deployConfig = {
+    env: {
+      VUESTRATA_FEATURE_BILLING: z.enum(['on', 'off']).default('off'),
+      VUESTRATA_MAPS_KEY: z.string().min(8),
+      VUESTRATA_SUPABASE_URL: z.url(),
+    },
+    runtime: ['VUESTRATA_SUPABASE_URL'],
+  } as VuestrataEnvOptions['deployConfig']
+
+  const valid = { ...production, VUESTRATA_API_URL: '/api', VUESTRATA_MAPS_KEY: 'pk_live_12345678' }
+
+  it('passes a build whose declared variables are valid', async () => {
+    const root = project({ '.env': { ...valid, VUESTRATA_FEATURE_BILLING: 'on' } })
+
+    await expect(runConfig(root, build(), { deployConfig })).resolves.toBeDefined()
+  })
+
+  it('fails a build on an invalid declared variable, naming it', async () => {
+    const root = project({ '.env': { ...valid, VUESTRATA_FEATURE_BILLING: 'maybe' } })
+
+    await expect(runConfig(root, build(), { deployConfig })).rejects.toThrow(
+      /Invalid app environment \(deploy\.config\.ts\)[\s\S]*VUESTRATA_FEATURE_BILLING/,
+    )
+  })
+
+  it('fails a build that lacks a required variable', async () => {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+
+    await expect(runConfig(root, build(), { deployConfig })).rejects.toThrow(/VUESTRATA_MAPS_KEY/)
+  })
+
+  it('lets a runtime variable be absent from the build, but not invalid', async () => {
+    // VUESTRATA_SUPABASE_URL is required, and arrives when the container starts.
+    await expect(
+      runConfig(project({ '.env': valid }), build(), { deployConfig }),
+    ).resolves.toBeDefined()
+
+    const root = project({ '.env': { ...valid, VUESTRATA_SUPABASE_URL: 'not a url' } })
+    await expect(runConfig(root, build(), { deployConfig })).rejects.toThrow(
+      /VUESTRATA_SUPABASE_URL/,
+    )
+  })
+
+  it('applies to vp dev as well, so the mistake is seen before the build', async () => {
+    const root = project({ '.env': { ...valid, VUESTRATA_FEATURE_BILLING: 'maybe' } })
+
+    await expect(runConfig(root, serve(), { deployConfig })).rejects.toThrow(
+      /VUESTRATA_FEATURE_BILLING/,
+    )
+  })
+
+  it('does not hold a test run to the variables of a deployment', async () => {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+
+    await expect(runConfig(root, serve('test'), { deployConfig })).resolves.toBeDefined()
+  })
+
+  it.each([
+    [
+      'a variable that shadows a built-in one',
+      { env: { VUESTRATA_API_URL: z.string().optional() } },
+      /built-in variable/,
+    ],
+    [
+      'a variable Vite would not expose',
+      { env: { STRIPE_KEY: z.string().optional() } },
+      /VUESTRATA_ followed by/,
+    ],
+    [
+      'a runtime key that is not declared',
+      { env: {}, runtime: ['VUESTRATA_OTHER'] },
+      /not declared under env/,
+    ],
+    [
+      'a header source with a path',
+      { headers: { connectSrc: ['https://api.acme.test/v1'] } },
+      /headers\.connectSrc\[0\]/,
+    ],
+    ['a header option it does not know', { headers: { scriptSrc: [] } }, /unknown option/],
+    [
+      'a COOP value that does not exist',
+      { headers: { crossOriginOpenerPolicy: 'allow-popups' } },
+      /crossOriginOpenerPolicy/,
+    ],
+  ])('fails a build on %s', async (_, config, message) => {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+
+    await expect(
+      runConfig(root, build(), { deployConfig: config as VuestrataEnvOptions['deployConfig'] }),
+    ).rejects.toThrow(message)
+  })
+
+  it('reads nothing, and fails nothing, for a project that has no such file', async () => {
+    // A project that has not taken the release that introduced it yet.
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+
+    await expect(runConfig(root, build())).resolves.toBeDefined()
   })
 })
