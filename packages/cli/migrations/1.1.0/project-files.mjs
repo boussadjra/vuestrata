@@ -750,6 +750,61 @@ const pinnedTests = [
   },
 ]
 
+// ─── vite.config.ts: room for the tests ──────────────────────────────────────
+
+const TEST_BLOCK_OLD = `    setupFiles: ['test/setup.ts'],
+
+    coverage: {
+`
+
+const TEST_BLOCK_NEW = `    setupFiles: ['test/setup.ts'],
+
+    /**
+     * Three times Vitest's 5 s default.
+     *
+     * A test's clock also runs while the machine does work that has nothing to
+     * do with what the test asserts: the first dynamic \`import()\` in a file is
+     * transformed inside the test that makes it, a component test mounts a tree
+     * of Reka primitives in jsdom, and the script tests start a Node process.
+     * Idle, each takes well under a second. Beside a build, an e2e run or a
+     * second test run they crossed 5 s, a different handful of tests each time,
+     * and none of those failures said anything about the code. A test that
+     * hangs still fails; it takes ten seconds longer to say so.
+     */
+    testTimeout: 15_000,
+
+    /**
+     * Off CI, half the cores.
+     *
+     * Vitest starts one worker per core, each with its own jsdom, and gives a
+     * worker a fixed time to come up. On a machine that is also running an
+     * editor, a dev server and a browser, that many at once is what failed: a
+     * worker timed out before it ran a test. Half leaves room for the rest of
+     * what a developer runs. CI's runners do nothing else, so they keep the
+     * default; \`--maxWorkers=<n>\` on the command line overrides either.
+     */
+    ...(process.env.CI ? {} : { maxWorkers: '50%' }),
+
+    coverage: {
+`
+
+/**
+ * The template's tests failed on a busy machine for reasons that were not in
+ * the code: a 5 s limit, and a worker per core. A project runs the same tests
+ * and more of its own, so an unedited test block gets the same two settings.
+ *
+ * No guard and no note. A project that has shaped its test block has made its
+ * own choices here, and a setting it may not want is not worth a line in every
+ * upgrade report; `apply` finds the shipped lines or changes nothing.
+ */
+const testRoom = {
+  file: 'vite.config.ts',
+  apply: (source) =>
+    /\b(?:testTimeout|maxWorkers)\b/.test(source)
+      ? source
+      : replaceBlocks(source, [{ from: TEST_BLOCK_OLD, to: TEST_BLOCK_NEW }]),
+}
+
 // ─── The three merged files ──────────────────────────────────────────────────
 
 /**
@@ -814,5 +869,9 @@ export default [
   {
     description: 'tests that asserted the 1.0 behaviour of files this release replaces',
     steps: pinnedTests,
+  },
+  {
+    description: 'the test runner allows 15 s a test and, off CI, uses half the cores',
+    steps: [testRoom],
   },
 ]

@@ -109,6 +109,8 @@ const BECOMES: Record<string, string> = {
   'src/modules/showcase/pages/forms.vue':
     'sha256-61f5ae4a05b7434b860775a9e2ff9453b94f621991058b99aee83eeea5fe0439',
   'e2e/forms.spec.ts': 'sha256-5173d57b438e6f70c4595f4b4a55c91bd39766d31c17b16de9af5088b99b0d47',
+  // After both of its codemods: the env plugin import (promotions) and the test block.
+  'vite.config.ts': 'sha256-d19a7b3af7fbc24b6ffc76a232711c713dc6c1a09527776b9601e19d0760c438',
   'test/stores.test.ts': 'sha256-b3059a058cd1090b419d50510ac25f2a15c31a71a3b6366471dcac4ef9e94a8d',
   'test/unit/composables/use-rbac.test.ts':
     'sha256-282e7036330f710e4b21945162fc75cc87b4535f1c5b8da0d3025becc9f4cfec',
@@ -601,6 +603,83 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       expect(changed(again)).toEqual([])
       expect(again.notes).toEqual([])
+    })
+  })
+
+  describe('vite.config.ts', () => {
+    const VITE = 'vite.config.ts'
+    const SHIPPED_LINES = "    setupFiles: ['test/setup.ts'],\n\n    coverage: {\n"
+
+    it('gives an unedited test block the timeout and the worker cap', async () => {
+      seed([VITE])
+      expect(lf(released(VITE))).toContain(SHIPPED_LINES)
+
+      const report = await upgrade()
+
+      const result = lf(fixture.read(VITE))
+      expect(result).toContain('    testTimeout: 15_000,\n')
+      expect(result).toContain("    ...(process.env.CI ? {} : { maxWorkers: '50%' }),\n")
+      // With the env plugin moved out by the promotions, the file this release ships.
+      expect(hash(result)).toBe(BECOMES[VITE])
+      expect(report.notes).toEqual([])
+      expect(fixture.exists(incoming(VITE))).toBe(false)
+    })
+
+    it('keeps the line endings the file had', async () => {
+      seed([VITE])
+      fixture.write(VITE, lf(released(VITE)).replaceAll('\n', '\r\n'))
+
+      await upgrade()
+
+      const result = fixture.read(VITE)
+      expect(result).not.toMatch(/[^\r]\n/)
+      expect(hash(lf(result))).toBe(BECOMES[VITE])
+    })
+
+    it('leaves a project that chose its own timeout or worker count, without a word', async () => {
+      for (const setting of ['testTimeout: 30_000', 'maxWorkers: 2']) {
+        seed([VITE])
+        const own = lf(released(VITE)).replace(
+          SHIPPED_LINES,
+          `    setupFiles: ['test/setup.ts'],\n\n    ${setting},\n\n    coverage: {\n`,
+        )
+        fixture.write(VITE, own)
+
+        const report = await upgrade()
+
+        const result = lf(fixture.read(VITE))
+        expect(result, setting).toContain(`    ${setting},\n`)
+        expect(result, setting).not.toContain('15_000')
+        expect(result, setting).not.toContain("maxWorkers: '50%'")
+        expect(texts(report).filter((text) => /testTimeout|maxWorkers/.test(text))).toEqual([])
+      }
+    })
+
+    it('leaves a test block that is no longer the shipped one, without a word', async () => {
+      seed([VITE])
+      const reshaped = lf(released(VITE)).replace(
+        SHIPPED_LINES,
+        "    setupFiles: ['test/setup.ts', 'test/setup.acme.ts'],\n\n    coverage: {\n",
+      )
+      fixture.write(VITE, reshaped)
+
+      const report = await upgrade()
+
+      expect(lf(fixture.read(VITE))).not.toContain('testTimeout')
+      expect(lf(fixture.read(VITE))).toContain("'test/setup.acme.ts'")
+      expect(texts(report).filter((text) => /testTimeout|maxWorkers/.test(text))).toEqual([])
+      expect(fixture.exists(incoming(VITE))).toBe(false)
+    })
+
+    it('does nothing the second time', async () => {
+      seed([VITE])
+      await upgrade()
+      const once = fixture.read(VITE)
+
+      const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+      expect(fixture.read(VITE)).toBe(once)
+      expect(changed(again)).toEqual([])
     })
   })
 

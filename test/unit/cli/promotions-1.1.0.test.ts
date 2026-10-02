@@ -287,7 +287,14 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
 
     const report = await upgrade()
 
-    expect(fixture.read(VITE)).toBe(edited)
+    // Everything down to the test block is as the project left it, the inline
+    // plugin included. The test block is another step's, and nobody edited it
+    // here, so it does get this release's settings (migration-1.1.0.test.ts).
+    const upTo = (text: string) => text.slice(0, text.indexOf('  test: {'))
+    const result = fixture.read(VITE)
+    expect(upTo(edited)).toContain("'VUESTRATA_', 'ACME_'")
+    expect(upTo(result)).toBe(upTo(edited))
+    expect(result).not.toContain("from './scripts/vite/vuestrata-plugin.mjs'")
     expect(notesFor(report, VITE)).toHaveLength(1)
     expect(notesFor(report, VITE)[0]?.text).toMatch(/scripts\/vite\/vuestrata-plugin\.mjs/)
   })
