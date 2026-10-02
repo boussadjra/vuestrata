@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { test, expect, type ConsoleMessage, type Page, type Request } from '@playwright/test'
 
 import { logInAsDemoAdmin } from './helpers/auth'
@@ -151,6 +152,103 @@ test.describe('MSW in the demo build', () => {
 
     expect(response.status(), `${response.url()} was not served by MSW`).toBeLessThan(400)
     expect(response.headers()['content-type'] ?? '').toContain('json')
+  })
+})
+
+test.describe('When something fails', () => {
+  test.skip(!isPreviewTarget, 'Route chunks only exist in a real build')
+
+  const CHUNKS = '**/assets/*.js'
+  const loginLink = (page: Page) => page.locator('a[href="/auth/login"]').first()
+
+  /**
+   * Load the landing page, then fail every script it did not need.
+   *
+   * That is a deploy gone wrong as the browser sees it: the page that is open
+   * keeps working and the chunk behind the next route cannot be fetched. The
+   * route goes on the context because a demo build's requests pass through the
+   * MSW service worker, which a page-level route never sees.
+   */
+  async function bootThenBreakLazyChunks(page: Page): Promise<void> {
+    const needed = new Set<string>()
+    page.on('request', (request) => {
+      if (/\/assets\/[^/]+\.js(?:\?|$)/.test(request.url())) needed.add(request.url())
+    })
+    await page.goto('/')
+    await waitForAppReady(page)
+    await page.waitForLoadState('networkidle')
+
+    const allowed = new Set(needed)
+    await page
+      .context()
+      .route(CHUNKS, (route) =>
+        allowed.has(route.request().url()) ? route.continue() : route.abort(),
+      )
+  }
+
+  async function expectNoBlockingViolations(page: Page): Promise<void> {
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    const blocking = results.violations.filter(
+      (violation) => violation.impact === 'critical' || violation.impact === 'serious',
+    )
+    expect(
+      blocking.map((violation) => `[${violation.impact}] ${violation.id}: ${violation.help}`),
+      'Blocking accessibility violations',
+    ).toEqual([])
+  }
+
+  test('a route whose chunk fails twice reaches the error state, not a dead click', async ({
+    page,
+  }) => {
+    await bootThenBreakLazyChunks(page)
+
+    // First failure: the app takes it for a stale tab and reloads once.
+    await Promise.all([page.waitForEvent('load'), loginLink(page).click()])
+    await waitForAppReady(page)
+    await expect(page.getByTestId('app-error-boundary')).toHaveCount(0)
+
+    // Second failure: the reload did not fix it, so the visitor is told.
+    await loginLink(page).click()
+    const boundary = page.getByTestId('app-error-boundary')
+    await expect(boundary).toBeVisible()
+    await expect(boundary.getByRole('alert')).toContainText('could not be loaded')
+    await expect(boundary.getByRole('heading', { level: 1 })).toBeFocused()
+    await expect(page.getByTestId('app-error-reload')).toBeVisible()
+    await expect(page.getByTestId('app-error-home')).toBeVisible()
+    await expectNoBlockingViolations(page)
+
+    // Retry is a page load, which is the only thing that can fetch the chunk
+    // again once Chromium has seen the import fail.
+    await page.context().unroute(CHUNKS)
+    await page.getByTestId('app-error-retry').click()
+    await expect(page).toHaveURL(/\/auth\/login/)
+    await expect(page.locator('#email')).toBeVisible({ timeout: 20_000 })
+  })
+
+  test('a first route that cannot load replaces the spinner with the boot-failure screen', async ({
+    page,
+  }) => {
+    await bootThenBreakLazyChunks(page)
+
+    // Reloads itself once, fails again, and only then gives up.
+    await page.goto('/auth/login')
+    const screen = page.locator('#boot-failure')
+    await expect(screen).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('#app-loader')).toHaveCount(0)
+    await expect(screen.getByRole('heading', { level: 1 })).toBeFocused()
+
+    // Collapsed, and never the chunk's address.
+    const details = screen.locator('details')
+    await expect(details).not.toHaveAttribute('open', /.*/)
+    await expect(details.locator('pre')).not.toContainText('http')
+    await expect(details.locator('pre')).not.toContainText('/assets/')
+    await expectNoBlockingViolations(page)
+
+    await page.context().unroute(CHUNKS)
+    await screen.getByRole('button').click()
+    await expect(page.locator('#email')).toBeVisible({ timeout: 20_000 })
   })
 })
 
