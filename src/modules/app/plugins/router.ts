@@ -61,7 +61,7 @@ if (import.meta.hot) {
 router.beforeEach(() => {
   NProgress.start()
 })
-router.afterEach((_to, from) => {
+router.afterEach((_to, from, failure) => {
   NProgress.done()
   // Chunks are loading again, so a LATER stale chunk (a second deploy in the
   // same session) should get its own reload rather than being suppressed by a
@@ -72,7 +72,11 @@ router.afterEach((_to, from) => {
   // nothing about the chunk that was missing. Clearing the marker there meant
   // a route whose chunk is really gone reloaded the page on every click and
   // never reached the error screen.
-  if (from !== START_LOCATION) clearStaleChunkMarker()
+  //
+  // And only for a navigation that arrived. This hook also runs for one that
+  // did not (a guard refused it, a newer one replaced it, the visitor clicked
+  // the link of the page they are on), and nothing loaded for those.
+  if (!failure && from !== START_LOCATION) clearStaleChunkMarker()
 })
 router.onError((error) => {
   NProgress.done()

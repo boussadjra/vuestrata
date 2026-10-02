@@ -107,11 +107,21 @@ function reloadAlreadyAttempted(): boolean {
   }
 }
 
-function markReloadAttempted(): void {
+/**
+ * Record the attempt, and say whether it was recorded.
+ *
+ * `false` when the write was refused (quota exceeded, some private modes) or
+ * did not stick. The caller must then not reload: a reload nothing remembers is
+ * the unguarded loop this file exists to prevent, and for a first route it
+ * starts by itself, with no click in between.
+ */
+function markReloadAttempted(): boolean {
   try {
-    sessionStorage.setItem(RELOAD_MARKER_KEY, String(Date.now()))
+    const at = String(Date.now())
+    sessionStorage.setItem(RELOAD_MARKER_KEY, at)
+    return sessionStorage.getItem(RELOAD_MARKER_KEY) === at
   } catch {
-    // If we cannot record the attempt we must not reload — see above.
+    return false
   }
 }
 
@@ -137,12 +147,20 @@ export function handleStaleChunkError(
     return false
   }
 
+  if (!markReloadAttempted()) {
+    staleChunkLogger.error(
+      'A route chunk is missing, and the reload that would fix it cannot be recorded in ' +
+        'sessionStorage. Not reloading — an attempt nothing remembers would repeat for ever.',
+      { err: error },
+    )
+    return false
+  }
+
   staleChunkLogger.warn(
     'A route chunk is missing, which usually means a new version was deployed while this tab ' +
       'was open. Reloading once to pick it up.',
     { err: error },
   )
-  markReloadAttempted()
   reload()
   return true
 }
