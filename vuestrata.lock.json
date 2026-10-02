@@ -1,9 +1,19 @@
 {
   "template": "1.0.1-alpha.6",
   "files": {
+    "docker/entrypoint.d/40-vuestrata-runtime.sh": {
+      "class": "managed",
+      "hash": "sha256-84b6e5fba8ce5cb01c8b38e0f7858491d4ddb8c7b81acff5befc4861ec8ea91d",
+      "since": "1.0.1-alpha.6"
+    },
+    "public/runtime-config.js": {
+      "class": "managed",
+      "hash": "sha256-3735f371d86bada514ee193642f916323428aab48fed522dac1e45d2ee647b94",
+      "since": "1.0.1-alpha.6"
+    },
     "scripts/build/verify-bundle.mjs": {
       "class": "managed",
-      "hash": "sha256-ac87d18ae5632bcc58200c9adf3985829d970909d8278f35700c02539737ff93",
+      "hash": "sha256-c2427b50b807b303393a5c6b57e115c66eccb8f5edc05dd8da7e585cc4a86101",
       "since": "1.0.1-alpha.6"
     },
     "scripts/build/write-version.mjs": {
@@ -11,24 +21,34 @@
       "hash": "sha256-f6572718e4021771ef388f8d607b82b81b2a8917b6724d0086fba2c5a6332336",
       "since": "1.0.1-alpha.6"
     },
+    "scripts/security/deploy-config.mjs": {
+      "class": "managed",
+      "hash": "sha256-7648bcc7947a872fad842d06105ab0b537a344088b2056165802383184a2421d",
+      "since": "1.0.1-alpha.6"
+    },
     "scripts/security/headers.mjs": {
       "class": "managed",
-      "hash": "sha256-6be9c62cab027bdb50e861567b98728d473b02c638e75a99a9c9e376cefe4a86",
+      "hash": "sha256-060fdd63613b34e1d471defd2726c335874d0cf87a77605deaa47baf7b79d59d",
       "since": "1.0.1-alpha.6"
     },
     "scripts/security/sync-headers.mjs": {
       "class": "managed",
-      "hash": "sha256-3d10a23be5bf4a7111528ba332a42727d5417fa290c5e693aff9b51ab58f4e45",
+      "hash": "sha256-1725c5832b4c49e277fba3fe9a4642c931e8d0622784fd42fbcb2072edd0d443",
       "since": "1.0.1-alpha.6"
     },
     "scripts/vite/vuestrata-plugin.d.mts": {
       "class": "managed",
-      "hash": "sha256-fa5b33d121911a550548c10ec3e294730c3d96edf101683994440658e15936b9",
+      "hash": "sha256-528359be944e9fa5da2ac9e8b2b2f9bb37886430798c12a1bee8639c2023d748",
       "since": "1.0.1-alpha.6"
     },
     "scripts/vite/vuestrata-plugin.mjs": {
       "class": "managed",
-      "hash": "sha256-94683dfd3ed96f7c7be7fe19c90f35ca62cff247db29a64e4742e112c49cd2db",
+      "hash": "sha256-85cde5073d6b917f9166b0a3e185a3f80aa6475d1548078d9ee411e4cd6d570e",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/app/bootstrap/app-env.ts": {
+      "class": "managed",
+      "hash": "sha256-c1206881f68974ce8428e758c48d94bdaec900e266094e10f5a1cbeee4d0e910",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/app-loader.ts": {
@@ -68,7 +88,7 @@
     },
     "src/modules/app/bootstrap/seams.ts": {
       "class": "managed",
-      "hash": "sha256-068ae5af0fcd1c984530168d0ff4381c9c3bfe746b17f493c33f07f60ecd2e1c",
+      "hash": "sha256-c603b0ceb63894fcfff904c3727988b6494a855722f1e52d0336e0176c92de5d",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/stale-chunk-reload.ts": {
@@ -604,6 +624,10 @@
       "class": "seeded",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/app/config/deploy.config.ts": {
+      "class": "seeded",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/app/config/rbac.overrides.ts": {
       "class": "seeded",
       "since": "1.0.1-alpha.6"
@@ -854,6 +878,11 @@
       "hash": "sha256-57b8e36b68bc5e7e1cf3eaac062ce65785f94dcaf75fd51f6afda6832959630b",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/core/lib/config/deploy.ts": {
+      "class": "managed",
+      "hash": "sha256-5d1033739a064e0f0595121d8d1e36277ef30abf1c5f7350f14f24117f46841b",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
       "hash": "sha256-6ef0ec7ddc6962b5b66f246aa7c29434505b7ef5993816e828b39b1851313012",
@@ -861,7 +890,12 @@
     },
     "src/modules/core/lib/config/index.ts": {
       "class": "managed",
-      "hash": "sha256-5db532bb97c658298f6dbe2c9c1a7472360741f3527d87c96890ac163c2124c9",
+      "hash": "sha256-08d6d4956349b915cd275894f894f945232263a693a90f46d97951145d6e2d49",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/core/lib/config/runtime-overlay.ts": {
+      "class": "managed",
+      "hash": "sha256-0b0f41d38f3884840347f4e02cdedf9363a16d9804748e1835be485a5bb868b9",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/echarts-setup.ts": {
