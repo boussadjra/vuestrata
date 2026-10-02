@@ -29,6 +29,14 @@ export interface DemoAuthStore {
 /**
  * Drop the session in this tab because another tab signed out, and leave the
  * protected page the visitor was on.
+ *
+ * The login URL carries `redirect` and, on purpose, no `reason`. The expiry
+ * redirect (`expiredSessionTarget` in auth-wiring.ts) adds `reason=expired`,
+ * and the login page then says the session expired. Here that would be untrue:
+ * the person signed out themselves, in the other tab, and a notice telling
+ * them a timer did it is the mistake the expiry path was fixed to stop making.
+ * The poll below ends up here too when the stored demo session is gone, which
+ * is the same sign-out seen late, or storage the visitor cleared.
  */
 export async function clearDemoAuthTab(
   authStore: Pick<DemoAuthStore, 'clearAuth'>,

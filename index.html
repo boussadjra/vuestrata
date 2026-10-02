@@ -17,8 +17,10 @@
     <!--
       Baseline CSP for environments that serve this file without the header set
       (local `vp preview`, a bare static host). The authoritative policy is the
-      HTTP header in vercel.json / public/_headers / the Dockerfile nginx block;
-      keep all four in sync.
+      HTTP header in vercel.json / public/_headers / docker/security-headers.conf.
+      All four are generated from scripts/security/headers.mjs: change the policy
+      there and run `vpr security:headers`, never here. `vpr lint` fails when one
+      of them has drifted.
 
       Two directives are deliberately absent here:
         - `frame-ancestors` is ignored when delivered via <meta>, so it lives in
