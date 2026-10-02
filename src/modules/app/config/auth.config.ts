@@ -20,7 +20,8 @@
  *   adapters            your own adapters, selected with VUESTRATA_AUTH_ADAPTER
  *
  * A backend that answers `{ access_token, refresh_token, expires_in }`, keeps
- * the current user at `/users/me` and has no magic links:
+ * the current user at `/users/me` and has no magic links (every helper named
+ * here is imported from `~/lib/auth`, like `defineAuthConfig` below):
  *
  *   export default defineAuthConfig({
  *     endpoints: { me: '/users/me', magicLink: null, magicLinkVerify: null },
