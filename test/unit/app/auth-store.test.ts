@@ -31,6 +31,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   useAuthStore().reset()
   appEvents.clear('auth.logout')
   vi.useRealTimers()
@@ -72,6 +73,80 @@ describe('proactive refresh', () => {
     await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000)
 
     expect(handler).not.toHaveBeenCalled()
+  })
+
+  describe('a lifetime a timer cannot hold', () => {
+    const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
+    const THIRTY_DAYS = 30 * 24 * 60 * 60
+
+    it('waits as long as a timer can, instead of overflowing and firing at once', async () => {
+      const store = useAuthStore()
+      const handler = vi.fn()
+      store.setRefreshHandler(handler)
+      const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+
+      // `setTimeout` keeps its delay in 32 signed bits: a month in
+      // milliseconds does not fit, and the browser then fires immediately —
+      // into a refresh that answers with the same lifetime, and so on.
+      store.setAuth(user, ACCESS, undefined, THIRTY_DAYS)
+
+      expect(setTimeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), MAX_TIMER_DELAY_MS)
+      await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      expect(handler).not.toHaveBeenCalled()
+    })
+
+    it('still refreshes a long-lived token, early', async () => {
+      const store = useAuthStore()
+      const handler = vi.fn()
+      store.setRefreshHandler(handler)
+
+      store.setAuth(user, ACCESS, undefined, THIRTY_DAYS)
+      await vi.advanceTimersByTimeAsync(MAX_TIMER_DELAY_MS)
+
+      expect(handler).toHaveBeenCalledOnce()
+    })
+
+    it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+      'schedules nothing for a lifetime of %s',
+      async (lifetime) => {
+        const store = useAuthStore()
+        const handler = vi.fn()
+        store.setRefreshHandler(handler)
+        store.setAuth(user, ACCESS)
+
+        store.scheduleTokenRefresh(lifetime)
+
+        expect(vi.getTimerCount()).toBe(0)
+        await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000)
+        expect(handler).not.toHaveBeenCalled()
+      },
+    )
+
+    it('cancels the timer it had when the new lifetime is unusable', async () => {
+      const store = useAuthStore()
+      const handler = vi.fn()
+      store.setRefreshHandler(handler)
+      store.setAuth(user, ACCESS, undefined, 900)
+
+      store.scheduleTokenRefresh(Number.NaN)
+      await vi.advanceTimersByTimeAsync(900_000)
+
+      expect(handler).not.toHaveBeenCalled()
+    })
+
+    it('treats a lifetime already in the past as due, five seconds from now', async () => {
+      const store = useAuthStore()
+      const handler = vi.fn()
+      store.setRefreshHandler(handler)
+      store.setAuth(user, ACCESS)
+
+      store.scheduleTokenRefresh(-3600)
+
+      await vi.advanceTimersByTimeAsync(4_999)
+      expect(handler).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(handler).toHaveBeenCalledOnce()
+    })
   })
 
   /** The store wired as `boot()` wires it, around an adapter of the given shape. */

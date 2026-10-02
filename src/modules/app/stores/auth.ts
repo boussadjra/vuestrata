@@ -15,6 +15,13 @@ import type { User, Role, Permission } from '~/types'
 const authStoreLogger = createScopedLogger('auth-store')
 
 /**
+ * The longest delay `setTimeout` can hold, about 24.8 days. It stores the delay
+ * as a signed 32-bit count of milliseconds, and a larger one overflows and
+ * fires at once.
+ */
+const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
+
+/**
  * Resolve a usable expiry (in seconds-from-now) by reconciling the explicit
  * `expiresIn` parameter with the JWT's own `exp` claim. When both are present
  * and disagree by more than 30 s we trust the token (it is what the server
@@ -94,8 +101,14 @@ export const useAuthStore = defineStore('auth', () => {
     clearRefreshTimer()
     const handler = onRefresh ?? refreshHandler
     if (!handler) return
-    // Refresh 60 seconds before expiry, minimum 5 seconds from now
-    const refreshInMs = Math.max((expiresIn - 60) * 1000, 5000)
+    // A lifetime that is not a number schedules nothing: `setTimeout` reads NaN
+    // as zero, and a refresh that answers with the same lifetime would then
+    // run in a tight loop.
+    if (!Number.isFinite(expiresIn)) return
+    // Refresh 60 seconds before expiry, minimum 5 seconds from now (which is
+    // also where a lifetime already in the past lands), and no later than a
+    // timer can count: refreshing a month-long token early costs one request.
+    const refreshInMs = Math.min(Math.max((expiresIn - 60) * 1000, 5000), MAX_TIMER_DELAY_MS)
     refreshTimer = setTimeout(() => {
       // Guard: the session may have been cleared between scheduling and firing
       // (logout, forced 401 from another request, tab restore, etc.). Running

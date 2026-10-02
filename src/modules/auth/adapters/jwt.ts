@@ -1,6 +1,7 @@
 import { jwtDecode } from 'jwt-decode'
 
 import {
+  persistRefreshToken,
   readPersistedRefreshToken,
   usesRefreshCookie,
   usesWebStorage,
@@ -140,6 +141,12 @@ export function createJwtAdapter(
 
       const refreshed = await callResume(() => requestRefresh(), strategy)
       if (!refreshed) return null
+      // A rotating backend has just spent the stored token. Keep its
+      // replacement before asking for the user: the store only writes it once
+      // the resume succeeds, and if `/auth/me` fails first the next reload
+      // would present a token the backend reads as replayed. A no-op outside
+      // the Web Storage modes.
+      if (refreshed.refreshToken) persistRefreshToken(refreshed.refreshToken)
       return withUser(refreshed)
     },
 
@@ -168,8 +175,9 @@ export function createJwtAdapter(
  * backends leave the app to ask `/auth/me`. The fresh token is passed
  * explicitly — the store has none yet, which is the whole reason a resume is
  * happening. A backend that does return a user is taken at its word. When the
- * user cannot be fetched there is no session to resume: the refresh already
- * spent its credential, and a session without a user is worse than none.
+ * user cannot be fetched there is no session to resume, and a session without
+ * a user is worse than none. The caller has already kept a rotated refresh
+ * token by then, so the next boot can try again.
  */
 async function withUser(refreshed: RefreshedSession): Promise<ResumedSession | null> {
   const { user, ...tokens } = refreshed
