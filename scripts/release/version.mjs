@@ -34,6 +34,8 @@ function parseArgs(argv) {
 
   for (let index = 0; index < rest.length; index += 1) {
     const token = rest[index]
+    // `vpr version:set -- 1.2.0` hands the separator through with the rest.
+    if (token === '--') continue
     if (token === '--dry-run') {
       dryRun = true
       continue
