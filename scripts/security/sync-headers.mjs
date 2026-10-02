@@ -16,6 +16,7 @@
  *   node scripts/security/sync-headers.mjs --check      # fail if any has drifted
  *   node scripts/security/sync-headers.mjs --from-env   # render for THIS environment
  *   node scripts/security/sync-headers.mjs --api-url=https://api.acme.com
+ *   node scripts/security/sync-headers.mjs --runtime-config   # for an artifact configured at start
  *
  * Inputs, the same for writing and for `--check`:
  *   - `scripts/security/headers.mjs`, the defaults;
@@ -33,15 +34,31 @@
  *
  *   - The Docker image decides at container START. Its three `docker/runtime`
  *     files are templates, and `docker/entrypoint.d/40-vuestrata-runtime.sh`
- *     fills them from the container's environment. They never depend on the
- *     flags below.
- *   - A static host has no start. `--from-env` renders `public/_headers`, and
- *     the `vercel.json` block, from the build's environment: the origin of
- *     `VUESTRATA_API_URL` and of every variable `deploy.config.ts` names under
- *     `connectSrcFromEnv` / `websocketFromEnv`. Run it in the deploy pipeline,
- *     before `vp build`, and do not commit the result: it differs per
- *     environment by design, and `--check` would report it as drift.
- *     `--api-url` sets the API URL alone.
+ *     fills them from the container's environment. The two templates never
+ *     depend on the flags below.
+ *   - A static host has no start. `--from-env` renders `public/_headers`, the
+ *     `vercel.json` block and the CSP `<meta>` of `index.html` from the build's
+ *     environment: the origin of `VUESTRATA_API_URL` and of every variable
+ *     `deploy.config.ts` names under `connectSrcFromEnv` / `websocketFromEnv`.
+ *     Run it in the deploy pipeline, before `vp build`, and do not commit the
+ *     result: it differs per environment by design, and `--check` would report
+ *     it as drift. `--api-url` sets the API URL alone.
+ *
+ * The `<meta>` carries the same `connect-src` as the header, so a host that
+ * sends no headers is still held to it. `--runtime-config` is for an artifact
+ * whose API URL is set when it STARTS, through `runtime-config.js`, which the
+ * page cannot know when it is written:
+ *
+ *   - the `<meta>` reads `connect-src *`, leaving connections to the header
+ *     alone. A browser enforces the tag in addition to the header, so the
+ *     narrow one would block an origin the header allows;
+ *   - `docker/runtime/keys` records the API URL of this build (`--api-url`),
+ *     which the entrypoint falls back to for a container started without one.
+ *
+ * The Dockerfile passes it. A static host whose deploy step writes its own
+ * `dist/runtime-config.js` with another API origin passes it too, or renders
+ * with `--from-env` so that the tag and `_headers` both name that origin.
+ * `--check` ignores the flag: what is committed is the form without it.
  *
  * The renderers are exported for the unit tests. The CLI runs only when this
  * file is the entry point, so importing it writes nothing.
@@ -52,17 +69,22 @@ import { fileURLToPath } from 'node:url'
 
 import { consola } from 'consola'
 
-import { loadDeployConfig, loadRuntimeOverridableKeys } from './deploy-config.mjs'
+import { loadDeployConfig, loadRuntimeKeys } from './deploy-config.mjs'
 import {
   API_PATH_PLACEHOLDER,
   buildCsp,
   buildSecurityHeaders,
   CACHE_RULES,
+  connectSrcFor,
   DEFAULT_API_URL,
   GENERATED_BANNER,
+  HEALTH_PATH,
+  replaceMetaCsp,
+  reservedApiPaths,
   resolveDeployHeaders,
   resolveRuntimeKeys,
   RUNTIME_DIR,
+  sameOriginApiPath,
 } from './headers.mjs'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -356,7 +378,7 @@ const STATIC_FILE_LOCATION = '~* \\.(?:js|mjs|css|png|jpe?g|gif|ico|svg|webp|avi
  */
 export function renderNginxConf() {
   const blocks = [
-    nginxLocation('= /healthz', {
+    nginxLocation(`= ${HEALTH_PATH}`, {
       comment:
         'Liveness and readiness probe. nginx answers it alone, so it reports whether\n' +
         'the server is up without fetching the app, and stays out of an access log a\n' +
@@ -449,7 +471,12 @@ export function renderNginxConf() {
  * headers use — `RUNTIME_OVERRIDABLE_KEYS` and `deploy.config.ts` — so the
  * three cannot disagree about what a deployment may set.
  */
-export function renderRuntimeKeys({ headers, runtimeKeys = [] } = {}) {
+export function renderRuntimeKeys({
+  headers,
+  runtimeKeys = [],
+  runtimeKeyFormats = {},
+  buildApiUrl = DEFAULT_API_URL,
+} = {}) {
   const resolved = resolveDeployHeaders(headers)
   const lines = [
     hashBanner(),
@@ -458,34 +485,160 @@ export function renderRuntimeKeys({ headers, runtimeKeys = [] } = {}) {
     '# of the container. One entry per line: what it is for, then the variable.',
     '#',
     '#   config     written to /runtime-config.js, where the app reads it',
+    '#   text       the same, and the value may hold spaces; it is written to no',
+    '#              other file',
+    '#   enum       the same, and the value must be one of those listed',
     '#   api        the API URL: its origin joins connect-src, or its path gets the',
-    '#              unrouted-API answer; the third field is the value when unset',
+    '#              unrouted-API answer; the third field is the URL the app was',
+    '#              built with, which applies when the variable is unset or empty',
     '#   connect    its origin joins connect-src',
     '#   websocket  the ws(s):// form of its origin joins connect-src',
-    ...resolveRuntimeKeys(runtimeKeys).map((key) => `config ${key}`),
-    `api ${API_URL_KEY} ${DEFAULT_API_URL}`,
+    '#   reserved   not a variable: a path the server answers itself, which the',
+    '#              API path therefore cannot be',
+    ...resolveRuntimeKeys(runtimeKeys).map((key) => configEntry(key, runtimeKeyFormats[key])),
+    `api ${API_URL_KEY} ${entrypointApiUrl(buildApiUrl)}`,
     ...resolved.connectSrcFromEnv.map((key) => `connect ${key}`),
     ...resolved.websocketFromEnv.map((key) => `websocket ${key}`),
+    ...reservedApiPaths().map((path) => `reserved ${path}`),
   ]
   return `${lines.join(NL)}${NL}`
 }
 
-/** `index.html` with its CSP `<meta>` rewritten. */
-export function renderIndexHtml(current, { headers } = {}) {
-  // `frame-ancestors` is omitted: a <meta> tag cannot express it. `connect-src`
-  // is left wide open: see META_CONNECT_SRC in headers.mjs.
-  const csp = buildCsp({ headers, forMeta: true })
-  if (/["<>\r\n]/.test(csp)) {
-    throw new Error(`The CSP cannot sit in an HTML attribute: ${csp}`)
+/** What one value of an `enum` entry may be: a word the entrypoint's own check lets through. */
+const ENUM_VALUE = /^[A-Za-z0-9_.~-]+$/
+
+/**
+ * The entry that puts `key` into runtime-config.js. `format` comes from
+ * `RUNTIME_KEY_FORMATS`; a key without one is held to the URL-safe set.
+ */
+function configEntry(key, format) {
+  if (format === undefined) return `config ${key}`
+  if (format.kind === 'text') return `text ${key}`
+  if (
+    format.kind === 'enum' &&
+    Array.isArray(format.values) &&
+    format.values.length > 0 &&
+    format.values.every((value) => typeof value === 'string' && ENUM_VALUE.test(value))
+  ) {
+    return `enum ${key} ${format.values.join(' ')}`
   }
-  const pattern = /(<meta\s+http-equiv="Content-Security-Policy"\s+content=")[^"]*(")/s
-  if (!pattern.test(current)) {
+  throw new Error(`${key}: ${JSON.stringify(format)} is not a runtime key format.`)
+}
+
+/** The characters the entrypoint accepts in a value, and the length it stops at. */
+const ENTRYPOINT_VALUE = /^[A-Za-z0-9_.~:/?#@&+,=%-]{1,2048}$/
+
+/**
+ * The API URL of this build, as the entrypoint's fallback. It goes through the
+ * checks the entrypoint will apply to it, so an image whose own default would
+ * stop every container fails here, at build, instead.
+ */
+function entrypointApiUrl(apiUrl) {
+  if (typeof apiUrl !== 'string' || !ENTRYPOINT_VALUE.test(apiUrl)) {
     throw new Error(
-      'Could not find the Content-Security-Policy <meta> tag in index.html. ' +
-        'If it was renamed or reformatted, update the pattern in sync-headers.mjs.',
+      `${API_URL_KEY}=${JSON.stringify(apiUrl)} cannot be the default of a container: it may ` +
+        'hold only letters, digits and -_.~:/?#@&+,=% (percent-encode the rest).',
     )
   }
-  return current.replace(pattern, (_, open, close) => `${open}${csp}${close}`)
+  if (apiUrl.startsWith('/')) sameOriginApiPath(apiUrl)
+  else connectSrcFor(apiUrl)
+  return apiUrl
+}
+
+// ─── index.html ──────────────────────────────────────────────────────────────
+
+/** How a comment this generator wrote above the CSP `<meta>` begins. */
+const META_COMMENT_MARKER = 'GENERATED by scripts/security/sync-headers.mjs'
+
+/**
+ * A comment above the tag that is this generator's to replace: one it wrote,
+ * or one of the two hand-written ones every project started with. Those said
+ * to keep four copies in sync by hand and that everything else was locked
+ * down, and stopped being true the day the copies became generated.
+ */
+const OWNED_META_COMMENT = new RegExp(
+  `^\\s*(?:${META_COMMENT_MARKER.replaceAll('.', '\\.')}|CSP defense-in-depth|Baseline CSP for environments)`,
+)
+
+/** The comment written above the tag. It describes the tag, so it is rendered with it. */
+function metaComment(runtimeConfig) {
+  return [
+    `${META_COMMENT_MARKER}, like the tag below.`,
+    'Edit neither by hand: change src/modules/app/config/deploy.config.ts and',
+    'run `vpr security:headers`.',
+    '',
+    'This is the policy for a host that sends no headers. Where the HTTP header',
+    'is sent (vercel.json, public/_headers, the Docker image), the header is the',
+    'authority, and a browser enforces this tag in addition to it.',
+    '',
+    'It differs from the header in one way: `frame-ancestors` is absent, because',
+    'a browser ignores it in a <meta> tag. Only a header stops another site from',
+    'framing the app.',
+    ...(runtimeConfig
+      ? [
+          '',
+          '`connect-src *`: this page belongs to an artifact whose API URL is set',
+          'when it starts, so the header alone restricts what it connects to.',
+        ]
+      : []),
+    '',
+    "`style-src 'unsafe-inline'` is there for Tailwind and Vue, which inject",
+    'style elements at runtime.',
+  ]
+}
+
+const CSP_META_TAG = /<meta\s+http-equiv="Content-Security-Policy"/
+
+/**
+ * `html` with the generator's comment directly above the CSP `<meta>`, in
+ * place of any comment there that is the generator's to replace. A comment a
+ * project wrote itself is left where it is.
+ */
+function withMetaComment(html, runtimeConfig) {
+  const eol = html.includes('\r\n') ? '\r\n' : NL
+  let page = html
+  let tag = page.search(CSP_META_TAG)
+
+  // Walk up through the comments that sit directly above the tag, taking out
+  // each one that is the generator's, with the whitespace after it.
+  let cursor = tag
+  for (;;) {
+    const comment = /<!--((?:(?!-->)[\s\S])*)-->\s*$/.exec(page.slice(0, cursor))
+    if (!comment) break
+    if (OWNED_META_COMMENT.test(comment[1])) {
+      page = page.slice(0, comment.index) + page.slice(cursor)
+      tag -= cursor - comment.index
+    }
+    cursor = comment.index
+  }
+
+  const indent = /[ \t]*$/.exec(page.slice(0, tag))[0]
+  const lines = [
+    '<!--',
+    ...metaComment(runtimeConfig).map((line) => (line ? `${indent}  ${line}` : '')),
+    `${indent}-->`,
+  ]
+  return `${page.slice(0, tag)}${lines.join(eol)}${eol}${indent}${page.slice(tag)}`
+}
+
+/**
+ * `index.html` with its CSP `<meta>` rewritten, and the comment above it.
+ *
+ * Takes what `buildSecurityHeaders` takes, so the tag names the same origins
+ * as the header, and `runtimeConfig` for the one artifact where it cannot (see
+ * RUNTIME_CONFIG_META_CONNECT_SRC in headers.mjs). `frame-ancestors` is left
+ * out either way: a <meta> tag cannot express it.
+ */
+export function renderIndexHtml(current, { apiUrl, headers, env, runtimeConfig = false } = {}) {
+  const csp = buildCsp({ apiUrl, headers, env, forMeta: true, runtimeConfig })
+  const page = replaceMetaCsp(current, csp)
+  if (page === null) {
+    throw new Error(
+      'Could not find the Content-Security-Policy <meta> tag in index.html. ' +
+        'If it was renamed or reformatted, update the pattern in headers.mjs.',
+    )
+  }
+  return withMetaComment(page, runtimeConfig)
 }
 
 // ─── Targets ─────────────────────────────────────────────────────────────────
@@ -553,8 +706,13 @@ function readIfGenerated(fullPath) {
  * @param {string} [options.apiUrl] `VUESTRATA_API_URL` for the hosted targets.
  * @param {object} [options.deployConfig] `deploy.config.ts`, as loaded.
  * @param {string[]} [options.builtinRuntimeKeys] `RUNTIME_OVERRIDABLE_KEYS`.
+ * @param {Record<string, object>} [options.runtimeKeyFormats] `RUNTIME_KEY_FORMATS`.
  * @param {Record<string, string | undefined>} [options.env] The environment
  *   `connectSrcFromEnv` is read from; omit it for the committed targets.
+ * @param {boolean} [options.runtimeConfig] Render for an artifact whose API URL
+ *   is set at start. Ignored by `check`: the committed targets are the form
+ *   without it, and a check that honoured it would pass on a page whose policy
+ *   had been left wide open.
  */
 export function syncTargets({
   root = repoRoot,
@@ -562,14 +720,22 @@ export function syncTargets({
   apiUrl = DEFAULT_API_URL,
   deployConfig = {},
   builtinRuntimeKeys = [],
+  runtimeKeyFormats = {},
   env,
+  runtimeConfig = false,
   log = logger,
 } = {}) {
+  const atStart = runtimeConfig && !check
   const options = {
     apiUrl,
     env,
     headers: deployConfig.headers,
     runtimeKeys: resolveRuntimeKeys(builtinRuntimeKeys, deployConfig.runtime ?? []),
+    runtimeKeyFormats,
+    runtimeConfig: atStart,
+    // The image's own default API URL is the one its bundle was built with.
+    // Anywhere else the file is not read, and stays as committed.
+    buildApiUrl: atStart ? apiUrl : DEFAULT_API_URL,
   }
 
   const drifted = []
@@ -646,6 +812,7 @@ function parseApiUrl(args) {
 async function run(args) {
   const check = args.includes('--check')
   const fromEnv = args.includes('--from-env')
+  const runtimeConfig = args.includes('--runtime-config')
 
   // Empty means the default, as it does for the app.
   const apiUrl =
@@ -653,12 +820,15 @@ async function run(args) {
 
   let result
   try {
+    const runtime = await loadRuntimeKeys({ root: repoRoot })
     result = syncTargets({
       check,
       apiUrl,
       deployConfig: await loadDeployConfig({ root: repoRoot }),
-      builtinRuntimeKeys: await loadRuntimeOverridableKeys({ root: repoRoot }),
+      builtinRuntimeKeys: runtime.keys,
+      runtimeKeyFormats: runtime.formats,
       env: fromEnv ? process.env : undefined,
+      runtimeConfig,
     })
   } catch (error) {
     logger.error(error.message)
@@ -677,7 +847,10 @@ async function run(args) {
 
   if (check) {
     logger.success('All security-header targets match scripts/security/headers.mjs')
-  } else if (fromEnv && result.written.length > 0) {
+    if (runtimeConfig) {
+      logger.warn('--runtime-config has no effect on --check: the committed form is without it.')
+    }
+  } else if ((fromEnv || runtimeConfig) && result.written.length > 0) {
     logger.info(
       'Rendered for this environment. Do not commit the result: it is specific to this ' +
         'deployment, and `sync-headers.mjs --check` would report it as drift.',

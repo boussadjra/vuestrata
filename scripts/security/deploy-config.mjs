@@ -75,10 +75,26 @@ export async function loadDeployConfig({ root = REPO_ROOT, file } = {}) {
  * fall out of step with what the browser accepts.
  */
 export async function loadRuntimeOverridableKeys({ root = REPO_ROOT } = {}) {
+  return (await loadRuntimeKeys({ root })).keys
+}
+
+/**
+ * Those keys, and `RUNTIME_KEY_FORMATS`: what the entrypoint accepts for the
+ * ones that are not held to the URL-safe set (a title with spaces, a value
+ * from a fixed list). A copy of the module from before the formats existed
+ * exports none, and every key is then held to that set.
+ */
+export async function loadRuntimeKeys({ root = REPO_ROOT } = {}) {
   const path = resolve(root, RUNTIME_OVERLAY_PATH)
-  const { RUNTIME_OVERRIDABLE_KEYS: keys } = await importTs(path, root)
+  const { RUNTIME_OVERRIDABLE_KEYS: keys, RUNTIME_KEY_FORMATS: formats = {} } = await importTs(
+    path,
+    root,
+  )
   if (!Array.isArray(keys) || keys.some((key) => typeof key !== 'string')) {
     throw new Error(`${path} does not export RUNTIME_OVERRIDABLE_KEYS as a list of names.`)
   }
-  return [...keys]
+  if (formats === null || typeof formats !== 'object' || Array.isArray(formats)) {
+    throw new Error(`${path} does not export RUNTIME_KEY_FORMATS as an object.`)
+  }
+  return { keys: [...keys], formats: { ...formats } }
 }

@@ -4,7 +4,15 @@ import os from 'node:os'
 import path from 'node:path'
 import vm from 'node:vm'
 
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+
+import { SESSION_PERSISTENCE_MODES } from '~/lib/config/env.schema'
+import {
+  readRuntimeOverlay,
+  resolveRuntimeEnvWithOverlay,
+  RUNTIME_KEY_FORMATS,
+  RUNTIME_OVERRIDABLE_KEYS,
+} from '~/lib/config/runtime-overlay'
 
 // @ts-expect-error - the header scripts are plain ESM JavaScript with no type declarations.
 import * as headers from '../../../scripts/security/headers.mjs'
@@ -58,12 +66,45 @@ const SHELLS = works('sh')
 // Each test starts a few processes, and a process is slow to start on Windows.
 const TIMEOUT = { timeout: 60_000 }
 
-const BUILTIN_KEYS = [
-  'VUESTRATA_API_URL',
-  'VUESTRATA_APP_TITLE',
-  'VUESTRATA_ERROR_REPORTING_DSN',
-  'VUESTRATA_RELEASE',
-  'VUESTRATA_SESSION_PERSISTENCE',
+/** The built-in keys, as the generator reads them from the app. */
+const BUILTIN_KEYS = [...RUNTIME_OVERRIDABLE_KEYS]
+
+/** What a production build made for the default same-origin API inlined. */
+const PRODUCTION_BUILD = {
+  VUESTRATA_RUNTIME_MODE: 'production',
+  VUESTRATA_USE_MOCKS: 'false',
+  VUESTRATA_AUTH_ADAPTER: 'jwt',
+  VUESTRATA_API_URL: '/api',
+}
+
+/**
+ * The upper-case names of what the script keeps in variables. They were its
+ * variables once; an entry in the key list may still be called any of them.
+ */
+const SCRIPT_STATE_NAMES = [
+  'ORIGIN',
+  'VALUE',
+  'CONNECT',
+  'CONFIG',
+  'CONFIG_KEYS',
+  'API_PATH',
+  'LOWER',
+  'LOWERED',
+  'KEYS',
+  'DONE',
+  'FINISHED',
+  'ME',
+  'CR',
+  'KIND',
+  'NAME',
+  'DETAIL',
+  'HOST',
+  'PORT',
+  'SCHEME',
+  'RESERVED',
+  'SOURCE_DIR',
+  'OUTPUT_DIR',
+  'MAX_LENGTH',
 ]
 
 /** A project that names a DSN and a realtime endpoint by environment variable. */
@@ -76,6 +117,9 @@ const DEPLOY = {
   },
 }
 
+/** `connect-src` before the environment adds anything: what DEPLOY commits. */
+const COMMITTED_SOURCES = ["'self'", ...DEPLOY.headers.connectSrc]
+
 const dirs: string[] = []
 
 function tempDir(): string {
@@ -84,12 +128,20 @@ function tempDir(): string {
   return dir
 }
 
-/** The three files the image carries in /etc/vuestrata/runtime, as generated. */
-function sourceDir(deploy: { runtime?: string[]; headers?: object } = DEPLOY): string {
+/**
+ * The three files the image carries in /etc/vuestrata/runtime, as generated.
+ * `buildApiUrl` is the API URL the image's bundle was built with.
+ */
+function sourceDir(
+  deploy: { runtime?: string[]; headers?: object } = DEPLOY,
+  buildApiUrl?: string,
+): string {
   const dir = tempDir()
   const options = {
     headers: deploy.headers,
     runtimeKeys: headers.resolveRuntimeKeys(BUILTIN_KEYS, deploy.runtime ?? []),
+    runtimeKeyFormats: RUNTIME_KEY_FORMATS,
+    buildApiUrl,
   }
   fs.writeFileSync(path.join(dir, 'keys'), sync.renderRuntimeKeys(options))
   fs.writeFileSync(
@@ -115,9 +167,12 @@ function start(
   env: Record<string, string>,
   { source = sourceDir(), out = path.join(tempDir(), 'vuestrata') } = {},
 ): Run {
-  // Only what a container would have. The developer's own VUESTRATA_* must not leak in.
+  // Only what a container would have. The developer's own VUESTRATA_* must not
+  // leak in, nor a variable a test is about to show as unset.
   const inherited = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !key.startsWith('VUESTRATA_')),
+    Object.entries(process.env).filter(
+      ([key]) => !key.startsWith('VUESTRATA_') && !SCRIPT_STATE_NAMES.includes(key),
+    ),
   )
   const result = spawnSync(shell, [posix(SCRIPT), posix(source), posix(out)], {
     encoding: 'utf8',
@@ -331,6 +386,13 @@ describe.each(SHELLS)('40-vuestrata-runtime.sh under %s', TIMEOUT, (shell) => {
     expect(run.files).toEqual([])
   }
 
+  /** The image's files, with a key list written by hand. */
+  function withKeys(...entries: string[]): string {
+    const source = sourceDir()
+    fs.writeFileSync(path.join(source, 'keys'), [...entries, ''].join('\n'))
+    return source
+  }
+
   /**
    * An image whose key list has no `config` entry at all. `VUESTRATA_API_URL`
    * normally passes through the JavaScript sink first, which would refuse a bad
@@ -339,26 +401,21 @@ describe.each(SHELLS)('40-vuestrata-runtime.sh under %s', TIMEOUT, (shell) => {
    * the server configuration's.
    */
   function sinksOnly(): string {
-    const source = sourceDir()
-    fs.writeFileSync(
-      path.join(source, 'keys'),
-      [
-        'api VUESTRATA_API_URL /api',
-        'connect ERRORS_INGEST_URL',
-        'websocket REALTIME_URL',
-        '',
-      ].join('\n'),
+    return withKeys(
+      'api VUESTRATA_API_URL /api',
+      'connect ERRORS_INGEST_URL',
+      'websocket REALTIME_URL',
     )
-    return source
   }
 
   describe('sink 1: the JavaScript file', () => {
     it.each(HOSTILE)('refuses %s in a value the app reads', (_, value) => {
-      expectRefused(start(shell, { VUESTRATA_APP_TITLE: value }), 'VUESTRATA_APP_TITLE')
+      expectRefused(start(shell, { VUESTRATA_RELEASE: value }), 'VUESTRATA_RELEASE')
     })
 
     it.each([
       'VUESTRATA_API_URL',
+      'VUESTRATA_APP_TITLE',
       'VUESTRATA_ERROR_REPORTING_DSN',
       'VUESTRATA_RELEASE',
       'VUESTRATA_SESSION_PERSISTENCE',
@@ -500,6 +557,427 @@ describe.each(SHELLS)('40-vuestrata-runtime.sh under %s', TIMEOUT, (shell) => {
     })
   })
 
+  // ── A title ────────────────────────────────────────────────────────────────
+  //
+  // The one built-in value that may hold a space, because "Acme Console" is
+  // what a title looks like. It is `text` in the key list, and the reason that
+  // is safe is that it is written to the JavaScript file and to nothing else.
+
+  describe('a title, the one value that may hold spaces', () => {
+    /** Every character a `text` value may hold. */
+    const EVERY_ALLOWED_CHARACTER =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 -_.~:/?#@&+,=%'
+
+    it('round-trips every allowed character through the JavaScript file', () => {
+      const run = start(shell, { VUESTRATA_APP_TITLE: EVERY_ALLOWED_CHARACTER })
+      const script = run.read('runtime-config.js')
+
+      expect(run.stderr).toBe('')
+      expect(run.status).toBe(0)
+      // The file is still valid JavaScript, and the page reads the title back
+      // byte for byte.
+      expect(evaluate(script)).toEqual({ VUESTRATA_APP_TITLE: EVERY_ALLOWED_CHARACTER })
+      // Still one assignment of a JSON literal: nothing in the set needed escaping.
+      const literal = /^window\.__VUESTRATA_RUNTIME__ = (\{.*\});\n$/.exec(script)?.[1]
+      expect(JSON.parse(literal ?? '')).toEqual({ VUESTRATA_APP_TITLE: EVERY_ALLOWED_CHARACTER })
+    })
+
+    it('reaches the JavaScript file, and neither file nginx reads', () => {
+      const source = sourceDir()
+      const env = { VUESTRATA_API_URL: 'https://api.acme.test' }
+      const without = start(shell, env, { source })
+      const titled = start(shell, { ...env, VUESTRATA_APP_TITLE: 'Acme Console v2' }, { source })
+
+      expect(titled.status).toBe(0)
+      expect(evaluate(titled.read('runtime-config.js'))).toEqual({
+        ...env,
+        VUESTRATA_APP_TITLE: 'Acme Console v2',
+      })
+      for (const file of ['security-headers.conf', 'api-location.conf'] as const) {
+        expect(titled.read(file)).toBe(without.read(file))
+        expect(titled.read(file)).not.toMatch(/Acme|Console/)
+      }
+    })
+
+    it.each(HOSTILE.filter(([name]) => name !== 'a space'))('still refuses %s', (_, value) => {
+      expectRefused(start(shell, { VUESTRATA_APP_TITLE: value }), 'VUESTRATA_APP_TITLE')
+    })
+
+    it.each([
+      ['a leading space', ' Acme'],
+      ['a trailing space', 'Acme '],
+      ['nothing but spaces', '   '],
+      ['an angle bracket', 'Acme <Console>'],
+    ])('refuses %s', (_, value) => {
+      expectRefused(start(shell, { VUESTRATA_APP_TITLE: value }), 'VUESTRATA_APP_TITLE')
+    })
+
+    it.each(['config', 'enum', 'api', 'connect', 'websocket'])(
+      'keeps a space out of a value read as %s, the same variable included',
+      (kind) => {
+        // The variable is `text` on one line and something else on the next.
+        // Each entry is checked for what IT is, so the space the first accepts
+        // never reaches an origin, a path or a strict value.
+        const detail = { enum: ' a b', api: ' /api' }[kind] ?? ''
+        const source = withKeys(
+          'api VUESTRATA_API_URL /api',
+          'text VUESTRATA_APP_TITLE',
+          `${kind} VUESTRATA_APP_TITLE${detail}`,
+        )
+
+        expectRefused(
+          start(shell, { VUESTRATA_APP_TITLE: 'https://a.test x' }, { source }),
+          'VUESTRATA_APP_TITLE',
+        )
+      },
+    )
+  })
+
+  // ── A start-time API URL, as the app will read it ──────────────────────────
+
+  describe('an API URL on a placeholder host', () => {
+    // A BUILD pointing at localhost is refused: nobody set the URL. A container
+    // started with one was told so on purpose, and both halves must then agree,
+    // or the headers allow an origin the app never calls while the app falls
+    // back to /api and is answered by its own server.
+    it.each([
+      'http://localhost:8000',
+      'http://127.0.0.1:8000/api',
+      'http://0.0.0.0:8000',
+      'https://api.example.com/v1',
+    ])('is honoured by the entrypoint and by the app alike: %s', (apiUrl) => {
+      const run = start(shell, { VUESTRATA_API_URL: apiUrl })
+
+      // The entrypoint: the origin is allowed, and no same-origin path is
+      // answered for.
+      expect(run.status).toBe(0)
+      expect(connectSrc(run.read('security-headers.conf'))).toContain(new URL(apiUrl).origin)
+      expect(run.read('api-location.conf')).not.toMatch(/^\s*location /m)
+
+      // The app, loading exactly the file the entrypoint wrote, in a
+      // production build made for the default /api.
+      const window: Record<string, unknown> = {}
+      vm.runInNewContext(run.read('runtime-config.js'), { window })
+      const onWarn = vi.fn()
+      const resolved = resolveRuntimeEnvWithOverlay(PRODUCTION_BUILD, readRuntimeOverlay(window), {
+        isDev: false,
+        serving: false,
+        onWarn,
+      })
+
+      expect(resolved.apiUrl).toBe(apiUrl)
+      expect(onWarn).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('a container started with no API URL, or an empty one', () => {
+    // `-e VUESTRATA_API_URL=`, a Helm `value: ""`, an empty line in an env
+    // file. The app then calls the URL its bundle was built with, so that is
+    // the one the headers must allow, not the template's default.
+    it.each([
+      ['unset', {}],
+      ['empty', { VUESTRATA_API_URL: '' }],
+    ])('allows the origin the image was built with when it is %s', (_, env) => {
+      const run = start(shell, env, { source: sourceDir(DEPLOY, 'https://api.build.test/v1') })
+
+      expect(run.stderr).toBe('')
+      expect(run.status).toBe(0)
+      // Nothing overlaid: the bundle's own URL applies in the app.
+      expect(evaluate(run.read('runtime-config.js'))).toEqual({})
+      expect(connectSrc(run.read('security-headers.conf'))).toContain('https://api.build.test')
+      expect(run.read('api-location.conf')).not.toMatch(/^\s*location /m)
+    })
+
+    it('answers for the same-origin path the image was built with', () => {
+      const run = start(shell, { VUESTRATA_API_URL: '' }, { source: sourceDir(DEPLOY, '/backend') })
+
+      expect(run.status).toBe(0)
+      expect(run.read('api-location.conf')).toContain(sync.renderApiLocation('/backend'))
+      expect(run.read('api-location.conf')).not.toContain('location ^~ /api/')
+    })
+
+    it('still prefers the value the container was started with', () => {
+      const run = start(
+        shell,
+        { VUESTRATA_API_URL: 'https://api.staging.test' },
+        { source: sourceDir(DEPLOY, 'https://api.build.test') },
+      )
+
+      expect(connectSrc(run.read('security-headers.conf'))).toContain('https://api.staging.test')
+      expect(connectSrc(run.read('security-headers.conf'))).not.toContain('https://api.build.test')
+    })
+
+    it('stops when the image records no URL to fall back to', () => {
+      const run = start(shell, {}, { source: withKeys('api VUESTRATA_API_URL') })
+
+      expect(run.status).toBe(1)
+      expect(run.stderr).toMatch(/records no API URL for the build/)
+      expect(run.files).toEqual([])
+    })
+  })
+
+  describe('a value from a fixed list', () => {
+    const KEY = 'VUESTRATA_SESSION_PERSISTENCE'
+
+    it.each(SESSION_PERSISTENCE_MODES)('accepts %s', (value) => {
+      const run = start(shell, { [KEY]: value })
+
+      expect(run.status).toBe(0)
+      expect(evaluate(run.read('runtime-config.js'))).toEqual({ [KEY]: value })
+    })
+
+    it.each(['Session', 'LOCAL', 'cookie', 'refresh', 'none,session', 'true'])(
+      'refuses %s, and says what the choices are',
+      (value) => {
+        // In the browser a typo would only be a console warning. Here it stops
+        // the container, with the list.
+        const run = start(shell, { [KEY]: value })
+
+        expectRefused(run, KEY)
+        expect(run.stderr).toContain(
+          `${KEY} must be one of: ${SESSION_PERSISTENCE_MODES.join(' ')} (received "${value}")`,
+        )
+      },
+    )
+  })
+
+  // ── Names ──────────────────────────────────────────────────────────────────
+  //
+  // The script used to keep its state in upper-case variables. An entry named
+  // like one of them was answered with the script's own state: `connect ORIGIN`
+  // reused the previous entry's origin, `config VALUE` wrote the previous
+  // entry's value, `connect CONNECT` stopped the container. Its variables are
+  // lower-case now, and an entry's name must be upper-case.
+
+  describe('a variable named like something the script uses', () => {
+    const firstOnly = { FIRST_URL: 'https://first.test/x', FIRST_VALUE: 'first' }
+
+    it.each(SCRIPT_STATE_NAMES)('reads %s from the environment, set or not', (name) => {
+      const source = withKeys(
+        'api VUESTRATA_API_URL /api',
+        'connect FIRST_URL',
+        `connect ${name}`,
+        'config FIRST_VALUE',
+        `config ${name}`,
+      )
+
+      // Not set: it adds nothing, and takes nothing from the entry before it.
+      const unset = start(shell, firstOnly, { source })
+      expect(unset.stderr).toBe('')
+      expect(unset.status).toBe(0)
+      expect(connectSrc(unset.read('security-headers.conf'))).toEqual([
+        ...COMMITTED_SOURCES,
+        'https://first.test',
+      ])
+      expect(evaluate(unset.read('runtime-config.js'))).toEqual({ FIRST_VALUE: 'first' })
+
+      // Set: its own value, in both places.
+      const set = start(shell, { ...firstOnly, [name]: 'https://own.test/y' }, { source })
+      expect(set.status).toBe(0)
+      expect(connectSrc(set.read('security-headers.conf'))).toEqual([
+        ...COMMITTED_SOURCES,
+        'https://first.test',
+        'https://own.test',
+      ])
+      expect(evaluate(set.read('runtime-config.js'))).toEqual({
+        FIRST_VALUE: 'first',
+        [name]: 'https://own.test/y',
+      })
+    })
+
+    it('reads HOME from the environment', () => {
+      // A POSIX path, because Git for Windows rewrites HOME into one whatever
+      // it is given; this value it leaves alone.
+      const env = { HOME: '/srv/app' }
+
+      const written = start(shell, env, {
+        source: withKeys('api VUESTRATA_API_URL /api', 'config HOME'),
+      })
+      expect(written.status).toBe(0)
+      expect(evaluate(written.read('runtime-config.js'))).toEqual(env)
+
+      // As an origin it is refused, for the value the environment gave it.
+      const refused = start(shell, env, {
+        source: withKeys('api VUESTRATA_API_URL /api', 'connect FIRST_URL', 'connect HOME'),
+      })
+      expectRefused(refused, 'HOME')
+      expect(refused.stderr).toContain('received "/srv/app"')
+    })
+
+    it('reads PATH from the environment, and refuses it for what it is', () => {
+      // The search path is not a URL. What matters is that the script looked
+      // at the environment's value, named the variable, and went no further.
+      const source = withKeys('api VUESTRATA_API_URL /api', 'connect FIRST_URL', 'connect PATH')
+
+      expectRefused(start(shell, firstOnly, { source }), 'PATH')
+    })
+
+    it.each(['IFS', 'LC_ALL'])('refuses %s, which the shell sets itself', (name) => {
+      // The shell resets IFS at start and the script sets LC_ALL: neither
+      // would be what the container was started with.
+      const run = start(
+        shell,
+        { [name]: 'https://own.test' },
+        { source: withKeys('api VUESTRATA_API_URL /api', `connect ${name}`) },
+      )
+
+      expect(run.status).toBe(1)
+      expect(run.stderr).toContain(`"${name}"`)
+      expect(run.stderr).toMatch(/cannot be read from the environment/)
+      expect(run.files).toEqual([])
+      expect(() => headers.buildCsp({ headers: { connectSrcFromEnv: [name] } })).toThrow(
+        /cannot be read from a container's environment/,
+      )
+    })
+  })
+
+  // ── Parity with the generator ──────────────────────────────────────────────
+
+  describe('a port or a wildcard, as the generator reads it', () => {
+    it.each([
+      [
+        'leading zeros before a default port',
+        'https://api.acme.test:0443/v1',
+        'https://api.acme.test',
+      ],
+      [
+        'leading zeros before another port',
+        'http://api.acme.test:08080',
+        'http://api.acme.test:8080',
+      ],
+      ['the http default port', 'http://api.acme.test:80', 'http://api.acme.test'],
+      ['the highest port', 'https://api.acme.test:65535', 'https://api.acme.test:65535'],
+      ['port 1', 'https://api.acme.test:1', 'https://api.acme.test:1'],
+    ])('reads %s the same way', (_, apiUrl, origin) => {
+      const run = start(shell, { VUESTRATA_API_URL: apiUrl }, { source: sinksOnly() })
+
+      expect(run.status).toBe(0)
+      expect(connectSrc(run.read('security-headers.conf'))).toEqual([...COMMITTED_SOURCES, origin])
+      expect(headers.connectSrcFor(apiUrl)).toBe(origin)
+    })
+
+    it.each([
+      ['port 0', 'https://api.acme.test:0'],
+      ['port 0 written with zeros', 'https://api.acme.test:000/v1'],
+      ['a port above 65535', 'https://api.acme.test:65536'],
+      ['a five-digit port above 65535', 'https://api.acme.test:99999'],
+      ['a wildcard label', 'https://*.acme.test'],
+      ['a wildcard under a public suffix', 'https://*.com/v1'],
+    ])('refuses %s on both sides', (_, url) => {
+      // As the API URL.
+      expectRefused(
+        start(shell, { VUESTRATA_API_URL: url }, { source: sinksOnly() }),
+        'VUESTRATA_API_URL',
+      )
+      expect(() => headers.connectSrcFor(url)).toThrow()
+
+      // And as any other variable whose origin joins connect-src.
+      expectRefused(
+        start(shell, { ERRORS_INGEST_URL: url }, { source: sinksOnly() }),
+        'ERRORS_INGEST_URL',
+      )
+      expect(() =>
+        headers.buildCsp({
+          headers: { connectSrcFromEnv: ['ERRORS_INGEST_URL'] },
+          env: { ERRORS_INGEST_URL: url },
+        }),
+      ).toThrow()
+    })
+  })
+
+  describe('a same-origin API path the server cannot give away', () => {
+    const reserved = headers.reservedApiPaths() as string[]
+
+    it.each(reserved.flatMap((route) => [route, `${route}/`]))(
+      'refuses %s, which the server answers itself',
+      (apiUrl) => {
+        // nginx would stop on "duplicate location", without a word about
+        // which variable asked for it.
+        const run = start(shell, { VUESTRATA_API_URL: apiUrl })
+
+        expectRefused(run, 'Cannot route VUESTRATA_API_URL')
+        expect(run.stderr).toMatch(/is a path this server answers itself/)
+        expect(() => headers.sameOriginApiPath(apiUrl)).toThrow(/answers itself/)
+      },
+    )
+
+    it('reads those paths from the generated list, which names every one', () => {
+      const listed = (sync.renderRuntimeKeys() as string)
+        .split('\n')
+        .filter((line) => line.startsWith('reserved '))
+        .map((line) => line.slice('reserved '.length))
+
+      expect(listed).toEqual(reserved)
+      expect(reserved).toEqual(
+        expect.arrayContaining([
+          '/assets',
+          '/healthz',
+          '/index.html',
+          '/version.json',
+          '/runtime-config.js',
+          '/mockServiceWorker.js',
+        ]),
+      )
+      // Every exact or prefix location of the server block is on it.
+      const locations = [
+        ...(sync.renderNginxConf() as string).matchAll(/location (?:=|\^~) (\S+) \{/g),
+      ]
+      expect(locations.map(([, route]) => route!.replace(/\/$/, '')).sort()).toEqual(
+        [...reserved].sort(),
+      )
+    })
+
+    it.each(['/assets/api', '/healthz-api', '/.well-known/api', '/api.v2'])(
+      'still routes %s',
+      (apiUrl) => {
+        const run = start(shell, { VUESTRATA_API_URL: apiUrl })
+
+        expect(run.status).toBe(0)
+        expect(run.read('api-location.conf')).toContain(
+          sync.renderApiLocation(headers.sameOriginApiPath(apiUrl)),
+        )
+      },
+    )
+
+    it.each(['/api/../admin', '/api/./v1', '/..', '/.', '/api/..'])(
+      'refuses the dot segment in %s',
+      (apiUrl) => {
+        const run = start(shell, { VUESTRATA_API_URL: apiUrl })
+
+        expectRefused(run, 'Cannot route VUESTRATA_API_URL')
+        expect(run.stderr).toMatch(/cannot have a "\." or "\.\." segment/)
+        expect(() => headers.sameOriginApiPath(apiUrl)).toThrow(
+          /cannot have a "\." or "\.\." segment/,
+        )
+      },
+    )
+  })
+
+  describe('a value of unreasonable length', () => {
+    const LIMIT = 2048
+
+    it('accepts one at the limit', () => {
+      const run = start(shell, {
+        VUESTRATA_RELEASE: 'r'.repeat(LIMIT),
+        VUESTRATA_APP_TITLE: `${'t'.repeat(LIMIT - 2)} x`,
+      })
+
+      expect(run.status).toBe(0)
+    })
+
+    it.each([
+      ['VUESTRATA_RELEASE', 'r'.repeat(LIMIT + 1)],
+      ['VUESTRATA_APP_TITLE', `a ${'t'.repeat(LIMIT)}`],
+      ['VUESTRATA_API_URL', `https://api.acme.test/${'p'.repeat(LIMIT)}`],
+      ['VUESTRATA_SUPABASE_URL', `https://xyz.supabase.test/${'p'.repeat(LIMIT)}`],
+    ])('refuses a longer %s', (variable, value) => {
+      const run = start(shell, { [variable]: value })
+
+      expectRefused(run, variable)
+      expect(run.stderr).toContain(`${variable} is longer than ${LIMIT} characters`)
+    })
+  })
+
   describe('a failed start', () => {
     it("removes the previous start's files, so nginx cannot come up on them", () => {
       // /tmp outlives a container in a pod: an emptyDir is kept across restarts.
@@ -524,7 +1002,7 @@ describe.each(SHELLS)('40-vuestrata-runtime.sh under %s', TIMEOUT, (shell) => {
     })
 
     it('says which characters are allowed', () => {
-      const run = start(shell, { VUESTRATA_APP_TITLE: 'Acme Console' })
+      const run = start(shell, { VUESTRATA_RELEASE: 'v1 final' })
 
       expect(run.stderr).toMatch(/only letters, digits and -_\.~:\/\?#@&\+,=%/)
     })
@@ -557,6 +1035,8 @@ describe.each(SHELLS)('40-vuestrata-runtime.sh under %s', TIMEOUT, (shell) => {
       ['a name that is not a variable', 'config VUESTRATA_A;id\n', /not a variable name/],
       ['a lower-case name', 'config path\n', /not a variable name/],
       ['a name starting with a digit', 'config 1VUESTRATA\n', /not a variable name/],
+      ['a reserved entry that is not a path', 'reserved assets\n', /is not a path/],
+      ['a reserved path that could mean something to sed', 'reserved /a|b\n', /is not a path/],
     ])('stops on a keys file with %s', (_, entry, message) => {
       const source = sourceDir()
       fs.appendFileSync(path.join(source, 'keys'), entry)
@@ -613,6 +1093,43 @@ describe('the committed image files', TIMEOUT, () => {
     expect(run.stderr).toBe('')
     expect(run.status).toBe(0)
     expect(connectSrc(run.read('security-headers.conf'))).toContain('https://api.staging.acme.test')
+  })
+
+  it('is given its values by docker.env, never by the .env Vite reads', () => {
+    const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), 'utf8')
+    const compose = read('docker-compose.yml')
+
+    // A name listed under `environment:` with no value is resolved from the
+    // shell and from the .env beside the file, which is Vite's: a developer's
+    // localhost API URL would configure the production container.
+    expect(compose).not.toMatch(/^\s*environment:/m)
+    expect(compose).not.toMatch(/^\s*- VUESTRATA_/m)
+    expect(compose).toMatch(/^ {4}env_file:\n {6}- path: \.\/docker\.env\n {8}required: false$/m)
+    // The file holds one environment's values: never committed, never built in.
+    expect(read('.gitignore').split('\n')).toContain('docker.env')
+    expect(read('.dockerignore').split('\n')).toContain('docker.env')
+  })
+
+  it('accepts every example in docker.env.example', () => {
+    const shell = SHELLS[0]
+    if (!shell) return
+
+    const example = fs.readFileSync(path.join(process.cwd(), 'docker.env.example'), 'utf8')
+    const env = Object.fromEntries(
+      [...example.matchAll(/^# (VUESTRATA_[A-Z_]+)=(.*)$/gm)].map(([, key, value]) => [key, value]),
+    ) as Record<string, string>
+
+    // Every built-in key is shown, a title with a space among them.
+    expect(Object.keys(env).sort()).toEqual([...RUNTIME_OVERRIDABLE_KEYS].sort())
+    expect(env.VUESTRATA_APP_TITLE).toContain(' ')
+    // Nothing in the file is live: a copy of it sets nothing.
+    expect(example).not.toMatch(/^[A-Z_]+=/m)
+
+    const run = start(shell, env, { source: path.join(process.cwd(), 'docker/runtime') })
+
+    expect(run.stderr).toBe('')
+    expect(run.status).toBe(0)
+    expect(evaluate(run.read('runtime-config.js'))).toEqual(env)
   })
 
   it('is a script with a POSIX shebang and no carriage returns', () => {

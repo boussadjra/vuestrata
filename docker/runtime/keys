@@ -5,13 +5,25 @@
 # of the container. One entry per line: what it is for, then the variable.
 #
 #   config     written to /runtime-config.js, where the app reads it
+#   text       the same, and the value may hold spaces; it is written to no
+#              other file
+#   enum       the same, and the value must be one of those listed
 #   api        the API URL: its origin joins connect-src, or its path gets the
-#              unrouted-API answer; the third field is the value when unset
+#              unrouted-API answer; the third field is the URL the app was
+#              built with, which applies when the variable is unset or empty
 #   connect    its origin joins connect-src
 #   websocket  the ws(s):// form of its origin joins connect-src
+#   reserved   not a variable: a path the server answers itself, which the
+#              API path therefore cannot be
 config VUESTRATA_API_URL
-config VUESTRATA_APP_TITLE
+text VUESTRATA_APP_TITLE
 config VUESTRATA_ERROR_REPORTING_DSN
 config VUESTRATA_RELEASE
-config VUESTRATA_SESSION_PERSISTENCE
+enum VUESTRATA_SESSION_PERSISTENCE none refresh-cookie session local
 api VUESTRATA_API_URL /api
+reserved /healthz
+reserved /index.html
+reserved /assets
+reserved /version.json
+reserved /runtime-config.js
+reserved /mockServiceWorker.js

@@ -19,7 +19,12 @@ import { loadEnv } from 'vite-plus'
 import { parseAppEnv } from '../../src/modules/core/lib/config/deploy.ts'
 import { ENV_KEYS, parseRuntimeEnv } from '../../src/modules/core/lib/config/env.schema.ts'
 import { loadDeployConfig } from '../security/deploy-config.mjs'
-import { resolveDeployHeaders, resolveRuntimeKeys } from '../security/headers.mjs'
+import {
+  buildCsp,
+  replaceMetaCsp,
+  resolveDeployHeaders,
+  resolveRuntimeKeys,
+} from '../security/headers.mjs'
 
 /**
  * Where `vp dev` forwards API requests. Deliberately NOT `VUESTRATA_`-prefixed:
@@ -42,11 +47,19 @@ const RUNTIME_CONFIG_FILE = 'runtime-config.js'
 /** What the file holds when nothing overrides anything. */
 const EMPTY_RUNTIME_CONFIG = 'window.__VUESTRATA_RUNTIME__ ||= {}\n'
 
+const CSP_HEADER = 'Content-Security-Policy'
+
+/** The page's CSP `<meta>` tag, whole, and the charset one. */
+const CSP_META_TAG = /<meta\s+http-equiv="Content-Security-Policy"[^>]*>/i
+const CHARSET_META_TAG = /<meta\s+charset=[^>]*>/i
+
 /**
  * Resolves and validates the runtime environment, then feeds the result into
  * `define` and `build.sourcemap`. Under `vp dev`, it also connects the dev
- * server to a real backend — see `devApiProxy`. And it makes every page load
- * the runtime configuration first — see `transformIndexHtml`.
+ * server to a real backend — see `devApiProxy`. It makes every page load the
+ * runtime configuration first — see `transformIndexHtml`. And it sends the
+ * Content Security Policy a deployment would send from `vp dev` and
+ * `vp preview` — see `configureServer`.
  *
  * This lives in a plugin rather than a `defineConfig(({ mode }) => …)` callback
  * because Vite+ reads the `lint`/`fmt`/`staged` fields off a STATIC default
@@ -64,6 +77,15 @@ export function vuestrataEnv(options = {}) {
   let publicDir = 'public'
   /** Vite's `base`: where the app's own files are served from. */
   let base = '/'
+  /**
+   * What the served policy is built from — the API URL, the project's header
+   * sources, the variables they name — or null when nothing is being served.
+   */
+  let served = null
+
+  /** The policy for what is being served: the header, or the `<meta>` variant. */
+  const servedCsp = ({ forMeta = false, extraOrigins = [] } = {}) =>
+    buildCsp({ ...served, forMeta, extraOrigins })
 
   return {
     name: 'vuestrata:env',
@@ -100,12 +122,34 @@ export function vuestrataEnv(options = {}) {
     },
 
     /**
-     * The dev server's answer for `runtime-config.js` when `public/` has none,
-     * so that `vp dev` behaves like the build above. With the file in place
-     * Vite serves it as it serves anything under `public/`, and this stays out
-     * of the way.
+     * `vp dev` sends the policy a deployment would send.
+     *
+     * Without it, a request to an origin nobody declared works on the
+     * developer's machine and is blocked in the first deployment that sends
+     * headers, which is the worst place to learn that `connectSrc` in
+     * `deploy.config.ts` is missing an entry. With it, the violation is in the
+     * console while the code that causes it is still on screen.
+     *
+     * It is the production policy, enforced, with ONE addition: see
+     * `devSocketOrigins`. Nothing else was needed. Vite's client and the
+     * modules it serves are same-origin scripts, hot updates use no `eval`, and
+     * source maps are read by the devtools, which no page policy governs.
+     *
+     * Also the dev server's answer for `runtime-config.js` when `public/` has
+     * none, so that `vp dev` behaves like the build above. With the file in
+     * place Vite serves it as it serves anything under `public/`, and this
+     * stays out of the way.
      */
     configureServer(server) {
+      if (served) {
+        server.middlewares.use((request, response, next) => {
+          if (!isMockWorker(request, base)) {
+            response.setHeader(CSP_HEADER, servedCsp({ extraOrigins: devSocketOrigins(server) }))
+          }
+          next()
+        })
+      }
+
       server.middlewares.use((request, response, next) => {
         const path = request.url?.split('?')[0]
         if (
@@ -118,6 +162,21 @@ export function vuestrataEnv(options = {}) {
         response.setHeader('Content-Type', 'text/javascript')
         response.setHeader('Cache-Control', 'no-store')
         response.end(EMPTY_RUNTIME_CONFIG)
+      })
+    },
+
+    /**
+     * `vp preview` sends the policy too, exactly as generated: it serves a
+     * build, and the point of previewing one is to see what a deployment
+     * would do. The page's own `<meta>` is whatever the build wrote, as it
+     * will be on a static host.
+     */
+    configurePreviewServer(server) {
+      if (!served) return
+      const policy = servedCsp()
+      server.middlewares.use((request, response, next) => {
+        if (!isMockWorker(request, base)) response.setHeader(CSP_HEADER, policy)
+        next()
       })
     },
 
@@ -149,8 +208,24 @@ export function vuestrataEnv(options = {}) {
         const root = resolve(config.root ?? process.cwd())
         const deployConfig = options.deployConfig ?? (await loadDeployConfig({ root }))
         parseAppEnv(deployConfig, rawEnv, { reservedKeys: Object.values(ENV_KEYS) })
-        resolveDeployHeaders(deployConfig.headers)
+        const headers = resolveDeployHeaders(deployConfig.headers)
         resolveRuntimeKeys([], deployConfig.runtime ?? [])
+
+        // A server is about to answer requests: `vp dev` or `vp preview`. The
+        // policy it sends is built from what a deployment's would be built
+        // from, and built once here, so an API URL no policy can name stops
+        // the server with the reason instead of blocking every call later.
+        if (serving) {
+          served = {
+            apiUrl: env.apiUrl,
+            headers: deployConfig.headers,
+            env: readNamedEnv(mode, envDir, [
+              ...headers.connectSrcFromEnv,
+              ...headers.websocketFromEnv,
+            ]),
+          }
+          servedCsp()
+        }
       }
 
       // Read only by the dev server: a build never loads it, so it can never
@@ -194,23 +269,106 @@ export function vuestrataEnv(options = {}) {
      * an inline copy anyway. For the same reason the URL is built from `base`
      * by hand rather than left for Vite to rewrite.
      *
-     * The page's own CSP `<meta>` needs no help to reach a cross-origin API: it
-     * does not restrict connections (see META_CONNECT_SRC in
-     * scripts/security/headers.mjs).
+     * Under `vp dev` the page's CSP `<meta>` is also rendered for the
+     * environment being served, like the header `configureServer` sends. The
+     * committed tag is generated for the default `/api`, and a browser
+     * enforces it in addition to the header, so a developer pointing
+     * `VUESTRATA_API_URL` at another origin would otherwise have every call
+     * blocked by the page itself. A build is left as written: its tag is the
+     * generator's (`sync-headers.mjs`), which is also what a deployment gets.
      */
-    transformIndexHtml() {
-      return [
-        {
-          tag: 'script',
-          attrs: { src: `${base}${RUNTIME_CONFIG_FILE}` },
-          // First in the document, so it also precedes the module script in
-          // source order: nobody has to know the execution rules to see that
-          // the configuration comes first.
-          injectTo: 'head-prepend',
-        },
-      ]
+    transformIndexHtml(html, ctx) {
+      const page =
+        ctx.server && served
+          ? (replaceMetaCsp(
+              html,
+              servedCsp({ forMeta: true, extraOrigins: devSocketOrigins(ctx.server) }),
+            ) ?? html)
+          : html
+      const src = `${base}${RUNTIME_CONFIG_FILE}`
+
+      return (
+        withRuntimeConfigScript(page, src) ?? {
+          html: page,
+          // A page with neither tag to put it after: first in the document.
+          tags: [{ tag: 'script', attrs: { src }, injectTo: 'head-prepend' }],
+        }
+      )
     },
   }
+}
+
+/**
+ * `html` with `<script src>` directly after the CSP `<meta>` — or, on a page
+ * without one, after `<meta charset>` — or null when it has neither.
+ *
+ * After both on purpose. A browser must meet the charset declaration before
+ * any content, and a policy delivered in a `<meta>` governs only what follows
+ * it: a script placed ahead of the tag would load outside the page's own
+ * policy. It still precedes the app's module script in the source, which Vite
+ * puts at the end of `<head>`, so nobody has to know that a classic script
+ * runs before any module to see that the configuration comes first.
+ */
+function withRuntimeConfigScript(html, src) {
+  const anchor = CSP_META_TAG.exec(html) ?? CHARSET_META_TAG.exec(html)
+  if (!anchor) return null
+
+  const end = anchor.index + anchor[0].length
+  const indent = /[ \t]*$/.exec(html.slice(0, anchor.index))[0]
+  const escaped = src.replaceAll('&', '&amp;').replaceAll('"', '&quot;')
+  return `${html.slice(0, end)}\n${indent}<script src="${escaped}"></script>${html.slice(end)}`
+}
+
+/**
+ * Whether the request is for the MSW worker script, the one response the
+ * policy is NOT sent with.
+ *
+ * A service worker is governed by the policy its own script was served with,
+ * not by the page's. The demo's worker answers the requests it has a handler
+ * for and re-fetches every other one itself, the web fonts included, and a
+ * worker's `fetch()` falls under `connect-src`. Served with this policy, whose
+ * `connect-src` names no font host, the worker blocks every font of a page it
+ * controls (`net::ERR_FAILED`, and nothing in the page's console says why).
+ *
+ * Leaving the header off this one script keeps `vp dev` and `vp preview`
+ * working as they did before they sent a policy. It is a known difference
+ * from a demo deployed behind the generated headers, which apply to the
+ * worker script as well. Production builds have no worker and are unaffected.
+ */
+function isMockWorker(request, base) {
+  return request.url?.split('?')[0] === `${base}mockServiceWorker.js`
+}
+
+/**
+ * What `vp dev` needs that a deployment does not: the WebSocket Vite's client
+ * opens to the dev server for hot updates.
+ *
+ * It goes to the page's own host and port, which `'self'` covers in a browser
+ * that follows CSP 3. Not every browser matches `ws:` against an `http:` page
+ * that way, so each address the dev server answers on is named: without the
+ * socket the page loads and then never updates, with nothing but a console
+ * line to say why. An address no source can name (an IPv6 literal) is left to
+ * `'self'`.
+ */
+function devSocketOrigins(server) {
+  const urls = [...(server.resolvedUrls?.local ?? []), ...(server.resolvedUrls?.network ?? [])]
+  const origins = urls.flatMap((url) => {
+    try {
+      const { protocol, host } = new URL(url)
+      return [`${protocol === 'https:' ? 'wss' : 'ws'}://${host}`]
+    } catch {
+      return []
+    }
+  })
+  return [...new Set(origins)].filter((origin) => /^wss?:\/\/[a-z0-9.-]+(?::\d+)?$/.test(origin))
+}
+
+/**
+ * The named variables, from the environment or any `.env` file for `mode`.
+ * One name at a time, each as its own prefix: see `readDevApiTarget`.
+ */
+function readNamedEnv(mode, envDir, names) {
+  return Object.fromEntries(names.map((name) => [name, loadEnv(mode, envDir, name)[name]]))
 }
 
 /**

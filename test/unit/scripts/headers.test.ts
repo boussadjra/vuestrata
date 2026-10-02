@@ -174,6 +174,13 @@ describe('connect-src', () => {
     ['an nginx variable', 'https://$host'],
     ['a closing script tag', 'https://a.test</script>'],
     ['a port out of range', 'https://api.acme.test:123456'],
+    ['a five-digit port out of range', 'https://api.acme.test:99999'],
+    ['port 65536', 'https://api.acme.test:65536'],
+    ['port 0', 'https://api.acme.test:0'],
+    ['a port with a leading zero', 'https://api.acme.test:0443'],
+    ['an empty port', 'https://api.acme.test:'],
+    ['a wildcard under a single label', 'https://*.com'],
+    ['a wildcard under a single label, with a port', 'https://*.test:8443'],
     ['a label starting with a hyphen', 'https://-api.acme.test'],
     ['an underscore in the host', 'https://my_api.acme.test'],
     ['an IPv6 literal', 'https://[::1]:8443'],
@@ -183,6 +190,47 @@ describe('connect-src', () => {
     expect(() => headers.buildSecurityHeaders({ headers: { connectSrc: [source] } })).toThrow(
       /Invalid deploy\.config\.ts headers/,
     )
+  })
+
+  it.each([
+    ['the highest port', 'https://api.acme.test:65535'],
+    ['port 1', 'https://api.acme.test:1'],
+    ['a wildcard under two labels', 'https://*.acme.test'],
+    ['a wildcard with a port', 'wss://*.realtime.acme.test:8443'],
+  ])('accepts %s', (_, origin) => {
+    expect(directive(cspOf({ headers: { connectSrc: [origin] } }), 'connect-src')).toContain(origin)
+  })
+
+  it('says why a wildcard or a port was refused', () => {
+    expect(() => cspOf({ headers: { connectSrc: ['https://*.com'] } })).toThrow(
+      /would allow every site under "com"/,
+    )
+    expect(() => cspOf({ headers: { connectSrc: ['https://a.test:99999'] } })).toThrow(
+      /from 1 to 65535/,
+    )
+  })
+
+  // A wildcard is something a project writes down in `connectSrc`, on purpose.
+  // The value of a variable is a URL: `*` there is a mistake or an attack, and
+  // the container entrypoint refuses the same values.
+  it.each([
+    ['a wildcard host', 'https://*.acme.test/v1'],
+    ['a wildcard under a public suffix', 'https://*.com'],
+    ['port 0', 'https://api.acme.test:0/v1'],
+    ['a port out of range', 'https://api.acme.test:99999'],
+  ])('refuses %s in a URL it derives an origin from', (_, url) => {
+    expect(() => cspOf({ apiUrl: url })).toThrow()
+    expect(() => headers.connectSrcFor(url)).toThrow()
+    for (const option of ['connectSrcFromEnv', 'websocketFromEnv']) {
+      expect(() =>
+        cspOf({ headers: { [option]: ['VUESTRATA_A'] }, env: { VUESTRATA_A: url } }),
+      ).toThrow()
+    }
+  })
+
+  it('reads a port in a URL as a URL parser does', () => {
+    expect(headers.connectSrcFor('https://api.acme.test:0443/v1')).toBe('https://api.acme.test')
+    expect(headers.connectSrcFor('http://api.acme.test:08080')).toBe('http://api.acme.test:8080')
   })
 
   it('says how to fix a URL that has an origin in it', () => {
@@ -365,29 +413,80 @@ describe('frame-ancestors', () => {
 describe('the <meta> policy', () => {
   const meta = (options?: object) => cspOf({ ...options, forMeta: true })
 
-  it('does not restrict connections, because the page is built before it is deployed', () => {
-    // The browser enforces the meta policy as well as the header. The API
-    // origin of a container is decided at start, so a `connect-src 'self'` in
-    // the page would block what the header allows.
-    expect(directive(meta(), 'connect-src')).toEqual(['*'])
-    expect(directive(meta({ apiUrl: 'https://api.acme.test' }), 'connect-src')).toEqual(['*'])
+  it("restricts connections to the app's own origin by default", () => {
+    // A host that sends no headers has only this tag. It used to read
+    // `connect-src *` for every build, for the benefit of the one deployment
+    // that always sends the header.
+    expect(directive(meta(), 'connect-src')).toEqual(["'self'"])
   })
 
-  it('states connect-src rather than omitting it', () => {
-    // Omitted, it would fall back to default-src 'self' and block the same
-    // requests.
-    expect(directive(meta(), 'default-src')).toEqual(["'self'"])
-    expect(directive(meta(), 'connect-src')).toBeDefined()
-  })
-
-  it('is the same whatever the environment holds', () => {
+  it('names the same origins as the header, for the same inputs', () => {
     const options = {
-      headers: { connectSrc: ['https://login.acme.test'], connectSrcFromEnv: ['VUESTRATA_A'] },
+      apiUrl: 'https://api.acme.test/v1',
+      headers: {
+        connectSrc: ['https://login.acme.test'],
+        connectSrcFromEnv: ['VUESTRATA_A'],
+        websocketFromEnv: ['VUESTRATA_A'],
+      },
+      env: { VUESTRATA_A: 'https://a.test/x' },
     }
 
-    expect(
-      meta({ ...options, env: { VUESTRATA_A: 'https://a.test' }, apiUrl: 'https://b.test' }),
-    ).toBe(meta(options))
+    expect(directive(meta(options), 'connect-src')).toEqual(
+      directive(cspOf(options), 'connect-src'),
+    )
+    expect(directive(meta(options), 'connect-src')).toEqual([
+      "'self'",
+      'https://login.acme.test',
+      'https://api.acme.test',
+      'https://a.test',
+      'wss://a.test',
+    ])
+  })
+
+  it('is the header without frame-ancestors, and nothing else differs', () => {
+    const options = { apiUrl: 'https://api.acme.test', headers: { imgSrc: ['https:'] } }
+
+    expect(meta(options)).toBe(cspOf(options).replace("frame-ancestors 'none'; ", ''))
+  })
+
+  describe('for an artifact whose API URL is set at start', () => {
+    const atStart = (options?: object) => meta({ ...options, runtimeConfig: true })
+
+    it('leaves connections to the header, whatever the build knew', () => {
+      // The browser enforces the tag as well as the header. The API origin of
+      // a container is decided at start, so a `connect-src 'self'` in the page
+      // would block what the container's header allows.
+      expect(directive(atStart(), 'connect-src')).toEqual(['*'])
+      expect(
+        directive(
+          atStart({
+            apiUrl: 'https://api.acme.test',
+            headers: {
+              connectSrc: ['https://login.acme.test'],
+              connectSrcFromEnv: ['VUESTRATA_A'],
+            },
+            env: { VUESTRATA_A: 'https://a.test' },
+          }),
+          'connect-src',
+        ),
+      ).toEqual(['*'])
+    })
+
+    it('states connect-src rather than omitting it', () => {
+      // Omitted, it would fall back to default-src 'self' and block the same
+      // requests.
+      expect(directive(atStart(), 'default-src')).toEqual(["'self'"])
+      expect(directive(atStart(), 'connect-src')).toBeDefined()
+    })
+
+    it('changes nothing but connect-src', () => {
+      expect(atStart().replace('connect-src *', "connect-src 'self'")).toBe(meta())
+    })
+
+    it('never reaches a header: the flag is about the tag alone', () => {
+      expect(cspOf({ runtimeConfig: true })).toBe(DEFAULT_CSP)
+      expect(headerMap({ runtimeConfig: true }).get('Content-Security-Policy')).toBe(DEFAULT_CSP)
+    })
   })
 
   it('leaves out frame-ancestors, which a meta tag cannot express', () => {
@@ -465,5 +564,40 @@ describe('sameOriginApiPath', () => {
     [undefined, null],
   ])('%j → %j', (apiUrl, expected) => {
     expect(headers.sameOriginApiPath(apiUrl)).toBe(expected)
+  })
+
+  it.each(['/api/../admin', '/api/./v1', '/..', '/.', '/api/..', '/../api'])(
+    'refuses the dot segment in %j',
+    (apiUrl) => {
+      expect(() => headers.sameOriginApiPath(apiUrl)).toThrow(/"\." or "\.\." segment/)
+    },
+  )
+
+  it.each(['/.well-known/api', '/api.v2', '/v1..2', '/...'])(
+    'accepts %j, where the dots are part of a name',
+    (apiUrl) => {
+      expect(headers.sameOriginApiPath(apiUrl)).toBe(apiUrl)
+    },
+  )
+
+  it('refuses every path the server block has a location of its own for', () => {
+    // nginx would stop on "duplicate location" and name no variable.
+    const reserved: string[] = headers.reservedApiPaths()
+
+    expect([...reserved].sort()).toEqual(
+      [
+        '/assets',
+        '/healthz',
+        '/index.html',
+        '/mockServiceWorker.js',
+        '/runtime-config.js',
+        '/version.json',
+      ].sort(),
+    )
+    for (const path of reserved) {
+      expect(() => headers.sameOriginApiPath(path)).toThrow(/a path this server answers itself/)
+      expect(() => headers.sameOriginApiPath(`${path}/`)).toThrow(/answers itself/)
+    }
+    expect(headers.sameOriginApiPath('/assets/api')).toBe('/assets/api')
   })
 })

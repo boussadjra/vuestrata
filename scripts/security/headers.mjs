@@ -50,20 +50,24 @@ const BASE_CSP = {
 const META_UNSUPPORTED_DIRECTIVES = new Set(['frame-ancestors'])
 
 /**
- * What the `<meta>` policy says about connections: nothing.
+ * What the `<meta>` policy says about connections in an artifact whose API
+ * origin is decided when it STARTS: nothing.
  *
- * The origins an app connects to are decided when it is DEPLOYED — the API URL
- * of a container is read at start — and `index.html` is written when it is
- * built. A browser enforces the meta policy in addition to the header, so a
- * `connect-src 'self'` baked into the page would block an API origin the
- * header allows.
+ * By default the tag carries the same `connect-src` as the header, so a host
+ * that sends no headers still gets a page that may only reach its own origin
+ * and the ones it was generated for. That cannot work for the Docker image.
+ * Its `index.html` is written when the image is built, the API URL of a
+ * container is read when it starts, and a browser enforces the tag IN ADDITION
+ * to the header: a `connect-src 'self'` baked into the page would block an API
+ * origin the container's header allows.
  *
  * Leaving the directive out does not lift the restriction: `connect-src` then
  * falls back to `default-src 'self'`, which blocks the same requests. It has to
- * be stated, and wide. The header stays the authority; a host that sends no
- * headers at all gets a page whose connections this tag does not restrict.
+ * be stated, and wide. So this is an opt-in (`runtimeConfig`, the generator's
+ * `--runtime-config`) for an artifact that is guaranteed to send the header,
+ * which stays the authority there.
  */
-const META_CONNECT_SRC = ['*']
+const RUNTIME_CONFIG_META_CONNECT_SRC = ['*']
 
 /**
  * The app's own default for `VUESTRATA_API_URL` (see `env.schema.ts`). A build
@@ -85,6 +89,9 @@ export const API_PATH_PLACEHOLDER = '__VUESTRATA_API_PATH__'
 /** Where the entrypoint writes what it renders: writable on a read-only root. */
 export const RUNTIME_DIR = '/tmp/vuestrata'
 
+/** The path nginx answers itself for a liveness or readiness probe. */
+export const HEALTH_PATH = '/healthz'
+
 export const COOP_VALUES = ['same-origin', 'same-origin-allow-popups', 'unsafe-none']
 
 // ─── Sources ─────────────────────────────────────────────────────────────────
@@ -95,14 +102,50 @@ const LABEL = '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
 /**
  * `scheme://host[:port]`, with an optional leading `*.` label. No path, no
  * query, no credentials: a CSP host-source. IPv6 literals are not accepted.
+ * The groups: the wildcard, the host after it, the port.
  */
-const ORIGIN = new RegExp(`^(https?|wss?)://(\\*\\.)?${LABEL}(?:\\.${LABEL})*(?::\\d{1,5})?$`)
+const ORIGIN = new RegExp(`^(?:https?|wss?)://(\\*\\.)?(${LABEL}(?:\\.${LABEL})*)(?::(\\d+))?$`)
 
 /** A shell-safe environment variable name. */
 const ENV_NAME = /^[A-Z_][A-Z0-9_]*$/
 
+/**
+ * Names the container entrypoint cannot read from its environment: the shell
+ * resets `IFS` when it starts, and the script sets `LC_ALL` itself.
+ */
+const UNREADABLE_ENV_NAMES = new Set(['IFS', 'LC_ALL'])
+
 /** The names a runtime-overridable variable may have: what Vite exposes. */
 const RUNTIME_KEY = /^VUESTRATA_[A-Z0-9_]+$/
+
+/**
+ * What stops `source` (lower-cased) from being a CSP origin, as a hint for the
+ * error message, or null when it is one. `undefined` means it does not have
+ * the shape of an origin at all.
+ *
+ * A wildcard needs two labels after it: `https://*.com` is every site under a
+ * public suffix, which restricts nothing. A port is 1–65535, written as a URL
+ * parser would write it; a browser discards the directive for `:99999`.
+ */
+function describeOriginIssue(source, wildcard) {
+  const match = ORIGIN.exec(source)
+  if (!match) return undefined
+  const [, star, host, port] = match
+
+  if (star && !wildcard) {
+    return 'A wildcard cannot come from a URL; list the origins it stands for.'
+  }
+  if (star && !host.includes('.')) {
+    return (
+      `"*.${host}" would allow every site under "${host}". A wildcard must be followed by at ` +
+      'least two labels, such as https://*.example.com.'
+    )
+  }
+  if (port !== undefined && (!/^[1-9]\d{0,4}$/.test(port) || Number(port) > 65535)) {
+    return 'A port is a number from 1 to 65535, without leading zeros.'
+  }
+  return null
+}
 
 /**
  * A configured source as a CSP origin, or an error saying what is wrong.
@@ -112,22 +155,31 @@ const RUNTIME_KEY = /^VUESTRATA_[A-Z0-9_]+$/
  * discard the entire directive — so `connect-src 'self' https://api.example.com/v1,`
  * silently provides no protection at all rather than failing loudly. Hence the
  * refusal, here, of anything that is not exactly an origin.
+ *
+ * `wildcard: false` is for an origin derived from a URL — the API URL, a
+ * variable's value — where a `*` is never meant and the container entrypoint
+ * refuses one as well.
  */
-function originSource(value, label) {
+function originSource(value, label, { wildcard = true } = {}) {
   if (typeof value !== 'string') {
     throw new Error(`${label}: expected a string, received ${JSON.stringify(value)}.`)
   }
   const source = value.toLowerCase()
-  if (ORIGIN.test(source)) return source
+  const issue = describeOriginIssue(source, wildcard)
+  if (issue === null) return source
 
-  let hint = 'Write an origin: scheme://host[:port], with http, https, ws or wss.'
-  try {
-    const { origin } = new URL(value)
-    // Parses as a URL with a usable origin, so what was written has more than
-    // that: a path, a query, credentials.
-    if (ORIGIN.test(origin)) hint = `A CSP source is an origin alone; write "${origin}".`
-  } catch {
-    // Not a URL at all: the general hint says what one looks like.
+  let hint = issue ?? 'Write an origin: scheme://host[:port], with http, https, ws or wss.'
+  if (issue === undefined) {
+    try {
+      const { origin } = new URL(value)
+      // Parses as a URL with a usable origin, so what was written has more
+      // than that: a path, a query, credentials.
+      if (describeOriginIssue(origin, wildcard) === null) {
+        hint = `A CSP source is an origin alone; write "${origin}".`
+      }
+    } catch {
+      // Not a URL at all: the general hint says what one looks like.
+    }
   }
   throw new Error(`${label}: ${JSON.stringify(value)} is not an origin. ${hint}`)
 }
@@ -149,6 +201,11 @@ function envNames(values, label) {
       throw new Error(
         `${label}: ${JSON.stringify(name)} is not an environment variable name ` +
           '(capitals, digits and underscores).',
+      )
+    }
+    if (UNREADABLE_ENV_NAMES.has(name)) {
+      throw new Error(
+        `${label}: ${name} cannot be read from a container's environment: the shell sets it itself.`,
       )
     }
   }
@@ -284,8 +341,9 @@ function urlOrigin(value, name, protocols) {
     )
   }
   // Not `parsed.origin`: the parts say the same without depending on which
-  // schemes a runtime gives a tuple origin.
-  return originSource(`${parsed.protocol}//${parsed.host}`, name)
+  // schemes a runtime gives a tuple origin. The URL parser lets `*` through as
+  // a host character and `:0` as a port; neither is an origin to allow.
+  return originSource(`${parsed.protocol}//${parsed.host}`, name, { wildcard: false })
 }
 
 /** `https://x` → `wss://x`, `http://x` → `ws://x`; a ws(s) origin is kept. */
@@ -342,7 +400,35 @@ export function sameOriginApiPath(apiUrl) {
         `"/" followed by segments of letters, digits and "._~-".`,
     )
   }
+  if (path.split('/').some((segment) => segment === '.' || segment === '..')) {
+    throw new Error(
+      `Cannot route VUESTRATA_API_URL="${apiUrl}" in nginx: a same-origin API path cannot ` +
+        'have a "." or ".." segment.',
+    )
+  }
+  if (reservedApiPaths().includes(path)) {
+    throw new Error(
+      `Cannot route VUESTRATA_API_URL="${apiUrl}" in nginx: ${path} is a path this server ` +
+        'answers itself. Serve the API under another one, such as /api.',
+    )
+  }
   return path
+}
+
+/**
+ * The paths the image's server block has a location of its own for: the
+ * health probe and every exact or prefix cache rule. None can be the API path.
+ * nginx refuses two locations for one path, and would stop on "duplicate
+ * location" without saying which variable asked for it.
+ *
+ * The entrypoint reads the list from `docker/runtime/keys`, which is generated
+ * with the server block, so the two cannot disagree.
+ */
+export function reservedApiPaths() {
+  const fromRules = CACHE_RULES.map(
+    (rule) => /^(?:=|\^~) (\/.+?)\/?$/.exec(rule.nginxLocation ?? '')?.[1],
+  ).filter(Boolean)
+  return [HEALTH_PATH, ...fromRules]
 }
 
 // ─── The policy ──────────────────────────────────────────────────────────────
@@ -355,7 +441,10 @@ export function sameOriginApiPath(apiUrl) {
  *   env           resolves `connectSrcFromEnv` / `websocketFromEnv`; omit it
  *                 for output that must not depend on the environment
  *   extraOrigins  more `connect-src` origins, for a caller that knows some
- *   forMeta       the `<meta>` variant — see `META_CONNECT_SRC`
+ *   forMeta       the `<meta>` variant: no `frame-ancestors`, which a tag
+ *                 cannot express, and otherwise the same policy
+ *   runtimeConfig with `forMeta`, for an artifact whose API origin is decided
+ *                 at start — see `RUNTIME_CONFIG_META_CONNECT_SRC`
  *   template      the nginx template: `connect-src` carries only what is known
  *                 at build time, then the placeholder the entrypoint fills
  */
@@ -365,6 +454,7 @@ export function buildCsp({
   env,
   extraOrigins = [],
   forMeta = false,
+  runtimeConfig = false,
   template = false,
 } = {}) {
   const resolved = resolveDeployHeaders(headers)
@@ -381,8 +471,8 @@ export function buildCsp({
     directives['frame-ancestors'] = resolved.frameAncestors
   }
 
-  if (forMeta) {
-    directives['connect-src'] = [...META_CONNECT_SRC]
+  if (forMeta && runtimeConfig) {
+    directives['connect-src'] = [...RUNTIME_CONFIG_META_CONNECT_SRC]
   } else if (template) {
     directives['connect-src'].push(...resolved.connectSrc, CONNECT_SRC_PLACEHOLDER)
   } else {
@@ -398,6 +488,21 @@ export function buildCsp({
   return Object.entries(directives)
     .map(([name, sources]) => `${name} ${[...new Set(sources)].join(' ')}`)
     .join('; ')
+}
+
+/** The CSP `<meta>` tag of a page, split around its policy. */
+const CSP_META = /(<meta\s+http-equiv="Content-Security-Policy"\s+content=")[^"]*(")/s
+
+/**
+ * `html` with the policy of its CSP `<meta>` tag replaced by `csp`, or null
+ * when the page has no such tag. Only the attribute's value changes.
+ */
+export function replaceMetaCsp(html, csp) {
+  if (/["<>\r\n]/.test(csp)) {
+    throw new Error(`The CSP cannot sit in an HTML attribute: ${csp}`)
+  }
+  if (!CSP_META.test(html)) return null
+  return html.replace(CSP_META, (_, open, close) => `${open}${csp}${close}`)
 }
 
 /**

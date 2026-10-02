@@ -101,8 +101,14 @@ function underNode<T = unknown>(body: string): T {
   return JSON.parse(result.stdout) as T
 }
 
-/** `RUNTIME_OVERRIDABLE_KEYS`, read from the source the way the generator reads it. */
-const loaderKeys = underNode<string[]>('return loader.loadRuntimeOverridableKeys()')
+/**
+ * `RUNTIME_OVERRIDABLE_KEYS` and `RUNTIME_KEY_FORMATS`, read from the source
+ * the way the generator reads them.
+ */
+const { keys: loaderKeys, formats: loaderFormats } = underNode<{
+  keys: string[]
+  formats: Record<string, { kind: string; values?: string[] }>
+}>('return loader.loadRuntimeKeys()')
 
 /** The blocks that answer an unrouted API at `apiUrl`, as the entrypoint renders them. */
 const apiLocations = (apiUrl: string) =>
@@ -362,10 +368,71 @@ describe('the security-header snippet', () => {
 })
 
 describe('docker/runtime/keys', () => {
-  const entries = (options?: object) =>
+  const lines = (options?: object) =>
     (sync.renderRuntimeKeys(options) as string)
       .split('\n')
       .filter((line) => line !== '' && !line.startsWith('#'))
+  /** The entries that name a variable. */
+  const entries = (options?: object) =>
+    lines(options).filter((line) => !line.startsWith('reserved '))
+
+  it('holds a key to the format the app declares for it', () => {
+    expect(
+      entries({
+        runtimeKeys: ['VUESTRATA_API_URL', 'VUESTRATA_APP_TITLE', 'VUESTRATA_SESSION_PERSISTENCE'],
+        runtimeKeyFormats: {
+          VUESTRATA_APP_TITLE: { kind: 'text' },
+          VUESTRATA_SESSION_PERSISTENCE: { kind: 'enum', values: ['none', 'session'] },
+        },
+      }),
+    ).toEqual([
+      'config VUESTRATA_API_URL',
+      'text VUESTRATA_APP_TITLE',
+      'enum VUESTRATA_SESSION_PERSISTENCE none session',
+      'api VUESTRATA_API_URL /api',
+    ])
+  })
+
+  it.each([
+    ['a kind it does not know', { kind: 'regex', pattern: '.*' }],
+    ['an enum with no values', { kind: 'enum', values: [] }],
+    ['an enum value with a space', { kind: 'enum', values: ['a b'] }],
+    ['an enum value with a quote', { kind: 'enum', values: ['a"'] }],
+    ['an enum that is not a list', { kind: 'enum', values: 'a' }],
+  ])('refuses a format with %s', (_, format) => {
+    expect(() =>
+      sync.renderRuntimeKeys({
+        runtimeKeys: ['VUESTRATA_RELEASE'],
+        runtimeKeyFormats: { VUESTRATA_RELEASE: format },
+      }),
+    ).toThrow(/not a runtime key format/)
+  })
+
+  it('records the API URL of the build as what an unset variable falls back to', () => {
+    expect(entries()).toEqual(['api VUESTRATA_API_URL /api'])
+    expect(entries({ buildApiUrl: 'https://api.acme.test/v1' })).toEqual([
+      'api VUESTRATA_API_URL https://api.acme.test/v1',
+    ])
+    expect(entries({ buildApiUrl: '/backend/' })).toEqual(['api VUESTRATA_API_URL /backend/'])
+  })
+
+  it.each([
+    ['a space', 'https://api.acme.test/a b'],
+    ['a quote', 'https://api.acme.test/"'],
+    ['a wildcard', 'https://*.acme.test'],
+    ['another scheme', 'ftp://files.acme.test'],
+    ['a path the server answers itself', '/assets'],
+    ['a dot segment', '/api/../x'],
+    ['nothing', ''],
+  ])('refuses to record %s: every container would stop on it', (_, buildApiUrl) => {
+    expect(() => sync.renderRuntimeKeys({ buildApiUrl })).toThrow()
+  })
+
+  it('lists the paths the server answers itself, which the API path cannot be', () => {
+    expect(lines().filter((line) => line.startsWith('reserved '))).toEqual(
+      (headers.reservedApiPaths() as string[]).map((path) => `reserved ${path}`),
+    )
+  })
 
   it('lists what the entrypoint may write to runtime-config.js, and the API URL', () => {
     expect(entries({ runtimeKeys: ['VUESTRATA_API_URL', 'VUESTRATA_RELEASE'] })).toEqual([
@@ -468,13 +535,123 @@ describe('index.html', () => {
   const metaCsp = (html: string) =>
     /http-equiv="Content-Security-Policy"\s+content="([^"]*)"/.exec(html)?.[1] ?? ''
 
+  /** The comment directly above the tag, without its delimiters. */
+  const commentAbove = (html: string) =>
+    /<!--((?:(?!-->)[\s\S])*)-->\s*<meta\s+http-equiv="Content-Security-Policy"/.exec(html)?.[1] ??
+    ''
+
   it('is committed with the policy the generator writes', () => {
     expect(sync.renderIndexHtml(page)).toBe(page)
   })
 
-  it('does not restrict connections in the page, whatever the API URL', () => {
-    expect(metaCsp(page)).toContain('connect-src *;')
-    expect(sync.renderIndexHtml(page, { apiUrl: 'https://api.acme.test' })).toBe(page)
+  it("is committed restricting connections to the app's own origin", () => {
+    // Not `*`: a host that sends no headers has nothing but this tag.
+    expect(metaCsp(page)).toContain("connect-src 'self';")
+    expect(metaCsp(page)).toBe(headers.buildCsp({ forMeta: true }))
+  })
+
+  it('names the origins the header names, for a host deployed with them', () => {
+    const options = {
+      apiUrl: 'https://api.acme.test/v1',
+      headers: { connectSrc: ['https://login.acme.test'], connectSrcFromEnv: ['VUESTRATA_A'] },
+      env: { VUESTRATA_A: 'https://a.test/x' },
+    }
+    const expected =
+      "connect-src 'self' https://login.acme.test https://api.acme.test https://a.test;"
+
+    expect(metaCsp(sync.renderIndexHtml(page, options))).toContain(expected)
+    // The tag and public/_headers agree, which is the point.
+    expect(sync.renderHeadersFile(options)).toContain(expected)
+  })
+
+  describe('for an artifact whose API URL is set at start', () => {
+    const atStart: string = sync.renderIndexHtml(page, { runtimeConfig: true })
+
+    it('leaves connections to the header', () => {
+      expect(metaCsp(atStart)).toContain('connect-src *;')
+      expect(
+        metaCsp(
+          sync.renderIndexHtml(page, { runtimeConfig: true, apiUrl: 'https://api.acme.test' }),
+        ),
+      ).toBe(metaCsp(atStart))
+    })
+
+    it('says so in the page, above the tag', () => {
+      expect(commentAbove(atStart)).toMatch(/`connect-src \*`/)
+      expect(commentAbove(page)).not.toMatch(/connect-src \*/)
+    })
+
+    it('goes back to the committed page without the flag', () => {
+      expect(sync.renderIndexHtml(atStart)).toBe(page)
+    })
+  })
+
+  describe('the comment above the tag', () => {
+    it('is the generator’s, and says nothing that is no longer true', () => {
+      const comment = commentAbove(page)
+
+      expect(comment).toMatch(/GENERATED by scripts\/security\/sync-headers\.mjs/)
+      // What the two hand-written comments used to claim.
+      expect(page).not.toMatch(/keep all four in sync/)
+      expect(page).not.toMatch(/everything else is locked down/)
+      // An HTML comment cannot hold its own terminator.
+      expect(comment).not.toContain('--')
+    })
+
+    it('replaces the two comments every project started with', () => {
+      const legacy = page.replace(
+        /<!--(?:(?!-->)[\s\S])*-->(\s*<meta\s+http-equiv="Content-Security-Policy")/,
+        '<!--\n      CSP defense-in-depth (the static host MUST send the canonical header).\n    -->\n' +
+          '    <!--\n      Baseline CSP for environments that serve this file without the header set;\n' +
+          '      keep all four in sync.\n    -->$1',
+      )
+      expect(legacy).toMatch(/keep all four in sync/)
+
+      expect(sync.renderIndexHtml(legacy)).toBe(page)
+    })
+
+    it('leaves a comment the project wrote itself where it is', () => {
+      const own = '<!-- Our security team reviews this tag every quarter. -->'
+      const withOwn = page.replace(/( *)<!--\n\s*GENERATED/, `$1${own}\n$1<!--\n      GENERATED`)
+      expect(withOwn).toContain(own)
+
+      const rendered: string = sync.renderIndexHtml(withOwn)
+
+      expect(rendered).toBe(withOwn)
+      expect(rendered.split('GENERATED by scripts/security/sync-headers.mjs')).toHaveLength(2)
+    })
+
+    it('does not write a second one when the project put a comment under it', () => {
+      const own = '<!-- Reviewed 2026-09. -->'
+      const withOwn = page.replace(
+        /( *)(<meta\s+http-equiv="Content-Security-Policy")/,
+        `$1${own}\n$1$2`,
+      )
+
+      const rendered: string = sync.renderIndexHtml(withOwn)
+
+      expect(rendered).toContain(own)
+      expect(rendered.split('GENERATED by scripts/security/sync-headers.mjs')).toHaveLength(2)
+      // And it is stable from then on.
+      expect(sync.renderIndexHtml(rendered)).toBe(rendered)
+    })
+
+    it('writes one above a tag that had none', () => {
+      const bare = page.replace(
+        / *<!--(?:(?!-->)[\s\S])*-->\n(\s*<meta\s+http-equiv="Content-Sec)/,
+        '$1',
+      )
+      expect(commentAbove(bare)).not.toMatch(/GENERATED/)
+
+      expect(sync.renderIndexHtml(bare)).toBe(page)
+    })
+
+    it('keeps the line endings of a page checked out with CRLF', () => {
+      const crlf = page.replaceAll('\n', '\r\n')
+
+      expect(sync.renderIndexHtml(crlf)).toBe(crlf)
+      expect(sync.renderIndexHtml(crlf, { runtimeConfig: true })).not.toMatch(/[^\r]\n/)
+    })
   })
 
   it('carries the configured image and frame sources', () => {
@@ -550,9 +727,14 @@ describe('syncTargets', () => {
 
   it('matches what is committed, for the config that is committed', () => {
     // The same proof `vpr lint` makes, without a child process.
-    expect(sync.syncTargets({ check: true, log, builtinRuntimeKeys: loaderKeys }).drifted).toEqual(
-      [],
-    )
+    expect(
+      sync.syncTargets({
+        check: true,
+        log,
+        builtinRuntimeKeys: loaderKeys,
+        runtimeKeyFormats: loaderFormats,
+      }).drifted,
+    ).toEqual([])
   })
 
   it('passes --check for a policy widened through deploy.config.ts', () => {
@@ -616,21 +798,106 @@ describe('syncTargets', () => {
       env: { VUESTRATA_ERROR_REPORTING_DSN: 'https://key@o1.ingest.sentry.test/42' },
     })
 
-    expect(written.sort()).toEqual(['public/_headers', 'vercel.json'])
-    expect(read(root, 'public/_headers')).toContain(
+    const connectSrc =
       "connect-src 'self' https://login.acme.test wss://realtime.acme.test " +
-        'https://api.staging.acme.test https://o1.ingest.sentry.test;',
-    )
-    // The image decides at container start, and the page does not restrict
-    // connections: neither may change with the environment that ran this.
+      'https://api.staging.acme.test https://o1.ingest.sentry.test;'
+
+    expect(written.sort()).toEqual(['index.html', 'public/_headers', 'vercel.json'])
+    expect(read(root, 'public/_headers')).toContain(connectSrc)
+    // The page's own tag names the same origins: a browser enforces both, so
+    // a tag left at 'self' would block what the header had just allowed.
+    expect(read(root, 'index.html')).toContain(connectSrc)
+    expect(read(root, 'index.html')).not.toBe(page)
+    // The image decides at container start: its files may not change with the
+    // environment that ran this.
     expect(read(root, 'docker/runtime/security-headers.conf.template')).toBe(template)
     expect(read(root, 'docker/runtime/keys')).toBe(keys)
-    expect(read(root, 'index.html')).toBe(page)
     // Which is exactly why the result is not to be committed.
     expect(run(root, { check: true, deployConfig: widened }).drifted.sort()).toEqual([
+      'index.html',
       'public/_headers',
       'vercel.json',
     ])
+  })
+
+  describe('for an artifact whose API URL is set at start (--runtime-config)', () => {
+    const metaConnectSrc = (root: string) =>
+      /connect-src ([^;"]*)/.exec(
+        /http-equiv="Content-Security-Policy"\s+content="([^"]*)"/.exec(
+          read(root, 'index.html'),
+        )?.[1] ?? '',
+      )?.[1]
+    const apiEntry = (root: string) =>
+      read(root, 'docker/runtime/keys')
+        .split('\n')
+        .find((line) => line.startsWith('api '))
+
+    it('opens connect-src in the page and records the API URL of the build', () => {
+      const root = project()
+      run(root)
+      expect(metaConnectSrc(root)).toBe("'self'")
+      expect(apiEntry(root)).toBe('api VUESTRATA_API_URL /api')
+
+      // What the Dockerfile runs.
+      const { written } = run(root, { runtimeConfig: true, apiUrl: 'https://api.build.test/v1' })
+
+      expect(metaConnectSrc(root)).toBe('*')
+      expect(apiEntry(root)).toBe('api VUESTRATA_API_URL https://api.build.test/v1')
+      expect(written).toEqual(expect.arrayContaining(['index.html', 'docker/runtime/keys']))
+      // The header is the authority there, so it stays exact.
+      expect(read(root, 'public/_headers')).toContain("connect-src 'self' https://api.build.test;")
+      // Never a template: the entrypoint completes those at start.
+      expect(read(root, 'docker/runtime/security-headers.conf.template')).not.toContain(
+        'api.build.test',
+      )
+    })
+
+    it('records the default when the build set no API URL', () => {
+      const root = project()
+
+      run(root, { runtimeConfig: true })
+
+      expect(metaConnectSrc(root)).toBe('*')
+      expect(apiEntry(root)).toBe('api VUESTRATA_API_URL /api')
+    })
+
+    it('does not record an API URL outside an image build', () => {
+      // --api-url alone renders a static host. Its key list is not read by
+      // anything, and stays as committed.
+      const root = project()
+
+      run(root, { apiUrl: 'https://api.build.test' })
+
+      expect(apiEntry(root)).toBe('api VUESTRATA_API_URL /api')
+    })
+
+    it('is not what --check compares with: the committed form is the one without it', () => {
+      const root = project()
+      run(root)
+
+      // A check asked with the flag must still see the committed, narrow page
+      // as in sync...
+      expect(run(root, { check: true, runtimeConfig: true })).toEqual({ drifted: [], written: [] })
+
+      // ...and a page left wide open as drift, with the flag or without it.
+      run(root, { runtimeConfig: true, apiUrl: 'https://api.build.test' })
+      for (const runtimeConfig of [false, true]) {
+        const { drifted } = run(root, { check: true, runtimeConfig })
+        expect(drifted).toEqual(expect.arrayContaining(['index.html', 'docker/runtime/keys']))
+      }
+    })
+
+    it('matches what is committed whether or not the flag is given to the check', () => {
+      expect(
+        sync.syncTargets({
+          check: true,
+          runtimeConfig: true,
+          log,
+          builtinRuntimeKeys: loaderKeys,
+          runtimeKeyFormats: loaderFormats,
+        }).drifted,
+      ).toEqual([])
+    })
   })
 
   it.each([
@@ -709,6 +976,25 @@ describe('reading the project from Node', () => {
     const { RUNTIME_OVERRIDABLE_KEYS } = await import('~/lib/config/runtime-overlay')
 
     expect(loaderKeys).toEqual([...RUNTIME_OVERRIDABLE_KEYS])
+    expect(underNode('return loader.loadRuntimeOverridableKeys()')).toEqual(loaderKeys)
+  })
+
+  it('loads their formats from the same module', async () => {
+    const { RUNTIME_KEY_FORMATS } = await import('~/lib/config/runtime-overlay')
+
+    expect(loaderFormats).toEqual(JSON.parse(JSON.stringify(RUNTIME_KEY_FORMATS)))
+    expect(loaderFormats.VUESTRATA_APP_TITLE).toEqual({ kind: 'text' })
+  })
+
+  it('generates the committed key list from them', () => {
+    const committed = fs.readFileSync(path.join(process.cwd(), 'docker/runtime/keys'), 'utf8')
+
+    expect(committed).toContain('\ntext VUESTRATA_APP_TITLE\n')
+    expect(committed).toContain(
+      '\nenum VUESTRATA_SESSION_PERSISTENCE none refresh-cookie session local\n',
+    )
+    // A title is the only value that may hold a space.
+    expect(committed.split('\n').filter((line) => line.startsWith('text '))).toHaveLength(1)
   })
 
   it('loads the seeded deploy.config.ts, which declares nothing', () => {
@@ -763,7 +1049,8 @@ describe('reading the project from Node', () => {
   })
 })
 
-describe('the CLI', () => {
+// Each test starts node and loads tsx, which is slow on a busy machine.
+describe('the CLI', { timeout: 60_000 }, () => {
   const cli = (args: string[], env: Record<string, string> = {}) =>
     spawnSync(process.execPath, [SCRIPT, ...args], {
       encoding: 'utf8',
@@ -803,6 +1090,28 @@ describe('the CLI', () => {
     expect(output).toMatch(/public\/_headers has drifted/)
     // The image's templates do not vary with the environment.
     expect(output).not.toMatch(/docker\//)
+  })
+
+  it('is not fooled by --runtime-config: the committed page is the narrow one', () => {
+    const result = cli(['--check', '--runtime-config'])
+    const output = `${result.stdout}${result.stderr}`
+
+    // With the flag honoured, the check would expect `connect-src *` and call
+    // the committed page drift; or, worse, pass on a page left wide open.
+    expect(result.status, output).toBe(0)
+    expect(output).toMatch(/--runtime-config has no effect on --check/)
+  })
+
+  it('is what the Dockerfile asks for, with the API URL of the build', () => {
+    const dockerfile = fs.readFileSync(path.join(process.cwd(), 'Dockerfile'), 'utf8')
+
+    expect(dockerfile).toMatch(
+      /^RUN node scripts\/security\/sync-headers\.mjs --runtime-config --api-url="\$VUESTRATA_API_URL"$/m,
+    )
+    // And before the build, which reads index.html.
+    expect(dockerfile.indexOf('sync-headers.mjs --runtime-config')).toBeLessThan(
+      dockerfile.indexOf('RUN vp build'),
+    )
   })
 
   it('stops on an API URL it cannot turn into a source', () => {

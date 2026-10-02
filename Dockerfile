@@ -85,14 +85,21 @@ ENV VUESTRATA_RUNTIME_MODE=$VUESTRATA_RUNTIME_MODE \
 # src/modules/app/config/deploy.config.ts, so the image can never carry a copy
 # that someone forgot to regenerate after editing either.
 #
-# Nothing here depends on the API URL any more. What nginx gets is a server
-# block and three files under docker/runtime/: two templates and a list of
-# variable names. The entrypoint fills them when the container starts, from the
-# environment it starts in. That is what lets one image serve every
-# environment, where this step used to bake one API origin into the CSP.
+# What nginx gets is a server block and three files under docker/runtime/: two
+# templates and a list of variable names. The entrypoint fills them when the
+# container starts, from the environment it starts in. That is what lets one
+# image serve every environment, where this step used to bake one API origin
+# into the CSP.
+#
+# --runtime-config says so to the generator, for the two things that follow
+# from it. The page's CSP <meta> leaves connections to the header, which this
+# image always sends: a browser enforces the tag as well, and a tag naming one
+# API origin would block the one a container is started with. And the list
+# records the API URL of THIS build (--api-url), which the entrypoint uses for
+# a container started with none, so its headers allow what its bundle calls.
 #
 # Before `vp build`, because index.html is one of the targets.
-RUN node scripts/security/sync-headers.mjs
+RUN node scripts/security/sync-headers.mjs --runtime-config --api-url="$VUESTRATA_API_URL"
 
 # A checkout made on Windows with `core.autocrlf` ends these files in \r\n. A
 # shell script whose first line is "#!/bin/sh\r" does not run at all, so the
@@ -148,7 +155,10 @@ RUN chmod 0755 /docker-entrypoint.d/40-vuestrata-runtime.sh
 # goes into the CSP, or its path gets the unrouted-API answer. This makes the
 # value the image was BUILT with the default, so a container started with
 # nothing set agrees with its bundle. `docker run -e VUESTRATA_API_URL=…`
-# replaces it, for the app and for the headers alike.
+# replaces it, for the app and for the headers alike. A container started with
+# the variable set to nothing (`-e VUESTRATA_API_URL=`, a Helm `value: ""`)
+# gets the same URL from /etc/vuestrata/runtime/keys, where the build stage
+# recorded it.
 #
 # Only the API URL needs this. Any other variable the headers depend on
 # (`connectSrcFromEnv` in deploy.config.ts) must be in the container's
