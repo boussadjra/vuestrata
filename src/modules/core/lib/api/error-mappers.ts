@@ -53,6 +53,52 @@ function compact(mapped: MappedError): MappedError | null {
   return Object.keys(result).length > 0 ? result : null
 }
 
+/**
+ * The answer of a mapper that recognised its format, even when it found
+ * nothing worth reporting. An empty object, not `null`: the body is this
+ * mapper's, and handing it on would let a later one misread it.
+ */
+function claimed(mapped: MappedError): MappedError {
+  return compact(mapped) ?? {}
+}
+
+/**
+ * HTTP reason phrases. Frameworks fill an error's message with one when the
+ * application supplied none ("Not Found", "Forbidden"), and that says nothing
+ * the status does not: left out, the user reads the status's own message in
+ * their language instead of two English words.
+ */
+const REASON_PHRASES = [
+  'bad request',
+  'unauthorized',
+  'forbidden',
+  'not found',
+  'method not allowed',
+  'not acceptable',
+  'request timeout',
+  'conflict',
+  'gone',
+  'precondition failed',
+  'payload too large',
+  'unsupported media type',
+  'unprocessable entity',
+  'unprocessable content',
+  'too many requests',
+  'internal server error',
+  'not implemented',
+  'bad gateway',
+  'service unavailable',
+  'gateway timeout',
+]
+
+/** A message that says something: not empty, and not just the reason phrase. */
+function meaningful(value: unknown): string | undefined {
+  const message = text(value)
+  if (!message) return undefined
+  const bare = message.trim().replace(/\.$/, '').toLowerCase()
+  return REASON_PHRASES.includes(bare) ? undefined : message
+}
+
 /** One message when there is exactly one; with several, none of them is "the" message. */
 function soleMessage(messages: string[]): string | undefined {
   return messages.length === 1 ? messages[0] : undefined
@@ -80,7 +126,8 @@ function pointerToPath(pointer: string): string {
  * RFC 9457 problem details (`application/problem+json`), including what
  * ASP.NET Core adds to it.
  *
- * `detail` is the message, falling back to `title`. Field errors are read from
+ * `detail` is the message, falling back to `title` unless that is only the
+ * reason phrase, which is what ASP.NET writes. Field errors are read from
  * `errors` in either form in use: ASP.NET's `ValidationProblemDetails`
  * (`{ "Email": ["…"], "Address.City": ["…"] }`) and the RFC's own example (a
  * list of `{ detail, pointer }`), plus RFC 7807's `invalid-params` (`{ name,
@@ -121,8 +168,8 @@ export const problemJsonErrorMapper: ApiErrorMapper = (context) => {
 
   // `about:blank` is the RFC's "no type": the status says it all.
   const type = text(body.type)
-  return compact({
-    message: text(body.detail) ?? text(body.title),
+  return claimed({
+    message: meaningful(body.detail) ?? meaningful(body.title),
     code: text(body.code) ?? (type && type !== 'about:blank' ? type : undefined),
     details,
     formErrors,
@@ -138,8 +185,7 @@ export const problemJsonErrorMapper: ApiErrorMapper = (context) => {
 export const laravelErrorMapper: ApiErrorMapper = (context) => {
   const body = context.body
   if (!isRecord(body)) return null
-  const message = text(body.message)
-  if (!message && !isRecord(body.errors)) return null
+  if (typeof body.message !== 'string' && !isRecord(body.errors)) return null
 
   const details: Details = {}
   if (isRecord(body.errors)) {
@@ -147,7 +193,7 @@ export const laravelErrorMapper: ApiErrorMapper = (context) => {
       addMessages(details, field, messagesOf(value))
     }
   }
-  return compact({ message, details })
+  return claimed({ message: meaningful(body.message), details })
 }
 
 /** Keys DRF uses for errors that belong to the whole input, not to a field. */
@@ -200,17 +246,20 @@ export const drfErrorMapper: ApiErrorMapper = (context) => {
 
   const { detail, code, ...fields } = body
   collectDrf(fields, '', details, formErrors)
-  const message = text(detail) ?? soleMessage(formErrors)
-  if (!message && Object.keys(details).length === 0 && formErrors.length === 0) return null
+  const message = meaningful(detail) ?? soleMessage(formErrors)
+  if (typeof detail !== 'string' && Object.keys(details).length === 0 && formErrors.length === 0) {
+    return null
+  }
 
-  return compact({ message, code: text(code), details, formErrors })
+  return claimed({ message, code: text(code), details, formErrors })
 }
 
 /**
  * NestJS: `{ statusCode, message, error }`. `message` is a string for a thrown
  * `HttpException` and a list for a `ValidationPipe` failure. The list carries
  * no field names, only sentences ("email must be an email"), so its entries
- * are form errors.
+ * are form errors. `error` is the reason phrase, and so is `message` for an
+ * exception thrown without one; neither is used as a message.
  */
 export const nestErrorMapper: ApiErrorMapper = (context) => {
   const body = context.body
@@ -218,9 +267,9 @@ export const nestErrorMapper: ApiErrorMapper = (context) => {
 
   if (Array.isArray(body.message)) {
     const formErrors = messagesOf(body.message)
-    return compact({ message: soleMessage(formErrors), formErrors })
+    return claimed({ message: soleMessage(formErrors), formErrors })
   }
-  return compact({ message: text(body.message) ?? text(body.error) })
+  return claimed({ message: meaningful(body.message) })
 }
 
 /** What Spring writes when `server.error.include-message` is off. */
@@ -253,8 +302,8 @@ export const springBootErrorMapper: ApiErrorMapper = (context) => {
     }
   }
 
-  const message = text(body.message)
-  return compact({
+  const message = meaningful(body.message)
+  return claimed({
     message: message === SPRING_NO_MESSAGE ? undefined : message,
     details,
     formErrors,
