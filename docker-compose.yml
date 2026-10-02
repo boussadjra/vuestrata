@@ -4,21 +4,24 @@ services:
     ports:
       - '${APP_PORT:-8080}:8080'
     # What THIS container is started with. The image is the same for every
-    # environment: these are read at start, by the image's entrypoint, and win
-    # over the values the build inlined. A name with no value is passed through
-    # from the shell or the .env file beside this file, and left unset when it
-    # is not there, so the image's own default applies.
-    #   VUESTRATA_API_URL=https://api.staging.example.com docker compose up
-    # A value may hold only URL-safe characters (no spaces or quotes); the
-    # container refuses to start otherwise. Variables your deploy.config.ts
-    # lists under `runtime`, `connectSrcFromEnv` or `websocketFromEnv` go here
-    # too.
-    environment:
-      - VUESTRATA_API_URL
-      - VUESTRATA_APP_TITLE
-      - VUESTRATA_ERROR_REPORTING_DSN
-      - VUESTRATA_RELEASE
-      - VUESTRATA_SESSION_PERSISTENCE
+    # environment: these values are read at start, by the image's entrypoint,
+    # and win over the ones the build inlined. A variable that is not set keeps
+    # what the image was built with.
+    #
+    # They come from docker.env, a file of its own (copy docker.env.example),
+    # and from nowhere else. Not from `.env`: that file is the one Vite reads
+    # for development, and a dev setting in it (a localhost API URL,
+    # VUESTRATA_SESSION_PERSISTENCE=none) would silently configure this
+    # container, which is the production image. The file is optional; without
+    # it nothing is set.
+    #
+    # Variables your deploy.config.ts lists under `runtime`, `connectSrcFromEnv`
+    # or `websocketFromEnv` go in that file too. A value may hold only URL-safe
+    # characters, and the title spaces as well; the container refuses to start
+    # otherwise.
+    env_file:
+      - path: ./docker.env
+        required: false
     restart: unless-stopped
     read_only: true
     # /tmp is the one path the container writes to: nginx-unprivileged keeps its
