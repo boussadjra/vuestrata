@@ -297,8 +297,8 @@ export const useModuleStore = defineStore('modules', () => {
     // Continue enabling siblings even if an optional one fails so a single
     // broken module can't take the whole app offline. Required modules
     // (e.g. auth) are platform infrastructure — their install failures are
-    // fatal and re-thrown so `bootstrap()` can show an error screen instead
-    // of silently rendering a half-working UI.
+    // fatal and re-thrown so `boot()` can hand them to `renderBootFailure()`
+    // and show an error screen instead of silently rendering a half-working UI.
     const failures: Array<{ id: string; err: unknown }> = []
     for (const id of toEnable) {
       try {

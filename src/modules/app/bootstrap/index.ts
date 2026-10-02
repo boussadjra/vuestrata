@@ -2,7 +2,13 @@ import { configure as configureFormwerk } from '@formwerk/core'
 import type { VueQueryPluginOptions } from '@tanstack/vue-query'
 import type { Pinia } from 'pinia'
 import { createApp, type App, type Component } from 'vue'
-import type { RouteComponent, Router } from 'vue-router'
+import {
+  isNavigationFailure,
+  NavigationFailureType,
+  START_LOCATION,
+  type RouteComponent,
+  type Router,
+} from 'vue-router'
 
 import { appConfig, authAdapter as configuredAuthAdapter } from '@/config/app.config'
 import { installErrorHandlers, reportError } from '@/lib/errors'
@@ -29,6 +35,7 @@ import { installDemoTabSync, loadDemoState, type DemoState } from './demo'
 import { startDemoMocks } from './mocks'
 import { VueQueryPlugin, vueQueryOptions } from './query-client'
 import { installSeams } from './seams'
+import { noteStaleChunkReloadBaseline, pendingStaleChunkReloadMs } from './stale-chunk-reload'
 
 /**
  * Everything `boot()` calls that touches the outside world.
@@ -134,9 +141,13 @@ function defaultDeps(options: BootOptions): BootDeps {
 }
 
 function setupVueErrorHandler(app: App): void {
-  // Sole sink for Vue render-time errors. `reportError` is a no-op unless a
+  // Sink for Vue render-time errors. `reportError` is a no-op unless a
   // provider was installed by `installErrorReporting()` — keep reporters out of
   // components so this stays the one place errors leave the app.
+  //
+  // One exception: `AppErrorBoundary` returns `false` from `onErrorCaptured` for
+  // the fatal errors it shows a screen for, which stops Vue calling this, so it
+  // reports those itself (source `vue:boundary`).
   app.config.errorHandler = (err, instance, info) => {
     const component = instance?.$options?.name
     logger.error('Vue error:', { err, component, info })
@@ -149,19 +160,108 @@ function setupVueErrorHandler(app: App): void {
  *
  * The order is the contract, and each step's comment says why it sits where it
  * does. A step that throws stops the sequence and hands the error to
- * `renderBootFailure()`; `boot()` itself never rejects.
+ * `renderBootFailure()`, which replaces the splash with a static error screen;
+ * `boot()` itself never rejects. A step that fails after the app has mounted is
+ * only logged and reported.
+ *
+ * One failure is outside both this and the error boundary: the root component's
+ * own `setup()`. Vue hands it to `app.config.errorHandler` and `mount()` returns
+ * normally, so it is logged and reported, and the page is empty. `AppRoot.vue`
+ * is kept to wiring for that reason; anything that can fail belongs below the
+ * boundary it renders.
  */
 export async function boot(root: Component, options: BootOptions = {}): Promise<void> {
   const deps: BootDeps = { ...defaultDeps(options), ...definedDeps(options.deps) }
+  const progress: BootProgress = { mounted: false }
 
   try {
-    await runBoot(root, options, deps)
+    await runBoot(root, options, deps, progress)
   } catch (err) {
-    deps.renderBootFailure(err)
+    if (progress.mounted) {
+      // The app is up and usable. A step that runs after mount (build info,
+      // the demo tab sync) is a nicety, and `renderBootFailure()` replaces the
+      // whole of #app: showing it here would take a working app away.
+      logger.error('A step after mount failed:', { err })
+      reportError(err, { source: 'bootstrap' })
+      // Taking the splash down is itself a step after mount. If that is the one
+      // that failed, the app is running underneath a spinner.
+      try {
+        removeAppLoader({ immediate: true })
+      } catch {
+        // Nothing else can be done about it.
+      }
+      return
+    }
+    // When the first route's chunk is missing, `plugins/stale-chunk.ts` asks for
+    // a reload and the navigation fails all the same, which is how boot gets
+    // here. The page is about to be replaced: keep the splash rather than flash
+    // a failure screen in front of the fix. The timer only fires if the reload
+    // never comes.
+    const wait = pendingStaleChunkReloadMs()
+    if (wait > 0) setTimeout(() => deps.renderBootFailure(err), wait)
+    else deps.renderBootFailure(err)
   }
 }
 
-async function runBoot(root: Component, options: BootOptions, deps: BootDeps): Promise<void> {
+/**
+ * `router.isReady()`, without its blind spot.
+ *
+ * vue-router rejects `isReady()` only for callers that are already waiting when
+ * the first navigation fails. `boot()` has work to do between installing the
+ * router and waiting for it (starting the mock worker, in a demo build), and a
+ * first navigation that failed during that work left `isReady()` pending for
+ * ever: no error, no mount, and the splash spinner turning until the tab was
+ * closed. The failure is remembered here instead, from the moment the router is
+ * installed, and thrown when `boot()` gets round to asking.
+ *
+ * Two kinds are remembered, the two `isReady()` rejects for when it is already
+ * waiting: an error (a chunk that could not be fetched, a guard that threw) and
+ * a navigation a guard refused by returning `false`, which vue-router reports
+ * to `afterEach` and not to `onError`.
+ *
+ * A remembered failure only counts while the router still has no route. If it
+ * has one, a navigation succeeded: either a later one, or the very one the
+ * "failure" belongs to, because vue-router sends a `scrollBehavior` that throws
+ * to `onError` after the route has changed.
+ */
+function watchFirstNavigation(router: Router): { settled: () => Promise<void> } {
+  const outcome: { failure?: { error: unknown } } = {}
+  const stopWatching = [
+    router.onError((error) => {
+      outcome.failure ??= { error }
+    }),
+    router.afterEach((_to, _from, failure) => {
+      if (isNavigationFailure(failure, NavigationFailureType.aborted)) {
+        outcome.failure ??= { error: failure }
+      }
+    }),
+  ]
+
+  return {
+    async settled() {
+      try {
+        if (outcome.failure && router.currentRoute.value === START_LOCATION) {
+          throw outcome.failure.error
+        }
+        await router.isReady()
+      } finally {
+        for (const stop of stopWatching) stop()
+      }
+    },
+  }
+}
+
+/** What `runBoot()` has got done, so `boot()` knows what a failure can still undo. */
+interface BootProgress {
+  mounted: boolean
+}
+
+async function runBoot(
+  root: Component,
+  options: BootOptions,
+  deps: BootDeps,
+  progress: BootProgress,
+): Promise<void> {
   const { router, config } = deps
   const wiring = { adapterName: config.authAdapter, createAuthAdapter: deps.createAuthAdapter }
   const restore = (authStore: AuthWiringStore) =>
@@ -189,7 +289,10 @@ async function runBoot(root: Component, options: BootOptions, deps: BootDeps): P
   deps.installPerformanceMonitoring()
   deps.installErrorHandlers()
   // Before any lazy route can be requested, so a deploy that landed while this
-  // tab was open is recovered rather than surfacing as a dead navigation.
+  // tab was open is recovered rather than surfacing as a dead navigation. The
+  // baseline comes first: it is how a reload this document asks for is told
+  // from the one that brought it here.
+  noteStaleChunkReloadBaseline()
   deps.installStaleChunkRecovery()
 
   const app = deps.createApp(root)
@@ -235,6 +338,9 @@ async function runBoot(root: Component, options: BootOptions, deps: BootDeps): P
   // reconciled permission set rather than the one captured at login.
   await restore(authStore)
 
+  // Installing the router starts the first navigation, so the watch has to be
+  // in place before it.
+  const firstNavigation = watchFirstNavigation(router)
   app.use(router)
 
   // Enable MSW when this is a demo build and mocks are switched on. Gating on
@@ -250,10 +356,11 @@ async function runBoot(root: Component, options: BootOptions, deps: BootDeps): P
   }
 
   // Wait for router initialization before mounting
-  await router.isReady()
+  await firstNavigation.settled()
 
   await options.beforeMount?.(app)
   app.mount('#app')
+  progress.mounted = true
   deps.removeAppLoader()
 
   deps.startBuildInfo()
