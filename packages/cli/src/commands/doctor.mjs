@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { API_WIRING_STEPS, isApiWired } from '../lib/api-wiring.mjs'
 import { logger } from '../lib/cli.mjs'
 import { driftedFiles, LOCKFILE_NAME, readLock, regionHash } from '../lib/lockfile.mjs'
 import { PROJECT_REGISTRIES, SEEDED_FILES } from '../lib/managed.mjs'
@@ -119,8 +120,12 @@ export function diagnose({ root, version, source, migrations }) {
       `No ${LOCKFILE_NAME}. Nothing is tracked yet, so an upgrade cannot tell your edits ` +
         'from untouched files. Run `vuestrata init` to start tracking.',
     )
-    const unwired = unwiredRbacOverrides({ root, manifest })
-    if (unwired) findings.warnings.push(unwired)
+    for (const unwired of [
+      unwiredRbacOverrides({ root, manifest }),
+      unwiredApiOverrides({ root, manifest }),
+    ]) {
+      if (unwired) findings.warnings.push(unwired)
+    }
     return findings
   }
 
@@ -220,16 +225,25 @@ export function diagnose({ root, version, source, migrations }) {
     )
   }
 
-  // ── 6. Is rbac.overrides.ts wired in? ────────────────────────────────────
-  // An upgrade that replaces state/runtime-backends.ts settles this, so only a
-  // copy that will stay as it is is worth a warning.
-  const backends = runtimeBackendsFile(manifest)
-  const replaced =
-    (plan?.adopted ?? []).some((entry) => entry.rel === backends) ||
-    (lock.files[backends]?.class === 'managed' &&
-      !driftedFiles(root, lock).some((entry) => entry.rel === backends))
-  const unwired = replaced ? undefined : unwiredRbacOverrides({ root, manifest })
-  if (unwired) findings.warnings.push(unwired)
+  // ── 6. Are the seams wired in? ───────────────────────────────────────────
+  // rbac.overrides.ts is installed by state/runtime-backends.ts and
+  // api.overrides.ts by bootstrap/seams.ts. An upgrade that replaces the
+  // installing file settles it, so only a copy that will stay as it is is
+  // worth a warning.
+  const willBeReplaced = (rel) =>
+    (plan?.adopted ?? []).some((entry) => entry.rel === rel) ||
+    (lock.files[rel]?.class === 'managed' &&
+      !driftedFiles(root, lock).some((entry) => entry.rel === rel))
+
+  const unwiredRbac = willBeReplaced(runtimeBackendsFile(manifest))
+    ? undefined
+    : unwiredRbacOverrides({ root, manifest })
+  if (unwiredRbac) findings.warnings.push(unwiredRbac)
+
+  const unwiredApi = willBeReplaced(seamsFile(manifest))
+    ? undefined
+    : unwiredApiOverrides({ root, manifest })
+  if (unwiredApi) findings.warnings.push(unwiredApi)
 
   // ── 7. Which vuestrata: regions were edited? ─────────────────────────────
   for (const registry of PROJECT_REGISTRIES) {
@@ -253,6 +267,7 @@ export function diagnose({ root, version, source, migrations }) {
 }
 
 const runtimeBackendsFile = (manifest) => `${slot(manifest, 'appDir')}/state/runtime-backends.ts`
+const seamsFile = (manifest) => `${slot(manifest, 'appDir')}/bootstrap/seams.ts`
 
 /**
  * A warning when the project has an `rbac.overrides.ts` that nothing installs.
@@ -275,6 +290,31 @@ function unwiredRbacOverrides({ root, manifest }) {
     `${overrides} exists, but ${backends} does not install it, so the permissions you declare, ` +
     'grant and withdraw there have no effect. ' +
     RBAC_WIRING_STEPS
+  )
+}
+
+/**
+ * A warning when the project has an `api.overrides.ts` that nothing installs.
+ *
+ * `bootstrap/seams.ts` is what hands the seam to core/lib. A copy from before
+ * the seam existed is an empty function, so the preset, headers, error mappers
+ * and CSRF strategy the project sets there have no effect: the API client
+ * falls back to its defaults, and nothing fails to say so.
+ */
+function unwiredApiOverrides({ root, manifest }) {
+  const overrides = slot(manifest, 'apiOverrides')
+  const seams = seamsFile(manifest)
+  if (!fs.existsSync(path.join(root, overrides)) || !fs.existsSync(path.join(root, seams))) {
+    return undefined
+  }
+
+  const source = fs.readFileSync(path.join(root, seams), 'utf8')
+  if (isApiWired(source)) return undefined
+
+  return (
+    `${overrides} exists, but ${seams} does not install it, so the backend conventions you ` +
+    'describe there (a preset, headers, error mappers, a CSRF strategy) have no effect. ' +
+    API_WIRING_STEPS
   )
 }
 

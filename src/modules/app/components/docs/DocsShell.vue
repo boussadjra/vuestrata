@@ -51,7 +51,7 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
   },
   '/docs/2.architecture/2.adapters.md': {
     title: 'Adapter Systems',
-    description: 'UI, icon, validation, and auth adapter patterns.',
+    description: 'UI, icon, validation, auth and API adapter patterns.',
   },
   '/docs/2.architecture/3.routing.md': {
     title: 'Routing System',
@@ -228,6 +228,12 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     navTitle: 'Add a nav group',
     title: 'Add a Nav Group',
     description: 'Add a sidebar section — and why modules cannot define their own.',
+  },
+  '/docs/9.recipes/9.connect-your-backend-api.md': {
+    navTitle: 'Connect your backend API',
+    title: 'Connect Your Backend API',
+    description:
+      "Teach the API client your backend's headers, session signals, error format and CSRF handshake, without editing the client.",
   },
 }
 

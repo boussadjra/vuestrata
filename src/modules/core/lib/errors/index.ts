@@ -46,6 +46,8 @@ export const ERROR_MESSAGE_KEYS = {
   server: 'errors.server',
   request: 'errors.request',
   unknown: 'errors.unknown',
+  unexpectedResponse: 'errors.unexpected_response',
+  csrf: 'errors.csrf',
 } as const
 
 export interface AppErrorOptions {
@@ -59,6 +61,30 @@ export interface AppErrorOptions {
   retryAfterMs?: number
   messageKey?: string
   formErrors?: string[]
+  serverMessage?: string
+}
+
+/**
+ * What an error mapper read out of a failed response's body. Every field is
+ * optional: a mapper reports what it recognised and leaves the rest to the
+ * defaults for the status.
+ *
+ * `details` is keyed by the backend's own field path, exactly as it sent it
+ * (`contact_name`, `Address.City`, `items.0.qty`). Nothing here renames a key:
+ * matching them to form fields is the form layer's job, and it can only do
+ * that from the original.
+ */
+export interface MappedError {
+  /** The backend's message for the user. Dropped for a 5xx. */
+  message?: string
+  /** A machine-readable code, when the backend sends one. */
+  code?: string
+  /** Messages per field. Dropped for a 5xx. */
+  details?: Record<string, string[]>
+  /** Messages that belong to the whole request rather than to one field. */
+  formErrors?: string[]
+  /** The id the backend logged this request under. */
+  requestId?: string
 }
 
 /** Normalized application error */
@@ -83,10 +109,18 @@ export class AppError extends Error {
    */
   public readonly messageKey?: string
   /**
-   * Reserved for form-level messages that belong to no single field. The
-   * per-field ones are `details`.
+   * Form-level messages that belong to no single field (DRF's
+   * `non_field_errors`, a model-level error from ASP.NET). The per-field ones
+   * are `details`.
    */
   public readonly formErrors?: string[]
+  /**
+   * The backend's own message for a 4xx, when it sent one. Set only then: it
+   * is what tells `describeError` that `message` is the server speaking, which
+   * is more specific than any translation of the status, rather than the
+   * English fallback this file supplies.
+   */
+  public readonly serverMessage?: string
 
   constructor(opts: AppErrorOptions) {
     super(opts.message)
@@ -100,6 +134,25 @@ export class AppError extends Error {
     this.retryAfterMs = opts.retryAfterMs
     this.messageKey = opts.messageKey
     this.formErrors = opts.formErrors
+    this.serverMessage = opts.serverMessage
+  }
+
+  /** A copy with some fields replaced. The original is never modified. */
+  with(patch: Partial<AppErrorOptions>): AppError {
+    return new AppError({
+      message: this.message,
+      code: this.code,
+      status: this.status,
+      details: this.details,
+      requestId: this.requestId,
+      kind: this.kind,
+      retryable: this.retryable,
+      retryAfterMs: this.retryAfterMs,
+      messageKey: this.messageKey,
+      formErrors: this.formErrors,
+      serverMessage: this.serverMessage,
+      ...patch,
+    })
   }
 
   toApiError(): ApiError {
@@ -208,21 +261,82 @@ function parseHttpError(err: Error): AppError | null {
   else if (typeof fetchErr.statusCode === 'number') status = fetchErr.statusCode
   else if (typeof fetchErr.status === 'number') status = fetchErr.status
 
-  // Server-class errors must never forward the raw backend message — it
-  // can embed stack traces, internal paths, or query strings. Client-
-  // class errors keep the API message because it is the actionable
-  // validation/authorization text users need. The fallback is never
-  // `err.message`: ofetch writes the full request URL into it.
-  const apiMessage = typeof data?.message === 'string' && data.message ? data.message : undefined
-  return new AppError({
-    message: status >= 500 ? SERVER_ERROR_MESSAGE : (apiMessage ?? getStatusMessage(status)),
-    code: typeof data?.code === 'string' ? data.code : 'API_ERROR',
-    status,
+  return httpError(status, readErrorBody(data))
+}
+
+/**
+ * Read Vuestrata's own error body: `{ message, code, details, requestId }`.
+ *
+ * The one place that knows the shape. `normalizeError` uses it for an error
+ * raised outside the API client, and the client's built-in mapper
+ * (`core/lib/api/error-mappers.ts`) for one raised inside it, so the two
+ * cannot read the same body differently.
+ */
+export function readErrorBody(body: unknown): MappedError {
+  const data = isRecord(body) ? body : undefined
+  return {
+    message: typeof data?.message === 'string' && data.message ? data.message : undefined,
+    code: typeof data?.code === 'string' ? data.code : undefined,
     details: isRecord(data?.details) ? (data.details as Record<string, string[]>) : undefined,
     requestId: typeof data?.requestId === 'string' ? data.requestId : undefined,
+  }
+}
+
+/**
+ * An error code that is an identifier (`VALIDATION_FAILED`, `not_authenticated`,
+ * `orders.locked`) rather than a URL or free text.
+ */
+const CODE_TOKEN = /^[\w.-]{1,64}$/
+
+/** What the API client knows about a failed response beyond its body. */
+export interface HttpErrorContext {
+  /** From the `Retry-After` header. */
+  retryAfterMs?: number
+  /** Replaces the key derived from the status. */
+  messageKey?: string
+  /** The code to use when the body carried none. Defaults to `API_ERROR`. */
+  fallbackCode?: string
+}
+
+/**
+ * The error for a response with an error status.
+ *
+ * One constructor, so `normalizeError` and the API client cannot disagree
+ * about what a status means: whether it is worth retrying, which i18n key it
+ * maps to, and what of the body may reach a user.
+ *
+ * Server-class errors must never forward the raw backend message — it can
+ * embed stack traces, internal paths, or query strings — nor its form-level
+ * messages or its `details`, which are the same text under another name: a
+ * 500 is not a validation failure, and a body that says `{ trace: [...] }` or
+ * `{ errors: { Db: ['<connection string>'] } }` reads to an error mapper
+ * exactly like field errors, which a form would then print beside its inputs.
+ * Its `code` is kept only when it is a token (`DB_POOL`), not when it is a URL
+ * or a sentence. Client-class errors keep the API message because it is the
+ * actionable validation/authorization text users need. The fallback is never
+ * the HTTP client's own message: ofetch writes the full request URL into it.
+ */
+export function httpError(
+  status: number,
+  mapped: MappedError | null = null,
+  context: HttpErrorContext = {},
+): AppError {
+  const isServerError = status >= 500
+  const serverMessage = !isServerError && mapped?.message ? mapped.message : undefined
+  const code =
+    isServerError && mapped?.code && !CODE_TOKEN.test(mapped.code) ? undefined : mapped?.code
+  return new AppError({
+    message: isServerError ? SERVER_ERROR_MESSAGE : (serverMessage ?? getStatusMessage(status)),
+    code: code ?? context.fallbackCode ?? 'API_ERROR',
+    status,
+    details: isServerError ? undefined : mapped?.details,
+    requestId: mapped?.requestId,
     kind: 'http',
     retryable: isRetryableStatus(status),
-    messageKey: statusMessageKey(status),
+    retryAfterMs: context.retryAfterMs,
+    messageKey: context.messageKey ?? statusMessageKey(status),
+    formErrors: isServerError || !mapped?.formErrors?.length ? undefined : mapped.formErrors,
+    serverMessage,
   })
 }
 
@@ -312,6 +426,49 @@ const STATUS_MESSAGES: Record<number, string> = {
 
 export function getStatusMessage(status: number): string {
   return STATUS_MESSAGES[status] ?? `An error occurred (status ${status}).`
+}
+
+/**
+ * Every i18n key an `AppError.messageKey` can hold: the named ones, and one
+ * per status `getStatusMessage` has a message for.
+ *
+ * A locale catalog must define all of them, and a test holds the shipped ones
+ * to that. The alternative is a key nobody notices is missing until a French
+ * user reads `errors.status_409` on their screen.
+ */
+export function listErrorMessageKeys(): string[] {
+  return [
+    ...Object.values(ERROR_MESSAGE_KEYS),
+    ...Object.keys(STATUS_MESSAGES).map((status) => `errors.status_${status}`),
+  ]
+}
+
+/** Turns an i18n key into its text. vue-i18n's `t` is one. */
+export type TranslateFn = (key: string) => string
+
+/**
+ * The one line to show a user for a failure, in their language.
+ *
+ * In order: what the backend said about a request it refused (a 4xx: "That
+ * email is already registered" beats any translation of "422"), then the
+ * translation of the error's `messageKey`, then its English `message`.
+ *
+ * Framework-agnostic: it takes the translate function instead of importing an
+ * i18n library. `useErrorMessage()` in the app layer binds it to vue-i18n.
+ *
+ * A backend that localizes its messages is sent the request's
+ * `Accept-Language` by the API client, so the first case is in the user's
+ * language too.
+ */
+export function describeError(err: unknown, t: TranslateFn): string {
+  const error = normalizeError(err)
+  if (error.serverMessage) return error.serverMessage
+  if (error.messageKey) {
+    const translated = t(error.messageKey)
+    // A translate function answers with the key itself when it has no entry.
+    if (translated && translated !== error.messageKey) return translated
+  }
+  return error.message
 }
 
 /** Install global error handlers (call once in main.ts) */

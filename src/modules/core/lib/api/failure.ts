@@ -36,7 +36,8 @@ function responseOf(err: unknown): Response | undefined {
   return typeof headers?.get === 'function' ? (response as Response) : undefined
 }
 
-function isTimeoutReason(reason: unknown): boolean {
+/** Whether a signal was aborted by a deadline (`AbortSignal.timeout()`) rather than by its owner. */
+export function isTimeoutReason(reason: unknown): boolean {
   return (
     typeof reason === 'object' &&
     reason !== null &&
@@ -62,18 +63,7 @@ export function toAppError(err: unknown, ctx: FailureContext = {}): AppError {
   const requestId = appError.requestId ?? response.headers.get('x-request-id') ?? undefined
   if (retryAfterMs === undefined && requestId === appError.requestId) return appError
 
-  return new AppError({
-    message: appError.message,
-    code: appError.code,
-    status: appError.status,
-    details: appError.details,
-    requestId,
-    kind: appError.kind,
-    retryable: appError.retryable,
-    retryAfterMs: retryAfterMs ?? appError.retryAfterMs,
-    messageKey: appError.messageKey,
-    formErrors: appError.formErrors,
-  })
+  return appError.with({ requestId, retryAfterMs: retryAfterMs ?? appError.retryAfterMs })
 }
 
 /**

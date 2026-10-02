@@ -58,8 +58,8 @@ adapters, the runtime backends, the route guard and session restore, the mock
 helpers, the locale catalogs and the deployment scripts. `src/main.ts` and
 `src/App.vue` are not: they are thin shells the project owns, calling `boot(App)`
 and rendering `<AppRoot />`. The `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts`
-are `merged`; `brand.css`, `app.overrides.ts`, `rbac.overrides.ts`, `Logo.vue` and the locale
-overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
+are `merged`; `brand.css`, `app.overrides.ts`, `rbac.overrides.ts`, `api.overrides.ts`,
+`Logo.vue` and the locale overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
 so what a generator appends there is not an edit.
 
 The other registries — `setup.ts`, `nav-groups.ts`, `theme.config.ts`,
@@ -86,8 +86,9 @@ it by hand, then `vuestrata adopt <path>` records the result as clean.
 
 **Do not edit a `managed` file to change something a seam already covers.** A
 colour belongs in `brand.css`, a string in `<locale>.overrides.json`, the product
-name and footer links in `app.overrides.ts`. Editing the underlying file works,
-and costs that file its updates forever.
+name and footer links in `app.overrides.ts`, a request header, an error format or a
+CSRF convention of your backend in `api.overrides.ts`. Editing the underlying file
+works, and costs that file its updates forever.
 
 Breaking any of the contracts in `RELEASE.md` requires a migration under
 `packages/cli/migrations/<version>/`. That is a release rule, not a preference.

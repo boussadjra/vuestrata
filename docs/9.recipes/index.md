@@ -35,6 +35,11 @@ Every generator supports:
 
 `vpr gen` with no arguments lists everything.
 
+One recipe extends nothing: it describes the backend you already have.
+[Connect your backend API](/docs/recipes/connect-your-backend-api) covers the
+headers, session signals, error format and CSRF handshake of your API, all in one
+file that is yours.
+
 ## Why some tasks have no generator
 
 Adding a locale is mostly translating; a tool that emitted 1,100 placeholder
