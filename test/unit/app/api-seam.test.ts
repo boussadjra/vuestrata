@@ -235,7 +235,7 @@ describe('errors with the shipped overrides', () => {
     expect(withSeam).toEqual(withoutSeam)
   })
 
-  it('are the errors the client produced before the seam existed', async () => {
+  it('are the errors the client produced before the seam existed, less the details of a 5xx', async () => {
     backend()
     signIn()
     installSeams()
@@ -278,11 +278,13 @@ describe('errors with the shipped overrides', () => {
         retryable: false,
         messageKey: 'errors.status_409',
       },
+      // The one field that is NOT as it was: the body's `details` used to be
+      // carried on a 5xx, beside a message that never was. They are dropped
+      // now, for every error format alike (see `httpError`).
       'a 503 with Retry-After': {
         message: 'An unexpected error occurred. Please try again.',
         code: 'DB_POOL',
         status: 503,
-        details: { a: ['b'] },
         kind: 'http',
         retryable: true,
         retryAfterMs: 7000,

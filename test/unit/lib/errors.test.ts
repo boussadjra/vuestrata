@@ -512,6 +512,45 @@ describe('httpError', () => {
     expect(error.code).toBe('DB_DOWN')
   })
 
+  it('never carries the details of a 5xx either: a form would print them beside its fields', () => {
+    const mapped = {
+      code: 'DB_DOWN',
+      details: { trace: ['at Pool.connect (pg.internal:5432)'], Db: ['Password=hunter2'] },
+      requestId: 'req-7',
+    }
+
+    for (const status of [500, 502, 503, 599]) {
+      const error = httpError(status, mapped)
+      expect(error.details).toBeUndefined()
+      expect(error.toApiError().details).toBeUndefined()
+      expect(error).toMatchObject({ code: 'DB_DOWN', requestId: 'req-7' })
+    }
+    // A refused request keeps them: that is what they are for.
+    expect(httpError(422, mapped).details).toEqual(mapped.details)
+    expect(normalizeError(answered(500, { message: 'x', details: { a: ['b'] } })).details).toBe(
+      undefined,
+    )
+  })
+
+  it.each([
+    'https://errors.internal/db-unreachable',
+    'could not connect to server: Connection refused',
+    'urn:problem:db/7',
+    'x'.repeat(65),
+  ])('drops a 5xx code that is not an identifier: %s', (code) => {
+    expect(httpError(500, { code }).code).toBe('API_ERROR')
+    expect(httpError(503, { code }, { fallbackCode: 'UPSTREAM' }).code).toBe('UPSTREAM')
+    // A 4xx keeps whatever the backend called it.
+    expect(httpError(409, { code }).code).toBe(code)
+  })
+
+  it.each(['DB_POOL', 'not_authenticated', 'orders.locked', 'E-1042', 'P2002'])(
+    'keeps a 5xx code that is one: %s',
+    (code) => {
+      expect(httpError(500, { code }).code).toBe(code)
+    },
+  )
+
   it('takes a message key and a fallback code from the caller', () => {
     const error = httpError(419, null, {
       messageKey: ERROR_MESSAGE_KEYS.csrf,

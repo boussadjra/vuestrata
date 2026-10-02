@@ -9,7 +9,8 @@ import {
   springBootErrorMapper,
   vuestrataErrorMapper,
 } from '@/lib/api/error-mappers'
-import type { ApiResponseContext } from '@/lib/api/integration'
+import type { ApiErrorMapper, ApiResponseContext } from '@/lib/api/integration'
+import { httpError } from '@/lib/errors'
 
 /**
  * One body per framework, as that framework really writes it: copied from its
@@ -432,5 +433,272 @@ describe('errorMappers', () => {
     ]) {
       expect(() => mapper(failed(500, body))).not.toThrow()
     }
+  })
+})
+
+/**
+ * An error body is whatever the other end of the connection sent. These are
+ * the bodies a mapper must survive without throwing, without reaching
+ * `Object.prototype`, and without losing the fields that were fine: a mapper
+ * that throws is skipped by the client, and the next one reads less.
+ */
+describe('a hostile body', () => {
+  /** The names that live on `Object.prototype`, as JSON delivers them: own keys. */
+  const PROTOTYPE_NAMED = JSON.parse(
+    `{
+      "constructor": ["c"],
+      "toString": ["t"],
+      "hasOwnProperty": ["h"],
+      "valueOf": ["v"],
+      "__proto__": ["p"],
+      "email": ["Already taken."]
+    }`,
+  ) as Record<string, string[]>
+
+  /** An object nested `depth` levels deep, built without recursion. */
+  function nested(depth: number): Record<string, unknown> {
+    let value: Record<string, unknown> = { leaf: ['Too deep.'] }
+    for (let level = 0; level < depth; level++) value = { child: value }
+    return value
+  }
+
+  const HUGE = 'x'.repeat(2 * 1024 * 1024)
+  const MARKUP = '<img src=x onerror="alert(1)"><script>alert(2)</script> & <b>bold</b>'
+
+  /** Each mapper that reads fields, with a body in its own format around them. */
+  const fieldMappers: [string, ApiErrorMapper, (fields: unknown) => unknown][] = [
+    [
+      'problemJson',
+      problemJsonErrorMapper,
+      (fields) => ({ title: 'Invalid.', status: 422, errors: fields }),
+    ],
+    ['laravel', laravelErrorMapper, (fields) => ({ message: 'Invalid.', errors: fields })],
+    ['drf', drfErrorMapper, (fields) => fields],
+    [
+      'springBoot',
+      springBootErrorMapper,
+      (fields) => ({
+        timestamp: '2026-03-04T10:15:30.123+00:00',
+        status: 400,
+        error: 'Bad Request',
+        errors: Object.entries(fields as Record<string, unknown[]>).flatMap(([field, messages]) =>
+          messages.map((defaultMessage) => ({ field, defaultMessage })),
+        ),
+      }),
+    ],
+  ]
+
+  it.each(fieldMappers)(
+    '%s keeps a field named like a member of Object.prototype',
+    (_, mapper, bodyOf) => {
+      const mapped = mapper(failed(422, bodyOf(PROTOTYPE_NAMED)))
+
+      expect(mapped?.details).toBeDefined()
+      const details = mapped!.details!
+      expect(Object.keys(details).toSorted()).toEqual([
+        '__proto__',
+        'constructor',
+        'email',
+        'hasOwnProperty',
+        'toString',
+        'valueOf',
+      ])
+      // Own properties, each holding its messages, on an ordinary object.
+      for (const [field, messages] of Object.entries(PROTOTYPE_NAMED)) {
+        expect(Object.getOwnPropertyDescriptor(details, field)?.value).toEqual(messages)
+      }
+      expect(Object.getPrototypeOf(details)).toBe(Object.prototype)
+      // And nothing leaked onto every other object.
+      expect(({} as Record<string, unknown>).email).toBeUndefined()
+      expect(Object.prototype.toString.call({})).toBe('[object Object]')
+    },
+  )
+
+  it.each(fieldMappers)(
+    '%s drops what is not a message, and keeps what is',
+    (_, mapper, bodyOf) => {
+      const mapped = mapper(
+        failed(
+          422,
+          bodyOf({ qty: [5, null, true, ['nested'], { a: 1 }, '', '   ', 'Must be positive.'] }),
+        ),
+      )
+
+      expect(mapped?.details?.qty).toEqual(['Must be positive.'])
+    },
+  )
+
+  it.each(fieldMappers)('%s cuts a two-megabyte message down to size', (_, mapper, bodyOf) => {
+    const mapped = mapper(failed(422, bodyOf({ notes: [HUGE] })))
+
+    const [message] = mapped!.details!.notes!
+    expect(message!.length).toBeLessThan(2_100)
+    expect(message!.endsWith('…')).toBe(true)
+  })
+
+  it.each(fieldMappers)('%s leaves markup in a message as the text it is', (_, mapper, bodyOf) => {
+    const mapped = mapper(failed(422, bodyOf({ name: [MARKUP] })))
+
+    // Not stripped, not escaped, not interpreted: a string, for a template to
+    // render as text.
+    expect(mapped!.details!.name).toEqual([MARKUP])
+  })
+
+  it.each(Object.entries(errorMappers))(
+    '%s survives nesting deep enough to overflow a recursive reader',
+    (_, mapper) => {
+      const deep = nested(20_000)
+      const bodies = [
+        deep,
+        { message: 'Invalid.', errors: deep },
+        { title: 'Invalid.', status: 422, errors: deep },
+        { statusCode: 400, message: deep },
+        { timestamp: 'now', status: 400, errors: [deep] },
+        { detail: deep, items: [deep, [deep]] },
+      ]
+
+      for (const body of bodies) expect(() => mapper(failed(422, body))).not.toThrow()
+    },
+  )
+
+  it('drf follows a tree only so far, and still reads what is near the top', () => {
+    const mapped = drfErrorMapper(failed(400, { email: ['Required.'], profile: nested(20_000) }))
+
+    expect(mapped?.details).toEqual({ email: ['Required.'] })
+  })
+
+  it.each(Object.entries(errorMappers))(
+    '%s survives lists where objects belong, and objects where lists belong',
+    (_, mapper) => {
+      const bodies = [
+        { message: 'Invalid.', errors: ['a', 'b'] },
+        { message: 'Invalid.', errors: [['a'], [{ b: 1 }]] },
+        { message: ['a', 5, null, { b: 1 }], errors: 'nope', statusCode: 400 },
+        { title: 'Invalid.', status: 422, errors: [null, 5, 'x', [], { pointer: 7, detail: {} }] },
+        { title: 'Invalid.', status: 422, 'invalid-params': { name: 'a', reason: 'b' } },
+        { timestamp: 1, status: 400, errors: { field: 'a', defaultMessage: 'b' } },
+        { timestamp: 1, status: 400, errors: [null, 'x', [], { field: [], defaultMessage: {} }] },
+        { detail: ['a'], code: { a: 1 }, non_field_errors: { b: ['c'] } },
+        [[['a']], { b: [{ c: ['d'] }] }, null, 5],
+        { message: HUGE, title: HUGE, detail: HUGE, status: 400, statusCode: 400, timestamp: 1 },
+      ]
+
+      for (const body of bodies) {
+        const context = failed(422, body)
+        expect(() => mapper(context)).not.toThrow()
+        // Whatever it made of it, every message is a string.
+        const mapped = mapper(context)
+        for (const messages of Object.values(mapped?.details ?? {})) {
+          if (!Array.isArray(messages)) continue
+          expect(messages.every((message) => typeof message === 'string')).toBe(true)
+        }
+        expect((mapped?.formErrors ?? []).every((message) => typeof message === 'string')).toBe(
+          true,
+        )
+      }
+    },
+  )
+
+  it('nest keeps the sentences of a list and drops the rest', () => {
+    const mapped = nestErrorMapper(
+      failed(400, {
+        statusCode: 400,
+        message: ['email must be an email', 7, null, { constructor: 'x' }, MARKUP, HUGE],
+        error: 'Bad Request',
+      }),
+    )
+
+    expect(mapped?.formErrors).toHaveLength(3)
+    expect(mapped?.formErrors?.slice(0, 2)).toEqual(['email must be an email', MARKUP])
+    expect(mapped!.formErrors![2]!.length).toBeLessThan(2_100)
+  })
+
+  it('a top-level message is cut down too, and its markup left as text', () => {
+    expect(laravelErrorMapper(failed(409, { message: HUGE }))!.message!.length).toBeLessThan(2_100)
+    expect(drfErrorMapper(failed(403, { detail: MARKUP }))).toEqual({ message: MARKUP })
+    expect(
+      problemJsonErrorMapper(failed(409, { title: 'x', status: 409, detail: MARKUP })),
+    ).toEqual({
+      message: MARKUP,
+    })
+  })
+})
+
+/**
+ * A 500 is not a validation failure. Whatever a mapper reads in its body — and
+ * a stack trace or a list of failed queries reads exactly like field errors —
+ * none of it may reach an `AppError`, where a form would print it.
+ */
+describe('the body of a 5xx', () => {
+  const SECRET = 'Server=db-7.internal;Password=hunter2'
+
+  const serverErrors: [string, ApiErrorMapper, unknown, string?][] = [
+    [
+      'vuestrata',
+      vuestrataErrorMapper,
+      { message: SECRET, code: 'DB_POOL', details: { db: [SECRET] }, requestId: 'req-1' },
+    ],
+    [
+      'problemJson',
+      problemJsonErrorMapper,
+      {
+        type: `https://errors.internal/db?conn=${SECRET}`,
+        title: SECRET,
+        status: 500,
+        detail: SECRET,
+        errors: { Db: [SECRET], '': [SECRET] },
+        traceId: 'req-1',
+      },
+      'application/problem+json',
+    ],
+    ['laravel', laravelErrorMapper, { message: SECRET, errors: { query: [SECRET] } }],
+    [
+      'drf',
+      drfErrorMapper,
+      { detail: SECRET, trace: [SECRET, SECRET], non_field_errors: [SECRET] },
+    ],
+    ['nest', nestErrorMapper, { statusCode: 500, message: [SECRET], error: SECRET }],
+    [
+      'springBoot',
+      springBootErrorMapper,
+      {
+        timestamp: '2026-03-04T10:15:30.123+00:00',
+        status: 500,
+        error: 'Internal Server Error',
+        message: SECRET,
+        errors: [{ field: 'dataSource', defaultMessage: SECRET }, { defaultMessage: SECRET }],
+        requestId: 'req-1',
+      },
+    ],
+  ]
+
+  it.each(serverErrors)('%s: nothing of it reaches the error', (_, mapper, body, contentType) => {
+    const error = httpError(500, mapper(failed(500, body, contentType)))
+
+    expect(error.details).toBeUndefined()
+    expect(error.formErrors).toBeUndefined()
+    expect(error.serverMessage).toBeUndefined()
+    expect(error.message).toBe('An unexpected error occurred. Please try again.')
+    expect(
+      JSON.stringify([error.message, error.code, error.requestId, error.messageKey]),
+    ).not.toContain('hunter2')
+    expect(JSON.stringify(error.toApiError())).not.toContain('hunter2')
+  })
+
+  it('keeps a code that is an identifier, and the request id', () => {
+    const error = httpError(500, vuestrataErrorMapper(failed(500, serverErrors[0]![2])))
+
+    expect(error).toMatchObject({ code: 'DB_POOL', requestId: 'req-1', status: 500 })
+  })
+
+  it('drops a code that is a URL: the problem type is not an identifier', () => {
+    const problem = failed(500, serverErrors[1]![2], 'application/problem+json')
+
+    expect(problemJsonErrorMapper(problem)?.code).toContain('https://')
+    expect(httpError(500, problemJsonErrorMapper(problem)).code).toBe('API_ERROR')
+    // For a 4xx the type is the code, as before.
+    expect(httpError(409, problemJsonErrorMapper({ ...problem, status: 409 })).code).toContain(
+      'https://errors.internal/db',
+    )
   })
 })

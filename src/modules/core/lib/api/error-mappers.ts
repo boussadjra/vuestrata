@@ -14,40 +14,94 @@
  * become `items.1.qty`. Nothing is renamed to camelCase here: the form layer
  * matches keys to fields, and it needs the original to do it.
  *
+ * An error body is input from the network, and is read as such. A field may be
+ * named `constructor` or `__proto__`, a list may hold numbers, a serializer may
+ * nest thousands deep, a message may be two megabytes of HTML. None of that may
+ * throw, since a mapper that throws is skipped and the next one reads less;
+ * none of it may reach `Object.prototype`; and a message stays the text it was
+ * sent as, never markup.
+ *
  * Framework-agnostic.
  */
 import { readErrorBody, type MappedError } from '~/lib/errors'
 
 import type { ApiErrorMapper } from './integration'
 
-type Details = Record<string, string[]>
+/**
+ * Field messages while they are collected. A `Map`, not an object: a field
+ * named `toString` would otherwise find `Object.prototype.toString` where its
+ * list should be.
+ */
+type Details = Map<string, string[]>
+
+/** What a mapper collects, before it is trimmed to what it found. */
+interface Reading extends Omit<MappedError, 'details'> {
+  details?: Details
+}
+
+/**
+ * The longest message kept. A validation message is a sentence; anything far
+ * longer is a stack trace or a page, and a toast is no place for either.
+ */
+const MAX_MESSAGE_LENGTH = 2_000
+
+/** How deep a nested error tree is followed. Real serializers nest a handful of levels. */
+const MAX_DEPTH = 16
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function clip(message: string): string {
+  return message.length > MAX_MESSAGE_LENGTH ? `${message.slice(0, MAX_MESSAGE_LENGTH)}…` : message
+}
+
 function text(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined
+  return typeof value === 'string' && value.trim() !== '' ? clip(value) : undefined
 }
 
 /** A message, or a list of them, as a list. Anything else is no messages. */
 function messagesOf(value: unknown): string[] {
-  if (typeof value === 'string') return value.trim() === '' ? [] : [value]
-  if (!Array.isArray(value)) return []
-  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim() !== '')
+  if (!Array.isArray(value)) {
+    const message = text(value)
+    return message === undefined ? [] : [message]
+  }
+  const messages: string[] = []
+  for (const entry of value) {
+    const message = text(entry)
+    if (message !== undefined) messages.push(message)
+  }
+  return messages
+}
+
+/** Append one by one: a spread of a very long list overflows the stack. */
+function append(target: string[], messages: readonly string[]): void {
+  for (const message of messages) target.push(message)
 }
 
 function addMessages(details: Details, key: string, messages: string[]): void {
   if (messages.length === 0) return
-  ;(details[key] ??= []).push(...messages)
+  const known = details.get(key)
+  if (known === undefined) details.set(key, [...messages])
+  else append(known, messages)
+}
+
+/**
+ * The collected messages as the plain object `AppError.details` is. Built from
+ * entries, which defines every key as the object's own property: a field named
+ * `__proto__` becomes a key like any other instead of replacing the prototype.
+ */
+function toDetails(details: Details | undefined): Record<string, string[]> | undefined {
+  return details && details.size > 0 ? Object.fromEntries(details) : undefined
 }
 
 /** `undefined` instead of an empty object or list, so an absent field stays absent. */
-function compact(mapped: MappedError): MappedError | null {
+function compact(mapped: Reading): MappedError | null {
   const result: MappedError = {}
+  const details = toDetails(mapped.details)
   if (mapped.message) result.message = mapped.message
   if (mapped.code) result.code = mapped.code
-  if (mapped.details && Object.keys(mapped.details).length > 0) result.details = mapped.details
+  if (details) result.details = details
   if (mapped.formErrors && mapped.formErrors.length > 0) result.formErrors = mapped.formErrors
   if (mapped.requestId) result.requestId = mapped.requestId
   return Object.keys(result).length > 0 ? result : null
@@ -58,8 +112,26 @@ function compact(mapped: MappedError): MappedError | null {
  * nothing worth reporting. An empty object, not `null`: the body is this
  * mapper's, and handing it on would let a later one misread it.
  */
-function claimed(mapped: MappedError): MappedError {
+function claimed(mapped: Reading): MappedError {
   return compact(mapped) ?? {}
+}
+
+/**
+ * A mapper that answers `null` where it would have thrown.
+ *
+ * The readers below are written not to throw on anything JSON can hold. This
+ * is for the day one of them is wrong about that: the body goes to the next
+ * mapper, as a body in another format does, rather than out of the client as
+ * an exception.
+ */
+function defineMapper(read: ApiErrorMapper): ApiErrorMapper {
+  return (context) => {
+    try {
+      return read(context)
+    } catch {
+      return null
+    }
+  }
 }
 
 /**
@@ -134,7 +206,7 @@ function pointerToPath(pointer: string): string {
  * reason }`). An ASP.NET model-level error, keyed `""` or `"$"`, is a form
  * error. `traceId` is the request id.
  */
-export const problemJsonErrorMapper: ApiErrorMapper = (context) => {
+export const problemJsonErrorMapper: ApiErrorMapper = defineMapper((context) => {
   const body = context.body
   if (!isRecord(body)) return null
   const declared = context.contentType === 'application/problem+json'
@@ -143,13 +215,13 @@ export const problemJsonErrorMapper: ApiErrorMapper = (context) => {
     (typeof body.status === 'number' || typeof body.type === 'string')
   if (!declared && !shaped) return null
 
-  const details: Details = {}
+  const details: Details = new Map()
   const formErrors: string[] = []
 
   if (isRecord(body.errors)) {
     for (const [field, value] of Object.entries(body.errors)) {
       const messages = messagesOf(value)
-      if (field === '' || field === '$') formErrors.push(...messages)
+      if (field === '' || field === '$') append(formErrors, messages)
       else addMessages(details, field, messages)
     }
   }
@@ -175,26 +247,26 @@ export const problemJsonErrorMapper: ApiErrorMapper = (context) => {
     formErrors,
     requestId: text(body.traceId) ?? text(body.requestId),
   })
-}
+})
 
 /**
  * Laravel: `{ message, errors: { field: ["…"] } }` from a failed validation
  * (422), `{ message }` from everything else. Nested input is already keyed by
  * a dotted path (`items.0.qty`).
  */
-export const laravelErrorMapper: ApiErrorMapper = (context) => {
+export const laravelErrorMapper: ApiErrorMapper = defineMapper((context) => {
   const body = context.body
   if (!isRecord(body)) return null
   if (typeof body.message !== 'string' && !isRecord(body.errors)) return null
 
-  const details: Details = {}
+  const details: Details = new Map()
   if (isRecord(body.errors)) {
     for (const [field, value] of Object.entries(body.errors)) {
       addMessages(details, field, messagesOf(value))
     }
   }
   return claimed({ message: meaningful(body.message), details })
-}
+})
 
 /** Keys DRF uses for errors that belong to the whole input, not to a field. */
 const DRF_FORM_KEYS = ['non_field_errors', '__all__']
@@ -203,24 +275,35 @@ const DRF_FORM_KEYS = ['non_field_errors', '__all__']
  * Flatten DRF's nested error tree into dotted paths. A list of strings is a
  * field's messages; an object is a nested serializer; a list of objects is a
  * `many=True` serializer, indexed by position (an empty object is a valid row).
+ *
+ * Stops at `MAX_DEPTH`. The tree comes from the network, and recursion that
+ * follows it all the way down is a stack overflow one response can cause.
  */
-function collectDrf(value: unknown, path: string, details: Details, formErrors: string[]): void {
+function collectDrf(
+  value: unknown,
+  path: string,
+  details: Details,
+  formErrors: string[],
+  depth = 0,
+): void {
+  if (depth > MAX_DEPTH) return
   if (Array.isArray(value)) {
     const messages = messagesOf(value)
     if (messages.length > 0) {
       const key = path.split('.').at(-1) ?? ''
-      if (path === '' || DRF_FORM_KEYS.includes(key)) formErrors.push(...messages)
+      if (path === '' || DRF_FORM_KEYS.includes(key)) append(formErrors, messages)
       else addMessages(details, path, messages)
     }
     value.forEach((entry, index) => {
       if (!isRecord(entry)) return
-      collectDrf(entry, path ? `${path}.${index}` : String(index), details, formErrors)
+      const row = path ? `${path}.${index}` : String(index)
+      collectDrf(entry, row, details, formErrors, depth + 1)
     })
     return
   }
   if (!isRecord(value)) return
   for (const [key, entry] of Object.entries(value)) {
-    collectDrf(entry, path ? `${path}.${key}` : key, details, formErrors)
+    collectDrf(entry, path ? `${path}.${key}` : key, details, formErrors, depth + 1)
   }
 }
 
@@ -233,9 +316,9 @@ function collectDrf(value: unknown, path: string, details: Details, formErrors: 
  * the scalar properties of some other format: `{ message: "…" }` is not DRF,
  * and is left to the next mapper.
  */
-export const drfErrorMapper: ApiErrorMapper = (context) => {
+export const drfErrorMapper: ApiErrorMapper = defineMapper((context) => {
   const body = context.body
-  const details: Details = {}
+  const details: Details = new Map()
   const formErrors: string[] = []
 
   if (Array.isArray(body)) {
@@ -244,15 +327,18 @@ export const drfErrorMapper: ApiErrorMapper = (context) => {
   }
   if (!isRecord(body)) return null
 
-  const { detail, code, ...fields } = body
-  collectDrf(fields, '', details, formErrors)
+  const { detail, code } = body
+  for (const [key, entry] of Object.entries(body)) {
+    if (key === 'detail' || key === 'code') continue
+    collectDrf(entry, key, details, formErrors, 1)
+  }
   const message = meaningful(detail) ?? soleMessage(formErrors)
-  if (typeof detail !== 'string' && Object.keys(details).length === 0 && formErrors.length === 0) {
+  if (typeof detail !== 'string' && details.size === 0 && formErrors.length === 0) {
     return null
   }
 
   return claimed({ message, code: text(code), details, formErrors })
-}
+})
 
 /**
  * NestJS: `{ statusCode, message, error }`. `message` is a string for a thrown
@@ -261,7 +347,7 @@ export const drfErrorMapper: ApiErrorMapper = (context) => {
  * are form errors. `error` is the reason phrase, and so is `message` for an
  * exception thrown without one; neither is used as a message.
  */
-export const nestErrorMapper: ApiErrorMapper = (context) => {
+export const nestErrorMapper: ApiErrorMapper = defineMapper((context) => {
   const body = context.body
   if (!isRecord(body) || typeof body.statusCode !== 'number') return null
 
@@ -270,7 +356,7 @@ export const nestErrorMapper: ApiErrorMapper = (context) => {
     return claimed({ message: soleMessage(formErrors), formErrors })
   }
   return claimed({ message: meaningful(body.message) })
-}
+})
 
 /** What Spring writes when `server.error.include-message` is off. */
 const SPRING_NO_MESSAGE = 'No message available'
@@ -285,11 +371,13 @@ const SPRING_NO_MESSAGE = 'No message available'
  * status's own translated message, so it is not used as one. Spring 6's
  * `ProblemDetail` is RFC 9457: list `problemJsonErrorMapper` for that.
  */
-export const springBootErrorMapper: ApiErrorMapper = (context) => {
+export const springBootErrorMapper: ApiErrorMapper = defineMapper((context) => {
   const body = context.body
-  if (!isRecord(body) || !('timestamp' in body) || typeof body.status !== 'number') return null
+  if (!isRecord(body) || !Object.hasOwn(body, 'timestamp') || typeof body.status !== 'number') {
+    return null
+  }
 
-  const details: Details = {}
+  const details: Details = new Map()
   const formErrors: string[] = []
   if (Array.isArray(body.errors)) {
     for (const entry of body.errors) {
@@ -309,7 +397,7 @@ export const springBootErrorMapper: ApiErrorMapper = (context) => {
     formErrors,
     requestId: text(body.requestId),
   })
-}
+})
 
 /** Every shipped mapper, by the name its framework goes by. */
 export const errorMappers = {

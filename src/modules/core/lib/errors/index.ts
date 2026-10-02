@@ -78,7 +78,7 @@ export interface MappedError {
   message?: string
   /** A machine-readable code, when the backend sends one. */
   code?: string
-  /** Messages per field. */
+  /** Messages per field. Dropped for a 5xx. */
   details?: Record<string, string[]>
   /** Messages that belong to the whole request rather than to one field. */
   formErrors?: string[]
@@ -281,6 +281,12 @@ export function readErrorBody(body: unknown): MappedError {
   }
 }
 
+/**
+ * An error code that is an identifier (`VALIDATION_FAILED`, `not_authenticated`,
+ * `orders.locked`) rather than a URL or free text.
+ */
+const CODE_TOKEN = /^[\w.-]{1,64}$/
+
 /** What the API client knows about a failed response beyond its body. */
 export interface HttpErrorContext {
   /** From the `Retry-After` header. */
@@ -300,10 +306,14 @@ export interface HttpErrorContext {
  *
  * Server-class errors must never forward the raw backend message — it can
  * embed stack traces, internal paths, or query strings — nor its form-level
- * messages, which are the same text under another name. Client-class errors
- * keep the API message because it is the actionable validation/authorization
- * text users need. The fallback is never the HTTP client's own message: ofetch
- * writes the full request URL into it.
+ * messages or its `details`, which are the same text under another name: a
+ * 500 is not a validation failure, and a body that says `{ trace: [...] }` or
+ * `{ errors: { Db: ['<connection string>'] } }` reads to an error mapper
+ * exactly like field errors, which a form would then print beside its inputs.
+ * Its `code` is kept only when it is a token (`DB_POOL`), not when it is a URL
+ * or a sentence. Client-class errors keep the API message because it is the
+ * actionable validation/authorization text users need. The fallback is never
+ * the HTTP client's own message: ofetch writes the full request URL into it.
  */
 export function httpError(
   status: number,
@@ -312,11 +322,13 @@ export function httpError(
 ): AppError {
   const isServerError = status >= 500
   const serverMessage = !isServerError && mapped?.message ? mapped.message : undefined
+  const code =
+    isServerError && mapped?.code && !CODE_TOKEN.test(mapped.code) ? undefined : mapped?.code
   return new AppError({
     message: isServerError ? SERVER_ERROR_MESSAGE : (serverMessage ?? getStatusMessage(status)),
-    code: mapped?.code ?? context.fallbackCode ?? 'API_ERROR',
+    code: code ?? context.fallbackCode ?? 'API_ERROR',
     status,
-    details: mapped?.details,
+    details: isServerError ? undefined : mapped?.details,
     requestId: mapped?.requestId,
     kind: 'http',
     retryable: isRetryableStatus(status),
