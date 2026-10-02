@@ -15,6 +15,17 @@ const LOCAL_CLI = 'node packages/cli/src/index.mjs'
  */
 const DOCS_ONLY_DEPENDENCIES = ['axe-core', 'shiki', 'beautiful-mermaid', 'comark', /^@shikijs\//]
 
+/**
+ * The scripts the template adds for its maintainers. Named rather than matched
+ * by prefix: `release:notes` in a project is the project's.
+ */
+const TEMPLATE_SCRIPTS = new Set([
+  'lint:maintainer',
+  'lint:template-lock',
+  'release:verify',
+  'cli:payload',
+])
+
 const isDocsOnly = (name) =>
   DOCS_ONLY_DEPENDENCIES.some((entry) =>
     entry instanceof RegExp ? entry.test(name) : entry === name,
@@ -49,17 +60,36 @@ export function rewritePackageJson(source, { removed, imported }) {
   const changes = []
   const notes = []
 
-  for (const [name, command] of Object.entries(pkg.scripts ?? {})) {
-    if (name === 'lint:maintainer' || name.startsWith('release:')) {
-      delete pkg.scripts[name]
-      changes.push(`remove script "${name}"`)
-      continue
+  // The template's own maintainer scripts go, by name — but only when they still
+  // run something that is being removed, so a project that rewrote one keeps it.
+  // `release:verify` runs no removed path; it calls the `lint:maintainer` script,
+  // which is why a script that runs a dropped one counts as running something
+  // removed too, and why this runs to a fixed point.
+  const dropped = new Set()
+  for (let grew = true; grew;) {
+    grew = false
+    for (const [name, command] of Object.entries(pkg.scripts ?? {})) {
+      if (dropped.has(name) || !TEMPLATE_SCRIPTS.has(name)) continue
+      const segments = command.split(/\s*&&\s*/)
+      if (
+        !segments.some((segment) => runsRemoved(segment, removed) || runsScript(segment, dropped))
+      ) {
+        continue
+      }
+      dropped.add(name)
+      grew = true
     }
+  }
+  for (const name of dropped) {
+    delete pkg.scripts[name]
+    changes.push(`remove script "${name}"`)
+  }
 
+  for (const [name, command] of Object.entries(pkg.scripts ?? {})) {
     const segments = command
       .split(/\s*&&\s*/)
       .map((segment) => segment.replaceAll(LOCAL_CLI, 'vuestrata'))
-      .filter((segment) => !runsRemoved(segment, removed))
+      .filter((segment) => !runsRemoved(segment, removed) && !runsScript(segment, dropped))
     const next = segments.join(' && ')
     if (next === command) continue
 
@@ -99,6 +129,12 @@ export function rewritePackageJson(source, { removed, imported }) {
   }
 
   return { contents: `${JSON.stringify(pkg, null, 2)}\n`, changes, notes, vendorUnused }
+}
+
+/** Whether a shell segment runs one of the package scripts in `names`. */
+function runsScript(segment, names) {
+  const match = /(?:^|\s)(?:vp run|vpr|pnpm run|npm run|yarn run)\s+([\w:.-]+)/.exec(segment)
+  return match !== null && names.has(match[1])
 }
 
 /** Whether a shell segment runs a path that is being removed. */
@@ -166,8 +202,11 @@ export const UPSTREAM_REPOSITORY = 'https://github.com/boussadjra/vuestrata'
  * to a page that is gone fails the docs link check on the first `vpr lint`.
  *
  * Code fences are left alone: what they show is an example, not a reference.
+ *
+ * `isGone` says whether a `docs/` path was removed, so a link to a page the
+ * project kept stays relative. Without it every link is rewritten.
  */
-export function rewriteDocLinks(source, ref) {
+export function rewriteDocLinks(source, ref, isGone = () => true) {
   const urlFor = (target) => {
     const bare = target.replace(/^\.\//, '')
     const isDirectory = bare.endsWith('/') || !/\.[A-Za-z0-9]+$/.test(bare)
@@ -182,11 +221,11 @@ export function rewriteDocLinks(source, ref) {
       return part
         .replace(
           /\]\((?:\.\/)?(docs(?:\/[^)#\s]*)?)(#[^)\s]*)?\)/g,
-          (_, target, anchor = '') => `](${urlFor(target)}${anchor})`,
+          (whole, target, anchor = '') =>
+            isGone(target.replace(/\/$/, '')) ? `](${urlFor(target)}${anchor})` : whole,
         )
-        .replace(
-          /(?<!\[)`(docs\/[A-Za-z0-9_./-]+\.md)`/g,
-          (_, target) => `[\`${target}\`](${urlFor(target)})`,
+        .replace(/(?<!\[)`(docs\/[A-Za-z0-9_./-]+\.md)`/g, (whole, target) =>
+          isGone(target) ? `[\`${target}\`](${urlFor(target)})` : whole,
         )
     })
     .join('')

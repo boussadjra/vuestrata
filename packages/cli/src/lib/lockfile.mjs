@@ -25,6 +25,13 @@ export function emptyLock(version) {
     regions: {},
     /** Paths deliberately removed, so an upgrade never restores them. */
     ejected: [],
+    /**
+     * The `docs/` pages the project received with the template, or `undefined`
+     * in a lock written before they were recorded. No upgrade installs or
+     * compares them: `eject` reads the list to remove those pages and leave the
+     * ones the project wrote beside them.
+     */
+    docs: undefined,
   }
 }
 
@@ -44,6 +51,7 @@ export function readLock(root, { version } = {}) {
       files: parsed.files ?? {},
       regions: parsed.regions ?? {},
       ejected: parsed.ejected ?? [],
+      docs: Array.isArray(parsed.docs) ? parsed.docs : undefined,
     }
   } catch (error) {
     throw new Error(`${LOCKFILE_NAME} is not valid JSON: ${error.message}`)
@@ -58,6 +66,9 @@ export function writeLock(root, lock) {
       Object.entries(sortKeys(lock.regions)).map(([rel, regions]) => [rel, sortKeys(regions)]),
     ),
     ejected: [...lock.ejected].sort((a, b) => a.localeCompare(b)),
+    // Left out rather than written empty: a lock without the list means "not
+    // recorded", which `eject` treats differently from "the template had none".
+    ...(lock.docs && { docs: [...lock.docs].sort((a, b) => a.localeCompare(b)) }),
   }
   fs.writeFileSync(lockPath(root), `${JSON.stringify(ordered, null, 2)}\n`)
   return ordered

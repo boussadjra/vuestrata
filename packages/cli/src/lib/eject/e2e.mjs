@@ -12,7 +12,10 @@ import { findClose, stripComments } from './source.mjs'
  * Pruning is by the smallest unit that can be judged from the route alone. A
  * route in a list is dropped from the list; a `test(...)` that mentions one is
  * dropped; a `describe` left with no tests goes; a spec left with none is
- * deleted. What survives still visits only routes that exist.
+ * deleted. What survives still visits only routes that exist — except in a form
+ * this cannot read, such as a test written on a fixture imported from another
+ * file. Those are kept and named in the report, because a test that is wrongly
+ * deleted is one nobody knows is missing.
  */
 
 /** Prefixes that are never removed, whatever a removed module declares. */
@@ -65,48 +68,165 @@ export function mentionsRemovedRoute(text, prefixes) {
   )
 }
 
-/** A leaf `test(...)`, but not `test.describe`, a hook or `test.use`. */
-const LEAF = /^[ \t]*test(?:\.(?:only|skip|fixme))?\(/gm
-const DESCRIBE = /^[ \t]*test\.describe(?:\.(?:serial|parallel|only|skip))?\(/gm
-const HOOK = /^[ \t]*test\.(?:beforeEach|beforeAll|afterEach|afterAll)\(/gm
+/**
+ * The names a spec calls its tests through. `test` always; plus whatever it is
+ * aliased or extended to (`import { test as base }`, `const authed = base.extend()`).
+ * A spec written on a fixture alias is still a spec, and `authed('orders', …)` is
+ * as much a test as `test('orders', …)`.
+ */
+function testNames(source) {
+  const names = new Set(['test'])
+  for (const match of source.matchAll(/\btest\s+as\s+([\w$]+)/g)) names.add(match[1])
+  for (const match of source.matchAll(
+    /\b(?:const|let|var)\s+([\w$]+)\s*=\s*[\w$.]+\.extend\s*[<(]/g,
+  )) {
+    names.add(match[1])
+  }
+  return [...names]
+}
+
+/** The call patterns for `names`: a leaf, a `describe`, a hook, and any call at all. */
+function callPatterns(names) {
+  const alternation = names.map(escapeRegex).join('|')
+  return {
+    leaf: new RegExp(`^[ \\t]*(?:${alternation})(?:\\.(?:only|skip|fixme))?\\(`, 'gm'),
+    describe: new RegExp(
+      `^[ \\t]*(?:${alternation})\\.describe(?:\\.(?:serial|parallel|only|skip))?\\(`,
+      'gm',
+    ),
+    hook: new RegExp(
+      `^[ \\t]*(?:${alternation})\\.(?:beforeEach|beforeAll|afterEach|afterAll)\\(`,
+      'gm',
+    ),
+    hasLeaf: new RegExp(`\\b(?:${alternation})(?:\\.(?:only|skip|fixme))?\\(`),
+  }
+}
 
 /**
- * The marketing home page is not a route the project keeps, and its specs name it
- * rather than visit it: they visit `/`, which still resolves, and assert on the
- * hero. Its tests are recognised by title.
+ * A call that looks like a test whatever it is called: a title, then an
+ * optional options object, then a function. It is how a spec written on a
+ * fixture imported from another file (`import { authedTest } from './fixtures'`)
+ * is recognised as a spec, even though no name in it says so.
  */
-const HOME_TITLE = /^[ \t]*test(?:\.\w+)*\(\s*(['"`])[^'"`\n]*\b(?:home\s*page|hero)\b/im
+const TEST_LIKE =
+  /^[ \t]*([\w$]+)(?:\.(?:only|skip|fixme|slow))?\(\s*(['"`])((?:(?!\2)[^\n\\]|\\.)*)\2\s*,\s*(?:\{[^{}]*\}\s*,\s*)?(?:async\b|function\b|\(|[\w$]+\s*=>)/gm
 
-const HAS_LEAF = /\btest(?:\.(?:only|skip|fixme))?\(/
+/** The `{ name, title, text, start }` of each test-like call in `source`. */
+function testLikeCalls(source) {
+  const calls = []
+  for (const match of source.matchAll(TEST_LIKE)) {
+    const open = match.index + match[0].indexOf('(')
+    const close = findClose(source, open)
+    if (close === -1) continue
+    calls.push({
+      name: match[1],
+      title: match[3],
+      text: source.slice(match.index, close),
+      start: match.index,
+    })
+  }
+  return calls
+}
+
+/**
+ * The tests of the marketing home page: a test, or a `describe`, titled for the
+ * hero or the home page, whose tests open `/`. They name the page rather than a
+ * removed route — `/` still resolves — so they are recognised by both.
+ *
+ * A title alone is not enough: a project's `test('hero image upload')` that
+ * visits `/dashboard/customers` has nothing to do with the marketing page. And
+ * they go only when `eject` replaces that page with its redirect (`home`); a
+ * project that wrote its own landing page keeps the tests of it.
+ */
+const HOME_TITLE = /^[ \t]*[\w$]+(?:\.\w+)*\(\s*(['"`])[^'"`\n]*\b(?:home\s*page|hero)\b/i
+const VISITS_HOME = /\.goto\(\s*(['"`])\/(?:[?#][^'"`]*)?\1/
 
 /**
  * `source` without the tests, routes and helpers tied to `prefixes`, or `null`
- * when nothing that tests anything is left. `dropped` counts what went, for the
- * report.
+ * when nothing that tests anything is left. `dropped` counts what went. For the
+ * report, `leftovers` names the tests that still touch a removed route because
+ * they are written in a form this cannot cut, and `stray` says one is still
+ * named outside any test.
  *
- * @returns {{ contents: string | null, changed: boolean, dropped: number }}
+ * It errs toward keeping: a file is deleted only when it has no test-like call
+ * left, never because a test it could not read mentions a removed route.
+ *
+ * @param {string} source
+ * @param {string[]} prefixes The route prefixes that no longer resolve.
+ * @param {{ home?: boolean }} [options] `home`: the marketing home page is being
+ *   replaced, so the tests of it go too.
+ * @returns {{ contents: string | null, changed: boolean, dropped: number, leftovers: string[], stray: boolean }}
  */
-export function pruneSpec(source, prefixes) {
-  if (!mentionsRemovedRoute(source, prefixes) && !HOME_TITLE.test(source)) {
-    return { contents: source, changed: false, dropped: 0 }
+export function pruneSpec(source, prefixes, { home = false } = {}) {
+  const names = testNames(source)
+  const patterns = callPatterns(names)
+  const leavesOf = (text) =>
+    statementRanges(text, patterns.leaf).map((range) => text.slice(range.start, range.end))
+
+  const homeHelpers = topLevelHelpers(source)
+    .filter((helper) => VISITS_HOME.test(stripComments(helper.body)))
+    .map((helper) => helper.name)
+  const visitsHome = (text) => VISITS_HOME.test(stripComments(text)) || callsAny(text, homeHelpers)
+  const isHomeTest = (text) => home && HOME_TITLE.test(text) && visitsHome(text)
+  // A `describe` goes whole only when every test in it opens the page.
+  const isHomeScope = (text) => {
+    if (!home || !HOME_TITLE.test(text)) return false
+    const leaves = leavesOf(text)
+    return leaves.length > 0 && leaves.every(visitsHome)
+  }
+
+  const hasHomeTest =
+    home &&
+    (leavesOf(source).some(isHomeTest) ||
+      statementRanges(source, patterns.describe).some((range) =>
+        isHomeScope(source.slice(range.start, range.end)),
+      ))
+
+  if (!mentionsRemovedRoute(source, prefixes) && !hasHomeTest) {
+    return { contents: source, changed: false, dropped: 0, leftovers: [], stray: false }
   }
 
   let dropped = 0
   let next = pruneRouteLists(source, prefixes)
   const tainted = taintedHelpers(next, prefixes)
+  const visitsRemoved = (text) => mentionsRemovedRoute(text, prefixes) || callsAny(text, tainted)
+
+  // Tests declared through a name this spec gives no account of. They cannot be
+  // cut one by one, so nothing that holds one is cut whole either.
+  const unreadable = (text) =>
+    testLikeCalls(stripComments(text)).filter((call) => !names.includes(call.name))
+
+  /** The smallest `describe` around `range`, or the file. */
+  const scopeOf = (text, range) =>
+    statementRanges(text, patterns.describe)
+      .filter((scope) => scope.start <= range.start && range.end <= scope.end)
+      .sort((a, b) => a.end - a.start - (b.end - b.start))[0] ?? {
+      start: 0,
+      end: text.length,
+      file: true,
+    }
+
+  /** Where each hook that opens a removed route applies. */
+  const poisonedScopes = (text) =>
+    statementRanges(text, patterns.hook)
+      .filter((hook) => visitsRemoved(text.slice(hook.start, hook.end)))
+      .map((hook) => scopeOf(text, hook))
 
   for (;;) {
     const before = next
 
-    for (const range of statementRanges(next, LEAF)) {
+    const homeScope = statementRanges(next, patterns.describe).find((range) =>
+      isHomeScope(next.slice(range.start, range.end)),
+    )
+    if (homeScope) {
+      dropped += leavesOf(next.slice(homeScope.start, homeScope.end)).length
+      next = cut(next, homeScope)
+      continue
+    }
+
+    for (const range of statementRanges(next, patterns.leaf)) {
       const text = next.slice(range.start, range.end)
-      if (
-        !mentionsRemovedRoute(text, prefixes) &&
-        !callsAny(text, tainted) &&
-        !HOME_TITLE.test(text)
-      ) {
-        continue
-      }
+      if (!visitsRemoved(text) && !isHomeTest(text)) continue
       next = cut(next, range)
       dropped++
       break
@@ -115,23 +235,32 @@ export function pruneSpec(source, prefixes) {
 
     // A hook that opens a removed route poisons every test it runs before, so
     // the scope it belongs to goes — the enclosing `describe`, or the file.
-    const describes = statementRanges(next, DESCRIBE)
-    const hook = statementRanges(next, HOOK).find((range) => {
-      const text = next.slice(range.start, range.end)
-      return mentionsRemovedRoute(text, prefixes) || callsAny(text, tainted)
-    })
-    if (hook) {
-      const scope = describes
-        .filter((range) => range.start <= hook.start && hook.end <= range.end)
-        .sort((a, b) => a.end - a.start - (b.end - b.start))[0]
-      if (!scope) return { contents: null, changed: true, dropped }
-      next = cut(next, scope)
-      continue
-    }
+    // Unless that scope holds a test this cannot read: then the tests it can
+    // read go one at a time, and the hook stays with the rest, for the report.
+    for (const scope of poisonedScopes(next)) {
+      const text = next.slice(scope.start, scope.end)
 
-    for (const range of describes) {
-      const text = next.slice(range.start, range.end)
-      if (HAS_LEAF.test(stripComments(text)) && !HOME_TITLE.test(text)) continue
+      if (unreadable(text).length === 0) {
+        if (scope.file) {
+          return { contents: null, changed: true, dropped, leftovers: [], stray: false }
+        }
+        next = cut(next, scope)
+        break
+      }
+
+      const [leaf] = statementRanges(text, patterns.leaf)
+      if (!leaf) continue
+      next = cut(next, { start: scope.start + leaf.start, end: scope.start + leaf.end })
+      dropped++
+      break
+    }
+    if (next !== before) continue
+
+    // A `describe` with no test left in it. One that holds a test this cannot
+    // read is not empty, whatever it looks like to the patterns above.
+    for (const range of statementRanges(next, patterns.describe)) {
+      const text = stripComments(next.slice(range.start, range.end))
+      if (patterns.hasLeaf.test(text) || testLikeCalls(text).length > 0) continue
       next = cut(next, range)
       break
     }
@@ -141,22 +270,33 @@ export function pruneSpec(source, prefixes) {
   next = removeUnusedImports(removeUnusedHelpers(next)).replace(/\n{3,}/g, '\n\n')
 
   const remaining = stripComments(next)
-  return {
-    contents: HAS_LEAF.test(remaining) ? next : null,
-    changed: next !== source,
-    dropped,
+  const calls = testLikeCalls(remaining)
+  if (!patterns.hasLeaf.test(remaining) && calls.length === 0) {
+    return { contents: null, changed: true, dropped, leftovers: [], stray: false }
   }
+
+  // What is left that still opens a removed route: in its own body, or through
+  // a hook that was kept because it runs before a test this could not read.
+  const poisoned = poisonedScopes(remaining)
+  const leftovers = calls
+    .filter(
+      (call) =>
+        visitsRemoved(call.text) ||
+        poisoned.some((scope) => scope.start <= call.start && call.start < scope.end),
+    )
+    .map((call) => call.title)
+  // A removed route named where no test could be made out: a constant, a
+  // fixture, a list that holds more than routes.
+  const stray = leftovers.length === 0 && mentionsRemovedRoute(next, prefixes)
+
+  return { contents: next, changed: next !== source, dropped, leftovers, stray }
 }
 
 const callsAny = (text, names) =>
   names.some((name) => new RegExp(`\\b${name}\\b`).test(stripComments(text)))
 
-/**
- * Top-level helper functions that visit a removed route, directly or through
- * another such helper. A spec rarely writes the URL in the test: it calls
- * `goToFormsPage(page)`, and the route is one function away.
- */
-function taintedHelpers(source, prefixes) {
+/** `{ name, body }` of each top-level `function` declaration. */
+function topLevelHelpers(source) {
   const helpers = []
   for (const match of source.matchAll(/^(?:async\s+)?function\s+(\w+)\s*\(/gm)) {
     const params = findClose(source, match.index + match[0].length - 1)
@@ -164,6 +304,16 @@ function taintedHelpers(source, prefixes) {
     const close = open === -1 ? -1 : findClose(source, open)
     if (close !== -1) helpers.push({ name: match[1], body: source.slice(match.index, close) })
   }
+  return helpers
+}
+
+/**
+ * Top-level helper functions that visit a removed route, directly or through
+ * another such helper. A spec rarely writes the URL in the test: it calls
+ * `goToFormsPage(page)`, and the route is one function away.
+ */
+function taintedHelpers(source, prefixes) {
+  const helpers = topLevelHelpers(source)
 
   const tainted = new Set(
     helpers.filter((helper) => mentionsRemovedRoute(helper.body, prefixes)).map((h) => h.name),

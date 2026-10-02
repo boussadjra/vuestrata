@@ -156,13 +156,56 @@ What the last four rows name, exactly:
   `authAdapter` (`config/app.config.ts`), and `bootstrapTheme`, `installI18n`,
   `installErrorReporting`, `installPerformanceMonitoring`, `installStaleChunkRecovery`
   (`plugins/*`).
+- From the demo layer, which only a demo build loads: `getDemoSession`, `seedDemoSuperAdmin` and
+  `onInvalidation` (`state/demo`), and `startMockWorker` (`mocks/browser`).
+- From the module barrels: `setupModules` and `useModuleStore` (`modules/index.ts`), and
+  `createAuthAdapter` (`modules/auth`).
 
-Prefer a migration. Add it at `packages/cli/migrations/<version>/index.mjs` as a
-list of idempotent `{ file, apply }` steps, each resolving its target through
-the manifest so it still finds the file in a project that moved it. When a
-change genuinely cannot be automated, write the manual step in `UPGRADING.md`
-under that version — but treat that as the exception, because a release note is
-a request and a migration is a fix.
+The permission seam added in 1.1.0 is under the same rule, and only grows:
+
+- The `rbacOverrides` slot (`src/modules/app/config/rbac.overrides.ts`) and its `app:` regions
+  `permissions`, `grants` and `withdrawn`, which the generators and `eject` write to.
+- In `core/lib`: `defineRbacOverrides` and `resolveRbacOverrides` (`rbac/overrides.ts`),
+  `installRbacConfig` and `tryGetRbacConfig` (`runtime.ts`), the types `AppPermissions`,
+  `RbacOverrides` and `RbacConfig`, and the optional second parameter of
+  `resolveRolePermissions(role, config?)`.
+- `state/runtime-backends.ts` is what installs the config. A project that edited that file before
+  1.1.0 keeps its copy, which installs nothing: `vuestrata doctor` warns, and the promotion note
+  names the two lines to add.
+
+Prefer a migration. Add it at `packages/cli/migrations/<version>/index.mjs`: a
+`{ description, steps }` group, or an array of them when one release makes
+several changes that each deserve a line in the report. Every step is
+idempotent, because each prerelease on the way to `<version>` runs the migration
+again, and resolves its target through the manifest (`file`, or `slot`) so it
+still finds the file in a project that moved it. A step is one of four kinds:
+
+| Kind                  | Shape                                                     | What it does                                                                                                                                                                                           |
+| --------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| codemod (the default) | `{ file, apply(source, manifest, ws), incoming?, note? }` | Rewrites the file. `ws` reads the rest of the project, for a change that depends on another file.                                                                                                      |
+| `note`                | `{ kind: 'note', note, file? }`                           | Nothing automatic: a line in the upgrade report.                                                                                                                                                       |
+| `promote`             | `{ kind: 'promote', file, pristine, unit?, note? }`       | A file the project owned becomes managed. Adopted only when its hash is in `pristine`; an edited copy stays, with the release's version in `.vuestrata/incoming/`. Steps sharing a `unit` move as one. |
+| `reclassify`          | `{ kind: 'reclassify', file, pristine?, note? }`          | A managed file becomes merged, keeping the project's `app:` entries.                                                                                                                                   |
+
+Any step that names a file may carry `pending(source, manifest, ws)`. While it
+returns false the step has nothing to do there; on a codemod it is also the
+guard that tells an applied change from a file the codemod did not recognise,
+which is then left alone with the `note` and the `incoming` copy. The `pristine`
+hashes are what a file hashed to in the releases that shipped it. Print them
+from the tags rather than computing them by hand, with `--json` last:
+
+```bash
+node packages/cli/scripts/pristine-hashes.mjs \
+  --tags v1.0.1-alpha.5,v1.0.1-alpha.6 --class managed <path...> --json
+```
+
+`packages/cli/src/lib/migrations.mjs` documents each kind in full, and
+`migrations/1.1.0/` has a codemod, a guarded codemod, a note and a promotion to
+copy from.
+
+When a change genuinely cannot be automated, write the manual step in
+`UPGRADING.md` under that version — but treat that as the exception, because a
+release note is a request and a migration is a fix.
 
 A file that becomes managed keeps its path, and a project that edited it keeps its
 copy: the migration leaves it, with the release's version in `.vuestrata/incoming/`.

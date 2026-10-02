@@ -183,6 +183,25 @@ home route.
 Every removed path is recorded in the lockfile's `ejected` list, so no future
 upgrade puts any of it back.
 
+It removes what the template shipped, and leaves what you wrote beside it:
+
+- In `docs/`, only the pages listed under `docs` in `vuestrata.lock.json`, which
+  are the ones the template shipped. A runbook or a decision record you added
+  stays, and so does the folder. A lockfile from before 1.1.0 has no such list;
+  the installed CLI's own list stands in for it, and with neither, `docs/` is
+  kept whole.
+- The home route becomes the placeholder only while it still imports the
+  marketing sections. A landing page of your own is left alone, and so are the
+  specs that test it.
+- An end-to-end spec is deleted only when no test is left in it. A test eject
+  cannot read (one declared through a fixture imported from another file, say)
+  is kept, and named in the output if it still visits a removed route.
+- A `package.json` script goes only if it runs something that was removed. One
+  that merely shares a name with a template script (`release:*`,
+  `lint:maintainer`) stays.
+
+Running it a second time changes nothing.
+
 `--keep <ids>` keeps named modules; `--no-keep-customers` removes `customers` too;
 `--keep-docs` keeps `docs/`; `--dry-run` prints the plan. Run `vp install` afterwards
 to bring `pnpm-lock.yaml` in line with the pruned dependencies.

@@ -4,8 +4,11 @@ import path from 'node:path'
 import { describe, expect, it } from 'vite-plus/test'
 
 import arShell from '@/locales/ar.json'
+import arOverrides from '@/locales/ar.overrides.json'
 import enShell from '@/locales/en.json'
+import enOverrides from '@/locales/en.overrides.json'
 import frShell from '@/locales/fr.json'
+import frOverrides from '@/locales/fr.overrides.json'
 import { NAV_GROUPS } from '@/modules/nav-groups'
 import { appModules } from '@/modules/setup'
 
@@ -85,12 +88,16 @@ describe('registry drift', () => {
   it('translates every nav group label in every shell locale', () => {
     // A group heading is rendered through `t()`, so a missing key shows the raw
     // `nav_group_*` string as a sidebar section title.
+    // Each catalog with the project's overrides on top, as `plugins/i18n.ts`
+    // merges them: a project's own group is labelled in `<locale>.overrides.json`,
+    // because the catalogs are Vuestrata's and an upgrade replaces them.
     // Through `unknown`: the imported JSON has a precise literal-key type, so
     // TypeScript refuses the direct widening to an index signature.
-    const catalogs = { en: enShell, fr: frShell, ar: arShell } as unknown as Record<
-      string,
-      Record<string, string>
-    >
+    const catalogs = {
+      en: { ...enShell, ...enOverrides },
+      fr: { ...frShell, ...frOverrides },
+      ar: { ...arShell, ...arOverrides },
+    } as unknown as Record<string, Record<string, string>>
 
     const problems: string[] = []
     for (const group of NAV_GROUPS) {

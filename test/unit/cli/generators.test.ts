@@ -181,6 +181,16 @@ describe('add component', () => {
     expect(readRegion(fixture.read(FORMS_BARREL), 'app:form-composables')).toHaveLength(1)
     expect(driftedFiles(fixture.project, readLock(fixture.project))).toEqual([])
   })
+
+  it('points at the demo registry only while the project still has one', () => {
+    const demoNote = (plan: { notes: string[] }) =>
+      plan.notes.some((note) => note.includes('COMPONENT_DEMO_DOCS'))
+
+    expect(demoNote(planFor('component', 'Tag'))).toBe(false)
+
+    fixture.write('src/modules/app/config/component-docs.ts', 'export {}\n')
+    expect(demoNote(planFor('component', 'Tag'))).toBe(true)
+  })
 })
 
 describe('the rbac.overrides.ts seam', () => {

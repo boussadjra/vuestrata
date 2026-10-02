@@ -93,6 +93,16 @@ export interface BootOptions {
   deps?: Partial<BootDeps>
 }
 
+/**
+ * The replacements a caller really passed. A dependency given as `undefined`
+ * means "use the default", not "remove the step": spread over the defaults as
+ * it is, it would replace a working dependency with nothing, and the step that
+ * calls it would throw.
+ */
+function definedDeps(deps: Partial<BootDeps> = {}): Partial<BootDeps> {
+  return Object.fromEntries(Object.entries(deps).filter(([, value]) => value !== undefined))
+}
+
 function defaultDeps(options: BootOptions): BootDeps {
   return {
     bootstrapTheme,
@@ -142,7 +152,7 @@ function setupVueErrorHandler(app: App): void {
  * `renderBootFailure()`; `boot()` itself never rejects.
  */
 export async function boot(root: Component, options: BootOptions = {}): Promise<void> {
-  const deps: BootDeps = { ...defaultDeps(options), ...options.deps }
+  const deps: BootDeps = { ...defaultDeps(options), ...definedDeps(options.deps) }
 
   try {
     await runBoot(root, options, deps)

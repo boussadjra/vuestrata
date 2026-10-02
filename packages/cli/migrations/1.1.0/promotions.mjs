@@ -1,5 +1,6 @@
 import { hashFor } from '../../src/lib/lockfile.mjs'
 import { hashContents } from '../../src/lib/plan.mjs'
+import { RBAC_WIRING_STEPS } from '../../src/lib/rbac-wiring.mjs'
 
 /**
  * Files the project owned that Vuestrata maintains from 1.1.0, and the two
@@ -126,6 +127,8 @@ const HEADERS_SCRIPTS = ['scripts/security/headers.mjs', 'scripts/security/sync-
 const PLAIN_PROMOTIONS = Object.keys(PRISTINE).filter((rel) => !HEADERS_SCRIPTS.includes(rel))
 
 const LOCALE = /^src\/modules\/app\/locales\/(en|fr|ar)\.json$/
+const QUERY_PLUGIN = 'src/modules/app/plugins/vue-query.ts'
+const RUNTIME_BACKENDS = 'src/modules/app/state/runtime-backends.ts'
 
 function promoteNote(rel) {
   const locale = LOCALE.exec(rel)
@@ -139,14 +142,25 @@ function promoteNote(rel) {
     )
   }
 
-  if (rel === 'src/modules/app/plugins/vue-query.ts') {
+  if (rel === QUERY_PLUGIN) {
     return (
       `${rel} is maintained by Vuestrata from 1.1.0: it re-exports the query client options ` +
       `from src/modules/app/bootstrap/query-client.ts, which boot() reads. This copy differs ` +
-      `from every release that shipped it, so it was left alone, and a src/main.ts that calls ` +
-      `boot() no longer reads it. Keep your options by passing them to boot() ` +
-      `(\`boot(App, { queryOptions })\`; spread vueQueryOptions to keep the retry policy), ` +
-      `then run \`vuestrata adopt ${rel}\` once it matches .vuestrata/incoming/${rel}.`
+      `from every release that shipped it, so it was left alone. A src/main.ts this upgrade ` +
+      `replaced passes your \`vueQueryOptions\` to boot(), so they still apply; a main.ts you ` +
+      `edited keeps reading this file as before. To hand the file over, first move your options ` +
+      `into a file of your own and pass them with \`boot(App, { queryOptions })\` (spread ` +
+      `\`vueQueryOptions\` from '@/bootstrap/query-client' to keep the retry policy), then run ` +
+      `\`vuestrata adopt ${rel}\` once this file matches .vuestrata/incoming/${rel}. Adopting it ` +
+      `first would drop your options.`
+    )
+  }
+
+  if (rel === RUNTIME_BACKENDS) {
+    return (
+      `${rel} is maintained by Vuestrata from 1.1.0, but this copy differs from every release ` +
+      `that shipped it, so it was left alone. ${RBAC_WIRING_STEPS} Then run ` +
+      `\`vuestrata adopt ${rel}\` so later releases can update it.`
     )
   }
 
@@ -266,24 +280,65 @@ import AppRoot from '@/components/layout/AppRoot.vue'
  * .vuestrata/incoming/ and a note says what to carry over.
  */
 function shellCodemod({ file, shell, pristine, adopted, note }) {
+  // A shell may depend on the rest of the project, so it can be a function of it.
+  const shellFor = typeof shell === 'function' ? shell : () => shell
+
   return {
     file,
     // Done once the file uses the managed root — decided by what it calls, not
     // by an exact copy, so a later release changing the shell does not make
     // every project that took this one look unfinished.
     pending: (source) => !adopted.test(source),
-    apply: (source) =>
+    apply: (source, manifest, ws) =>
       pristine.includes(hashFor(file, source, 'managed'))
-        ? shell.replaceAll('\n', eolOf(source))
+        ? shellFor(ws).replaceAll('\n', eolOf(source))
         : source,
-    incoming: shell,
+    incoming: (source, manifest, ws) => shellFor(ws),
     note,
   }
 }
 
+/**
+ * Whether the query client options in the project's `plugins/vue-query.ts` are
+ * the ones `boot()` already uses: a release's copy, or the shim that replaced
+ * it. Any other copy is the project's own tuning, which the old main.ts applied
+ * and boot(App) alone would drop without a word.
+ */
+function usesDefaultQueryOptions(ws) {
+  if (!ws?.exists(QUERY_PLUGIN)) return true
+  const source = ws.read(QUERY_PLUGIN)
+  return (
+    PRISTINE[QUERY_PLUGIN].includes(hashFor(QUERY_PLUGIN, source, 'managed')) ||
+    /from\s+['"]@\/bootstrap\/query-client['"]/.test(source)
+  )
+}
+
+/**
+ * `src/main.ts` for this project. Where the project tuned the query client, the
+ * shell hands those options to boot() from the file that still holds them.
+ *
+ * Chosen over holding main.ts back. Both keep the options, but a main.ts left
+ * behind keeps the whole old boot sequence with them, and stops receiving
+ * fixes to it for the sake of one object. The import cannot dangle: this shell
+ * only ever replaces a pristine main.ts, which imported `vueQueryOptions` from
+ * this same path and passed it to the same plugin.
+ */
+export function mainShellFor(ws) {
+  if (usesDefaultQueryOptions(ws)) return MAIN_SHELL
+
+  return MAIN_SHELL.replace(
+    "import { boot } from '@/bootstrap'\n",
+    "import { boot } from '@/bootstrap'\n" +
+      '// Your own query client options, which this file applied before the upgrade.\n' +
+      '// They are still in the plugins/vue-query.ts you edited. Move them to a file\n' +
+      '// of your own before you hand that one back to Vuestrata.\n' +
+      "import { vueQueryOptions } from '@/plugins/vue-query'\n",
+  ).replace('void boot(App)', 'void boot(App, { queryOptions: vueQueryOptions })')
+}
+
 const mainShell = shellCodemod({
   file: 'src/main.ts',
-  shell: MAIN_SHELL,
+  shell: mainShellFor,
   pristine: PRISTINE_MAIN,
   adopted: /from\s+['"]@\/bootstrap['"]/,
   note:
@@ -342,10 +397,18 @@ export default [
         file: HEADERS_SCRIPTS[0],
         // Notes run before the ownership steps, so while headers.mjs is still a
         // release's copy this upgrade is the one about to replace it. Once it has
-        // been, the reminder is done and stays quiet on the next prerelease. An
-        // edited copy has its own note above.
-        pending: (source) =>
-          PRISTINE[HEADERS_SCRIPTS[0]].includes(hashFor(HEADERS_SCRIPTS[0], source, 'managed')),
+        // been, the reminder is done and stays quiet on the next prerelease. It
+        // holds only while BOTH scripts are a release's copy: if either was
+        // edited the pair is held back, nothing is regenerated, and the note
+        // above already says what to do.
+        pending: (source, manifest, ws) =>
+          HEADERS_SCRIPTS.every(
+            (rel) =>
+              ws.exists(rel) &&
+              PRISTINE[rel].includes(
+                hashFor(rel, rel === HEADERS_SCRIPTS[0] ? source : ws.read(rel), 'managed'),
+              ),
+          ),
         note:
           'If scripts/security/headers.mjs and sync-headers.mjs were replaced (no incoming copy ' +
           'is listed for them above), run `vpr security:headers`: it regenerates public/_headers, ' +

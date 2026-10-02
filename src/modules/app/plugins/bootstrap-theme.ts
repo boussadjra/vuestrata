@@ -4,7 +4,7 @@
  * Reads the persisted dark-mode, theme, locale, and shape preferences and
  * applies them to `<html>` synchronously, before Vue mounts. This is the first
  * frame the user will see, so doing it here (rather than waiting for
- * `useThemeSync` / `useLocaleSync` / `useShapeSync` inside `App.vue`)
+ * `useThemeSync` / `useLocaleSync` / `useShapeSync` inside `AppRoot.vue`)
  * prevents a flash of the wrong theme, colours, direction, or border
  * radius. Documentation URLs force English/LTR here too, so a first
  * paint on `/docs` is never RTL.

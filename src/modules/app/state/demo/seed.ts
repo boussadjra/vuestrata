@@ -17,7 +17,7 @@ import { DEMO_ACCOUNT } from './account'
  * check, no adapter check — so every boot in every environment wrote a
  * super-admin holding every permission into IndexedDB, production included.
  * It now lives behind the demo boundary and is called from exactly one place:
- * the `__VUESTRATA_DEMO__` branch in main.ts, after `setupModules()`.
+ * the `__VUESTRATA_DEMO__` branch of `boot()`, after `setupModules()`.
  *
  * Seeding once was not enough. The demo account's permission array is a
  * snapshot written into IndexedDB (and again into the session envelope) the

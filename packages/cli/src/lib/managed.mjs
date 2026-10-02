@@ -162,6 +162,18 @@ export function collectSeeded(root) {
   )
 }
 
+/**
+ * The template's documentation. Not managed: no upgrade installs or compares a
+ * page. But the lockfile and the payload list the pages a release ships, so
+ * `eject` can tell them from the ones a project wrote beside them.
+ */
+export const DOCS_DIR = 'docs'
+
+/** Every file under `docs/` in `root`, sorted. */
+export function collectDocs(root) {
+  return walk(root, DOCS_DIR).sort((a, b) => a.localeCompare(b))
+}
+
 /** Every file under `dir`, as root-relative forward-slash paths. */
 export function walk(root, dir) {
   const full = path.join(root, dir)

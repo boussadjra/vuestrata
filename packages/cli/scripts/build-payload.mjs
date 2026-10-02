@@ -4,7 +4,13 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { hashFor } from '../src/lib/lockfile.mjs'
-import { classify, collectManaged, collectSeeded, PROJECT_REGISTRIES } from '../src/lib/managed.mjs'
+import {
+  classify,
+  collectDocs,
+  collectManaged,
+  collectSeeded,
+  PROJECT_REGISTRIES,
+} from '../src/lib/managed.mjs'
 import { loadManifest, slot } from '../src/lib/manifest.mjs'
 import { hashContents } from '../src/lib/plan.mjs'
 import {
@@ -54,7 +60,7 @@ export function buildPayload({
   const version = JSON.parse(fs.readFileSync(path.resolve(here, '../package.json'), 'utf8')).version
   const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8')
 
-  const index = { version, files: {}, seeded: {}, merged: {}, regions: {} }
+  const index = { version, files: {}, seeded: {}, merged: {}, regions: {}, docs: [] }
   const shipped = new Map()
   const problems = []
 
@@ -104,6 +110,10 @@ export function buildPayload({
       [registry.region]: lines.map((line) => line.trim()).filter(Boolean),
     }
   }
+
+  // Which pages of `docs/` are the template's, so `eject` removes those and not
+  // the runbooks a project keeps beside them. Not files an upgrade installs.
+  index.docs = collectDocs(repoRoot)
 
   if (problems.length > 0) return { ok: false, problems, stale: [], index }
 

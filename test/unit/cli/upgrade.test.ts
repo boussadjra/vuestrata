@@ -767,6 +767,81 @@ describe.skipIf(!CLI_PRESENT)('doctor', () => {
   })
 })
 
+describe.skipIf(!CLI_PRESENT)('doctor and an rbac.overrides.ts that nothing installs', () => {
+  const OVERRIDES = 'src/modules/app/config/rbac.overrides.ts'
+  const BACKENDS = 'src/modules/app/state/runtime-backends.ts'
+
+  // The file before the seam existed, and with the two lines that install it.
+  const UNWIRED =
+    "export const BUILTIN_PERMISSIONS = resolveRolePermissions('super_admin')\n" +
+    'export function installRuntimeBackends() {\n  installRbacBackend(rbacBackendState())\n}\n'
+  const WIRED = UNWIRED.replace(
+    'installRbacBackend(',
+    'installRbacConfig(rbacConfig)\n  installRbacBackend(',
+  )
+  const UNINSTALLED = /rbac\.overrides\.ts exists, but .*runtime-backends\.ts does not install it/
+
+  const warningsOf = (options: { source?: unknown; migrations?: unknown[] } = {}) =>
+    diagnose({ root: project, version: '1.2.0', migrations: [], ...options }).warnings.join('\n')
+
+  beforeEach(() => {
+    write(OVERRIDES, 'export default defineRbacOverrides({})\n')
+  })
+
+  it('warns when the project edited runtime-backends.ts before the seam existed', () => {
+    write(BACKENDS, `${UNWIRED}// ours\n`)
+    writeLock(project, emptyLock('1.2.0'))
+
+    const text = warningsOf()
+    expect(text).toMatch(UNINSTALLED)
+    // The change itself, so the warning can be acted on without the docs.
+    expect(text).toContain('installRbacConfig(rbacConfig)')
+    expect(text).toContain('resolveRbacOverrides(rbacOverrides)')
+  })
+
+  it('warns in a project that is not tracked yet', () => {
+    write(BACKENDS, UNWIRED)
+    expect(warningsOf()).toMatch(UNINSTALLED)
+  })
+
+  it('says nothing once the file installs the overrides', () => {
+    write(BACKENDS, `${WIRED}// ours\n`)
+    writeLock(project, emptyLock('1.2.0'))
+
+    expect(warningsOf()).not.toMatch(UNINSTALLED)
+  })
+
+  it('says nothing when the next upgrade replaces the file with the wired copy', () => {
+    write(BACKENDS, UNWIRED)
+    writeLock(project, emptyLock('1.1.0'))
+
+    const source = writePayload(payload, { version: '1.2.0', files: { [BACKENDS]: WIRED } })
+    const promotion = { kind: 'promote', file: BACKENDS, pristine: [hash(UNWIRED)] }
+    const migrations = [{ version: '1.2.0', description: 'promote', steps: [promotion] }]
+
+    expect(warningsOf({ source, migrations })).not.toMatch(UNINSTALLED)
+  })
+
+  it('still warns when that upgrade will hold the file back as edited', () => {
+    write(BACKENDS, `${UNWIRED}// ours\n`)
+    writeLock(project, emptyLock('1.1.0'))
+
+    const source = writePayload(payload, { version: '1.2.0', files: { [BACKENDS]: WIRED } })
+    const promotion = { kind: 'promote', file: BACKENDS, pristine: [hash(UNWIRED)] }
+    const migrations = [{ version: '1.2.0', description: 'promote', steps: [promotion] }]
+
+    expect(warningsOf({ source, migrations })).toMatch(UNINSTALLED)
+  })
+
+  it('says nothing without an rbac.overrides.ts to install', () => {
+    fs.rmSync(path.join(project, OVERRIDES))
+    write(BACKENDS, UNWIRED)
+    writeLock(project, emptyLock('1.2.0'))
+
+    expect(warningsOf()).not.toMatch(UNINSTALLED)
+  })
+})
+
 describe.skipIf(!CLI_PRESENT)('init --force', () => {
   const UI = 'src/modules/app/components/ui'
 
@@ -806,5 +881,58 @@ describe.skipIf(!CLI_PRESENT)('init --force', () => {
     })
     expect(rebuilt.regions[THEMES]['vuestrata:themes']).toBeDefined()
     expect(rebuilt.ejected).toEqual(['src/modules/app/pages/docs.vue'])
+  })
+})
+
+describe.skipIf(!CLI_PRESENT)('the docs pages a lockfile lists', () => {
+  const init = (flags: Record<string, unknown>) =>
+    runInit({ root: project, version: '1.2.0', flags: { 'no-format': true, ...flags } })
+
+  beforeEach(() => {
+    write('docs/index.md', '# Docs\n')
+    write('docs/1.getting-started/1.installation.md', '# Install\n')
+  })
+
+  it('are recorded from a pristine tree, which is the template itself', () => {
+    init({ pristine: true })
+
+    expect(readLock(project).docs).toEqual([
+      'docs/1.getting-started/1.installation.md',
+      'docs/index.md',
+    ])
+  })
+
+  it('are not guessed from a project, whose docs/ may hold pages of its own', () => {
+    init({})
+
+    expect(readLock(project).docs).toBeUndefined()
+    expect(read('vuestrata.lock.json')).not.toContain('"docs"')
+  })
+
+  it('survive a rebuild in a project, without the pages it added since', () => {
+    init({ pristine: true })
+    write('docs/runbook.md', '# Ours\n')
+
+    init({ force: true })
+
+    expect(readLock(project).docs).not.toContain('docs/runbook.md')
+    expect(readLock(project).docs).toContain('docs/index.md')
+  })
+
+  it('survive an upgrade', async () => {
+    init({ pristine: true })
+    buildPayload('1.3.0', {})
+
+    runUpgrade({
+      root: project,
+      version: '1.3.0',
+      flags: FLAGS,
+      apply: true,
+      source: await source(),
+      migrations: [],
+    })
+
+    expect(readLock(project).template).toBe('1.3.0')
+    expect(readLock(project).docs).toContain('docs/index.md')
   })
 })

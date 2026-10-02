@@ -1,7 +1,7 @@
 /**
  * Central module registration — app-level modules providing the core feature set.
  *
- * Bootstrap order (enforced by `main.ts`):
+ * Bootstrap order (enforced by `boot()`, in `app/bootstrap/index.ts`):
  *   1. `app.use(pinia)`            — required before any `useStore()` call
  *   2. `installI18n(app)`          — required before `loadModuleTranslations`
  *   3. `setupModules(router, appModules, layoutMap)` — registers + enables modules

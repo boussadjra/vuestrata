@@ -93,7 +93,7 @@ const validationCacheBackendState = createGlobalState(
  * environment — including a real production deployment against a real backend —
  * wrote a `super_admin` user holding every registered permission into the
  * browser's IndexedDB. Demo seeding now lives in `state/demo/seed.ts` and is
- * called only from the `__VUESTRATA_DEMO__` branch in main.ts.
+ * called only from the `__VUESTRATA_DEMO__` branch of `boot()`.
  */
 export function installRuntimeBackends(): void {
   const apiRuntime = useApiRuntimeStore()

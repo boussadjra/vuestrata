@@ -2,10 +2,14 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 // @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
 import { planEject, runEject } from '../../../packages/cli/src/commands/eject.mjs'
+// @ts-expect-error - see above.
+import { logger } from '../../../packages/cli/src/lib/cli.mjs'
+// @ts-expect-error - see above.
+import { pruneSpec } from '../../../packages/cli/src/lib/eject/e2e.mjs'
 // @ts-expect-error - see above.
 import { dropCliRoundtrip, rewriteDocLinks } from '../../../packages/cli/src/lib/eject/project.mjs'
 // @ts-expect-error - see above.
@@ -84,7 +88,7 @@ const PACKAGE = {
     lint: 'vp lint && node scripts/docs/check-links.mjs --quiet && node scripts/release/check-template-lock.mjs',
     'lint:maintainer': 'node scripts/release/maintainer-gates.mjs',
     'version:show': 'node scripts/release/version.mjs show',
-    'release:verify': 'vp check && vp test --run',
+    'release:verify': 'vp check && vp run lint:maintainer -- --tests && vp test --run',
     'cli:payload': 'node packages/cli/scripts/build-payload.mjs',
     doctor: 'node packages/cli/src/index.mjs doctor',
     'test:e2e': 'playwright test',
@@ -147,6 +151,18 @@ test('the account page', async ({ page }) => {
 test('orders, through a helper', async ({ page }) => {
   await ordersPage(page)
 })
+`
+
+/** The `docs/` pages the fixture's lockfile says the template shipped. */
+const TEMPLATE_DOCS = ['docs/index.md', 'docs/9.readiness.md']
+
+const HOME_PAGE = `<script setup lang="ts">
+import HomeHeroSection from '@/components/layout/home/HomeHeroSection.vue'
+</script>
+
+<template>
+  <HomeHeroSection />
+</template>
 `
 
 const PALETTE_RULE = `const BASELINE = new Map([
@@ -212,7 +228,11 @@ function seed() {
   f.write('src/modules/app/config/component-docs.ts', 'export {}\n')
   f.write('src/modules/app/config/comark.ts', 'export {}\n')
   f.write('src/modules/app/plugins/router.ts', real('src/modules/app/plugins/router.ts'))
-  f.write('src/modules/app/pages/index.vue', '<template><h1>Hero</h1></template>\n')
+  f.write('src/modules/app/pages/index.vue', HOME_PAGE)
+  f.write(
+    'src/modules/app/components/layout/home/HomeHeroSection.vue',
+    '<template><h1>Hero</h1></template>\n',
+  )
   f.write(
     'src/modules/app/pages/[...notfound].vue',
     real('src/modules/app/pages/[...notfound].vue'),
@@ -257,6 +277,7 @@ function seed() {
     hash: 'sha256-x',
     since: '1.0.0',
   }
+  lock.docs = TEMPLATE_DOCS
   writeLock(f.project, lock)
 }
 
@@ -283,11 +304,23 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   fixture.cleanup()
 })
 
-const eject = (flags: Record<string, unknown> = {}) =>
-  runEject({ root: fixture.project, flags: { ...FLAGS, ...flags } })
+// No payload unless a test supplies one: `vp exec vuestrata eject` in a project
+// built from the template runs the CLI from `packages/cli`, which has none.
+// `null`, not `undefined`, which would read the payload a maintainer's checkout
+// has once the gates built it, and make these tests depend on that.
+const eject = (flags: Record<string, unknown> = {}, source: { docs?: string[] } | null = null) =>
+  runEject({ root: fixture.project, flags: { ...FLAGS, ...flags }, source })
+
+/** Forget which `docs/` pages the template shipped, as a lock from before 1.1.0 has. */
+function forgetTemplateDocs() {
+  const lock = readLock(fixture.project)
+  lock.docs = undefined
+  writeLock(fixture.project, lock)
+}
 
 describe('eject and the files Vuestrata owns', () => {
   it('leaves core/lib/rbac byte-identical, and the lock reporting no drift', () => {
@@ -531,6 +564,378 @@ describe('eject and the docs-only dependencies', () => {
     const pkg = JSON.parse(fixture.read('package.json'))
     expect(pkg.dependencies).toHaveProperty('shiki')
     expect(pkg.dependencies).not.toHaveProperty('axe-core')
+  })
+})
+
+/** Everything eject says, joined, so a test reads what the person would. */
+function said() {
+  const lines: string[] = []
+  for (const level of ['log', 'info', 'warn', 'success', 'error'] as const) {
+    vi.spyOn(logger, level).mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(' '))
+    })
+  }
+  return lines
+}
+
+const ALIAS_SPEC = `import { test as base, expect } from '@playwright/test'
+
+const authed = base.extend<{ token: string }>({
+  token: async ({}, use) => {
+    await use('t')
+  },
+})
+
+authed('orders', async ({ page }) => {
+  await page.goto('/dashboard/orders')
+})
+
+authed('invoices', async ({ page }) => {
+  await page.goto('/dashboard/account')
+  await expect(page).toHaveURL(/account/)
+})
+`
+
+const FOREIGN_SPEC = `import { authedTest } from './fixtures'
+
+authedTest('orders list', async ({ page }) => {
+  await page.goto('/dashboard/orders')
+})
+
+authedTest('the account page', async ({ page }) => {
+  await page.goto('/dashboard/account')
+})
+`
+
+const HERO_SPEC = `import { test } from '@playwright/test'
+
+test('hero image upload', async ({ page }) => {
+  await page.goto('/dashboard/customers')
+})
+
+test('orders', async ({ page }) => {
+  await page.goto('/dashboard/orders')
+})
+`
+
+describe('eject and a spec written on a fixture', () => {
+  it('cuts the tests of an aliased fixture that visit removed routes, and keeps the file', () => {
+    fixture.write('e2e/alias.spec.ts', ALIAS_SPEC)
+    eject()
+
+    const spec = fixture.read('e2e/alias.spec.ts')
+    expect(spec).toContain('const authed = base.extend')
+    expect(spec).toContain("authed('invoices'")
+    expect(spec).not.toContain("authed('orders'")
+    expect(spec).not.toContain('/dashboard/orders')
+  })
+
+  it('keeps a spec it cannot read as tests, and names the tests that still touch a removed route', () => {
+    fixture.write('e2e/foreign.spec.ts', FOREIGN_SPEC)
+    const out = said()
+    eject()
+
+    expect(fixture.read('e2e/foreign.spec.ts')).toBe(FOREIGN_SPEC)
+    expect(out.join('\n')).toMatch(
+      /e2e\/foreign\.spec\.ts still visits removed routes in "orders list"\./,
+    )
+  })
+
+  it('says when a removed route is still named outside any test it could read', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\n" +
+      "const ORDERS = { path: '/dashboard/orders', title: 'Orders' }\n\n" +
+      "test('the account page', async ({ page }) => {\n  await page.goto('/dashboard/account')\n})\n"
+    fixture.write('e2e/stray.spec.ts', spec)
+    const out = said()
+    eject()
+
+    expect(fixture.read('e2e/stray.spec.ts')).toBe(spec)
+    expect(out.join('\n')).toContain(
+      'e2e/stray.spec.ts still names a removed route outside any test eject could read.',
+    )
+  })
+
+  it('deletes a spec only when no test-like call is left', () => {
+    const only = pruneSpec(
+      "import { test as base } from '@playwright/test'\nconst authed = base.extend({})\n" +
+        "authed('orders', async ({ page }) => {\n  await page.goto('/dashboard/orders')\n})\n",
+      ['/dashboard/orders'],
+    )
+    expect(only.contents).toBeNull()
+
+    const foreign = pruneSpec(FOREIGN_SPEC, ['/dashboard/orders'])
+    expect(foreign.contents).toBe(FOREIGN_SPEC)
+    expect(foreign.leftovers).toEqual(['orders list'])
+  })
+
+  it('does not take a describe for empty when its tests are on a fixture it cannot read', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\nimport { authedTest } from './fixtures'\n\n" +
+      "test.describe('accounts', () => {\n" +
+      "  authedTest('the account page', async ({ page }) => {\n    await page.goto('/dashboard/account')\n  })\n" +
+      '})\n\n' +
+      "test('orders', async ({ page }) => {\n  await page.goto('/dashboard/orders')\n})\n"
+
+    const result = pruneSpec(spec, ['/dashboard/orders'])
+
+    // The one test it can read goes; the describe it cannot see into stays.
+    expect(result.dropped).toBe(1)
+    expect(result.contents).not.toContain("test('orders'")
+    expect(result.contents).toContain("test.describe('accounts'")
+    expect(result.contents).toContain("authedTest('the account page'")
+    expect(result.leftovers).toEqual([])
+  })
+
+  it('keeps a spec whose hook opens a removed route when it cannot read the tests under it', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\nimport { authedTest } from './fixtures'\n\n" +
+      "test.beforeEach(async ({ page }) => {\n  await page.goto('/dashboard/orders')\n})\n\n" +
+      "test('sorts the list', async ({ page }) => {\n  await page.getByRole('columnheader').click()\n})\n\n" +
+      "authedTest('filters the list', async ({ page }) => {\n  await page.getByRole('button').click()\n})\n"
+
+    const result = pruneSpec(spec, ['/dashboard/orders'])
+
+    // The hook runs before both. The test it can read goes, as it would with
+    // the file; the other stays with the hook, and is named.
+    expect(result.contents).not.toBeNull()
+    expect(result.contents).not.toContain("test('sorts the list'")
+    expect(result.contents).toContain('test.beforeEach(')
+    expect(result.contents).toContain("authedTest('filters the list'")
+    expect(result.dropped).toBe(1)
+    expect(result.leftovers).toEqual(['filters the list'])
+
+    // Every test readable: the file goes, as before.
+    const readable = spec.replace("authedTest('filters", "test('filters")
+    expect(pruneSpec(readable, ['/dashboard/orders']).contents).toBeNull()
+  })
+
+  it('does the same for a describe: the hook and the tests it cannot read stay, and are named', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\nimport { authedTest } from './fixtures'\n\n" +
+      "test.describe('orders', () => {\n" +
+      "  test.beforeEach(async ({ page }) => {\n    await page.goto('/dashboard/orders')\n  })\n\n" +
+      "  authedTest('filters the list', async ({ page }) => {\n    await page.getByRole('button').click()\n  })\n" +
+      '})\n\n' +
+      "test('the account page', async ({ page }) => {\n  await page.goto('/dashboard/account')\n})\n"
+
+    const result = pruneSpec(spec, ['/dashboard/orders'])
+    expect(result.contents).toBe(spec)
+    expect(result.leftovers).toEqual(['filters the list'])
+
+    // With tests it can read, the describe goes whole and the rest stays.
+    const readable = pruneSpec(spec.replace("authedTest('filters", "test('filters"), [
+      '/dashboard/orders',
+    ])
+    expect(readable.contents).not.toContain("test.describe('orders'")
+    expect(readable.contents).toContain("test('the account page'")
+    expect(readable.leftovers).toEqual([])
+  })
+})
+
+describe('eject and the home-page tests', () => {
+  it('keeps a project test with hero in its title that visits a route that still exists', () => {
+    fixture.write('e2e/hero.spec.ts', HERO_SPEC)
+    eject()
+
+    const spec = fixture.read('e2e/hero.spec.ts')
+    expect(spec).toContain("test('hero image upload'")
+    expect(spec).not.toContain("test('orders'")
+  })
+
+  it('still drops the Home page tests of the template spec, with the page they open', () => {
+    fixture.write('e2e/app.spec.ts', real('e2e/app.spec.ts'))
+    eject()
+
+    const spec = fixture.read('e2e/app.spec.ts')
+    expect(spec).not.toContain("test.describe('Home page'")
+    expect(spec).not.toContain('should display the hero section')
+    // Not titled for the hero, but it opens the page that is now a redirect.
+    expect(spec).not.toContain('should toggle dark mode')
+    expect(spec).not.toContain('gotoReady')
+    expect(spec).toContain("test.describe('Auth flow'")
+    expect(spec).toContain("test.describe('404 page'")
+  })
+
+  it('keeps the tests of a landing page the project wrote, which eject leaves in place', () => {
+    fixture.write('src/modules/app/pages/index.vue', '<template><MyLanding /></template>\n')
+    fixture.write('e2e/app.spec.ts', real('e2e/app.spec.ts'))
+    eject()
+
+    const spec = fixture.read('e2e/app.spec.ts')
+    expect(spec).toContain("test.describe('Home page'")
+    expect(spec).toContain('should display the hero section')
+    expect(spec).toContain('should toggle dark mode')
+    // That one follows a link into the docs site, which is gone either way.
+    expect(spec).not.toContain('should navigate to component docs')
+  })
+
+  it('cuts a Home page describe whole only when every test in it opens the page', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\n" +
+      "test.describe('Home page', () => {\n" +
+      "  test('shows the hero', async ({ page }) => {\n    await page.goto('/')\n  })\n\n" +
+      "  test('links to the account', async ({ page }) => {\n    await page.goto('/dashboard/account')\n  })\n" +
+      '})\n'
+
+    const result = pruneSpec(spec, [], { home: true })
+    expect(result.contents).not.toContain('shows the hero')
+    expect(result.contents).toContain('links to the account')
+    expect(result.dropped).toBe(1)
+
+    // Without the page being replaced there is nothing to cut.
+    expect(pruneSpec(spec, [], { home: false }).contents).toBe(spec)
+    expect(pruneSpec(spec, []).changed).toBe(false)
+  })
+})
+
+describe('eject and docs/', () => {
+  it('removes only the pages the template ships, keeping the folder and what else is in it', () => {
+    fixture.write('docs/adr/0001-use-queries.md', '# ADR\n')
+    const out = said()
+    eject()
+
+    expect(fixture.exists('docs/index.md')).toBe(false)
+    expect(fixture.exists('docs/9.readiness.md')).toBe(false)
+    expect(fixture.read('docs/adr/0001-use-queries.md')).toBe('# ADR\n')
+    expect(out.join('\n')).toMatch(
+      /docs\/ was kept: it holds 1 file\(s\) that are not the template's \(docs\/adr\/0001-use-queries\.md\)/,
+    )
+
+    const { ejected } = readLock(fixture.project)
+    expect(ejected).toContain('docs/index.md')
+    expect(ejected).not.toContain('docs/adr/0001-use-queries.md')
+  })
+
+  it('keeps a page the project added among the template’s, even one numbered like them', () => {
+    fixture.write('docs/10.our-runbook.md', '# Runbook\n')
+    fixture.write('docs/1.getting-started/9.our-sso.md', '# SSO\n')
+    eject()
+
+    expect(fixture.read('docs/10.our-runbook.md')).toBe('# Runbook\n')
+    expect(fixture.read('docs/1.getting-started/9.our-sso.md')).toBe('# SSO\n')
+    expect(fixture.exists('docs/index.md')).toBe(false)
+  })
+
+  it('leaves a link to a page the project kept relative, and points the rest upstream', () => {
+    fixture.write('docs/adr/0001-use-queries.md', '# ADR\n')
+    fixture.write('README.md', `${README}\nSee [ADR](docs/adr/0001-use-queries.md).\n`)
+    eject()
+
+    const readme = fixture.read('README.md')
+    expect(readme).toContain('](docs/adr/0001-use-queries.md)')
+    expect(readme).toContain('/blob/v1.0.0/docs/index.md)')
+  })
+
+  it('removes the whole folder when everything in it is the template’s', () => {
+    eject()
+    expect(fixture.exists('docs')).toBe(false)
+  })
+
+  it('goes by the list this CLI ships when the lockfile predates its own', () => {
+    forgetTemplateDocs()
+    fixture.write('docs/runbook.md', '# Runbook\n')
+    // The release's list: one page this project has, one it never received.
+    eject({}, { docs: ['docs/index.md', 'docs/11.new-in-this-release.md'] })
+
+    expect(fixture.exists('docs/index.md')).toBe(false)
+    expect(fixture.exists('docs/9.readiness.md')).toBe(true)
+    expect(fixture.exists('docs/runbook.md')).toBe(true)
+  })
+
+  it('prefers the lockfile, which says what this project received, to the CLI’s list', () => {
+    eject({}, { docs: [] })
+    expect(fixture.exists('docs')).toBe(false)
+  })
+
+  it('removes no page when nothing lists the template’s, and says so', () => {
+    forgetTemplateDocs()
+    const out = said()
+    eject()
+
+    expect(fixture.exists('docs/index.md')).toBe(true)
+    expect(fixture.exists('docs/9.readiness.md')).toBe(true)
+    expect(out.join('\n')).toMatch(/docs\/ was kept: neither vuestrata\.lock\.json nor this CLI/)
+    // Kept, so the links into it still resolve and stay relative.
+    expect(fixture.read('README.md')).toContain('[Documentation](docs/index.md)')
+  })
+})
+
+describe('eject and the package.json scripts', () => {
+  it('keeps a project script that only shares a name with a template one', () => {
+    const pkg = JSON.parse(fixture.read('package.json'))
+    pkg.scripts['release:notes'] = 'node scripts/notes.mjs'
+    pkg.scripts['release:verify'] = 'vp check && vp test --run'
+    pkg.scripts['lint:maintainer'] = 'node scripts/own-gate.mjs'
+    fixture.write('package.json', `${JSON.stringify(pkg, null, 2)}\n`)
+    eject()
+
+    const { scripts } = JSON.parse(fixture.read('package.json'))
+    expect(scripts['release:notes']).toBe('node scripts/notes.mjs')
+    expect(scripts['release:verify']).toBe('vp check && vp test --run')
+    expect(scripts['lint:maintainer']).toBe('node scripts/own-gate.mjs')
+    // The template's own, unchanged, still go.
+    expect(scripts).not.toHaveProperty('cli:payload')
+  })
+})
+
+describe('eject and the home route', () => {
+  const HOME = 'src/modules/app/pages/index.vue'
+
+  it('leaves a landing page the project already wrote', () => {
+    const own = '<template><MyLanding /></template>\n'
+    fixture.write(HOME, own)
+    eject()
+    expect(fixture.read(HOME)).toBe(own)
+  })
+
+  it('is a clean no-op on a project that was already ejected', () => {
+    eject()
+
+    const manifest = loadManifest(fixture.project)
+    const plan = planEject({ root: fixture.project, manifest, flags: FLAGS })
+    expect(plan.removals).toEqual([])
+    expect(plan.edits).toEqual([])
+
+    const files = snapshot(fixture.project)
+    const out = said()
+    eject()
+    eject({ 'dry-run': true })
+
+    expect(snapshot(fixture.project)).toEqual(files)
+    expect(out.join('\n')).toContain('Nothing to eject')
+    expect(out.join('\n')).not.toContain('edit ')
+  })
+})
+
+describe('eject and what it reports', () => {
+  it('reports a real dangling import but not a generated declaration file', () => {
+    fixture.write(
+      'src/components.d.ts',
+      "declare module 'vue' {\n  DocsShell: typeof import('./modules/app/components/docs/DocsShell.vue')['default']\n}\n",
+    )
+    fixture.write(
+      'src/modules/app/lib/uses-docs.ts',
+      "import DocsShell from '@/components/docs/DocsShell.vue'\n\nexport default DocsShell\n",
+    )
+    const out = said()
+    eject()
+
+    const report = out.join('\n')
+    expect(report).toContain('src/modules/app/lib/uses-docs.ts')
+    expect(report).not.toContain('components.d.ts')
+  })
+
+  it('says the comark prose in SECURITY.md and dependabot.yml are stale once vendor/ goes', () => {
+    fixture.write('SECURITY.md', '### `comark` is a vendored pre-release, not a registry version\n')
+    fixture.write(
+      '.github/dependabot.yml',
+      'updates:\n  - ignore:\n      - dependency-name: comark\n',
+    )
+    const out = said()
+    eject()
+
+    expect(out.join('\n')).toMatch(/vendor\/ is gone.*SECURITY\.md.*dependabot\.yml/s)
   })
 })
 

@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { inSlot, slot } from '../lib/manifest.mjs'
 import { camel, pascal } from '../lib/naming.mjs'
 import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
@@ -61,10 +64,14 @@ export function planComponent({ plan, positional, options }) {
       'classes on the element, so themes can override it.',
   )
   plan.addNote(`Add a test at test/component/ui/${camel(base)}.test.ts.`)
-  plan.addNote(
-    `To document it, add an entry to COMPONENT_DEMO_DOCS in src/modules/app/config/component-docs.ts ` +
-      'and a demo page under src/modules/app/pages/components/.',
-  )
+  // The demo registry is one of the things `vuestrata eject` removes.
+  const demoDocs = 'src/modules/app/config/component-docs.ts'
+  if (fs.existsSync(path.join(plan.root, demoDocs))) {
+    plan.addNote(
+      `To document it, add an entry to COMPONENT_DEMO_DOCS in ${demoDocs} ` +
+        'and a demo page under src/modules/app/pages/components/.',
+    )
+  }
 
   return plan
 }
