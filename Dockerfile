@@ -15,6 +15,16 @@
 #
 # Builds for linux/amd64 and linux/arm64:
 #   docker buildx build --platform linux/arm64 -t vuestrata .
+#
+# BUILD ONCE, RUN ANYWHERE. The image is not tied to an environment: what
+# differs between staging and production is read when the container STARTS.
+#   docker run -e VUESTRATA_API_URL=https://api.staging.example.com vuestrata
+# See docker/entrypoint.d/40-vuestrata-runtime.sh, and "Build once, deploy
+# many" in docs/8.deployment/2.real-production.md for the variables.
+
+# The API URL, declared before the first FROM so both stages share one default:
+# the build inlines it, and the final stage hands it to the entrypoint.
+ARG VUESTRATA_API_URL=/api
 
 # ─── Stage 1: build ──────────────────────────────────────────────────────────
 FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
@@ -50,12 +60,17 @@ RUN vp install --frozen-lockfile
 
 COPY . .
 
-# Build configuration. These MUST be present at build time: Vite inlines
-# import.meta.env into the bundle, and the vuestrata:env plugin validates them
-# and fails the build on an invalid combination.
+# Build configuration. Vite inlines import.meta.env into the bundle, and the
+# vuestrata:env plugin validates these and fails the build on an invalid
+# combination.
+#
+# The runtime mode and the auth adapter decide what is IN the bundle, so they
+# exist only here. The others are defaults: a container may be started with a
+# different API URL, title, session persistence or release (and an
+# error-reporting DSN), and the value it is started with wins.
 ARG VUESTRATA_RUNTIME_MODE=production
 ARG VUESTRATA_AUTH_ADAPTER=jwt
-ARG VUESTRATA_API_URL=/api
+ARG VUESTRATA_API_URL
 ARG VUESTRATA_APP_TITLE=Vuestrata
 ARG VUESTRATA_SESSION_PERSISTENCE=refresh-cookie
 ARG VUESTRATA_RELEASE
@@ -66,17 +81,23 @@ ENV VUESTRATA_RUNTIME_MODE=$VUESTRATA_RUNTIME_MODE \
     VUESTRATA_SESSION_PERSISTENCE=$VUESTRATA_SESSION_PERSISTENCE \
     VUESTRATA_RELEASE=$VUESTRATA_RELEASE
 
-# Regenerate the security headers for THIS deployment's API origin.
+# Regenerate the header targets from scripts/security/headers.mjs and
+# src/modules/app/config/deploy.config.ts, so the image can never carry a copy
+# that someone forgot to regenerate after editing either.
 #
-# The committed copies assume a same-origin `/api` behind a reverse proxy. A
-# cross-origin backend needs its origin in `connect-src`, and getting that
-# wrong is silent in the worst way: a path is not a valid CSP source, and one
-# invalid source makes the browser discard the entire directive. Deriving it
-# from the same variable the app fetches with is what keeps them agreeing.
+# Nothing here depends on the API URL any more. What nginx gets is a server
+# block and three files under docker/runtime/: two templates and a list of
+# variable names. The entrypoint fills them when the container starts, from the
+# environment it starts in. That is what lets one image serve every
+# environment, where this step used to bake one API origin into the CSP.
 #
-# The same variable decides whether nginx answers an unrouted same-origin API
-# path with a JSON 502 (see docker/nginx.conf).
-RUN node scripts/security/sync-headers.mjs --api-url="$VUESTRATA_API_URL"
+# Before `vp build`, because index.html is one of the targets.
+RUN node scripts/security/sync-headers.mjs
+
+# A checkout made on Windows with `core.autocrlf` ends these files in \r\n. A
+# shell script whose first line is "#!/bin/sh\r" does not run at all, so the
+# line endings are settled here rather than left to the machine that built.
+RUN sed -i 's/\r$//' docker/entrypoint.d/*.sh docker/runtime/* docker/nginx.conf
 
 RUN vp build
 
@@ -107,12 +128,32 @@ FROM nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:ed04ec1ff34502c339ee5c3ae3
 USER root
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# The server block and the header snippet are GENERATED from
-# scripts/security/headers.mjs — one definition shared with vercel.json,
-# public/_headers and index.html, with `vpr lint` failing on drift. They used
-# to be a `printf` heredoc inside this file, which is how they fell out of sync.
+# The server block is GENERATED from scripts/security/headers.mjs — one
+# definition shared with vercel.json, public/_headers and index.html, with
+# `vpr lint` failing on drift. It used to be a `printf` heredoc inside this
+# file, which is how the copies fell out of sync.
 COPY --from=build /app/docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
+
+# What the entrypoint renders from, and the entrypoint itself. The nginx image
+# runs every executable *.sh in /docker-entrypoint.d before it starts the
+# server, and skips one that is not executable, so the mode is set here rather
+# than trusted to the checkout. Not under /etc/nginx/templates: the image's own
+# 20-envsubst-on-templates.sh would try to process anything placed there.
+COPY --from=build /app/docker/runtime/ /etc/vuestrata/runtime/
+COPY --from=build --chmod=0755 /app/docker/entrypoint.d/ /docker-entrypoint.d/
+
+# The entrypoint reads the API URL from the container's environment: its origin
+# goes into the CSP, or its path gets the unrouted-API answer. This makes the
+# value the image was BUILT with the default, so a container started with
+# nothing set agrees with its bundle. `docker run -e VUESTRATA_API_URL=…`
+# replaces it, for the app and for the headers alike.
+#
+# Only the API URL needs this. Any other variable the headers depend on
+# (`connectSrcFromEnv` in deploy.config.ts) must be in the container's
+# environment at start: a value given only as a build argument is in the
+# bundle, where the entrypoint cannot see it.
+ARG VUESTRATA_API_URL
+ENV VUESTRATA_API_URL=$VUESTRATA_API_URL
 
 USER nginx
 EXPOSE 8080
