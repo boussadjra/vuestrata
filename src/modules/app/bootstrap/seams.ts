@@ -1,3 +1,9 @@
+// deploy.config.ts: imported for what it checks rather than for a value.
+// `app-env.ts` validates the project's own variables against that file and
+// reports what the runtime overlay ignored. Loading it from here makes that
+// happen in every app, whether or not the project ever reads `appEnv`.
+import './app-env'
+
 /**
  * Where the project's seeded configuration files reach the runtime.
  *
