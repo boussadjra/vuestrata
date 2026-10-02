@@ -10,6 +10,7 @@ import {
   requireCapability,
   type AuthAdapter,
 } from '../adapters'
+import { safeRedirectPath } from '../lib/safe-redirect'
 import { useAuthChallengeStore } from '../stores/challenge'
 
 const authLogger = createScopedLogger('auth')
@@ -68,28 +69,6 @@ export async function exchangeOAuthCode(code: string, state: string) {
   const adapter = getAuthAdapter()
   requireCapability(adapter, 'codeExchange', adapter.exchangeCode)
   return adapter.exchangeCode(code, state)
-}
-
-/**
- * Whitelist post-login redirects to internal paths only. An attacker-controlled
- * `?redirect=//evil.com` or `?redirect=https://evil.com` would otherwise send
- * the freshly-authenticated user off-site (open redirect). Same-origin absolute
- * URLs are accepted but normalised back to a path so vue-router treats them as
- * in-app navigations.
- */
-function safeRedirectPath(raw: unknown, fallback = '/dashboard'): string {
-  if (typeof raw !== 'string' || raw.length === 0) return fallback
-  // Reject protocol-relative (`//host`) and any path starting with a backslash,
-  // which some browsers normalise to `/`.
-  if (raw.startsWith('//') || raw.startsWith('\\')) return fallback
-  if (raw.startsWith('/')) return raw
-  try {
-    const url = new URL(raw, window.location.origin)
-    if (url.origin !== window.location.origin) return fallback
-    return url.pathname + url.search + url.hash
-  } catch {
-    return fallback
-  }
 }
 
 export function useAuth() {
