@@ -7,6 +7,7 @@ import { apiFetch, installApiAuth } from '@/lib/api/client'
 import { AppError } from '@/lib/errors'
 import { createAuthAdapter } from '@/modules/auth'
 import { useAuthStore } from '@/stores/auth'
+import { readPersistedRefreshToken } from '~/lib/auth/session-persistence'
 import { runtimeEnv, type SessionPersistence } from '~/lib/config'
 import type { User } from '~/types'
 
@@ -289,6 +290,94 @@ describe('refresh-cookie (the production default)', () => {
     })
   })
 
+  it('keeps the cookie off every request that is not an auth call', async () => {
+    setPersistence('refresh-cookie')
+    const backend = cookieBackend()
+    const { store } = wire()
+    await signIn(store)
+
+    await apiFetch('/orders')
+    backend.expireAccessToken()
+    // A 401, the refresh, and the replay.
+    await apiFetch('/orders')
+
+    // "On /auth/* and nothing else": an API that answers `*` to its data
+    // routes keeps working, and no cookie rides along where none is needed.
+    expect(backend.requestsTo('/orders').map((request) => request.credentials)).toEqual([
+      'omit',
+      'omit',
+      'omit',
+    ])
+    expect(backend.requestsTo('/auth/refresh').map((request) => request.credentials)).toEqual([
+      'include',
+    ])
+  })
+
+  it('does not call a sign-out an expiry when a request comes back 401 after it', async () => {
+    setPersistence('refresh-cookie')
+    const backend = cookieBackend()
+    const { store, router } = wire()
+    await signIn(store)
+
+    await createAuthAdapter('jwt').logout()
+    store.clearAuth('logout')
+    // A request that was already on its way, or a component that had not
+    // unmounted yet.
+    await expect(apiFetch('/orders')).rejects.toMatchObject({ status: 401 })
+
+    expect(backend.state.cookie).toBeNull()
+    // The visitor signed out. The login page must not tell them they expired.
+    expect(router.replace).not.toHaveBeenCalled()
+  })
+
+  it('drops a refresh that answers after its user signed out and another signed in', async () => {
+    setPersistence('refresh-cookie')
+    const backend = cookieBackend()
+    const { store, router } = wire()
+    const grace = { ...user, id: 'u2', name: 'Grace Hopper', email: 'grace@example.test' } as User
+    await signIn(store)
+
+    // Ada's access token runs out, and the refresh for it is slow.
+    backend.expireAccessToken()
+    let asked = false
+    let answer: () => void = () => {}
+    const held = new Promise<void>((resolve) => {
+      answer = resolve
+    })
+    server.use(
+      http.post(
+        '*/api/auth/refresh',
+        async () => {
+          asked = true
+          await held
+          return HttpResponse.json({ token: 'access-for-ada', expiresIn: 900 })
+        },
+        { once: true },
+      ),
+    )
+    const adasRequest = apiFetch('/orders').then(
+      () => undefined,
+      (reason: unknown) => reason,
+    )
+    await vi.waitFor(() => expect(asked).toBe(true))
+
+    // She signs out, and Grace signs in on the same tab, before it answers.
+    await createAuthAdapter('jwt').logout()
+    store.clearAuth('logout')
+    const login = await createAuthAdapter('jwt').login({ email: grace.email, password: 'pw' })
+    store.setAuth(grace, login.token, login.refreshToken, login.expiresIn)
+    answer()
+
+    // Ada's request is abandoned, not answered and not reported as an expiry.
+    expect(await adasRequest).toMatchObject({ kind: 'aborted' })
+    expect(router.replace).not.toHaveBeenCalled()
+    // Grace holds her own token, and it works.
+    expect(store.user).toEqual(grace)
+    expect(store.token).toBe(login.token)
+    await expect(apiFetch('/orders')).resolves.toEqual({ ok: true })
+    store.clearRefreshTimer()
+  })
+
   it('treats a reload with no cookie as signed out, without touching /auth/me', async () => {
     setPersistence('refresh-cookie')
     const backend = cookieBackend()
@@ -446,6 +535,35 @@ describe.each(['session', 'local'] as const)('%s storage', (mode) => {
     expect(reloaded.store.token).toBe('access-2')
     // The rotation was written back, so the NEXT reload presents a live token.
     expect(reloaded.store.refreshToken).toBe('refresh-2')
+  })
+
+  it('keeps the rotated refresh token when the user cannot be loaded', async () => {
+    setPersistence(mode)
+    const backend = bodyTokenBackend()
+    const { store } = wire()
+    await signIn(store)
+    expect(readPersistedRefreshToken()).toBe('refresh-1')
+    server.use(
+      http.get('*/api/auth/me', () => HttpResponse.json({}, { status: 500 }), { once: true }),
+    )
+
+    const failed = await reload()
+
+    // The refresh went through and spent `refresh-1`; the resume did not.
+    expect(backend.requestsTo('/auth/refresh')).toHaveLength(1)
+    expect(failed.store.isAuthenticated).toBe(false)
+    // What is stored is the token the backend now expects. Left as it was, the
+    // next boot would present a spent token to a backend that reads a replay
+    // as theft.
+    expect(readPersistedRefreshToken()).toBe('refresh-2')
+
+    const retried = await reload()
+
+    expect(backend.requestsTo('/auth/refresh')[1]?.body).toBe(
+      JSON.stringify({ refreshToken: 'refresh-2' }),
+    )
+    expect(retried.store.user).toEqual(user)
+    expect(retried.store.token).toBe('access-3')
   })
 
   it('refreshes mid-session with the held token and replays the request', async () => {

@@ -1,6 +1,7 @@
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
+import { appEvents } from '@/lib/events'
 import { logger } from '@/lib/logger'
 import type { createAuthAdapter as createAdapter } from '@/modules/auth'
 import { restoreSession as restoreSessionDefault } from '@/plugins/session-restore'
@@ -22,7 +23,8 @@ import { loadDemoState, type DemoState } from './demo'
  * `clearAuth` takes an optional reason (1.1.0). A store from before that
  * ignores the argument and does not announce `auth.logout`, so a project that
  * edited its store also keeps the previous user's query cache until it merges
- * the new one.
+ * the new one, and a sign-out through it is not seen by the wiring below: only
+ * an expiry then drops a refresh in flight.
  */
 export interface AuthWiringStore {
   readonly user: User | null
@@ -85,12 +87,77 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
   // wrote (or edited) before `refreshSession` existed does not have it.
   const refreshSession =
     typeof adapter.refreshSession === 'function' ? adapter.refreshSession.bind(adapter) : null
-  let refreshInFlight: ReturnType<NonNullable<typeof refreshSession>> | null = null
-  function refreshOnce() {
-    refreshInFlight ??= refreshSession!().finally(() => {
-      refreshInFlight = null
-    })
-    return refreshInFlight
+  type Refreshed = Awaited<ReturnType<NonNullable<typeof refreshSession>>>
+  let refreshInFlight: Promise<Refreshed> | null = null
+
+  // Which session is in progress. A refresh takes a round trip, and the person
+  // it was started for can sign out, and somebody else sign in, before it
+  // answers. Every session end moves this on, and a refresh that began under
+  // an earlier value is dropped: the next session neither joins it nor
+  // receives its token.
+  let sessionEpoch = 0
+  // The access token the last refresh produced, and the session it was for.
+  let minted: { token: string; epoch: number } | null = null
+  // A session ended by expiry that nobody has been told about yet. It is what
+  // separates an expiry (worth a redirect and a notice) from a request that
+  // came back 401 after a sign-out, or for a visitor who never signed in.
+  let unreportedExpiry = false
+
+  function sessionEnded(reason?: 'logout' | 'expired') {
+    sessionEpoch++
+    refreshInFlight = null
+    unreportedExpiry = reason === 'expired'
+  }
+
+  const hasSession = () => authStore.user !== null || authStore.token !== null
+
+  /** End the session as expired. Answers whether there was one to end. */
+  function expireSession(): boolean {
+    const had = hasSession()
+    authStore.clearAuth('expired')
+    // The store announces this itself, and the listener below hears it. A
+    // store from before 1.1.0 announces nothing, so it is recorded here too.
+    if (had) sessionEnded('expired')
+    // Drop any in-flight refresh and the cooldown window so a fresh login on
+    // the same page does not inherit the previous session's interceptor state.
+    resetAuthInterceptor()
+    return had
+  }
+
+  // Every other way a session ends: `useAuth().logout()`, another tab, a
+  // `/auth/me` that answered 401. The subscription lasts as long as the
+  // provider installed below, which is the lifetime of the app.
+  appEvents.on('auth.logout', ({ reason }) => {
+    sessionEnded(reason)
+    resetAuthInterceptor()
+  })
+
+  function refreshOnce(): Promise<Refreshed> {
+    if (refreshInFlight) return refreshInFlight
+
+    const startedIn = sessionEpoch
+    const discard = () => {
+      logger.info('A token refresh answered after its session ended — discarding it')
+      return null
+    }
+    const flight: Promise<Refreshed> = refreshSession!()
+      .then(
+        (result) => {
+          if (startedIn !== sessionEpoch) return discard()
+          if (result?.token) minted = { token: result.token, epoch: startedIn }
+          return result
+        },
+        (err: unknown) => {
+          // A failure nobody is waiting for any more is not a failed attempt.
+          if (startedIn !== sessionEpoch) return discard()
+          throw err
+        },
+      )
+      .finally(() => {
+        if (refreshInFlight === flight) refreshInFlight = null
+      })
+    refreshInFlight = flight
+    return flight
   }
   const canRefresh = (): boolean =>
     typeof adapter.canRefreshSession !== 'function' || adapter.canRefreshSession()
@@ -102,6 +169,10 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
     getToken: () => authStore.token,
     getRefreshToken: () => authStore.refreshToken,
     setAuth: (token, refreshToken, expiresIn) => {
+      if (minted?.token === token && minted.epoch !== sessionEpoch) {
+        logger.warn('Token refreshed for a session that has ended — discarding new token')
+        return
+      }
       const user = authStore.user
       if (!user) {
         logger.warn('Token refreshed but no user in store — discarding new token')
@@ -113,18 +184,19 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
     },
     clearAuth: () => {
       // Reached when every refresh attempt failed: the session is over.
-      authStore.clearAuth('expired')
-      // Drop any in-flight refresh and the cooldown window so a fresh
-      // login on the same page does not inherit the previous session's
-      // interceptor state.
-      resetAuthInterceptor()
+      expireSession()
     },
     onSessionExpired: () => {
       // Read the location before clearing: it is what the visitor gets back to.
       const target = expiredSessionTarget(router.currentRoute?.value)
-      authStore.clearAuth('expired')
-      resetAuthInterceptor()
-      if (!target) return
+      // The refresh that was refused a moment ago has usually cleared the
+      // session already, which is the expiry still to be reported.
+      const expired = expireSession() || unreportedExpiry
+      unreportedExpiry = false
+      // A request can come back 401 just after a sign-out, or for a visitor
+      // who never had a session. Neither of them was signed out by a timer,
+      // and the login page must not tell them so.
+      if (!expired || !target) return
       router.replace(target).catch((err) => {
         logger.error('Redirect to login failed after session expiry', { err })
       })
@@ -141,10 +213,14 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
   // refresh, not only when JavaScript holds a refresh token: under
   // `refresh-cookie` it never does.
   authStore.setRefreshHandler(async () => {
+    // The session this timer fired for. Whatever comes back after it ended is
+    // not written anywhere: the store may hold somebody else by then.
+    const startedIn = sessionEpoch
     try {
       if (refreshSession) {
         if (!canRefresh()) return
         const result = await refreshOnce()
+        if (startedIn !== sessionEpoch) return
         if (result?.token && authStore.user) {
           authStore.setAuth(authStore.user, result.token, result.refreshToken, result.expiresIn)
         }
@@ -158,10 +234,12 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
       if (!rt) return
       if (!adapter.capabilities.refresh || !adapter.refreshToken) return
       const result = await adapter.refreshToken(rt)
+      if (startedIn !== sessionEpoch) return
       if (authStore.user) {
         authStore.setAuth(authStore.user, result.token, result.refreshToken, result.expiresIn)
       }
     } catch (err) {
+      if (startedIn !== sessionEpoch) return
       logger.warn('Proactive token refresh failed — falling back to 401 interceptor', { err })
     }
   })

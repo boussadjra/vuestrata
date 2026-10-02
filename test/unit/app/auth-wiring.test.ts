@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import {
   expiredSessionTarget,
@@ -8,6 +8,8 @@ import {
 import type { AuthWiringStore } from '@/bootstrap/auth-wiring'
 import type { createAuthAdapter } from '@/modules/auth'
 import type { restoreSession as restoreSessionDefault } from '@/plugins/session-restore'
+import { useAuthStore } from '@/stores/auth'
+import { appEvents } from '~/lib/events'
 import { getApiAuthBackend } from '~/lib/runtime'
 import type { User } from '~/types'
 
@@ -83,6 +85,11 @@ function wire(store: AuthWiringStore, adapter: Adapter, router = fakeRouter()) {
 
 describe('setupAuthInterceptor', () => {
   beforeEach(() => vi.clearAllMocks())
+  // Each wiring subscribes to the session ending; the bus outlives the test.
+  afterEach(() => {
+    vi.restoreAllMocks()
+    appEvents.clear('auth.logout')
+  })
 
   it('installs the store as the API client auth provider, with the adapter transport', () => {
     const store = fakeStore()
@@ -165,6 +172,129 @@ describe('setupAuthInterceptor', () => {
       expect(router.replace).not.toHaveBeenCalled()
     })
 
+    /**
+     * A 401 is not always an expiry. A request already on its way when the
+     * visitor signs out comes back 401 too, and the login page would then tell
+     * somebody who has just signed out that their session expired.
+     */
+    describe('when nothing expired', () => {
+      const ada = { id: 'a', email: 'ada@example.com', role: 'admin' } as unknown as User
+
+      function wireRealStore() {
+        const store = useAuthStore()
+        const heard = vi.fn()
+        return { store, heard, ...wire(store, fakeAdapter()) }
+      }
+
+      it('does not redirect, or say so, after an explicit sign-out', () => {
+        const { store, provider, router } = wireRealStore()
+        store.setAuth(ada, 'A1')
+        store.clearAuth('logout')
+
+        provider.onSessionExpired?.()
+
+        expect(router.replace).not.toHaveBeenCalled()
+      })
+
+      it('does not redirect a visitor who never had a session', () => {
+        const { store, heard, provider, router } = wireRealStore()
+        appEvents.on('auth.logout', heard)
+
+        provider.onSessionExpired?.()
+
+        expect(router.replace).not.toHaveBeenCalled()
+        expect(heard).not.toHaveBeenCalled()
+        expect(store.isAuthenticated).toBe(false)
+      })
+
+      it('does not redirect when a session was ended without a reason', () => {
+        const { store, provider, router } = wireRealStore()
+        store.setAuth(ada, 'A1')
+        store.clearAuth()
+
+        provider.onSessionExpired?.()
+
+        expect(router.replace).not.toHaveBeenCalled()
+      })
+
+      it('still redirects when the refused refresh cleared the session first', () => {
+        const { store, provider, router } = wireRealStore()
+        store.setAuth(ada, 'A1')
+
+        // The order the 401 path runs them in.
+        provider.clearAuth()
+        provider.onSessionExpired?.()
+
+        expect(router.replace).toHaveBeenCalledExactlyOnceWith({
+          name: '/auth/login',
+          query: { redirect: '/dashboard/orders?tab=open', reason: 'expired' },
+        })
+      })
+
+      it('reports one expiry once, however many requests failed with it', () => {
+        const { store, provider, router } = wireRealStore()
+        store.setAuth(ada, 'A1')
+
+        provider.clearAuth()
+        provider.onSessionExpired?.()
+        provider.onSessionExpired?.()
+        provider.onSessionExpired?.()
+
+        expect(router.replace).toHaveBeenCalledOnce()
+      })
+
+      it('still redirects when something else noticed the expiry first', () => {
+        const { store, provider, router } = wireRealStore()
+        store.setAuth(ada, 'A1')
+        // `useAuth().fetchUser()` on a 401 from `/auth/me`, for one.
+        store.clearAuth('expired')
+
+        provider.onSessionExpired?.()
+
+        expect(router.replace).toHaveBeenCalledOnce()
+      })
+
+      it('does not carry an unreported expiry into the next session', () => {
+        const { store, provider, router } = wireRealStore()
+        store.setAuth(ada, 'A1')
+        store.clearAuth('expired')
+        store.setAuth(ada, 'A2')
+        store.clearAuth('logout')
+
+        provider.onSessionExpired?.()
+
+        expect(router.replace).not.toHaveBeenCalled()
+      })
+
+      it('works with a store that announces nothing (one edited before 1.1.0)', () => {
+        const session = { user: ada as User | null, token: 'A1' as string | null }
+        const store = {
+          get user() {
+            return session.user
+          },
+          get token() {
+            return session.token
+          },
+          refreshToken: null,
+          isAuthenticated: true,
+          setAuth: vi.fn(),
+          setUser: vi.fn(),
+          clearAuth: vi.fn(() => {
+            session.user = null
+            session.token = null
+          }),
+          setRefreshHandler: vi.fn(),
+        } satisfies AuthWiringStore
+        const { provider, router } = wire(store, fakeAdapter())
+
+        provider.clearAuth()
+        provider.onSessionExpired?.()
+        provider.onSessionExpired?.()
+
+        expect(router.replace).toHaveBeenCalledOnce()
+      })
+    })
+
     it('treats a route that declares only a permission as protected', () => {
       expect(
         expiredSessionTarget({
@@ -235,6 +365,205 @@ describe('setupAuthInterceptor', () => {
       // Once it has settled, the next refresh is a new request.
       void provider.refresh!()
       expect(refreshSession).toHaveBeenCalledTimes(2)
+    })
+
+    /**
+     * A refresh takes a round trip, and the person it was started for can sign
+     * out, and somebody else sign in, before it answers. These run against the
+     * real store, because the session ending is something the store announces.
+     */
+    describe('a refresh that outlives its session', () => {
+      const ada = { id: 'a', email: 'ada@example.com', role: 'admin' } as unknown as User
+      const grace = { id: 'b', email: 'grace@example.com', role: 'manager' } as unknown as User
+
+      type Refreshed = { token: string; refreshToken?: string; expiresIn?: number }
+
+      /** An adapter whose refreshes stay pending until the test answers them. */
+      function heldRefreshes() {
+        const pending: Array<{
+          resolve: (value: Refreshed) => void
+          reject: (reason: unknown) => void
+        }> = []
+        const refreshSession = vi.fn(
+          () => new Promise<Refreshed>((resolve, reject) => pending.push({ resolve, reject })),
+        )
+        return { pending, refreshSession }
+      }
+
+      function wireRealStore(adapter: Partial<Adapter>) {
+        const store = useAuthStore()
+        const setRefreshHandler = vi.spyOn(store, 'setRefreshHandler')
+        const wired = wire(store, fakeAdapter(adapter))
+        return { store, ...wired, proactive: firstArg<() => Promise<void>>(setRefreshHandler) }
+      }
+
+      it('is not joined by the next session, and its token is never written', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, provider } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const forAda = provider.refresh!()
+        store.clearAuth('logout')
+        store.setAuth(grace, 'B1')
+        const forGrace = provider.refresh!()
+
+        // Grace's refresh is her own request, not Ada's still in flight.
+        expect(refreshSession).toHaveBeenCalledTimes(2)
+
+        pending[0]!.resolve({ token: 'A2' })
+        await expect(forAda).resolves.toBeNull()
+        expect(store.token).toBe('B1')
+
+        pending[1]!.resolve({ token: 'B2' })
+        const answer = await forGrace
+        expect(answer).toEqual({ token: 'B2' })
+        provider.setAuth(answer!.token, '')
+
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('B2')
+      })
+
+      it('does not let the old refresh, when it settles, end the join on the new one', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, provider } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        void provider.refresh!()
+        store.clearAuth('logout')
+        store.setAuth(grace, 'B1')
+        const first = provider.refresh!()
+        pending[0]!.resolve({ token: 'A2' })
+        await Promise.resolve()
+        await Promise.resolve()
+
+        // A second request of Grace's still joins her refresh in flight.
+        expect(provider.refresh!()).toBe(first)
+        expect(refreshSession).toHaveBeenCalledTimes(2)
+      })
+
+      it('resolves to nothing when it fails after the session ended', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, provider } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const forAda = provider.refresh!()
+        store.clearAuth('logout')
+        pending[0]!.reject(new Error('offline'))
+
+        // Nobody is waiting for it: not a failed attempt worth retrying.
+        await expect(forAda).resolves.toBeNull()
+      })
+
+      it('still rejects when it fails within its own session', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, provider } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const forAda = provider.refresh!()
+        pending[0]!.reject(new Error('offline'))
+
+        await expect(forAda).rejects.toThrow('offline')
+      })
+
+      it('applies a refresh that completes within the same session', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, provider } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const forAda = provider.refresh!()
+        pending[0]!.resolve({ token: 'A2', expiresIn: 900 })
+        const answer = await forAda
+        provider.setAuth(answer!.token, '', answer!.expiresIn)
+
+        expect(store.user).toEqual(ada)
+        expect(store.token).toBe('A2')
+        store.clearRefreshTimer()
+      })
+
+      it('does not store a token whose session ended before it could be written', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, provider } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const forAda = provider.refresh!()
+        pending[0]!.resolve({ token: 'A2' })
+        const answer = await forAda
+        // The refresh answered in time, and the session ended before the
+        // interceptor got to store what it was handed.
+        store.clearAuth('logout')
+        store.setAuth(grace, 'B1')
+        provider.setAuth(answer!.token, '')
+
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('B1')
+      })
+
+      it('discards a proactive refresh that answers after the session ended', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, proactive } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const scheduled = proactive()
+        store.clearAuth('logout')
+        store.setAuth(grace, 'B1')
+        pending[0]!.resolve({ token: 'A2', refreshToken: 'A-refresh-2' })
+        await scheduled
+
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('B1')
+        expect(store.refreshToken).toBeNull()
+      })
+
+      it('applies a proactive refresh that answers within the same session', async () => {
+        const { pending, refreshSession } = heldRefreshes()
+        const { store, proactive } = wireRealStore({ refreshSession } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const scheduled = proactive()
+        pending[0]!.resolve({ token: 'A2' })
+        await scheduled
+
+        expect(store.user).toEqual(ada)
+        expect(store.token).toBe('A2')
+      })
+
+      it('discards a late answer from an adapter with only the body-token refresh', async () => {
+        let answer: (value: { token: string; refreshToken: string }) => void = () => {}
+        const refreshToken = vi.fn(
+          () =>
+            new Promise<{ token: string; refreshToken: string }>((resolve) => {
+              answer = resolve
+            }),
+        )
+        const { store, proactive } = wireRealStore({
+          refreshToken,
+        } as unknown as Partial<Adapter>)
+        store.setAuth(ada, 'A1', 'A-refresh-1')
+
+        const scheduled = proactive()
+        store.clearAuth('logout')
+        store.setAuth(grace, 'B1', 'B-refresh-1')
+        answer({ token: 'A2', refreshToken: 'A-refresh-2' })
+        await scheduled
+
+        expect(store.token).toBe('B1')
+        expect(store.refreshToken).toBe('B-refresh-1')
+      })
+
+      it('forgets the interceptor state of a session that signed out', () => {
+        const { store } = wireRealStore({})
+        store.setAuth(ada, 'A1')
+        const backend = getApiAuthBackend()
+        backend.setRefreshPromise(Promise.resolve('A2'))
+        backend.setLastRefreshedAt(Date.now())
+
+        store.clearAuth('logout')
+
+        // Otherwise the next session's first 401 joins this refresh, or is
+        // told inside the cooldown that its token was only just refreshed.
+        expect(backend.getRefreshPromise()).toBeNull()
+        expect(backend.getLastRefreshedAt()).toBe(0)
+      })
     })
 
     it('leaves them off for an adapter written before they existed, so the interceptor keeps its own path', () => {

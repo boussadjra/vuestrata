@@ -57,14 +57,17 @@ vi.mock('~/modules/auth', () => {
   }
 })
 
-function mountLoginPage() {
-  const router = createRouter({
+function createLoginRouter() {
+  return createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/auth/login', component: LoginPage },
       { path: '/auth/register', component: { template: '<div />' } },
     ],
   })
+}
+
+function mountLoginPage(router = createLoginRouter()) {
   const pinia = createPinia()
   setActivePinia(pinia)
 
@@ -74,6 +77,14 @@ function mountLoginPage() {
       stubs: { Logo: true },
     },
   })
+}
+
+/** The page as somebody arriving at `url` sees it. */
+async function mountLoginPageAt(url: string) {
+  const router = createLoginRouter()
+  await router.push(url)
+  await router.isReady()
+  return mountLoginPage(router)
 }
 
 function buttonByText(wrapper: ReturnType<typeof mount>, text: string) {
@@ -162,6 +173,41 @@ describe('login page — MFA', () => {
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(authMocks.verifyMfaCode).toHaveBeenCalledWith('000000')
+  })
+})
+
+describe('login page — why the visitor is here', () => {
+  const NOTICE = 'Your session expired'
+
+  it('says the session expired when the expiry redirect brought them', async () => {
+    const wrapper = await mountLoginPageAt(
+      '/auth/login?redirect=%2Fdashboard%2Forders&reason=expired',
+    )
+
+    const notice = wrapper.find('[role="status"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text()).toContain(NOTICE)
+    // It explains the form; it does not replace it.
+    expect(wrapper.find('#email').exists()).toBe(true)
+  })
+
+  it('says nothing when they came to sign in', async () => {
+    const wrapper = await mountLoginPageAt('/auth/login')
+
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain(NOTICE)
+  })
+
+  it('says nothing for a destination alone, as the route guard sends it', async () => {
+    const wrapper = await mountLoginPageAt('/auth/login?redirect=%2Fdashboard%2Forders')
+
+    expect(wrapper.text()).not.toContain(NOTICE)
+  })
+
+  it('says nothing for a reason it does not know', async () => {
+    const wrapper = await mountLoginPageAt('/auth/login?reason=<b>expired</b>')
+
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
   })
 })
 

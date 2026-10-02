@@ -168,6 +168,128 @@ describe('a provider with refresh()', () => {
   })
 })
 
+/**
+ * `resetAuthInterceptor()` is how the auth layer says a session ended. A
+ * refresh still out at that moment belongs to nobody: it used to write its
+ * token onto whoever signed in next, clear that session when it failed, and
+ * report an expiry that ended it.
+ */
+describe('a refresh that outlives its session', () => {
+  type Answer = { token: string } | null
+
+  /** A provider whose refreshes stay pending until the test answers them. */
+  function heldProvider() {
+    const pending: Array<{ resolve: (value: Answer) => void; reject: (reason: unknown) => void }> =
+      []
+    const refresh = vi.fn(
+      () => new Promise<Answer>((resolve, reject) => pending.push({ resolve, reject })),
+    )
+    const onSessionExpired = vi.fn()
+    return { pending, refresh, ...createProvider({ refresh, onSessionExpired }) }
+  }
+
+  it('abandons the request instead of storing the token or reporting an expiry', async () => {
+    const { pending, provider } = heldProvider()
+
+    const waiting = handleTokenRefresh(baseURL, {})
+    resetAuthInterceptor()
+    pending[0]!.resolve({ token: 'access-2' })
+
+    // Not `false`: the client reads that as "the session expired" and would
+    // sign out whoever is there now.
+    await expect(waiting).rejects.toMatchObject({ kind: 'aborted' })
+    expect(provider.setAuth).not.toHaveBeenCalled()
+    expect(provider.clearAuth).not.toHaveBeenCalled()
+  })
+
+  it('does not clear the next session when it is refused', async () => {
+    const { pending, provider } = heldProvider()
+
+    const waiting = handleTokenRefresh(baseURL, {})
+    resetAuthInterceptor()
+    pending[0]!.reject(refused(401))
+
+    await expect(waiting).rejects.toMatchObject({ kind: 'aborted' })
+    expect(provider.clearAuth).not.toHaveBeenCalled()
+  })
+
+  it('stops retrying once the session has ended', async () => {
+    vi.useFakeTimers()
+    const { pending, refresh, provider } = heldProvider()
+
+    const waiting = handleTokenRefresh(baseURL, {})
+    const outcome = expect(waiting).rejects.toMatchObject({ kind: 'aborted' })
+    pending[0]!.reject(refused(503))
+    await vi.advanceTimersByTimeAsync(100)
+    resetAuthInterceptor()
+    await vi.advanceTimersByTimeAsync(2000)
+
+    await outcome
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(provider.clearAuth).not.toHaveBeenCalled()
+  })
+
+  it('is not joined by the next session, and does not break up that join when it settles', async () => {
+    const { pending, refresh, provider } = heldProvider()
+
+    const previous = handleTokenRefresh(baseURL, {})
+    resetAuthInterceptor()
+    const first = handleTokenRefresh(baseURL, {})
+    expect(refresh).toHaveBeenCalledTimes(2)
+
+    pending[0]!.resolve({ token: 'previous-session' })
+    await expect(previous).rejects.toMatchObject({ kind: 'aborted' })
+
+    // The old refresh settling used to empty the slot the new one sits in, so
+    // this request started a third refresh beside it.
+    const second = handleTokenRefresh(baseURL, {})
+    expect(refresh).toHaveBeenCalledTimes(2)
+
+    pending[1]!.resolve({ token: 'access-2' })
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true])
+    expect(provider.setAuth).toHaveBeenCalledExactlyOnceWith('access-2', '', undefined)
+  })
+
+  it('leaves no cooldown behind for the next session', async () => {
+    const { pending, refresh } = heldProvider()
+
+    const previous = handleTokenRefresh(baseURL, {})
+    resetAuthInterceptor()
+    pending[0]!.resolve({ token: 'previous-session' })
+    await expect(previous).rejects.toMatchObject({ kind: 'aborted' })
+
+    // Inside a cooldown this would answer true without asking at all.
+    void handleTokenRefresh(baseURL, {}).catch(() => {})
+    expect(refresh).toHaveBeenCalledTimes(2)
+  })
+
+  it('does the same for a provider without refresh()', async () => {
+    let respond: (response: Response) => void = () => {}
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          respond = resolve
+        }),
+    )
+    const { provider, state } = createProvider()
+    state.refreshToken = 'refresh-1'
+
+    const waiting = handleTokenRefresh(baseURL, {})
+    const outcome = expect(waiting).rejects.toMatchObject({ kind: 'aborted' })
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledOnce())
+    resetAuthInterceptor()
+    respond(
+      new Response(JSON.stringify({ token: 'access-2', refreshToken: 'refresh-2' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+
+    await outcome
+    expect(provider.setAuth).not.toHaveBeenCalled()
+  })
+})
+
 describe('a provider without refresh() (the 1.0 shape)', () => {
   function respondWith(body: unknown, status = 200) {
     return vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
