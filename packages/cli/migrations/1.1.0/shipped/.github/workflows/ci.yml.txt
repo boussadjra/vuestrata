@@ -1,0 +1,396 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push to the same branch makes an in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      - run: vp lint
+      - run: node scripts/lint/run-custom-rules.mjs
+      # The committed MSW worker does not update when the dependency does. A
+      # stale one fails MSW's integrity check at runtime and silently disables
+      # mocking, which would take the whole hosted demo down.
+      - run: node scripts/msw/check-worker-version.mjs
+      # Node, pnpm and Vite+ are pinned by hand in the Dockerfile, vercel.json
+      # and this file. They had all drifted apart, so the image users receive
+      # was built by a toolchain CI never ran. One source of truth each, checked.
+      - run: node scripts/lint/check-toolchain-pins.mjs
+      # The security headers exist in four places (vercel.json, public/_headers,
+      # the nginx config, index.html). They used to be kept in sync by a comment
+      # asking the next person to remember.
+      - run: node scripts/security/sync-headers.mjs --check
+      # Docs rot silently: a path renamed in a refactor leaves the prose
+      # pointing at a file nobody will find, and nothing fails. This checks the
+      # claims a machine can verify — that every source path and relative link
+      # still resolves.
+      - run: node scripts/docs/check-links.mjs
+      # The steps above are what `vpr lint` runs for a project. `vpr lint` also
+      # used to end with the template-lock check, which this job never ran, so
+      # the shipped lockfile could go stale with CI green. This is the gate that
+      # was missing; it is the template's own, not a project's.
+      #
+      # Only in the template's own repository: a project built from the template
+      # inherits this file, and would fail these on its first `add module`,
+      # version bump or edit to a managed file. If the repository is renamed,
+      # update the slug here and in the test job, or the maintainer gates stop
+      # running without any job failing.
+      - name: Maintainer gates (template lock, CLI payload)
+        if: github.repository == 'boussadjra/vuestrata'
+        run: vpr lint:maintainer
+      - run: vpr fmt --check
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      - run: vp exec vue-tsc --noEmit
+      # `e2e/` is excluded from tsconfig.json, so the line above never sees it.
+      # Without this the specs are only compiled by Playwright at run time —
+      # after build and unit tests have already reported green.
+      - run: vp exec tsc --noEmit -p tsconfig.e2e.json
+
+  test:
+    name: Tests (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # All three suites now run. Previously only `unit` did, so the component
+        # and integration suites could rot without anyone noticing.
+        suite: [unit, component, integration]
+    env:
+      # Turns on test/unit/architecture/public-surface.test.ts, which snapshots
+      # this repository's own modules and permissions. Empty in a project built
+      # from the template, where the first `add module` would change both.
+      VUESTRATA_MAINTAINER: ${{ github.repository == 'boussadjra/vuestrata' && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, which brings the release tags. The migration tests
+          # compare against what each tag shipped, and without the tags they
+          # skip: green without having run.
+          fetch-depth: 0
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      - run: vpr test:${{ matrix.suite }} -- --coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ matrix.suite }}
+          path: coverage/
+
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Both artifacts are built and verified on every change. Building only
+          # one leaves the other free to break unnoticed until release day.
+          - target: demo
+            runtime_mode: demo
+            use_mocks: 'true'
+            auth_adapter: mock
+            api_url: /api
+          - target: production
+            runtime_mode: production
+            use_mocks: 'false'
+            auth_adapter: jwt
+            api_url: https://api.vuestrata.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build
+        env:
+          VUESTRATA_RUNTIME_MODE: ${{ matrix.runtime_mode }}
+          VUESTRATA_USE_MOCKS: ${{ matrix.use_mocks }}
+          VUESTRATA_AUTH_ADAPTER: ${{ matrix.auth_adapter }}
+          VUESTRATA_API_URL: ${{ matrix.api_url }}
+          VUESTRATA_RELEASE: ${{ github.sha }}
+        run: vp build
+
+      # Type checking and tests cannot see what ends up in the bundle. This is
+      # the only check that catches a regression reintroducing MSW or demo
+      # credentials into the production artifact.
+      - name: Verify bundle invariants
+        run: node scripts/build/verify-bundle.mjs --mode=${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist/
+          retention-days: 7
+
+  e2e:
+    name: E2E (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    # Depends on build so a broken bundle fails fast and cheaply, before
+    # spending browser time on it.
+    needs: [build]
+    strategy:
+      fail-fast: false
+      matrix:
+        # playwright.config.ts has always defined all four of these, and CI ran
+        # only chromium — so three configured browsers were never exercised.
+        # A matrix runs them in parallel rather than serially in one job.
+        browser: [chromium, firefox, webkit, mobile-chrome]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      # mobile-chrome is Chromium with a device profile, so it needs no extra
+      # browser download.
+      - run: vp exec playwright install --with-deps ${{ matrix.browser == 'mobile-chrome' && 'chromium' || matrix.browser }}
+
+      # E2E_TARGET=preview makes Playwright run `vpr build && vpr preview` over
+      # dist/ rather than the dev server. This is what exercises the real
+      # chunking, the __VUESTRATA_DEMO__ compile-out, and MSW registering from
+      # a built artifact — none of which the dev server can prove.
+      # Includes the accessibility, RTL and keyboard-navigation suites — they
+      # live in e2e/ and run as part of the same pass.
+      - name: Run E2E against the production preview
+        env:
+          E2E_TARGET: preview
+        run: vpr test:e2e -- --project=${{ matrix.browser }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+
+  # The Docker image is the REAL production target, and nothing in CI had ever
+  # built it — let alone opened it in a browser. `verify-bundle` inspects files
+  # on disk; it cannot tell you the app mounts. A production build that
+  # white-screened on boot passed every gate.
+  docker:
+    name: Docker image (production artifact)
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build the image
+        run: |
+          docker build \
+            --build-arg VUESTRATA_RELEASE=${{ github.sha }} \
+            --build-arg VUESTRATA_API_URL=/api \
+            -t vuestrata:ci .
+
+      - name: Start the container
+        run: |
+          docker run -d --name vuestrata-ci -p 8080:8080 vuestrata:ci
+          # Poll the endpoint the image's HEALTHCHECK uses rather than sleeping
+          # an arbitrary number of seconds.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs vuestrata-ci
+          exit 1
+
+      - run: vp exec playwright install --with-deps chromium
+
+      - name: Smoke-test the running production artifact
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8080
+        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+
+      - name: Container logs
+        if: always()
+        run: docker logs vuestrata-ci || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-docker
+          path: playwright-report/
+          retention-days: 7
+
+      # The image must also build for arm64 (Apple Silicon, Graviton). It could
+      # not until the Dockerfile chose the vite-plus binding per platform, and
+      # nothing here would have noticed. Build only, under QEMU, and last: it is
+      # the slowest step and says nothing about the artifact tested above.
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+      - id: buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          # Keep the default builder for the steps above: this one's
+          # docker-container driver does not put images in the local store.
+          use: false
+      # build-push-action rather than a bare `docker buildx build`, because it
+      # hands the runner's cache credentials to BuildKit. The emulated build is
+      # slow, and its layers do not change between most runs.
+      - name: Build the image for arm64 (build only)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/arm64
+          push: false
+          build-args: |
+            VUESTRATA_RELEASE=${{ github.sha }}
+            VUESTRATA_API_URL=/api
+          cache-from: type=gha,scope=docker-arm64
+          cache-to: type=gha,scope=docker-arm64,mode=max
+
+  # The CLI edits projects built from this template, and the only test that
+  # proves a generator still wires what it claims to wire is running it against
+  # the template itself. That is why `packages/cli` lives here rather than in
+  # its own repository.
+  #
+  # Two halves. The first scaffolds into the template and checks the result is
+  # wired. The second is what a team does on day one — eject, add a module — and
+  # runs every gate a consumer's CI runs, ending on `doctor`: the CLI must not
+  # have edited a file it tells the project to leave alone.
+  #
+  # Only in the template's own repository, like the maintainer gates above. A
+  # project inherits this file together with `packages/cli`, and there the job
+  # tests a copy of the CLI no upgrade updates, against names (`payments`,
+  # `invoices`, `Tag`) the project may already use. Skipped, it does not fail
+  # `ci-ok` below.
+  cli-roundtrip:
+    name: CLI Round Trip
+    if: github.repository == 'boussadjra/vuestrata'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The payload is not committed — it is a copy of the source beside it,
+      # built here the same way `prepack` builds it for a release.
+      - run: node packages/cli/scripts/build-payload.mjs
+
+      # Eject deletes `packages/cli`, and a CLI cannot run from a tree it is
+      # deleting, so the second half runs this copy. It sits in `node_modules`,
+      # which `eject` and `git clean` leave alone and where the root's own
+      # `consola` resolves. `-L` because the package's own `node_modules` holds
+      # links into the store, which do not survive a move.
+      - name: Keep a copy of the CLI where eject will not remove it
+        run: cp -rL packages/cli node_modules/.vuestrata-cli
+
+      # Slots resolve, every registry still carries its markers, and the
+      # lockfile agrees with what is on disk.
+      - run: node packages/cli/src/index.mjs doctor
+
+      # Nothing to install: the payload is this checkout.
+      - run: node packages/cli/src/index.mjs diff
+
+      # Scaffold, then prove the result compiles and is wired. A module missing
+      # from setup.ts does not throw — it just never loads.
+      - run: node packages/cli/src/index.mjs add module payments --no-format
+      - run: node packages/cli/src/index.mjs add component Tag --no-format
+      - run: node packages/cli/src/index.mjs add theme midnight --no-format
+      - run: vpr fmt
+      - run: vp exec vue-tsc --noEmit
+      - run: node scripts/lint/run-custom-rules.mjs
+      # The gates a project runs, without VUESTRATA_MAINTAINER: everything a
+      # project inherits has to stay green after its first generated module,
+      # component and theme. (The maintainer-only checks are deliberately not
+      # run here — they describe this repository's release, not the project.)
+      - run: vpr lint
+      - run: vp test --run
+
+      # Back to a clean slate for the second half.
+      - run: git checkout . && git clean -fd
+
+      # Eject removes the demo, then the day-one path: a module of the team's
+      # own. Neither may touch a file the CLI tracks as Vuestrata's — eject
+      # writes `withdrawn` in rbac.overrides.ts, and the generator declares the
+      # permissions there — or a release would stop reaching this project.
+      - run: node node_modules/.vuestrata-cli/src/index.mjs eject --allow-dirty
+      - run: node node_modules/.vuestrata-cli/src/index.mjs add module invoices
+
+      # Route and import typings are generated by a build, and `vp check` reads
+      # them.
+      - run: vp build
+
+      # What a consumer's CI runs, in the order it fails fastest.
+      - run: vp run lint
+      - run: vp check
+      - run: vp run test --run
+      - run: vp run build
+
+      # Zero drift: no managed or merged file differs from the lock. `doctor`
+      # reports drift as a note and exits 0, so ask the lock directly.
+      - run: node node_modules/.vuestrata-cli/src/index.mjs doctor
+      - name: No file Vuestrata owns was edited
+        run: |
+          node --input-type=module -e "
+            import { pathToFileURL } from 'node:url'
+            const lock = await import(pathToFileURL(process.cwd() + '/node_modules/.vuestrata-cli/src/lib/lockfile.mjs').href)
+            const drifted = lock.driftedFiles(process.cwd(), lock.readLock(process.cwd()))
+            if (drifted.length > 0) {
+              console.error('Edited or deleted since the lock was written:')
+              for (const entry of drifted) console.error('  ' + entry.rel + ' (' + entry.status + ')')
+              process.exit(1)
+            }
+            console.log('No managed or merged file drifted.')
+          "
+
+  # Single required status check. Point branch protection at this one job and it
+  # stays correct as jobs are added or renamed.
+  ci-ok:
+    name: CI OK
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint, typecheck, test, build, e2e, docker, cli-roundtrip]
+    steps:
+      - name: Fail if any dependency failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One or more CI jobs did not succeed."
+          exit 1
+      - run: echo "All CI jobs succeeded."

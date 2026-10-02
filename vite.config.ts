@@ -151,6 +151,10 @@ export default defineConfig({
       // every finding twice, and type-checking it fails outright: the copies
       // sit outside the alias roots, so `@/types` resolves to nothing.
       'packages/cli/payload/**',
+      // What `vuestrata upgrade` leaves beside a file it would not overwrite:
+      // the release's version, to compare and merge. Not part of the app, and
+      // outside the alias roots like the payload, so type-checking it fails.
+      '.vuestrata/**',
       '.agents/**',
       '*.d.ts',
       'auto-imports.d.ts',
@@ -174,6 +178,8 @@ export default defineConfig({
     sortTailwindcss: true,
     ignorePatterns: [
       '.agents/**',
+      // A release's files as that release formatted them, kept to be compared.
+      '.vuestrata/**',
       '*.d.ts',
       'auto-imports.d.ts',
       'components.d.ts',
@@ -355,6 +361,32 @@ export default defineConfig({
     globals: true,
 
     setupFiles: ['test/setup.ts'],
+
+    /**
+     * Three times Vitest's 5 s default.
+     *
+     * A test's clock also runs while the machine does work that has nothing to
+     * do with what the test asserts: the first dynamic `import()` in a file is
+     * transformed inside the test that makes it, a component test mounts a tree
+     * of Reka primitives in jsdom, and the script tests start a Node process.
+     * Idle, each takes well under a second. Beside a build, an e2e run or a
+     * second test run they crossed 5 s, a different handful of tests each time,
+     * and none of those failures said anything about the code. A test that
+     * hangs still fails; it takes ten seconds longer to say so.
+     */
+    testTimeout: 15_000,
+
+    /**
+     * Off CI, half the cores.
+     *
+     * Vitest starts one worker per core, each with its own jsdom, and gives a
+     * worker a fixed time to come up. On a machine that is also running an
+     * editor, a dev server and a browser, that many at once is what failed: a
+     * worker timed out before it ran a test. Half leaves room for the rest of
+     * what a developer runs. CI's runners do nothing else, so they keep the
+     * default; `--maxWorkers=<n>` on the command line overrides either.
+     */
+    ...(process.env.CI ? {} : { maxWorkers: '50%' }),
 
     coverage: {
       provider: 'v8',

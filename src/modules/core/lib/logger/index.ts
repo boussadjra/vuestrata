@@ -1,7 +1,10 @@
 import { createConsola } from 'consola'
 
 const rawLogger = createConsola({
-  level: import.meta.env.PROD ? 3 : 5, // warn+ in prod, all in dev
+  // consola's levels: 0 error, 1 warn, 2 log, 3 info, 4 debug, 5 trace. So a
+  // production build logs info and above and drops debug and trace; a
+  // development build logs everything up to trace.
+  level: import.meta.env.PROD ? 3 : 5,
 })
 
 /**

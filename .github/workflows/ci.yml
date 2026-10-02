@@ -292,8 +292,15 @@ jobs:
   # wired. The second is what a team does on day one — eject, add a module — and
   # runs every gate a consumer's CI runs, ending on `doctor`: the CLI must not
   # have edited a file it tells the project to leave alone.
+  #
+  # Only in the template's own repository, like the maintainer gates above. A
+  # project inherits this file together with `packages/cli`, and there the job
+  # tests a copy of the CLI no upgrade updates, against names (`payments`,
+  # `invoices`, `Tag`) the project may already use. Skipped, it does not fail
+  # `ci-ok` below.
   cli-roundtrip:
     name: CLI Round Trip
+    if: github.repository == 'boussadjra/vuestrata'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

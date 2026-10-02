@@ -82,6 +82,21 @@ export function useAuth() {
   const isAuthenticated = computed(() => store.isAuthenticated)
   const token = computed(() => store.token)
 
+  /**
+   * End the session, saying why.
+   *
+   * The reason is new in 1.1.0, and this file is replaced by an upgrade while a
+   * `stores/auth.ts` the project edited is not: its `clearAuth()` takes no
+   * argument, and calling it with one would not compile. Read through this
+   * type, such a store is still called, and ignores the reason (it announces no
+   * `auth.logout` either, until the project merges the new store).
+   * `bootstrap/auth-wiring.ts` reads the store the same way.
+   */
+  function endSession(reason: 'logout' | 'expired'): void {
+    const clearAuth: (reason?: 'logout' | 'expired') => void = store.clearAuth
+    clearAuth(reason)
+  }
+
   const remainingLockoutMs = computed(() => challenge.remainingLockoutMs)
 
   /**
@@ -156,7 +171,7 @@ export function useAuth() {
     // already decided to end their session, so client-side cleanup proceeds
     // regardless of network or backend availability. The adapter logs it.
     await getAuthAdapter().logout()
-    store.clearAuth('logout')
+    endSession('logout')
     // The lockout counter and any half-completed MFA challenge belong to the
     // session that just ended — clear them so the next login starts clean.
     challenge.resetAttempts()
@@ -175,7 +190,7 @@ export function useAuth() {
       // Only clear auth on 401 (session truly expired). Transient errors
       // (network, 5xx) must not log the user out.
       if (appErr.status === 401) {
-        store.clearAuth('expired')
+        endSession('expired')
       } else {
         authLogger.warn('fetchUser failed (session kept)', {
           code: appErr.code,

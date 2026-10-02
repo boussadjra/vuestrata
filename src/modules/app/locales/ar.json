@@ -146,6 +146,7 @@
   "button_save": "حفظ",
   "button_toggle_dark": "تبديل الوضع الداكن",
   "button_toggle_langs": "تغيير اللغة",
+  "chart_load_error": "تعذّر تحميل هذا الرسم البياني. أعد تحميل الصفحة للمحاولة مرة أخرى.",
   "charts_department": "أداء الأقسام",
   "charts_heatmap": "خريطة حرارة الزيارات",
   "charts_infra_costs": "تكاليف البنية التحتية",

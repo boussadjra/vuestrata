@@ -146,6 +146,7 @@
   "button_save": "Enregistrer",
   "button_toggle_dark": "Basculer le mode sombre",
   "button_toggle_langs": "Changer de langue",
+  "chart_load_error": "Ce graphique n'a pas pu être chargé. Rechargez la page pour réessayer.",
   "charts_department": "Performance par département",
   "charts_heatmap": "Carte thermique du trafic",
   "charts_infra_costs": "Coûts d'infrastructure",

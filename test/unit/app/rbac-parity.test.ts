@@ -8,6 +8,8 @@ import { useRbac } from '@/composables/useRbac'
 import { resolveRouteAccess } from '@/plugins/route-guard'
 import { useAuthStore } from '@/stores/auth'
 import { ROLE_HIERARCHY, resolveRolePermissions, resolveSubjectPermissions } from '~/lib/rbac'
+import { resolveRbacOverrides } from '~/lib/rbac/overrides'
+import { installRbacConfig } from '~/lib/runtime'
 import { useModuleStore } from '~/modules'
 import type { ModuleDefinition } from '~/modules/types'
 import type { Permission, Role, User } from '~/types'
@@ -101,50 +103,85 @@ beforeEach(() => {
 })
 
 describe('guard, useRbac and sidebar agree', () => {
-  const rows: Array<{ name: string; user: Partial<User> | null; expected: readonly Permission[] }> =
-    [
-      {
-        name: 'a role and no permissions (role-only /auth/me)',
-        user: { role: 'manager' },
-        expected: resolveRolePermissions('manager'),
-      },
-      {
-        name: 'permissions and a role that grants nothing extra',
-        user: { role: 'guest', permissions: ['billing:read', 'users:read'] },
-        expected: ['billing:read', 'users:read'],
-      },
-      {
-        name: 'both: the explicit set narrows the role, it does not add to it',
-        user: { role: 'admin', permissions: ['users:read'] },
-        expected: ['users:read'],
-      },
-      {
-        name: 'an explicitly empty permission set',
-        user: { role: 'admin', permissions: [] },
-        expected: [],
-      },
-      {
-        name: 'a role the hierarchy does not know, with no permissions',
-        user: { role: 'mystery' as Role },
-        expected: [],
-      },
-      { name: 'nobody signed in', user: null, expected: [] },
-      ...ROLE_HIERARCHY.map((role) => ({
-        name: `the built-in role ${role}`,
-        user: { role },
-        expected: resolveRolePermissions(role),
-      })),
-    ]
+  // `expected` is asked for inside the test, not while the rows are built. What
+  // a role grants depends on the project's `rbac.overrides.ts` (its grants, and
+  // what `vuestrata eject` withdrew), which is installed by the setup that runs
+  // before each test. Resolved here, at collection time, it would be the
+  // template's own grants, and a project that withdrew one permission would
+  // fail every role row for a difference that is not a disagreement.
+  const rows: Array<{
+    name: string
+    user: Partial<User> | null
+    expected: () => readonly Permission[]
+  }> = [
+    {
+      name: 'a role and no permissions (role-only /auth/me)',
+      user: { role: 'manager' },
+      expected: () => resolveRolePermissions('manager'),
+    },
+    {
+      name: 'permissions and a role that grants nothing extra',
+      user: { role: 'guest', permissions: ['billing:read', 'users:read'] },
+      expected: () => ['billing:read', 'users:read'],
+    },
+    {
+      name: 'both: the explicit set narrows the role, it does not add to it',
+      user: { role: 'admin', permissions: ['users:read'] },
+      expected: () => ['users:read'],
+    },
+    {
+      name: 'an explicitly empty permission set',
+      user: { role: 'admin', permissions: [] },
+      expected: () => [],
+    },
+    {
+      name: 'a role the hierarchy does not know, with no permissions',
+      user: { role: 'mystery' as Role },
+      expected: () => [],
+    },
+    { name: 'nobody signed in', user: null, expected: () => [] },
+    ...ROLE_HIERARCHY.map((role) => ({
+      name: `the built-in role ${role}`,
+      user: { role },
+      expected: () => resolveRolePermissions(role),
+    })),
+  ]
 
   it.each(rows)('$name', async ({ user, expected }) => {
     if (user) signIn(user)
 
     const { guard, rbac, nav } = await surfaces()
-    const want = new Set<string>(expected)
+    const want = new Set<string>(expected())
 
     expect([...guard].sort()).toEqual([...want].sort())
     expect([...rbac].sort()).toEqual([...want].sort())
     expect([...nav].sort()).toEqual([...want].sort())
+  })
+
+  it('agree in a project that withdrew a permission and granted another', async () => {
+    // What `rbac.overrides.ts` does in a project: `vuestrata eject` withdraws
+    // the permissions of the modules it removes, and a project grants its own.
+    // A manager holds `reports:create` from the template and not `users:delete`.
+    expect(resolveRolePermissions('manager')).toContain('reports:create')
+    expect(resolveRolePermissions('manager')).not.toContain('users:delete')
+    installRbacConfig(
+      resolveRbacOverrides({
+        withdrawn: ['reports:create'],
+        grants: { manager: ['users:delete'] },
+      }),
+    )
+    signIn({ role: 'manager' })
+
+    const { guard, rbac, nav } = await surfaces()
+
+    for (const surface of [guard, rbac, nav]) {
+      expect(surface.has('reports:create')).toBe(false)
+      expect(surface.has('users:delete')).toBe(true)
+    }
+    const want = [...resolveRolePermissions('manager')].sort()
+    expect([...guard].sort()).toEqual(want)
+    expect([...rbac].sort()).toEqual(want)
+    expect([...nav].sort()).toEqual(want)
   })
 
   it('resolves through one function', () => {

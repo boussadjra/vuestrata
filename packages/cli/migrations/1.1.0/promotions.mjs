@@ -1,6 +1,14 @@
 import { hashFor } from '../../src/lib/lockfile.mjs'
 import { hashContents } from '../../src/lib/plan.mjs'
 import { RBAC_WIRING_STEPS } from '../../src/lib/rbac-wiring.mjs'
+import { deploymentHeldBack } from './deployment.mjs'
+import {
+  headersBeingReplaced,
+  HEADERS_PRISTINE,
+  HEADERS_SCRIPTS,
+  REGENERATE_HEADERS,
+} from './headers-unit.mjs'
+import { eolOf } from './text.mjs'
 
 /**
  * Files the project owned that Vuestrata maintains from 1.1.0, and the two
@@ -25,7 +33,7 @@ import { RBAC_WIRING_STEPS } from '../../src/lib/rbac-wiring.mjs'
  * payload sync installs them as new.
  */
 
-const PRISTINE = {
+export const PRISTINE = {
   'src/modules/app/stores/auth.ts': [
     'sha256-30092cfe5184cc4889fa00741f7cc8508b7331e0a70d8d036c4a549b4a9c3adf',
   ],
@@ -77,12 +85,8 @@ const PRISTINE = {
   'src/modules/app/locales/ar.json': [
     'sha256-e2b602f14591cc0f3d74fc28713f0cca32d5d3485e899bc80b189ac52071ba4b',
   ],
-  'scripts/security/headers.mjs': [
-    'sha256-7e25459575edcad0e370a85dc717823a28a2b13736651d2efb18300a59f0676e',
-  ],
-  'scripts/security/sync-headers.mjs': [
-    'sha256-ed898cb4ac5cfff91b2f114eaec74c707a870013cc65c4b39867becca7edcde5',
-  ],
+  // The two header generators, which other steps ask about (headers-unit.mjs).
+  ...HEADERS_PRISTINE,
   'scripts/build/verify-bundle.mjs': [
     'sha256-250e692b52c8bb6f98dd07402a1389daa15353c1d74be0e8b67e0b9934ef36c5',
   ],
@@ -121,7 +125,6 @@ const PRISTINE_APP = ['sha256-8a816842089999d60f1a8d1cbf7fe0ec1ec33dec9c94f5f29f
 
 /** What the two headers scripts move as. Each is written against the other. */
 const HEADERS_UNIT = 'security-headers'
-const HEADERS_SCRIPTS = ['scripts/security/headers.mjs', 'scripts/security/sync-headers.mjs']
 
 /** The plumbing files, in the order a reader would look for them. */
 const PLAIN_PROMOTIONS = Object.keys(PRISTINE).filter((rel) => !HEADERS_SCRIPTS.includes(rel))
@@ -148,7 +151,11 @@ function promoteNote(rel) {
       `from src/modules/app/bootstrap/query-client.ts, which boot() reads. This copy differs ` +
       `from every release that shipped it, so it was left alone. A src/main.ts this upgrade ` +
       `replaced passes your \`vueQueryOptions\` to boot(), so they still apply; a main.ts you ` +
-      `edited keeps reading this file as before. To hand the file over, first move your options ` +
+      `edited keeps reading this file as before. Check the retry settings in it either way: ` +
+      `the API client no longer retries on its own, so the \`retry: 1\` that 1.0 shipped is now ` +
+      `one retry for every failed query, a 404 included. Set \`retry: shouldRetryQuery\` and ` +
+      `\`retryDelay: queryRetryDelay\` (from '~/lib/api/retry') on queries, and ` +
+      `\`retry: false\` on mutations. To hand the file over, first move your options ` +
       `into a file of your own and pass them with \`boot(App, { queryOptions })\` (spread ` +
       `\`vueQueryOptions\` from '@/bootstrap/query-client' to keep the retry policy), then run ` +
       `\`vuestrata adopt ${rel}\` once this file matches .vuestrata/incoming/${rel}. Adopting it ` +
@@ -188,9 +195,6 @@ const PLUGIN_IMPORT = [
   '// that Vuestrata can own it while this config stays yours.',
   "import { vuestrataEnv } from './scripts/vite/vuestrata-plugin.mjs'",
 ].join('\n')
-
-/** Files use LF or CRLF; a rewrite keeps whichever the file had. */
-const eolOf = (source) => (source.includes('\r\n') ? '\r\n' : '\n')
 
 function findEnvBlock(text) {
   const start = text.indexOf(ENV_BLOCK_START)
@@ -401,19 +405,15 @@ export default [
         // holds only while BOTH scripts are a release's copy: if either was
         // edited the pair is held back, nothing is regenerated, and the note
         // above already says what to do.
+        //
+        // And only while the deployment files have nothing to say. When one of
+        // them was left alone, its note ends on this reminder, so that one note
+        // covers the image and what it is built from instead of two.
         pending: (source, manifest, ws) =>
-          HEADERS_SCRIPTS.every(
-            (rel) =>
-              ws.exists(rel) &&
-              PRISTINE[rel].includes(
-                hashFor(rel, rel === HEADERS_SCRIPTS[0] ? source : ws.read(rel), 'managed'),
-              ),
-          ),
+          headersBeingReplaced(ws) && deploymentHeldBack(manifest, ws).length === 0,
         note:
-          'If scripts/security/headers.mjs and sync-headers.mjs were replaced (no incoming copy ' +
-          'is listed for them above), run `vpr security:headers`: it regenerates public/_headers, ' +
-          'docker/*.conf, the headers block of vercel.json and the CSP meta in index.html ' +
-          'from them, and `vpr lint` reports drift until you do.',
+          'scripts/security/headers.mjs and sync-headers.mjs were replaced (no incoming copy is ' +
+          `listed for them above), so ${REGENERATE_HEADERS}`,
       },
     ],
   },

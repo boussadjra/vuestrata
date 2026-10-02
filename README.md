@@ -35,10 +35,12 @@ unchanged component layer, and eight of them change the typeface too.
 
 ## Status
 
-Vuestrata is in an **alpha release train** (see `package.json` for the current
-version). The public demo is deployed and the template is ready to start a
-project from; conventions and the public surface may still change between alpha
-releases. `RELEASE.md` describes the channels.
+Vuestrata is on the **1.1 alpha release train** (`package.json` has the exact
+version, [`CHANGELOG.md`](CHANGELOG.md) what each release changed). The
+public demo is deployed and the template is ready to start a project from;
+conventions and the public surface may still change between alpha releases, and
+when they do, `vuestrata upgrade` carries an existing project across
+([`UPGRADING.md`](UPGRADING.md)). `RELEASE.md` describes the channels.
 
 What "ready" means here is deliberately split into three questions — the demo,
 the template, and _your_ application — in

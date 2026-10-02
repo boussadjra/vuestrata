@@ -158,6 +158,13 @@ test.describe('Accessibility — authenticated pages', () => {
  * is the contrast trap.
  */
 test.describe('Accessibility — theme and colour-mode matrix', () => {
+  // The heaviest tests in the suite: each signs in, switches theme, loads the
+  // dashboard with its charts and has axe walk the whole page. On a machine
+  // that is also building or running another suite, one of them crossed
+  // Playwright's 30 s default in most runs, a different combination each time
+  // and with axe still analysing, which says nothing about the page.
+  test.describe.configure({ timeout: 60_000 })
+
   const combinations = [
     { theme: 'default', dark: false },
     { theme: 'default', dark: true },

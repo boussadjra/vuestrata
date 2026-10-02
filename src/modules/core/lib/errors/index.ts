@@ -1,7 +1,7 @@
 import { logger } from '~/lib/logger'
 import type { ApiError } from '~/types'
 
-import { reportError } from './reporter'
+import { reportError, wasReported } from './reporter'
 
 export {
   getErrorReporter,
@@ -9,6 +9,7 @@ export {
   reportError,
   resetErrorReporter,
   setErrorReporterUser,
+  wasReported,
 } from './reporter'
 export type { ErrorReporter, ErrorReportContext } from './reporter'
 export { parseVueErrorInfo } from './vue-error-info'
@@ -324,6 +325,11 @@ export function installErrorHandlers(target: EventTarget = globalThis as EventTa
     // unmounted mid-load — rejects like a failure but is not one. Nobody has
     // anything to fix, so it is neither logged nor reported.
     if (error.kind === 'aborted') return
+    // Already dealt with where it surfaced first. A navigation that fails is
+    // the usual case: the router hands the error to `onError`, where the error
+    // boundary shows and reports it, and then rejects the promise
+    // `router.push()` returned, which nobody awaits. Same object, one incident.
+    if (wasReported(event.reason)) return
     errorLogger.error('Unhandled promise rejection:', error.message, {
       code: error.code,
       status: error.status,

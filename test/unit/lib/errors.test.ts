@@ -11,6 +11,7 @@ import {
   reportError,
   resetErrorReporter,
   transportError,
+  wasReported,
 } from '@/lib/errors'
 
 /** A request that never got a response, the way ofetch reports it. */
@@ -334,6 +335,96 @@ describe('deliberate aborts are never reported', () => {
 
     target.dispatchEvent(rejection(new Error('a real bug')))
     expect(captureException).toHaveBeenCalledOnce()
+  })
+})
+
+describe('an error a sink already reported is not reported again as an unhandled rejection', () => {
+  afterEach(() => resetErrorReporter())
+
+  function spyReporter() {
+    const captureException = vi.fn()
+    installErrorReporter({ name: 'spy', captureException, setUser: () => {} })
+    return captureException
+  }
+
+  const rejection = (reason: unknown) =>
+    Object.assign(new Event('unhandledrejection', { cancelable: true }), { reason })
+
+  it('skips the rejection of a navigation the error boundary reported from router.onError', () => {
+    const captureException = spyReporter()
+    const target = new EventTarget()
+    installErrorHandlers(target)
+
+    // What vue-router does with one failed navigation: `onError` first, where
+    // the boundary reports it, then the promise `router.push()` returned
+    // rejects with the same object, and nobody is awaiting it.
+    const failure = new Error('guard threw')
+    reportError(failure, { source: 'vue:router', component: '/orders' })
+    const event = rejection(failure)
+    target.dispatchEvent(event)
+
+    expect(captureException).toHaveBeenCalledOnce()
+    expect(captureException.mock.calls[0]?.[1]).toMatchObject({ source: 'vue:router' })
+    // Still claimed, so the browser does not print it as uncaught either.
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('still reports a rejection nothing else saw, and marks it', () => {
+    const captureException = spyReporter()
+    const target = new EventTarget()
+    installErrorHandlers(target)
+
+    const failure = new Error('a real bug')
+    expect(wasReported(failure)).toBe(false)
+    target.dispatchEvent(rejection(failure))
+
+    expect(captureException).toHaveBeenCalledOnce()
+    expect(captureException.mock.calls[0]?.[1]).toMatchObject({
+      source: 'window:unhandledrejection',
+    })
+    expect(wasReported(failure)).toBe(true)
+  })
+
+  it('tells two errors with the same message apart: the mark is on the object', () => {
+    const captureException = spyReporter()
+    const target = new EventTarget()
+    installErrorHandlers(target)
+
+    reportError(new Error('Network down'), { source: 'vue:router' })
+    target.dispatchEvent(rejection(new Error('Network down')))
+
+    expect(captureException).toHaveBeenCalledTimes(2)
+  })
+
+  it('marks without a reporter installed, and leaves nothing to serialise or enumerate', () => {
+    const failure = new Error('boom')
+    reportError(failure, { source: 'vue:render' })
+
+    expect(wasReported(failure)).toBe(true)
+    expect(Object.keys(failure)).toEqual([])
+    expect(JSON.stringify(failure)).toBe('{}')
+    expect(Object.getOwnPropertySymbols(failure)).toHaveLength(1)
+    expect(Object.assign({}, failure)).toEqual({})
+  })
+
+  it('cannot mark a value that is not an object, or one that is frozen, and does not throw', () => {
+    const captureException = spyReporter()
+    const frozen = Object.freeze(new Error('frozen'))
+
+    expect(() => reportError('a rejected string', { source: 'vue:render' })).not.toThrow()
+    expect(() => reportError(frozen, { source: 'vue:render' })).not.toThrow()
+
+    expect(captureException).toHaveBeenCalledTimes(2)
+    expect(wasReported('a rejected string')).toBe(false)
+    expect(wasReported(frozen)).toBe(false)
+    expect(wasReported(null)).toBe(false)
+  })
+
+  it('does not mark a deliberate abort, which was never reported', () => {
+    const aborted = transportError('aborted')
+    reportError(aborted, { source: 'vue:render' })
+
+    expect(wasReported(aborted)).toBe(false)
   })
 })
 

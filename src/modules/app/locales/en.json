@@ -146,6 +146,7 @@
   "button_save": "Save",
   "button_toggle_dark": "Toggle dark mode",
   "button_toggle_langs": "Change languages",
+  "chart_load_error": "This chart could not be loaded. Reload the page to try again.",
   "charts_department": "Department Performance",
   "charts_heatmap": "Traffic Heatmap",
   "charts_infra_costs": "Infrastructure Costs",
