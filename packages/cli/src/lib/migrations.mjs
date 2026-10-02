@@ -32,11 +32,15 @@ import { incomingPath } from './workspace.mjs'
  *     afterwards, the file is not in a shape the codemod knows, so it was left
  *     alone: `note` says what to do by hand, and `incoming` (contents, or a
  *     function of the source) is left at .vuestrata/incoming/<file> to do it
- *     against.
+ *     against. `note: false` leaves the copy and says nothing, for a family of
+ *     steps that one `note` step after them speaks for.
  *
  *   note                    { note, file?, pending? }
  *     Nothing automatic. Shown on every upgrade that crosses this version — or,
- *     given a `file`, only while `pending(source)` holds for it.
+ *     given a `file`, only while `pending(source)` holds for it. `note` is the
+ *     text, or a function `(source, manifest, ws)` returning it, for a note that
+ *     depends on what the steps before it left behind; one that returns nothing
+ *     prints nothing. `source` is undefined when the step names no file.
  *
  *   promote                 { file, pristine: [hash, ...], note?, unit? }
  *     A file the project owned becomes Vuestrata's. Adopted when its hash is in
@@ -177,7 +181,12 @@ export function validateMigration(migration) {
     if (kind === 'codemod' && typeof step.apply !== 'function') {
       throw new Error(`${label} has no apply(source, manifest)`)
     }
-    if (kind === 'note' && typeof step.note !== 'string') throw new Error(`${label} has no note`)
+    if (kind === 'note' && !['string', 'function'].includes(typeof step.note)) {
+      throw new Error(`${label} has no note`)
+    }
+    if (kind !== 'note' && typeof step.note === 'function') {
+      throw new Error(`${label}: only a note step computes its text`)
+    }
     if (kind === 'promote' && !Array.isArray(step.pristine)) {
       throw new Error(`${label} has no pristine hash list`)
     }
@@ -262,6 +271,9 @@ function runCodemod(step, migration, applied, { ws, manifest, result }) {
     })
   }
 
+  // A family of steps shares one note, which a `note` step after them writes.
+  if (step.note === false) return
+
   result.notes.push({
     version: migration.version,
     rel,
@@ -274,14 +286,20 @@ function runCodemod(step, migration, applied, { ws, manifest, result }) {
 
 function runNote(step, migration, { ws, manifest, result }) {
   let rel
+  let source
 
   if (step.file !== undefined || step.slot !== undefined) {
     rel = stepTarget(step, manifest)
     if (!ws.exists(rel)) return
-    if (step.pending && !step.pending(ws.read(rel), manifest, ws)) return
+    source = ws.read(rel)
+    if (step.pending && !step.pending(source, manifest, ws)) return
   }
 
-  result.notes.push({ version: migration.version, rel, text: step.note })
+  // A computed note sees the project as the steps before it left it.
+  const text = typeof step.note === 'function' ? step.note(source, manifest, ws) : step.note
+  if (!text) return
+
+  result.notes.push({ version: migration.version, rel, text })
 }
 
 /**

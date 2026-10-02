@@ -375,6 +375,81 @@ describe.skipIf(!CLI_PRESENT)('guarded codemods and notes', () => {
       'Move the Dockerfile to nginx-unprivileged.',
     ])
   })
+
+  describe('a family of codemods with one note between them', () => {
+    const FAMILY = ['Dockerfile', 'docker-compose.yml']
+    const OLD = 'probe /\n'
+    const NEW = 'probe /healthz\n'
+
+    /** Replaced when it is the old text, offered beside the file otherwise. Says nothing. */
+    const quiet = (file: string) => ({
+      file,
+      pending: (source: string) => !source.includes('/healthz'),
+      apply: (source: string) => (source === OLD ? NEW : source),
+      incoming: NEW,
+      note: false,
+    })
+
+    interface Workspace {
+      read: (rel: string) => string
+    }
+
+    /** Computed from what the steps before it left behind. */
+    const speaksForAll = {
+      kind: 'note',
+      note: (_source: undefined, _manifest: unknown, ws: Workspace) => {
+        const left = FAMILY.filter((rel) => !ws.read(rel).includes('/healthz'))
+        return left.length > 0 ? `Left alone: ${left.join(', ')}.` : undefined
+      },
+    }
+
+    const steps = [...FAMILY.map(quiet), speaksForAll]
+
+    it('says nothing when every member was replaced', () => {
+      for (const rel of FAMILY) fixture.write(rel, OLD)
+
+      const report = upgrade({ files: {}, steps })
+
+      for (const rel of FAMILY) expect(fixture.read(rel)).toBe(NEW)
+      expect(report.incoming).toEqual([])
+      expect(report.notes).toEqual([])
+    })
+
+    it('leaves each edited member its copy, and names them all in the one note', () => {
+      for (const rel of FAMILY) fixture.write(rel, `${OLD}# ours\n`)
+
+      const report = upgrade({ files: {}, steps })
+
+      for (const rel of FAMILY) {
+        expect(fixture.read(rel)).toBe(`${OLD}# ours\n`)
+        expect(fixture.read(`.vuestrata/incoming/${rel}`)).toBe(NEW)
+      }
+      expect(report.notes.map((note: { text: string }) => note.text)).toEqual([
+        'Left alone: Dockerfile, docker-compose.yml.',
+      ])
+    })
+
+    it('hands a computed note the source of the file it names', () => {
+      fixture.write('Dockerfile', 'FROM nginx:1.25\n')
+
+      const report = upgrade({
+        files: {},
+        steps: [
+          {
+            kind: 'note',
+            file: 'Dockerfile',
+            note: (source: string) => `Starts with ${source.split('\n')[0]}.`,
+          },
+          // No such file: the step is skipped before its note is computed.
+          { kind: 'note', file: 'Containerfile', note: () => 'Never shown.' },
+        ],
+      })
+
+      expect(report.notes).toEqual([
+        { version: '1.2.0', rel: 'Dockerfile', text: 'Starts with FROM nginx:1.25.' },
+      ])
+    })
+  })
 })
 
 describe.skipIf(!CLI_PRESENT)('which migrations run', () => {
@@ -434,6 +509,9 @@ describe.skipIf(!CLI_PRESENT)('validateMigration', () => {
     [{ kind: 'promote', file: 'x' }, /no pristine/],
     [{ kind: 'promote', pristine: [] }, /no file or slot/],
     [{ kind: 'note' }, /no note/],
+    [{ kind: 'note', note: false }, /no note/],
+    // A codemod's note is its text, or `false` to leave it to a note step.
+    [{ file: 'x', apply: () => '', note: () => 'computed' }, /only a note step/],
     [{ kind: 'reclassify', file: 'x', to: 'seeded' }, /can only be merged/],
     // Demoting would let the sync replace a file that may hold app: entries.
     [{ kind: 'reclassify', file: 'x', to: 'managed' }, /can only be merged/],
