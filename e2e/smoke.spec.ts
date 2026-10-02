@@ -159,10 +159,17 @@ test.describe('When something fails', () => {
   test.skip(!isPreviewTarget, 'Route chunks only exist in a real build')
 
   const CHUNKS = '**/assets/*.js'
-  const loginLink = (page: Page) => page.locator('a[href="/auth/login"]').first()
+  // The route whose chunk goes missing, and the link to it on the page the
+  // tests start from. Both pages belong to the auth module, which every project
+  // keeps: the tests used to start on the marketing home page, which
+  // `vuestrata eject` replaces with a redirect, so in an ejected project the
+  // "next route" had already been loaded and nothing failed.
+  const BROKEN_ROUTE = '/auth/register'
+  const brokenRouteLink = (page: Page) => page.locator(`a[href="${BROKEN_ROUTE}"]`).first()
+  const brokenRouteContent = (page: Page) => page.locator('#confirmPassword')
 
   /**
-   * Load the landing page, then fail every script it did not need.
+   * Load the sign-in page, then fail every script it did not need.
    *
    * That is a deploy gone wrong as the browser sees it: the page that is open
    * keeps working and the chunk behind the next route cannot be fetched. The
@@ -174,7 +181,7 @@ test.describe('When something fails', () => {
     page.on('request', (request) => {
       if (/\/assets\/[^/]+\.js(?:\?|$)/.test(request.url())) needed.add(request.url())
     })
-    await page.goto('/')
+    await page.goto('/auth/login')
     await waitForAppReady(page)
     await page.waitForLoadState('networkidle')
 
@@ -205,12 +212,12 @@ test.describe('When something fails', () => {
     await bootThenBreakLazyChunks(page)
 
     // First failure: the app takes it for a stale tab and reloads once.
-    await Promise.all([page.waitForEvent('load'), loginLink(page).click()])
+    await Promise.all([page.waitForEvent('load'), brokenRouteLink(page).click()])
     await waitForAppReady(page)
     await expect(page.getByTestId('app-error-boundary')).toHaveCount(0)
 
     // Second failure: the reload did not fix it, so the visitor is told.
-    await loginLink(page).click()
+    await brokenRouteLink(page).click()
     const boundary = page.getByTestId('app-error-boundary')
     await expect(boundary).toBeVisible()
     await expect(boundary.getByRole('alert')).toContainText('could not be loaded')
@@ -223,8 +230,8 @@ test.describe('When something fails', () => {
     // again once Chromium has seen the import fail.
     await page.context().unroute(CHUNKS)
     await page.getByTestId('app-error-retry').click()
-    await expect(page).toHaveURL(/\/auth\/login/)
-    await expect(page.locator('#email')).toBeVisible({ timeout: 20_000 })
+    await expect(page).toHaveURL(/\/auth\/register/)
+    await expect(brokenRouteContent(page)).toBeVisible({ timeout: 20_000 })
   })
 
   test('a lazy component that cannot be fetched fails where it is, and a reload recovers', async ({
@@ -261,7 +268,7 @@ test.describe('When something fails', () => {
     await bootThenBreakLazyChunks(page)
 
     // Reloads itself once, fails again, and only then gives up.
-    await page.goto('/auth/login')
+    await page.goto(BROKEN_ROUTE)
     const screen = page.locator('#boot-failure')
     await expect(screen).toBeVisible({ timeout: 20_000 })
     await expect(page.locator('#app-loader')).toHaveCount(0)
@@ -276,7 +283,7 @@ test.describe('When something fails', () => {
 
     await page.context().unroute(CHUNKS)
     await screen.getByRole('button').click()
-    await expect(page.locator('#email')).toBeVisible({ timeout: 20_000 })
+    await expect(brokenRouteContent(page)).toBeVisible({ timeout: 20_000 })
   })
 })
 
