@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vite-plus/test'
 
 import { solarIconMap } from '@/icons/maps/solar'
 import enShell from '@/locales/en.json'
+import enOverrides from '@/locales/en.overrides.json'
 import { NAV_GROUPS } from '@/modules/nav-groups'
 import { appModules } from '@/modules/setup'
 import type { ModuleDefinition, ModuleNavItem } from '@/modules/types'
@@ -39,7 +40,9 @@ const TYPED_ROUTER_FILE = path.join(ROOT, 'typed-router.d.ts')
 const ICON_NAMES = new Set(Object.keys(solarIconMap))
 const NAV_GROUP_IDS = new Set(NAV_GROUPS.map((group) => group.id))
 const PERMISSIONS = new Set<string>(BUILTIN_PERMISSIONS)
-const SHELL_KEYS = new Set(Object.keys(enShell))
+// The catalog and the project's overrides, which `plugins/i18n.ts` merges into
+// one: a shell key the project added lives in `en.overrides.json`.
+const SHELL_KEYS = new Set([...Object.keys(enShell), ...Object.keys(enOverrides)])
 
 /**
  * Layout names are read from the router source rather than imported: importing
