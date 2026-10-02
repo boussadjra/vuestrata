@@ -15,6 +15,7 @@ import {
 } from '../lib/manifest.mjs'
 import { compareVersions } from '../lib/migrations.mjs'
 import { createPayloadSource } from '../lib/payload.mjs'
+import { isRbacWired, RBAC_WIRING_STEPS } from '../lib/rbac-wiring.mjs'
 import {
   ANCHORED_REGISTRIES,
   hasSentinel,
@@ -118,6 +119,8 @@ export function diagnose({ root, version, source, migrations }) {
       `No ${LOCKFILE_NAME}. Nothing is tracked yet, so an upgrade cannot tell your edits ` +
         'from untouched files. Run `vuestrata init` to start tracking.',
     )
+    const unwired = unwiredRbacOverrides({ root, manifest })
+    if (unwired) findings.warnings.push(unwired)
     return findings
   }
 
@@ -217,7 +220,18 @@ export function diagnose({ root, version, source, migrations }) {
     )
   }
 
-  // ── 6. Which vuestrata: regions were edited? ─────────────────────────────
+  // ── 6. Is rbac.overrides.ts wired in? ────────────────────────────────────
+  // An upgrade that replaces state/runtime-backends.ts settles this, so only a
+  // copy that will stay as it is is worth a warning.
+  const backends = runtimeBackendsFile(manifest)
+  const replaced =
+    (plan?.adopted ?? []).some((entry) => entry.rel === backends) ||
+    (lock.files[backends]?.class === 'managed' &&
+      !driftedFiles(root, lock).some((entry) => entry.rel === backends))
+  const unwired = replaced ? undefined : unwiredRbacOverrides({ root, manifest })
+  if (unwired) findings.warnings.push(unwired)
+
+  // ── 7. Which vuestrata: regions were edited? ─────────────────────────────
   for (const registry of PROJECT_REGISTRIES) {
     const rel = slot(manifest, registry.slot)
     const name = sentinel(registry.region, UPSTREAM_SCOPE)
@@ -236,6 +250,32 @@ export function diagnose({ root, version, source, migrations }) {
   }
 
   return findings
+}
+
+const runtimeBackendsFile = (manifest) => `${slot(manifest, 'appDir')}/state/runtime-backends.ts`
+
+/**
+ * A warning when the project has an `rbac.overrides.ts` that nothing installs.
+ *
+ * `state/runtime-backends.ts` is what hands the seam to core/lib. A copy from
+ * before the seam existed does not, so what the project declares, grants and
+ * withdraws there has no effect — and nothing fails to say so.
+ */
+function unwiredRbacOverrides({ root, manifest }) {
+  const overrides = slot(manifest, 'rbacOverrides')
+  const backends = runtimeBackendsFile(manifest)
+  if (!fs.existsSync(path.join(root, overrides)) || !fs.existsSync(path.join(root, backends))) {
+    return undefined
+  }
+
+  const source = fs.readFileSync(path.join(root, backends), 'utf8')
+  if (isRbacWired(source)) return undefined
+
+  return (
+    `${overrides} exists, but ${backends} does not install it, so the permissions you declare, ` +
+    'grant and withdraw there have no effect. ' +
+    RBAC_WIRING_STEPS
+  )
 }
 
 /** The upgrade report, or `undefined` (and an error finding) if it cannot be planned. */

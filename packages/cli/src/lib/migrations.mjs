@@ -22,8 +22,10 @@ import { incomingPath } from './workspace.mjs'
  * line of their own in the report. A step names its target by `file` (a path,
  * or a function of the manifest) or by `slot`, and is one of four kinds:
  *
- *   codemod (the default)   { file, apply(source, manifest), pending?, note?, incoming? }
- *     Rewrites the file. Without `pending`, `apply` must be idempotent, and
+ *   codemod (the default)   { file, apply(source, manifest, ws), pending?, note?, incoming? }
+ *     Rewrites the file. `ws` is the workspace, for a change that depends on
+ *     another file (`ws.exists(rel)`, `ws.read(rel)`); `pending` and `incoming`
+ *     receive it too. Without `pending`, `apply` must be idempotent, and
  *     returning the source unchanged means there was nothing to do. With it the
  *     step is guarded: it runs only while `pending(source)` holds, and `apply`
  *     changes all of what it recognises or none of it. If `pending` still holds
@@ -238,20 +240,20 @@ function runCodemod(step, migration, applied, { ws, manifest, result }) {
   if (!ws.exists(rel)) return
 
   const before = ws.read(rel)
-  if (step.pending && !step.pending(before, manifest)) return
+  if (step.pending && !step.pending(before, manifest, ws)) return
 
-  const after = step.apply(before, manifest)
+  const after = step.apply(before, manifest, ws)
   if (after !== before) {
     ws.write(rel, after)
     applied.changed.push(rel)
   }
 
-  if (!step.pending?.(after, manifest)) return
+  if (!step.pending?.(after, manifest, ws)) return
 
   // Still pending: the guard did not recognise the file, so it was left alone.
   if (step.incoming !== undefined) {
     const contents =
-      typeof step.incoming === 'function' ? step.incoming(before, manifest) : step.incoming
+      typeof step.incoming === 'function' ? step.incoming(before, manifest, ws) : step.incoming
     ws.write(incomingPath(rel), contents)
     result.incoming.push({
       rel,
@@ -276,7 +278,7 @@ function runNote(step, migration, { ws, manifest, result }) {
   if (step.file !== undefined || step.slot !== undefined) {
     rel = stepTarget(step, manifest)
     if (!ws.exists(rel)) return
-    if (step.pending && !step.pending(ws.read(rel), manifest)) return
+    if (step.pending && !step.pending(ws.read(rel), manifest, ws)) return
   }
 
   result.notes.push({ version: migration.version, rel, text: step.note })
@@ -298,7 +300,7 @@ function inspectPromote(step, { ws, lock, manifest, source }) {
   if (!ws.exists(rel)) return null // nothing to adopt; the sync installs it as new
 
   const current = ws.read(rel)
-  if (step.pending && !step.pending(current, manifest)) return null
+  if (step.pending && !step.pending(current, manifest, ws)) return null
 
   // The release decides the class: it ships the file in `files`, so managed
   // unless it also lists it as merged.
@@ -388,7 +390,7 @@ function runReclassify(step, migration, { ws, lock, manifest, result }) {
   if (!ws.exists(rel)) return // deleted here; the sync reports it
 
   const current = ws.read(rel)
-  if (step.pending && !step.pending(current, manifest)) return
+  if (step.pending && !step.pending(current, manifest, ws)) return
 
   const hash = hashFor(rel, current, 'merged')
   const legacyClean = hashFor(rel, current, 'managed') === record.hash

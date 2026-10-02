@@ -92,6 +92,11 @@ jobs:
       VUESTRATA_MAINTAINER: ${{ github.repository == 'boussadjra/vuestrata' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, which brings the release tags. The migration tests
+          # compare against what each tag shipped, and without the tags they
+          # skip: green without having run.
+          fetch-depth: 0
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true

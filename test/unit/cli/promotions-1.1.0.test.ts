@@ -4,9 +4,13 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import {
+  APP_SHELL,
+  MAIN_SHELL,
+  mainShellFor,
+  // @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
+} from '../../../packages/cli/migrations/1.1.0/promotions.mjs'
 // @ts-expect-error - see above.
-import { APP_SHELL, MAIN_SHELL } from '../../../packages/cli/migrations/1.1.0/promotions.mjs'
-// @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
 import { runUpgrade } from '../../../packages/cli/src/commands/upgrade.mjs'
 // @ts-expect-error - see above.
 import { emptyLock, hashFor, readLock, writeLock } from '../../../packages/cli/src/lib/lockfile.mjs'
@@ -14,6 +18,9 @@ import { emptyLock, hashFor, readLock, writeLock } from '../../../packages/cli/s
 import { classify } from '../../../packages/cli/src/lib/managed.mjs'
 // @ts-expect-error - see above.
 import { collectMigrationsAsync } from '../../../packages/cli/src/lib/migrations.mjs'
+// @ts-expect-error - see above.
+import { createWorkspace } from '../../../packages/cli/src/lib/workspace.mjs'
+import { MAINTAINER } from './cli'
 import { createFixture, type Fixture, writePayload } from './fixture'
 
 /**
@@ -23,7 +30,8 @@ import { createFixture, type Fixture, writePayload } from './fixture'
  * and the codemods replace an entry file only on the same condition, so the
  * hashes and the shell texts are what a wrong migration would get wrong.
  * They are checked against the release tags themselves; a checkout without the
- * tags cannot, and skips those.
+ * tags cannot, and skips those. Except in the template's own CI, where a
+ * skipped proof is a proof that did not run: there the missing tags fail.
  */
 
 // Vitest runs from the repository root, as every script here does.
@@ -43,6 +51,10 @@ const hasTags = TAGS.every(
   (tag) => git('rev-parse', '--verify', '--quiet', `${tag}^{commit}`).status === 0,
 )
 
+// A project built from the template has no upstream tags and never will, so
+// only the template's CI (VUESTRATA_MAINTAINER=1) is held to having them.
+const TAGS_REQUIRED = MAINTAINER && Boolean(process.env.CI)
+
 const shown = new Map<string, string | null>()
 
 /** A file as a release shipped it. Cached: each lookup is a `git show` process. */
@@ -59,6 +71,9 @@ const inRepo = (rel: string) => fs.readFileSync(path.join(REPO, rel), 'utf8')
 const lf = (text: string) => text.replaceAll('\r\n', '\n')
 
 const FLAGS = { 'allow-dirty': true, 'no-format': true }
+
+/** The project on disk, as the workspace a migration step reads. */
+const workspaceOf = (fixture: Fixture) => createWorkspace(fixture.project)
 const FROM = '1.0.1-alpha.6'
 const TAG = `v${FROM}`
 
@@ -75,6 +90,16 @@ interface Step {
   pristine?: string[]
   unit?: string
 }
+
+describe('the release tags', () => {
+  it.runIf(TAGS_REQUIRED)('are in the checkout, so the proofs against them run', () => {
+    expect(
+      hasTags,
+      `${TAGS.join(' and ')} are not in this checkout, so every proof against them was skipped. ` +
+        'Check out with full history and tags (actions/checkout `fetch-depth: 0`).',
+    ).toBe(true)
+  })
+})
 
 describe('the promotion data', () => {
   it('ships src/main.ts and src/App.vue as the shells the codemods write', () => {
@@ -120,7 +145,8 @@ describe('the promotion data', () => {
           ),
         )
         expect(produced.has(null), `${step.file} is missing at a tag`).toBe(false)
-        expect([...produced].sort(), step.file).toEqual([...step.pristine!].sort())
+        const byValue = (a: string | null, b: string | null) => String(a).localeCompare(String(b))
+        expect([...produced].sort(byValue), step.file).toEqual([...step.pristine!].sort(byValue))
       }
     },
   )
@@ -130,6 +156,7 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
   const STORE = 'src/modules/app/stores/auth.ts'
   const ADAPTERS = 'src/modules/auth/adapters/index.ts'
   const QUERY = 'src/modules/app/plugins/vue-query.ts'
+  const BACKENDS = 'src/modules/app/state/runtime-backends.ts'
   const LOCALE = 'src/modules/app/locales/en.json'
   const HEADERS = 'scripts/security/headers.mjs'
   const SYNC = 'scripts/security/sync-headers.mjs'
@@ -137,7 +164,7 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
   const APP = 'src/App.vue'
   const VITE = 'vite.config.ts'
 
-  const PROMOTED = [STORE, ADAPTERS, QUERY, LOCALE, HEADERS, SYNC]
+  const PROMOTED = [STORE, ADAPTERS, QUERY, BACKENDS, LOCALE, HEADERS, SYNC]
 
   let fixture: Fixture
 
@@ -173,6 +200,9 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
   const notesFor = (report: { notes: Array<{ rel?: string; text: string }> }, rel: string) =>
     report.notes.filter((note) => note.rel === rel)
 
+  /** The standing reminder that follows a replaced pair of header scripts. */
+  const REMINDER = /were replaced .*run `vpr security:headers`/s
+
   it('adopts every pristine promoted file and brings it up to date', async () => {
     seedProject()
 
@@ -180,7 +210,7 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
 
     // The one reminder that follows a replaced generator pair.
     expect(notesFor(report, HEADERS).map((note) => note.text)).toEqual([
-      expect.stringContaining('vpr security:headers'),
+      expect.stringMatching(REMINDER),
     ])
 
     const adopted = report.adopted.map((entry: { rel: string }) => entry.rel)
@@ -286,11 +316,29 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
     expect(fixture.read(`.vuestrata/incoming/${SYNC}`)).toBe(inRepo(SYNC))
     expect(readLock(fixture.project).files[HEADERS]).toBeUndefined()
     expect(readLock(fixture.project).files[SYNC]).toBeUndefined()
-    // One note for the unit, and the standing reminder to regenerate the outputs.
+    // One note for the unit, and nothing else: the reminder to regenerate the
+    // outputs is for a pair that was replaced, and this one was not.
     const texts = notesFor(report, HEADERS).map((note) => note.text)
-    expect(texts.filter((text) => /one unit/.test(text))).toHaveLength(1)
-    expect(texts.filter((text) => /vpr security:headers/.test(text)).length).toBeGreaterThan(0)
+    expect(texts).toHaveLength(1)
+    expect(texts[0]).toMatch(/one unit/)
+    expect(texts[0]).not.toMatch(REMINDER)
     expect(notesFor(report, SYNC)).toHaveLength(0)
+  })
+
+  it('does not ask for the outputs to be regenerated when only sync-headers.mjs is edited', async () => {
+    seedProject()
+    const edited = `${atTag(TAG, SYNC)!}\n// our extra target\n`
+    fixture.write(SYNC, edited)
+
+    const report = await upgrade()
+
+    // headers.mjs is the file the reminder hangs on, and it is a release's copy;
+    // the pair is still held back, so there is nothing new to regenerate from.
+    expect(fixture.read(HEADERS)).toBe(atTag(TAG, HEADERS))
+    expect(fixture.read(SYNC)).toBe(edited)
+    const texts = report.notes.map((note: { text: string }) => note.text)
+    expect(texts.filter((text: string) => /one unit/.test(text))).toHaveLength(1)
+    expect(texts.join('\n')).not.toMatch(REMINDER)
   })
 
   it('does nothing the second time', async () => {
@@ -340,5 +388,93 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
     const report = await upgrade()
 
     expect(notesFor(report, QUERY)[0]?.text).toMatch(/queryOptions/)
+  })
+
+  describe('with query options of its own in plugins/vue-query.ts', () => {
+    /** The project raised the stale time, in the file the old main.ts read. */
+    function tuneQueries() {
+      const tuned = atTag(TAG, QUERY)!.replace('staleTime: 30_000', 'staleTime: 60_000')
+      expect(tuned).not.toBe(atTag(TAG, QUERY))
+      fixture.write(QUERY, tuned)
+      return tuned
+    }
+
+    it('hands them to boot() from the main.ts it writes, rather than dropping them', async () => {
+      seedProject()
+      const tuned = tuneQueries()
+
+      const report = await upgrade()
+
+      // The plugin is an edit, so it stays, and the new main.ts still reads it.
+      expect(fixture.read(QUERY)).toBe(tuned)
+      const main = fixture.read(MAIN)
+      expect(main).toBe(mainShellFor(workspaceOf(fixture)))
+      expect(main).toContain("import { vueQueryOptions } from '@/plugins/vue-query'")
+      expect(main).toContain('void boot(App, { queryOptions: vueQueryOptions })')
+      expect(main).not.toContain('void boot(App)')
+
+      expect(notesFor(report, MAIN)).toHaveLength(0)
+      const note = notesFor(report, QUERY)[0]?.text
+      expect(note).toMatch(/passes your `vueQueryOptions` to boot\(\)/)
+      expect(note).toMatch(/Adopting it first would drop your options/)
+    })
+
+    it('differs from the plain shell only by the import and the option', async () => {
+      seedProject()
+      tuneQueries()
+
+      await upgrade()
+
+      const plain = MAIN_SHELL.split('\n')
+      const added = fixture
+        .read(MAIN)
+        .split('\n')
+        .filter((line) => !plain.includes(line) && !line.startsWith('//'))
+      expect(added).toEqual([
+        "import { vueQueryOptions } from '@/plugins/vue-query'",
+        'void boot(App, { queryOptions: vueQueryOptions })',
+      ])
+    })
+
+    it('offers an edited main.ts the same shell, options included', async () => {
+      seedProject()
+      tuneQueries()
+      const edited = `${atTag(TAG, MAIN)!}\napp.use(MyOwnPlugin)\n`
+      fixture.write(MAIN, edited)
+
+      await upgrade()
+
+      expect(fixture.read(MAIN)).toBe(edited)
+      expect(fixture.read(`.vuestrata/incoming/${MAIN}`)).toContain(
+        'void boot(App, { queryOptions: vueQueryOptions })',
+      )
+    })
+
+    it('leaves that main.ts alone on the next prerelease', async () => {
+      seedProject()
+      tuneQueries()
+      await upgrade('1.1.0-alpha.0')
+      const main = fixture.read(MAIN)
+
+      const again = await upgrade('1.1.0-alpha.1')
+
+      expect(fixture.read(MAIN)).toBe(main)
+      expect(notesFor(again, MAIN)).toHaveLength(0)
+    })
+  })
+
+  it('names the two lines an edited runtime-backends.ts needs to install rbac.overrides.ts', async () => {
+    seedProject()
+    const edited = `${atTag(TAG, BACKENDS)!}\n// ours\n`
+    fixture.write(BACKENDS, edited)
+
+    const report = await upgrade()
+
+    expect(fixture.read(BACKENDS)).toBe(edited)
+    expect(fixture.read(`.vuestrata/incoming/${BACKENDS}`)).toBe(inRepo(BACKENDS))
+    const text = notesFor(report, BACKENDS)[0]?.text
+    expect(text).toContain('const rbacConfig = resolveRbacOverrides(rbacOverrides)')
+    expect(text).toContain('installRbacConfig(rbacConfig)')
+    expect(text).toContain(`vuestrata adopt ${BACKENDS}`)
   })
 })
