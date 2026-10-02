@@ -170,10 +170,16 @@ export function installStaleChunkRecovery(): void {
 /**
  * Clear the marker once the app has demonstrably recovered.
  *
- * Called after the first successful navigation: at that point chunks are
- * loading again, so a later stale chunk (a second deploy in the same session)
- * should be allowed its own reload rather than being suppressed by an old
- * marker.
+ * Called after the first navigation the visitor makes that succeeds: at that
+ * point chunks are loading again, so a later stale chunk (a second deploy in
+ * the same session) should be allowed its own reload rather than being
+ * suppressed by an old marker.
+ *
+ * Not after the navigation a page load starts with. That one is the reload
+ * itself coming back to the page the visitor was already on, which says
+ * nothing about the chunk that was missing; clearing there let every click on
+ * a broken route reload the page again, and "one attempt, then surface the
+ * error" never got to its second half. `router.afterEach` makes the call.
  */
 export function clearStaleChunkMarker(): void {
   try {
