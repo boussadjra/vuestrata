@@ -14,8 +14,10 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import {
+  describeUndeclaredAdapters,
   readAuthAdapters,
   scanAuthAdapters,
+  scanAuthConfig,
   vuestrataEnv,
 } from '../../../scripts/vite/vuestrata-plugin.mjs'
 
@@ -407,17 +409,17 @@ describe('the adapters a project registered in auth.config.ts', () => {
   }
 
   const config = (body: string) =>
-    `import { defineAuthConfig } from '~/modules/auth'\n\nexport default defineAuthConfig(${body})\n`
+    `import { defineAuthConfig } from '~/lib/auth'\n\nexport default defineAuthConfig(${body})\n`
 
   // What a real one looks like: a lazy SDK adapter, a cookie-transport one,
-  // and a plain factory. None of these imports resolves from the temp root,
-  // which is the point: the file is read, never run.
+  // and a factory written inline. None of these imports resolves from the temp
+  // root, which is the point: the file is read, never run.
   const REGISTERED = config(`{
     endpoints: { ...endpointPresets.vuestrata, me: '/users/me' },
     adapters: {
       supabase: { transport: 'bearer', load: () => import('~/auth/supabase-adapter') },
       'company-sso': { transport: 'cookie' as const, create: createSsoAdapter },
-      legacy: createLegacyAdapter,
+      legacy: (options) => createLegacyAdapter(options),
     },
   }`)
 
@@ -466,7 +468,7 @@ describe('the adapters a project registered in auth.config.ts', () => {
   it('never runs the file', () => {
     // An SDK that expects a browser, and a statement that would end the build.
     const source = `import { createClient } from 'an-sdk-that-is-not-installed'
-import { defineAuthConfig } from '~/modules/auth'
+import { defineAuthConfig } from '~/lib/auth'
 
 const client = createClient(window.location.origin)
 throw new Error('auth.config.ts was executed')
@@ -481,7 +483,7 @@ export default defineAuthConfig({
   it('sees through the type-level wrappers a project may add', () => {
     expect(
       scanAuthAdapters(
-        `export default defineAuthConfig(({ adapters: { one: (create as AuthAdapterFactory) } }) satisfies AuthConfig)`,
+        `export default defineAuthConfig(({ adapters: { one: ((options) => create(options)) as AuthAdapterFactory } }) satisfies AuthConfig)`,
       ),
     ).toEqual({ one: 'bearer' })
     expect(
@@ -506,12 +508,117 @@ export default defineAuthConfig({
       "{ adapters: { sso: { transport: 'header', create } } }",
       /adapter "sso" does not declare its transport as a literal/,
     ],
-    ['a built-in name', '{ adapters: { jwt: create } }', /"jwt" is a built-in adapter/],
-    ['a name that is not usable', '{ adapters: { My_SSO: create } }', /not a usable adapter name/],
+    ['a built-in name', '{ adapters: { jwt: () => adapter } }', /"jwt" is a built-in adapter/],
+    [
+      'a name that is not usable',
+      '{ adapters: { My_SSO: () => adapter } }',
+      /not a usable adapter name/,
+    ],
+    // `adapters` under another spelling. Read as "no adapters", the build would
+    // reject the project's adapter name and tell it to register what it did.
+    [
+      'a computed key in the configuration',
+      "{ ['adapters']: { sso: { create } } }",
+      /the configuration has a computed key/,
+    ],
+    [
+      'a template-literal key in the configuration',
+      '{ [`adapters`]: { sso: { create } } }',
+      /the configuration has a computed key/,
+    ],
+    [
+      'a computed key that is not adapters at all',
+      '{ [KEY]: 1, adapters: { sso: { create } } }',
+      /the configuration has a computed key/,
+    ],
+    ['adapters as a getter', '{ get adapters() { return all } }', /`adapters` is not an object/],
+    // An adapter whose transport cannot be read. Read as bearer, a cookie
+    // adapter would pass the build under a bearer persistence mode.
+    [
+      'an adapter held in a variable',
+      '{ adapters: { sso: ssoRegistration } }',
+      /adapter "sso" is not written inline.*literal transport/s,
+    ],
+    [
+      'an adapter built by a call',
+      '{ adapters: { sso: cookieAdapter(create) } }',
+      /adapter "sso" is not written inline/,
+    ],
+    [
+      'an adapter read from a getter',
+      '{ adapters: { get sso() { return registration } } }',
+      /adapter "sso" is not written inline/,
+    ],
+    [
+      'a computed key inside an adapter',
+      "{ adapters: { sso: { ['transport']: 'cookie', create } } }",
+      /adapter "sso" has a computed key/,
+    ],
+    [
+      'a spread inside an adapter',
+      '{ adapters: { sso: { ...shared, create } } }',
+      /adapter "sso" uses a spread/,
+    ],
+    [
+      'a template-literal transport',
+      '{ adapters: { sso: { transport: `cookie`, create } } }',
+      /adapter "sso" does not declare its transport as a literal/,
+    ],
   ])('refuses %s', (_case, body, message) => {
     expect(() => scanAuthAdapters(config(body))).toThrow(message)
     // Every one of them explains how the file has to be written.
     expect(() => scanAuthAdapters(config(body))).toThrow(/without running it/)
+  })
+
+  // A default export that is a call can build its configuration from
+  // anything. Only `defineAuthConfig(<one object>)` is known to hand back the
+  // object it was given.
+  it.each([
+    [
+      'a helper that merges configurations',
+      'merge(base, { adapters: { sso: { create } } })',
+      /a call to something other than defineAuthConfig\(\)/,
+    ],
+    [
+      'Object.assign',
+      'Object.assign({}, { adapters: { sso: { create } } })',
+      /a call to something other than defineAuthConfig\(\)/,
+    ],
+    [
+      'defineAuthConfig with the adapters in a second argument',
+      'defineAuthConfig({}, { adapters: { sso: { create } } })',
+      /not called with exactly one argument/,
+    ],
+    [
+      'defineAuthConfig with a spread argument',
+      'defineAuthConfig(...parts)',
+      /exactly one argument/,
+    ],
+    ['defineAuthConfig with no argument', 'defineAuthConfig()', /exactly one argument/],
+    [
+      'defineAuthConfig given a variable',
+      'defineAuthConfig(config)',
+      /not an object literal passed to defineAuthConfig\(\)/,
+    ],
+  ])('refuses a default export that is %s', (_case, expression, message) => {
+    const source = `export default ${expression}\n`
+    expect(() => scanAuthAdapters(source)).toThrow(message)
+    expect(() => scanAuthAdapters(source)).toThrow(/without running it/)
+  })
+
+  it('reads a plain key, a quoted key and a method as what they are', () => {
+    expect(
+      scanAuthAdapters(
+        config(`{
+          'adapters': {
+            inline: () => adapter,
+            'quoted-name': function (options) { return build(options) },
+            method(options) { return build(options) },
+            stated: { 'transport': 'cookie', create },
+          },
+        }`),
+      ),
+    ).toEqual({ inline: 'bearer', 'quoted-name': 'bearer', method: 'bearer', stated: 'cookie' })
   })
 
   it('refuses a file whose default export it cannot read', () => {
@@ -524,5 +631,116 @@ export default defineAuthConfig({
     const root = projectWith(config('{ adapters: { ...others } }'))
 
     await expect(runConfig(root, build())).rejects.toThrow(/auth\.config\.ts.*spread/s)
+  })
+
+  it('fails the build for a cookie adapter it would have read as a bearer one', async () => {
+    // The registration is in a variable, and says `transport: 'cookie'`. Under
+    // the default persistence mode, which is a bearer one, this used to build.
+    const source = `import { defineAuthConfig } from '~/lib/auth'
+
+const sso = { transport: 'cookie', create: createSsoAdapter } as const
+
+export default defineAuthConfig({ adapters: { sso } })
+`
+    const root = projectWith(source, { VUESTRATA_AUTH_ADAPTER: 'sso' })
+
+    await expect(runConfig(root, build())).rejects.toThrow(/adapter "sso" is not written inline/)
+  })
+})
+
+describe('the adapter names a project declares to the type checker', () => {
+  const AUTH_CONFIG = 'src/modules/app/config/auth.config.ts'
+
+  function projectWith(source: string) {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api' } })
+    const file = path.join(root, AUTH_CONFIG)
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, source)
+    return root
+  }
+
+  /** An `auth.config.ts` that declares `declared` and registers `registered`. */
+  const source = (
+    declared: string[],
+    registered: string[],
+  ) => `import { defineAuthConfig } from '~/lib/auth'
+
+declare module '~/lib/auth' {
+  interface RegisteredAuthAdapterNames {
+${declared.map((name) => `    '${name}': true`).join('\n')}
+  }
+}
+
+export default defineAuthConfig({
+  adapters: {
+${registered.map((name) => `    '${name}': { transport: 'bearer', create },`).join('\n')}
+  },
+})
+`
+
+  it('reads the declared names beside the registered ones', () => {
+    expect(scanAuthConfig(source(['acme', 'company-sso'], ['acme']))).toEqual({
+      adapters: { acme: 'bearer' },
+      declared: ['acme', 'company-sso'],
+    })
+    // Written without quotes, and exported: both merge the same way.
+    expect(
+      scanAuthConfig(`declare module '~/lib/auth' {
+  export interface RegisteredAuthAdapterNames { acme: true }
+}
+export default defineAuthConfig({})
+`).declared,
+    ).toEqual(['acme'])
+  })
+
+  it('says nothing when every registered adapter is declared', async () => {
+    const { warn } = await runConfig(projectWith(source(['acme'], ['acme'])), build())
+
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('says nothing about the shipped file, which registers and declares none', async () => {
+    const shipped = fs.readFileSync(path.join(process.cwd(), AUTH_CONFIG), 'utf8')
+
+    expect(scanAuthConfig(shipped)).toEqual({ adapters: {}, declared: [] })
+    const { warn } = await runConfig(projectWith(shipped), build())
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('warns about an adapter that is registered and not declared, with the lines to add', async () => {
+    const { warn, result } = await runConfig(
+      projectWith(source([], ['acme', 'company-sso'])),
+      build(),
+    )
+
+    // A warning: the adapter works, and the build still accepts its name.
+    expect(JSON.parse(String(result.define?.__VUESTRATA_AUTH_ADAPTERS__))).toEqual({
+      acme: 'bearer',
+      'company-sso': 'bearer',
+    })
+    expect(warn).toHaveBeenCalledTimes(2)
+    expect(warn.mock.calls[0]?.[0]).toMatch(
+      /auth\.config\.ts registers the adapter "acme" without declaring its name/,
+    )
+    expect(warn.mock.calls[0]?.[0]).toContain(
+      "declare module '~/lib/auth' {\n    interface RegisteredAuthAdapterNames {\n      acme: true",
+    )
+    // A name that is not an identifier is quoted in the lines to paste.
+    expect(warn.mock.calls[1]?.[0]).toContain("'company-sso': true")
+  })
+
+  it('warns about a name that is declared and not registered', async () => {
+    const { warn } = await runConfig(projectWith(source(['acme', 'gone'], ['acme'])), build())
+
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringMatching(
+        /declares "gone" in RegisteredAuthAdapterNames, but registers no adapter/,
+      ),
+    )
+  })
+
+  it('has nothing to say when the two lists agree', () => {
+    expect(describeUndeclaredAdapters({}, [])).toEqual([])
+    expect(describeUndeclaredAdapters({ acme: 'cookie' }, ['acme'])).toEqual([])
   })
 })

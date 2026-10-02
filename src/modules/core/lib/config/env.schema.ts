@@ -50,7 +50,7 @@ export type RegisteredAuthAdapters = Readonly<Record<string, AuthAdapterTranspor
 const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
 
 /** The transport of the built-in adapters. `oauth` is a cookie session by design. */
-const BUILTIN_TRANSPORTS: Record<AuthAdapterName, AuthAdapterTransport> = {
+const BUILTIN_TRANSPORTS: Record<BuiltinAuthAdapterName, AuthAdapterTransport> = {
   mock: 'bearer',
   jwt: 'bearer',
   oauth: 'cookie',
@@ -102,7 +102,42 @@ export const ICON_PROVIDERS = [
 ] as const
 
 export type RuntimeMode = (typeof RUNTIME_MODES)[number]
-export type AuthAdapterName = (typeof AUTH_ADAPTERS)[number]
+/** The adapters Vuestrata ships, as a closed union. */
+export type BuiltinAuthAdapterName = (typeof AUTH_ADAPTERS)[number]
+
+/**
+ * The names of the adapters a project registers itself.
+ *
+ * Empty here, filled by declaration merging from `app/config/auth.config.ts`,
+ * beside the `adapters` it registers:
+ *
+ *     declare module '~/lib/auth' {
+ *       interface RegisteredAuthAdapterNames {
+ *         acme: true
+ *       }
+ *     }
+ *
+ * The keys are what matter; the value type is not read. An interface rather
+ * than a wider `string` because the type of the configured adapter is a
+ * contract: a project that registers nothing must see exactly the union it
+ * always saw, so nothing it wrote against `'mock' | 'jwt' | 'oauth'` stops
+ * compiling when it takes a release. A project that registers `acme` widens
+ * the type itself, with the one declaration above.
+ *
+ * It lives in this file, which imports nothing, because `AuthAdapterName` is
+ * defined here; `~/lib/auth` re-exports it, and that is the name to augment.
+ */
+// oxlint-disable-next-line typescript/no-empty-object-type -- extended by declaration merging
+export interface RegisteredAuthAdapterNames {}
+
+/**
+ * Every name `VUESTRATA_AUTH_ADAPTER` can hold: the built-in adapters, plus
+ * whatever the project declared in `RegisteredAuthAdapterNames`.
+ */
+export type AuthAdapterName =
+  | BuiltinAuthAdapterName
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents -- `never` until a project augments it
+  | Extract<keyof RegisteredAuthAdapterNames, string>
 export type SessionPersistence = (typeof SESSION_PERSISTENCE_MODES)[number]
 export type IconProviderName = (typeof ICON_PROVIDERS)[number]
 
@@ -248,11 +283,11 @@ export interface RuntimeEnv {
   apiUrl: string
   useMocks: boolean
   /**
-   * A built-in adapter, or the name of one the project registered in
-   * `auth.config.ts`. The `string & {}` arm admits those without costing the
-   * built-in names their autocomplete.
+   * A built-in adapter, or one the project registered in `auth.config.ts` and
+   * declared in `RegisteredAuthAdapterNames`. With nothing declared this is
+   * the built-in union, exactly as it was before a project could register any.
    */
-  authAdapter: AuthAdapterName | (string & {})
+  authAdapter: AuthAdapterName
   /**
    * Reload-survival strategy for bearer sessions. Ignored by cookie-transport
    * adapters, which resume from their session cookie regardless.
@@ -357,7 +392,7 @@ function collectCombinationIssues(
   // never receives one. The rule follows the transport, so it holds for an
   // adapter the project registered as `cookie` exactly as it does for `oauth`.
   const transport = Object.hasOwn(BUILTIN_TRANSPORTS, env.authAdapter)
-    ? BUILTIN_TRANSPORTS[env.authAdapter as AuthAdapterName]
+    ? BUILTIN_TRANSPORTS[env.authAdapter as BuiltinAuthAdapterName]
     : registered[env.authAdapter]
   if (transport === 'cookie' && env.sessionPersistence !== 'none') {
     issues.push({
@@ -495,7 +530,12 @@ function applyDefaults(parsed: ParsedEnv, isDev: boolean): RuntimeEnv {
     // Defaults follow the mode, so a correct demo/production config needs only
     // one variable set. Explicit values still win — and are then cross-checked.
     useMocks: parsed[ENV_KEYS.useMocks] ?? demo,
-    authAdapter: parsed[ENV_KEYS.authAdapter] ?? (demo ? 'mock' : 'jwt'),
+    // The schema checked the name against the built-in adapters and the ones
+    // the build read from `auth.config.ts`. The type is the project's own
+    // declaration of those (`RegisteredAuthAdapterNames`), which a schema
+    // cannot see: the build says when the two disagree.
+    authAdapter:
+      (parsed[ENV_KEYS.authAdapter] as AuthAdapterName | undefined) ?? (demo ? 'mock' : 'jwt'),
     // Default to the strategy that cannot leak a long-lived credential. When
     // the backend does not set a refresh cookie the boot call simply 401s and
     // the user lands on the login page — exactly what happened before this

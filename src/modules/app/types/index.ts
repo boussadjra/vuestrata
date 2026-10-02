@@ -1,4 +1,4 @@
-import type { SessionPersistence } from '~/lib/config/env.schema'
+import type { AuthAdapterName, SessionPersistence } from '~/lib/config/env.schema'
 import type { Role, Permission, BuiltinPermission, RoleDefinition } from '~/lib/rbac/types'
 
 // ─── Icon System ─────────────────────────────────────────
@@ -196,8 +196,11 @@ export interface AppConfig {
   title: string
   apiUrl: string
   useMocks: boolean
-  /** A built-in adapter, or the name of one registered in `config/auth.config.ts`. */
-  authProvider: 'jwt' | 'oauth' | 'mock' | (string & {})
+  /**
+   * A built-in adapter, or one registered in `config/auth.config.ts` and
+   * declared there in `RegisteredAuthAdapterNames`.
+   */
+  authProvider: AuthAdapterName
   /**
    * How a bearer session survives a page reload. See
    * `SESSION_PERSISTENCE_MODES` in core/lib/config/env.schema.ts for the

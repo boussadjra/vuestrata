@@ -23,8 +23,13 @@ declare const __VUESTRATA_AUTH_ADAPTERS__: RegisteredAuthAdapters | undefined
  * file, and `runtimeEnv` is resolved before any seam is installed, which is
  * why they arrive as a constant. Absent — a Vite config without the plugin —
  * only the built-in adapters are known.
+ *
+ * Exported for the adapter registry (`core/lib/auth/registry.ts`): the build
+ * validated `VUESTRATA_SESSION_PERSISTENCE` against the transport written
+ * here, so an adapter that turns out to use the other one was validated
+ * against the wrong rule, and the registry refuses to build it.
  */
-const registeredAuthAdapters: RegisteredAuthAdapters =
+export const scannedAuthAdapters: RegisteredAuthAdapters =
   typeof __VUESTRATA_AUTH_ADAPTERS__ === 'undefined' ? {} : (__VUESTRATA_AUTH_ADAPTERS__ ?? {})
 
 /**
@@ -46,6 +51,6 @@ export const runtimeEnv = resolveRuntimeEnv(import.meta.env, {
   // startup and this would quietly "correct" it back to `/api` in the page. A
   // build has already rejected such a URL, so this relaxes nothing that ships.
   serving: import.meta.env.DEV,
-  authAdapters: registeredAuthAdapters,
+  authAdapters: scannedAuthAdapters,
   onWarn: (message) => configLogger.warn(message),
 })

@@ -34,14 +34,23 @@
  *   })
  *
  * An adapter of your own, loaded only by the deployment that selects it. Write
- * `adapters` inline, with plain names: the build reads the names (and each
- * `transport`) from this file as text, without running it, so that
- * `VUESTRATA_AUTH_ADAPTER=supabase` is accepted and a name nobody registered
- * fails the build:
+ * `adapters` inline, with plain names, and each adapter inline too: the build
+ * reads the names (and each `transport`) from this file as text, without
+ * running it, so that `VUESTRATA_AUTH_ADAPTER=supabase` is accepted and a name
+ * nobody registered fails the build:
  *
  *   adapters: {
  *     supabase: { transport: 'bearer', load: () => import('~/auth/supabase-adapter') },
  *   },
+ *
+ * Declare the name as well, beside the import below, so that the type of
+ * `appConfig.authProvider` includes it (the build warns when the two differ):
+ *
+ *   declare module '~/lib/auth' {
+ *     interface RegisteredAuthAdapterNames {
+ *       supabase: true
+ *     }
+ *   }
  *
  * `docs/9.recipes/9.write-your-own-auth-adapter.md` walks through both.
  */

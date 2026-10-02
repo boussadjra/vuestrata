@@ -1,4 +1,4 @@
-import { AUTH_ADAPTER_ENV_KEY } from '~/config/app.config'
+import { AUTH_ADAPTER_ENV_KEY, type AuthAdapterName } from '~/config/app.config'
 import {
   AUTH_CONFIG_FILE,
   createRegisteredAuthAdapter,
@@ -57,10 +57,16 @@ export function registeredAuthAdapters(): string[] {
  *
  * No name at all is the env schema's default: `mock` in a demo build, `jwt`
  * otherwise.
+ *
+ * The answer is typed `AuthAdapterName`: the built-in names, and the names the
+ * project declared in `RegisteredAuthAdapterNames`. A project that registers
+ * nothing therefore gets the union this function has always returned.
  */
-export function resolveAuthAdapterName(adapterName: string | undefined): string {
+export function resolveAuthAdapterName(adapterName: string | undefined): AuthAdapterName {
   if (!adapterName) return __VUESTRATA_DEMO__ ? 'mock' : 'jwt'
-  if (registeredAuthAdapters().includes(adapterName)) return adapterName
+  // Checked against what is registered at runtime; the type is what the
+  // project declared, and the build says when the two disagree.
+  if (registeredAuthAdapters().includes(adapterName)) return adapterName as AuthAdapterName
 
   if (adapterName === 'mock') {
     throw new Error(

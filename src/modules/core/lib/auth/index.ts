@@ -59,6 +59,19 @@ export {
   registeredAuthAdapterNames,
 } from './registry'
 export { parseUser, userSchema, type UserInput } from './user'
+// The names a project's own adapters are registered under. A project that
+// registers one declares it by augmenting this module, in `auth.config.ts`:
+//
+//   declare module '~/lib/auth' {
+//     interface RegisteredAuthAdapterNames {
+//       acme: true
+//     }
+//   }
+export type {
+  AuthAdapterName,
+  BuiltinAuthAdapterName,
+  RegisteredAuthAdapterNames,
+} from '../config/env.schema'
 // The slot the resolved configuration is installed in. `bootstrap/seams.ts`
 // does it for the app; a test does it for itself:
 // `installAuthConfig(resolveAuthConfig({ … }))`.
