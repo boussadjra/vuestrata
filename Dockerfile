@@ -137,10 +137,12 @@ COPY --from=build /app/docker/nginx.conf /etc/nginx/conf.d/default.conf
 # What the entrypoint renders from, and the entrypoint itself. The nginx image
 # runs every executable *.sh in /docker-entrypoint.d before it starts the
 # server, and skips one that is not executable, so the mode is set here rather
-# than trusted to the checkout. Not under /etc/nginx/templates: the image's own
+# than trusted to the checkout (with chmod, not COPY --chmod, which the legacy
+# builder does not have). Not under /etc/nginx/templates: the image's own
 # 20-envsubst-on-templates.sh would try to process anything placed there.
 COPY --from=build /app/docker/runtime/ /etc/vuestrata/runtime/
-COPY --from=build --chmod=0755 /app/docker/entrypoint.d/ /docker-entrypoint.d/
+COPY --from=build /app/docker/entrypoint.d/ /docker-entrypoint.d/
+RUN chmod 0755 /docker-entrypoint.d/40-vuestrata-runtime.sh
 
 # The entrypoint reads the API URL from the container's environment: its origin
 # goes into the CSP, or its path gets the unrouted-API answer. This makes the
