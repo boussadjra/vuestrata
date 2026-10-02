@@ -8,6 +8,7 @@ import {
   usesWebStorage,
 } from '~/lib/auth/session-persistence'
 import { createScopedLogger } from '~/lib/logger'
+import { resolveSubjectPermissions } from '~/lib/rbac/identity'
 import type { User, Role, Permission } from '~/types'
 
 const authStoreLogger = createScopedLogger('auth-store')
@@ -76,7 +77,10 @@ export const useAuthStore = defineStore('auth', () => {
     () => !!user.value && (!!token.value || getAuthTransport() === 'cookie'),
   )
   const userRole = computed<Role>(() => user.value?.role ?? 'guest')
-  const userPermissions = computed<Permission[]>(() => user.value?.permissions ?? [])
+  // Resolved, never undefined: the explicit set when the backend sent one, else
+  // what the role grants. The route guard reads this and `useRbac` resolves the
+  // same way, so a sidebar link and the route behind it cannot disagree.
+  const userPermissions = computed<Permission[]>(() => resolveSubjectPermissions(user.value))
 
   function clearRefreshTimer() {
     if (refreshTimer) {

@@ -40,6 +40,10 @@ export {
 // Permission checks
 export { hasPermission, hasAnyPermission, hasAllPermissions } from './checks'
 
+// One rule for "what does this user hold", shared by the guard, `useRbac` and the auth store
+export { resolveSubjectPermissions } from './identity'
+export type { PermissionSubject } from './identity'
+
 // Namespace checks
 export { hasNamespacePermission } from './namespace'
 

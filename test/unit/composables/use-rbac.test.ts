@@ -38,10 +38,20 @@ describe('useRbac composable', () => {
     return auth
   }
 
-  it('should default to guest role when no user is authenticated', () => {
-    const { role, permissions } = useRbac()
+  it('should default to guest role, holding nothing, when no user is authenticated', () => {
+    const { role, permissions, can } = useRbac()
     expect(role.value).toBe('guest')
+    // What the guest ROLE grants is for a signed-in guest. A visitor who is not
+    // signed in holds nothing — the answer the route guard always gave them.
+    expect(permissions.value).toEqual([])
+    expect(can('dashboard:read')).toBe(false)
+  })
+
+  it('should grant a signed-in guest what the guest role holds', () => {
+    setupAuth({ role: 'guest' })
+    const { permissions, can } = useRbac()
     expect(permissions.value).toContain('dashboard:read')
+    expect(can('dashboard:read')).toBe(true)
   })
 
   it('should reflect the authenticated user role', () => {
