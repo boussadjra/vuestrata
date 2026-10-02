@@ -59,9 +59,8 @@ export function dockerfileWithoutRuntimeConfig(source) {
   const steps = source
     .split(/\r?\n/)
     .filter((line) => !line.trimStart().startsWith('#') && /sync-headers\.mjs/.test(line))
-  if (steps.length === 0 || steps.every((line) => /--runtime-config\b/.test(line))) {
-    return undefined
-  }
+  // A Dockerfile with no such step at all passes too: `every` of nothing.
+  if (steps.every((line) => /--runtime-config\b/.test(line))) return undefined
 
   return (
     'Dockerfile runs scripts/security/sync-headers.mjs without --runtime-config. The image ' +
