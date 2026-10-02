@@ -1,6 +1,9 @@
 import { slot } from '../../src/lib/manifest.mjs'
 import { ANCHORED_REGISTRIES } from '../../src/lib/registry.mjs'
 import { splitRegion } from '../split-regions.mjs'
+import deployment from './deployment.mjs'
+import notes from './notes.mjs'
+import projectFiles from './project-files.mjs'
 import promotions from './promotions.mjs'
 
 /**
@@ -31,4 +34,13 @@ const regionSplit = {
 }
 
 // One release, several changes, each with a line of its own in the upgrade report.
-export default [regionSplit, ...promotions]
+//
+// The order is the order of the report, and of the codemods: the region split
+// first, because later steps look for the regions it creates. Ownership steps
+// (promote, reclassify) run after every codemod, whatever their place here.
+//
+//   promotions      files the project owned that Vuestrata maintains from now on
+//   projectFiles    changes this release needs in files that stay the project's
+//   deployment      the container and CI files, replaced when nobody edited them
+//   notes           what only a person can act on
+export default [regionSplit, ...promotions, ...projectFiles, deployment, notes]

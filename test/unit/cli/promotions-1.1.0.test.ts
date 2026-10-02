@@ -102,7 +102,10 @@ describe('the release tags', () => {
 })
 
 describe('the promotion data', () => {
-  it('ships src/main.ts and src/App.vue as the shells the codemods write', () => {
+  // Maintainers only: both files are the project's, and the first thing the
+  // shell tells a project to do is edit it (`boot(App, { beforeMount })`). There
+  // this would fail `vpr test --run` for following the instructions.
+  it.runIf(MAINTAINER)('ships src/main.ts and src/App.vue as the shells the codemods write', () => {
     expect(lf(MAIN_SHELL)).toBe(lf(inRepo('src/main.ts')))
     expect(lf(APP_SHELL)).toBe(lf(inRepo('src/App.vue')))
   })
