@@ -68,7 +68,7 @@
     },
     "src/modules/app/bootstrap/seams.ts": {
       "class": "managed",
-      "hash": "sha256-e9e6608ca07e3763ada9b4cb67b4d6ad0f52e84e34fd4847179abc0be68d3622",
+      "hash": "sha256-2dc640bb2f26b945e379d24deb4a3baaea640b6228b9f09170e2de482040612d",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/stale-chunk-reload.ts": {
@@ -830,37 +830,37 @@
     },
     "src/modules/core/lib/api/classifiers.ts": {
       "class": "managed",
-      "hash": "sha256-4fab5367e33d5d10f85a1e05862fbb0b583bfbb55e7b036773524882f71fe4f3",
+      "hash": "sha256-ef09e6c3fd6ebb4c874b11292f1bf860545ce9b424378cc6b0d4d62938e12c5e",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/client.ts": {
       "class": "managed",
-      "hash": "sha256-dd2ba98579e2f021e05e8ad65fcd51620d63755f25d11ff9c481dd2aa57f8528",
+      "hash": "sha256-d0f5b255ccf1260a42d64c978b819363b5b61f1ed8b4eaebaabfea0c63cc6823",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/collection-queries.ts": {
       "class": "managed",
-      "hash": "sha256-e3317f48d8865c2528a5c2706504f757aa8182bcd500778e36e0798f4f147bed",
+      "hash": "sha256-5b922234c8706b8410b69b412353bda24f126ad998c44451a3059f9064660f2d",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/csrf.ts": {
       "class": "managed",
-      "hash": "sha256-90e226cb8565c7565436aff6276c137a14c7f434711625e23de03255a202685d",
+      "hash": "sha256-57142d6985f53bdbba82c73e26d10a7648169eafba475060b99dbb59bc42587d",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/error-mappers.ts": {
       "class": "managed",
-      "hash": "sha256-e66a275a2f23e774db0c8b2b42d9ca981f30e67d71266494f6c0f2669e5b6858",
+      "hash": "sha256-7cb03fd8ebf59741d9f667b7696df81448488c5d52cfff2c80c5a787345f3690",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/failure.ts": {
       "class": "managed",
-      "hash": "sha256-a91efae29eb54d2918614df70f004f3f8298afd2d01423e354a17b1fe76c21e9",
+      "hash": "sha256-038582fcadab47aa1c14c7ec341502b712f45bfd09b16f8b6ab24935e76e0250",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/integration.ts": {
       "class": "managed",
-      "hash": "sha256-409df85bd61a65eb5b1a2e6e51fe3b09f985900686fee70b879a1e2c46dc1ebf",
+      "hash": "sha256-90324fbf7bd9eca7ea41e6c74595d908ff89e618f9aff8768aa31c66659162d8",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/presets/aspnet.ts": {
@@ -870,7 +870,7 @@
     },
     "src/modules/core/lib/api/presets/django.ts": {
       "class": "managed",
-      "hash": "sha256-fcb4c0b57f5c92d1ab5ddb08b81b2b9b2554281e9263ef906e687ba91ce5efbe",
+      "hash": "sha256-9fbbc0445f992bd2a7dab14166020606b02bceabbcc1e1d79424f88c33fd3c79",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/presets/index.ts": {
@@ -905,7 +905,7 @@
     },
     "src/modules/core/lib/api/tracing.ts": {
       "class": "managed",
-      "hash": "sha256-5f408c14a45203ad9e8eede1347933c3755b817d5966536d92aa034eb1356dd5",
+      "hash": "sha256-156f39d819d531cf2c06fb0323fffe55da76928a785408b42a7461d58afaafe4",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/api/types.ts": {
@@ -940,7 +940,7 @@
     },
     "src/modules/core/lib/errors/index.ts": {
       "class": "managed",
-      "hash": "sha256-2c1aed06b5d80837d84c25747cf5490aa51c895f2b8dfc07683ba135151b0cd5",
+      "hash": "sha256-432a6d69681c59b12e53ce50fba2886e30dd898e26846bbd62e03edf3f00c838",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/errors/reporter.ts": {
