@@ -227,6 +227,30 @@ test.describe('When something fails', () => {
     await expect(page.locator('#email')).toBeVisible({ timeout: 20_000 })
   })
 
+  test('a lazy component that cannot be fetched reaches the error state, and Retry recovers', async ({
+    page,
+  }) => {
+    // The charting engine is not a route: `BaseChart` loads it on demand, so a
+    // chunk that is missing fails inside a page that has already rendered.
+    const CHART_CHUNKS = '**/assets/echarts-setup-*.js'
+    await logInAsDemoAdmin(page)
+    await page.context().route(CHART_CHUNKS, (route) => route.abort())
+
+    // Reloads itself once for what looks like a stale tab, fails again, and
+    // only then tells the visitor.
+    await page.goto('/dashboard/charts')
+    const boundary = page.getByTestId('app-error-boundary')
+    await expect(boundary).toBeVisible({ timeout: 30_000 })
+    await expect(boundary.getByRole('alert')).toContainText('could not be loaded')
+
+    // Mounting the page again would ask for nothing: Chromium remembers the
+    // failed import. Retry has to be a page load, and then it works.
+    await page.context().unroute(CHART_CHUNKS)
+    await Promise.all([page.waitForEvent('load'), page.getByTestId('app-error-retry').click()])
+    await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 30_000 })
+    await expect(boundary).toHaveCount(0)
+  })
+
   test('a first route that cannot load replaces the spinner with the boot-failure screen', async ({
     page,
   }) => {
