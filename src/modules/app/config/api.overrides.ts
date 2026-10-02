@@ -21,12 +21,20 @@
  *   tracing     send `X-Request-Id` and `traceparent`. Off by default: neither
  *               is CORS-safelisted, so each costs a preflight on a cross-origin
  *               API, which must also list it in `Access-Control-Allow-Headers`
+ *   redirect    'error' to refuse redirects from the API instead of following
+ *               them. Worth setting when `headers` holds a secret and the API
+ *               never redirects: a redirect to another origin takes every
+ *               header but `Authorization` with it
  *   collection  reserved for pagination and sorting dialects; ignored for now
  *
  * Left empty, as shipped, the client behaves as it always has, with two
  * additions: every request sends `Accept: application/json` (unless the caller
  * set `Accept` or asked for a non-JSON `responseType`) and `Accept-Language`
  * with the active locale.
+ *
+ * All of it applies to requests to your API's origin (`VUESTRATA_API_URL`) and
+ * to no other. `apiFetch('https://elsewhere.example/…')` carries neither the
+ * session nor anything set here, unless that call says `trusted: true`.
  *
  * ── How a preset and your options combine ──────────────────────────────────
  *
@@ -35,7 +43,7 @@
  *   classify, errors   yours first, then the preset's, then the built-ins:
  *                      the first to answer wins
  *   csrf, timeoutMs,   yours replaces the preset's
- *   tracing
+ *   tracing, redirect
  *
  * ── Examples ───────────────────────────────────────────────────────────────
  *
