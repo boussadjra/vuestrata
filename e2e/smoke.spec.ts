@@ -227,7 +227,7 @@ test.describe('When something fails', () => {
     await expect(page.locator('#email')).toBeVisible({ timeout: 20_000 })
   })
 
-  test('a lazy component that cannot be fetched reaches the error state, and Retry recovers', async ({
+  test('a lazy component that cannot be fetched fails where it is, and a reload recovers', async ({
     page,
   }) => {
     // The charting engine is not a route: `BaseChart` loads it on demand, so a
@@ -237,18 +237,22 @@ test.describe('When something fails', () => {
     await page.context().route(CHART_CHUNKS, (route) => route.abort())
 
     // Reloads itself once for what looks like a stale tab, fails again, and
-    // only then tells the visitor.
+    // only then tells the visitor. Each chart says it in its own place: the
+    // page around them is still the page, where one missing chunk used to
+    // replace all of it with the error state.
     await page.goto('/dashboard/charts')
-    const boundary = page.getByTestId('app-error-boundary')
-    await expect(boundary).toBeVisible({ timeout: 30_000 })
-    await expect(boundary.getByRole('alert')).toContainText('could not be loaded')
+    const unavailable = page.getByTestId('chart-load-error')
+    await expect(unavailable.first()).toBeVisible({ timeout: 30_000 })
+    await expect(unavailable.first()).toContainText('could not be loaded')
+    await expect(page.getByTestId('app-error-boundary')).toHaveCount(0)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    // Mounting the page again would ask for nothing: Chromium remembers the
-    // failed import. Retry has to be a page load, and then it works.
+    // Chromium remembers the failed import for the life of the document, so
+    // only a page load asks for the chunk again. Then the charts draw.
     await page.context().unroute(CHART_CHUNKS)
-    await Promise.all([page.waitForEvent('load'), page.getByTestId('app-error-retry').click()])
+    await page.reload()
     await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 30_000 })
-    await expect(boundary).toHaveCount(0)
+    await expect(unavailable).toHaveCount(0)
   })
 
   test('a first route that cannot load replaces the spinner with the boot-failure screen', async ({
