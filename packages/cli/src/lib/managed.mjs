@@ -57,6 +57,8 @@ export const MANAGED_FILES = [
   // Re-exports the query options from the bootstrap, which is where they live.
   'src/modules/app/plugins/vue-query.ts',
   'src/modules/app/composables/useRbac.ts',
+  // Binds core/lib's describeError() to vue-i18n; nothing in it is a project's to change.
+  'src/modules/app/composables/useErrorMessage.ts',
   'src/modules/auth/composables/useAuth.ts',
   // Generated modules import these three.
   'src/modules/app/mocks/collection.ts',
@@ -100,6 +102,7 @@ export const SEEDED_FILES = [
   'src/modules/app/styles/brand.css',
   'src/modules/app/config/app.overrides.ts',
   'src/modules/app/config/rbac.overrides.ts',
+  'src/modules/app/config/api.overrides.ts',
   'src/modules/app/components/Logo.vue',
   'src/modules/app/locales/en.overrides.json',
   'src/modules/app/locales/fr.overrides.json',

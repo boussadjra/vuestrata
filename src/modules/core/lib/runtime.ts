@@ -12,6 +12,7 @@
  * (see `scripts/lint/plugins/module-scope-state.plugin.mjs`).
  */
 
+import type { ApiIntegration } from './api/integration'
 import type { ApiAuthProvider } from './api/types'
 import type { AuthorizationHookFn, Permission, PredicateFn, Role } from './rbac/types'
 
@@ -64,6 +65,7 @@ let apiAuthBackend: ApiAuthBackend | null = null
 let rbacBackend: RbacBackend | null = null
 let validationCacheBackend: ValidationCacheBackend | null = null
 let rbacConfig: RbacConfig | null = null
+let apiIntegration: ApiIntegration | null = null
 
 export function installApiAuthBackend(backend: ApiAuthBackend): void {
   apiAuthBackend = backend
@@ -101,6 +103,20 @@ export function tryGetRbacConfig(): RbacConfig | null {
   return rbacConfig
 }
 
+/**
+ * How the API client talks to this project's backend: request hooks, response
+ * classifiers, error mappers, the CSRF strategy. Resolved at bootstrap from
+ * `app/config/api.overrides.ts` (see `core/lib/api/integration.ts`). Optional:
+ * with none installed the client uses `DEFAULT_API_INTEGRATION`.
+ */
+export type { ApiIntegration }
+export function installApiIntegration(integration: ApiIntegration): void {
+  apiIntegration = integration
+}
+export function tryGetApiIntegration(): ApiIntegration | null {
+  return apiIntegration
+}
+
 export function installValidationCacheBackend<T>(backend: ValidationCacheBackend<T>): void {
   validationCacheBackend = backend as ValidationCacheBackend
 }
@@ -119,4 +135,5 @@ export function __resetRuntimeSlots(): void {
   rbacBackend = null
   validationCacheBackend = null
   rbacConfig = null
+  apiIntegration = null
 }

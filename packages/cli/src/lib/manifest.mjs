@@ -47,6 +47,8 @@ export const DEFAULT_SLOTS = {
   rbacInheritance: 'src/modules/core/lib/rbac/inheritance.ts',
   /** Where a project declares, grants and withdraws its own permissions. */
   rbacOverrides: 'src/modules/app/config/rbac.overrides.ts',
+  /** Where a project describes its backend's API conventions. */
+  apiOverrides: 'src/modules/app/config/api.overrides.ts',
   envSchema: 'src/modules/core/lib/config/env.schema.ts',
 
   // ── Project root ─────────────────────────────────────────────────────────
@@ -60,7 +62,7 @@ export const DEFAULT_SLOTS = {
  * broken layout: `upgrade` writes it. Kept in step with `SEEDED_FILES` in
  * managed.mjs, which a test asserts.
  */
-export const SEEDED_SLOTS = ['rbacOverrides']
+export const SEEDED_SLOTS = ['rbacOverrides', 'apiOverrides']
 
 export const DEFAULT_CONVENTIONS = {
   /** Locale codes every module must provide. Order is not significant. */
