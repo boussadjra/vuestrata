@@ -3,11 +3,16 @@ import { afterEach, describe, it, expect, vi } from 'vite-plus/test'
 
 import {
   AppError,
+  describeError,
+  ERROR_MESSAGE_KEYS,
+  httpError,
   installErrorHandlers,
   installErrorReporter,
   isNotFoundError,
+  listErrorMessageKeys,
   normalizeError,
   getStatusMessage,
+  readErrorBody,
   reportError,
   resetErrorReporter,
   transportError,
@@ -30,6 +35,23 @@ function answered(status: number, body?: unknown) {
     options: { method: 'GET', headers: new Headers() },
     response,
   })
+}
+
+/** Every field of an `AppError`, so two of them can be compared whole. */
+function fieldsOf(error: AppError) {
+  return {
+    message: error.message,
+    code: error.code,
+    status: error.status,
+    details: error.details,
+    requestId: error.requestId,
+    kind: error.kind,
+    retryable: error.retryable,
+    retryAfterMs: error.retryAfterMs,
+    messageKey: error.messageKey,
+    formErrors: error.formErrors,
+    serverMessage: error.serverMessage,
+  }
 }
 
 function timeoutReason() {
@@ -378,5 +400,198 @@ describe('getStatusMessage', () => {
   it('should return generic message for unknown status', () => {
     const msg = getStatusMessage(418)
     expect(msg).toContain('418')
+  })
+})
+
+describe('AppError.with', () => {
+  it('copies every field, replacing the ones it is given', () => {
+    const original = new AppError({
+      message: 'The email is already taken.',
+      code: 'VALIDATION_FAILED',
+      status: 422,
+      details: { email: ['Already taken'] },
+      requestId: 'req-1',
+      kind: 'http',
+      retryable: false,
+      retryAfterMs: 1000,
+      messageKey: 'errors.status_422',
+      formErrors: ['Fix the form.'],
+      serverMessage: 'The email is already taken.',
+    })
+
+    const copy = original.with({ requestId: 'req-2' })
+
+    expect(copy).not.toBe(original)
+    expect(copy).toBeInstanceOf(AppError)
+    expect(fieldsOf(copy)).toEqual({ ...fieldsOf(original), requestId: 'req-2' })
+    expect(original.requestId).toBe('req-1')
+  })
+})
+
+describe('readErrorBody', () => {
+  it('reads the Vuestrata shape', () => {
+    expect(
+      readErrorBody({
+        message: 'Nope',
+        code: 'BAD',
+        details: { email: ['Taken'] },
+        requestId: 'req-9',
+        extra: 'ignored',
+      }),
+    ).toEqual({ message: 'Nope', code: 'BAD', details: { email: ['Taken'] }, requestId: 'req-9' })
+  })
+
+  it.each([undefined, null, 'text', 42, ['a'], { message: '' }, { message: 7, details: 'x' }])(
+    'reports nothing for %j',
+    (body) => {
+      expect(readErrorBody(body)).toEqual({
+        message: undefined,
+        code: undefined,
+        details: undefined,
+        requestId: undefined,
+      })
+    },
+  )
+})
+
+describe('httpError', () => {
+  it('builds the error for a status from what a mapper read', () => {
+    const error = httpError(
+      422,
+      {
+        message: 'The email is already taken.',
+        code: 'VALIDATION_FAILED',
+        details: { email: ['Already taken'] },
+        formErrors: ['Passwords do not match.'],
+        requestId: 'req-1',
+      },
+      { retryAfterMs: 2000 },
+    )
+
+    expect(error).toMatchObject({
+      status: 422,
+      message: 'The email is already taken.',
+      serverMessage: 'The email is already taken.',
+      code: 'VALIDATION_FAILED',
+      details: { email: ['Already taken'] },
+      formErrors: ['Passwords do not match.'],
+      requestId: 'req-1',
+      kind: 'http',
+      retryable: false,
+      retryAfterMs: 2000,
+      messageKey: 'errors.status_422',
+    })
+  })
+
+  it('falls back to the status when the mapper read nothing', () => {
+    for (const mapped of [null, undefined, {}]) {
+      const error = httpError(404, mapped)
+
+      expect(error).toMatchObject({
+        status: 404,
+        code: 'API_ERROR',
+        message: getStatusMessage(404),
+        messageKey: 'errors.status_404',
+      })
+      expect(error.serverMessage).toBeUndefined()
+      expect(error.formErrors).toBeUndefined()
+    }
+  })
+
+  it('never carries what a 5xx said, as a message or as form errors', () => {
+    const error = httpError(500, {
+      message: 'relation "users" does not exist',
+      formErrors: ['at pg.internal:5432'],
+      code: 'DB_DOWN',
+    })
+
+    expect(error.message).toBe('An unexpected error occurred. Please try again.')
+    expect(error.serverMessage).toBeUndefined()
+    expect(error.formErrors).toBeUndefined()
+    // The code is for the log and the support ticket, not for the screen.
+    expect(error.code).toBe('DB_DOWN')
+  })
+
+  it('takes a message key and a fallback code from the caller', () => {
+    const error = httpError(419, null, {
+      messageKey: ERROR_MESSAGE_KEYS.csrf,
+      fallbackCode: 'CSRF_TOKEN_MISMATCH',
+    })
+
+    expect(error).toMatchObject({ messageKey: 'errors.csrf', code: 'CSRF_TOKEN_MISMATCH' })
+    expect(httpError(419, { code: 'TOKEN_MISMATCH' }, { fallbackCode: 'X' }).code).toBe(
+      'TOKEN_MISMATCH',
+    )
+  })
+
+  it('is what normalizeError builds for an answered request', () => {
+    const body = { message: 'Nope', code: 'BAD', details: { a: ['b'] }, requestId: 'r' }
+    const normalized = normalizeError(answered(409, body))
+    const built = httpError(409, readErrorBody(body))
+
+    expect(fieldsOf(normalized)).toEqual(fieldsOf(built))
+  })
+})
+
+describe('describeError', () => {
+  const catalog: Record<string, string> = {
+    'errors.network': 'Erreur réseau.',
+    'errors.status_404': 'Introuvable.',
+    'errors.status_422': 'La validation a échoué.',
+    'errors.status_500': 'Erreur interne.',
+    'errors.unknown': 'Un problème est survenu.',
+  }
+  // What a translate function does with a key it does not have.
+  const t = (key: string) => catalog[key] ?? key
+
+  it('prefers what the backend said about a request it refused', () => {
+    const refused = httpError(422, { message: 'Cet e-mail est déjà enregistré.' })
+
+    expect(describeError(refused, t)).toBe('Cet e-mail est déjà enregistré.')
+  })
+
+  it('translates the message key when the backend said nothing', () => {
+    expect(describeError(httpError(404), t)).toBe('Introuvable.')
+    expect(describeError(transportError('network'), t)).toBe('Erreur réseau.')
+  })
+
+  it('never shows what a 5xx said: the translation of its status instead', () => {
+    const outage = httpError(500, { message: 'relation "users" does not exist' })
+
+    expect(describeError(outage, t)).toBe('Erreur interne.')
+  })
+
+  it('falls back to the English message when the key has no translation', () => {
+    // 409 is not in this catalog.
+    expect(describeError(httpError(409), t)).toBe(getStatusMessage(409))
+    expect(describeError(httpError(409), () => '')).toBe(getStatusMessage(409))
+  })
+
+  it('normalizes whatever it is given', () => {
+    expect(describeError(new Error('[{"code":"invalid_type"}]'), t)).toBe(
+      'Un problème est survenu.',
+    )
+    expect(describeError('boom', t)).toBe('Un problème est survenu.')
+    expect(describeError(answered(404), t)).toBe('Introuvable.')
+    expect(describeError(answered(422, { message: 'Trop long.' }), t)).toBe('Trop long.')
+  })
+
+  it('keeps a message an error was created with when it has no key', () => {
+    expect(describeError(new AppError({ message: 'Pick a workspace first.' }), t)).toBe(
+      'Pick a workspace first.',
+    )
+  })
+})
+
+describe('listErrorMessageKeys', () => {
+  it('lists every named key and one per status with a message', () => {
+    const keys = listErrorMessageKeys()
+
+    for (const key of Object.values(ERROR_MESSAGE_KEYS)) expect(keys).toContain(key)
+    for (const status of [400, 401, 403, 404, 409, 422, 429, 500, 502, 503]) {
+      expect(keys).toContain(`errors.status_${status}`)
+      expect(normalizeError(answered(status)).messageKey).toBe(`errors.status_${status}`)
+    }
+    expect(new Set(keys).size).toBe(keys.length)
   })
 })

@@ -16,6 +16,7 @@ import { VueQueryPlugin, vueQueryOptions } from '@/bootstrap/query-client'
 import { installSeams } from '@/bootstrap/seams'
 import { installErrorReporter, resetErrorReporter } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import { __resetRuntimeSlots, tryGetApiIntegration } from '@/lib/runtime'
 import { setupModules } from '@/modules'
 import type { createAuthAdapter } from '@/modules/auth'
 import { handleStaleChunkError } from '@/plugins/stale-chunk'
@@ -719,10 +720,20 @@ describe('demo-only steps', () => {
 })
 
 describe('installSeams', () => {
-  it('is a no-op in this release, and safe to call twice', () => {
+  afterEach(() => {
+    __resetRuntimeSlots()
+  })
+
+  it('installs the API integration, and is safe to call twice', () => {
+    __resetRuntimeSlots()
+    expect(tryGetApiIntegration()).toBeNull()
+
     expect(() => {
       installSeams()
       installSeams()
     }).not.toThrow()
+
+    // Read by the API client on every request; see test/unit/app/api-seam.test.ts.
+    expect(tryGetApiIntegration()).toMatchObject({ timeoutMs: 15_000 })
   })
 })
