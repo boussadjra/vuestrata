@@ -29,6 +29,8 @@ interface Harness {
   calls: string[]
   deps: Partial<BootDeps>
   app: App
+  /** `app.use`, held here so a test can read its calls without unbinding a method. */
+  use: ReturnType<typeof vi.fn>
   mount: ReturnType<typeof vi.fn>
   authStore: { setRefreshHandler: ReturnType<typeof vi.fn> }
   demo: { onInvalidation: ReturnType<typeof vi.fn> }
@@ -55,14 +57,11 @@ function harness(overrides: Partial<BootDeps> = {}): Harness {
   tags.set(router, 'router')
 
   const mount = vi.fn(() => void calls.push('app.mount'))
-  const app = {
-    config: {},
-    use: vi.fn((plugin: unknown) => {
-      calls.push(`app.use(${tags.get(plugin) ?? 'plugin'})`)
-      return app
-    }),
-    mount,
-  } as unknown as App
+  const use = vi.fn((plugin: unknown) => {
+    calls.push(`app.use(${tags.get(plugin) ?? 'plugin'})`)
+    return app
+  })
+  const app = { config: {}, use, mount } as unknown as App
 
   const authStore = {
     user: null,
@@ -120,7 +119,7 @@ function harness(overrides: Partial<BootDeps> = {}): Harness {
     ...overrides,
   }
 
-  return { calls, deps, app, mount, authStore, demo }
+  return { calls, deps, app, use, mount, authStore, demo }
 }
 
 beforeEach(() => {
@@ -227,11 +226,10 @@ describe('boot order', () => {
 
 describe('the query plugin', () => {
   it('is installed with the bootstrap options unless the project passes its own', async () => {
-    const { deps, app } = harness()
+    const { deps, use } = harness()
     delete deps.installQuery
 
     await boot(root, { deps })
-    const use = vi.mocked(app.use)
     const installed = use.mock.calls.find(([plugin]) => plugin === VueQueryPlugin)
     expect(installed?.[1]).toBe(vueQueryOptions)
 
@@ -239,6 +237,18 @@ describe('the query plugin', () => {
     const own = { queryClientConfig: { defaultOptions: { queries: { staleTime: 1 } } } }
     await boot(root, { deps, queryOptions: own })
     expect(use.mock.calls.find(([plugin]) => plugin === VueQueryPlugin)?.[1]).toBe(own)
+  })
+})
+
+describe('deps', () => {
+  it('keeps the default for a dependency passed as undefined', async () => {
+    const { calls, deps, use } = harness()
+    // `{ installQuery: options.installQuery }` from a caller that has none.
+    await boot(root, { deps: { ...deps, installQuery: undefined } })
+
+    expect(use.mock.calls.some(([plugin]) => plugin === VueQueryPlugin)).toBe(true)
+    expect(calls).not.toContain('renderBootFailure')
+    expect(calls).toContain('app.mount')
   })
 })
 
