@@ -27,6 +27,12 @@ import { test, expect, type ConsoleMessage, type Page } from '@playwright/test'
  *     E2E_API_URL=https://api.staging.example.test \
  *     vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
  *
+ * `E2E_APP_TITLE` does the same for a title (`-e VUESTRATA_APP_TITLE="Acme
+ * Console"`). An API URL on a placeholder host is a case of its own, because
+ * the BUILD refuses one and a container must not:
+ *
+ *   docker run -d -p 8082:8080 -e VUESTRATA_API_URL=http://localhost:8000 vuestrata
+ *
  * There is no backend behind it. That is the point: an unauthenticated visitor
  * must still get a working login screen, and every assertion here is chosen to
  * hold without an API.
@@ -240,12 +246,55 @@ test('calls the API the container was started with', async ({ page, baseURL }) =
   test.skip(persistence === 'none', 'This container makes no API call at boot.')
 
   const apiBase = apiBaseOf(apiUrl, baseURL)
+  const sameOriginApiCalls: string[] = []
+  page.on('request', (candidate) => {
+    if (candidate.url().startsWith(`${new URL(baseURL!).origin}/api/`)) {
+      sameOriginApiCalls.push(candidate.url())
+    }
+  })
   const request = page.waitForRequest((candidate) => candidate.url().startsWith(`${apiBase}/`), {
     timeout: 20_000,
   })
   await page.goto('/dashboard')
 
   expect((await request).url()).toBe(`${apiBase}/auth/refresh`)
+  await expect(page).toHaveURL(/\/auth\/login/, { timeout: 20_000 })
+
+  // A container started with an absolute URL must not also call /api on its
+  // own origin. That is what the app did for a URL on a placeholder host such
+  // as http://localhost:8000: the headers allowed the origin, the app fell
+  // back to /api, and the SPA fallback answered its refresh call with HTML.
+  if (!apiUrl.startsWith('/')) expect(sameOriginApiCalls).toEqual([])
+})
+
+test('shows the title the container was started with', async ({ page }) => {
+  const { VUESTRATA_APP_TITLE: title } = await runtimeConfig(page)
+  test.skip(title === undefined, 'This container was started with no title.')
+
+  await page.goto('/auth/login')
+  await expect(page.locator('#app-loader')).toHaveCount(0, { timeout: 20_000 })
+
+  // "Acme Console" has a space in it, and the page title ends with it.
+  await expect(page).toHaveTitle(new RegExp(`${title!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  if (env.E2E_APP_TITLE) expect(title).toBe(env.E2E_APP_TITLE)
+})
+
+test('does not block in the page what the header allows', async ({ page }) => {
+  // A browser enforces the page's own CSP <meta> in addition to the header.
+  // The image decides its API origin at start, long after index.html was
+  // written, so its tag must leave connections to the header: a tag that
+  // named the build's origin would block the one this container was given.
+  const html = await (await page.request.get('/')).text()
+  const meta = /http-equiv="Content-Security-Policy"\s+content="([^"]*)"/.exec(html)?.[1] ?? ''
+  const metaConnect = /(?:^|;)\s*connect-src ([^;]*)/.exec(meta)?.[1]?.trim().split(/\s+/) ?? []
+  const headerConnect = await connectSrcOf(page)
+
+  expect(metaConnect.length, 'the page states no connect-src').toBeGreaterThan(0)
+  for (const source of headerConnect) {
+    expect(metaConnect.includes('*') || metaConnect.includes(source), source).toBe(true)
+  }
+  // The header itself is never wide.
+  expect(headerConnect).not.toContain('*')
 })
 
 test('allows the configured API origin in the CSP, and only as an origin', async ({
