@@ -236,6 +236,25 @@ function useEnvPluginFile(source) {
   return eol === '\n' ? next : next.replaceAll('\n', eol)
 }
 
+/**
+ * The step itself. It runs with the other changes to vite.config.ts
+ * (project-files.mjs), so that the report names the file once.
+ */
+export const envPlugin = {
+  file: 'vite.config.ts',
+  pending: definesEnvPluginInline,
+  apply: useEnvPluginFile,
+  note:
+    'vite.config.ts still defines the Vuestrata env plugin inline, and not as 1.0.1-alpha.6 ' +
+    'shipped it, so it was left alone. Vuestrata now maintains that plugin in ' +
+    'scripts/vite/vuestrata-plugin.mjs, with the dev-server proxy to DEV_API_TARGET. To ' +
+    'take it: delete the vuestrataEnv function and its imports (parseRuntimeEnv, ' +
+    'loadEnv, Plugin, rm, resolve where nothing else uses them), add ' +
+    "`import { vuestrataEnv } from './scripts/vite/vuestrata-plugin.mjs'`, and keep " +
+    'the vuestrataEnv() call in plugins. Put changes you made to the plugin in your ' +
+    'own plugin beside it.',
+}
+
 // ─── main.ts and App.vue ─────────────────────────────────────────────────────
 
 /**
@@ -424,24 +443,5 @@ export default [
   {
     description: 'src/App.vue becomes <AppRoot />',
     steps: [appShell],
-  },
-  {
-    description: 'vite.config.ts imports the Vuestrata env plugin instead of defining it',
-    steps: [
-      {
-        file: 'vite.config.ts',
-        pending: definesEnvPluginInline,
-        apply: useEnvPluginFile,
-        note:
-          'vite.config.ts still defines the Vuestrata env plugin inline, and not as 1.0.1-alpha.6 ' +
-          'shipped it, so it was left alone. Vuestrata now maintains that plugin in ' +
-          'scripts/vite/vuestrata-plugin.mjs, with the dev-server proxy to DEV_API_TARGET. To ' +
-          'take it: delete the vuestrataEnv function and its imports (parseRuntimeEnv, ' +
-          'loadEnv, Plugin, rm, resolve where nothing else uses them), add ' +
-          "`import { vuestrataEnv } from './scripts/vite/vuestrata-plugin.mjs'`, and keep " +
-          'the vuestrataEnv() call in plugins. Put changes you made to the plugin in your ' +
-          'own plugin beside it.',
-      },
-    ],
   },
 ]

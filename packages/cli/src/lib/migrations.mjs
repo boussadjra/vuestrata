@@ -254,7 +254,8 @@ function runCodemod(step, migration, applied, { ws, manifest, result }) {
   const after = step.apply(before, manifest, ws)
   if (after !== before) {
     ws.write(rel, after)
-    applied.changed.push(rel)
+    // Once per group: several steps of one group may each change the file.
+    if (!applied.changed.includes(rel)) applied.changed.push(rel)
   }
 
   if (!step.pending?.(after, manifest, ws)) return

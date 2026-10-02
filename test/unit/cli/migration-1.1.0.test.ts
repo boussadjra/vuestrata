@@ -11,6 +11,9 @@ const { emptyLock, hashFor, readLock, writeLock } = await loadCli('src/lib/lockf
 const { loadManifest } = await loadCli('src/lib/manifest.mjs')
 const { collectMigrationsAsync, stepTarget } = await loadCli('src/lib/migrations.mjs')
 const { importStartLocation } = await loadCli('migrations/1.1.0/project-files.mjs')
+const { declaresBinding, jsonStringSpan, withoutComments } = await loadCli(
+  'migrations/1.1.0/text.mjs',
+)
 const { checkShipped, SHIPPED, shippedCopy } = await loadCli('migrations/1.1.0/shipped.mjs')
 
 /**
@@ -250,6 +253,119 @@ describe.skipIf(!CLI_PRESENT)('importStartLocation', () => {
     expect(importStartLocation("import type { Router } from 'vue-router'\n")).toBeUndefined()
     expect(importStartLocation("import { createRouter } from 'vue-router/auto'\n")).toBeUndefined()
   })
+
+  it('keeps the semicolon a statement ended on', () => {
+    expect(importStartLocation("import { createRouter } from 'vue-router';\n")).toBe(
+      "import { createRouter, START_LOCATION } from 'vue-router';\n",
+    )
+  })
+
+  it('does not import the name a second time when another statement already does', () => {
+    const has = [
+      "import { createRouter, createWebHistory } from 'vue-router'",
+      "import { START_LOCATION } from 'vue-router'",
+      '',
+    ].join('\n')
+
+    expect(importStartLocation(has)).toBe(has)
+  })
+
+  it('keeps a comment that sits among the imported names', () => {
+    const before = [
+      'import {',
+      '  createRouter,',
+      '  // history mode: the server rewrites every path to index.html',
+      '  createWebHistory,',
+      "} from 'vue-router'",
+      '',
+    ].join('\n')
+
+    expect(importStartLocation(before)).toBe(
+      before.replace('import {\n', 'import {\n  START_LOCATION,\n'),
+    )
+    expect(importStartLocation("import { createRouter /* v4 */ } from 'vue-router'\n")).toBe(
+      "import { START_LOCATION, createRouter /* v4 */ } from 'vue-router'\n",
+    )
+  })
+})
+
+describe.skipIf(!CLI_PRESENT)('what a codemod asks of a file before it inserts something', () => {
+  describe('declaresBinding', () => {
+    it.each([
+      ['a const', "const reason = useRouteQueryParam('reason')"],
+      ['a let', 'let reason: string | undefined'],
+      ['a var', 'var reason'],
+      ['a function', 'function reason() {}'],
+      ['a destructured name', 'const { error, reason } = useAuth()'],
+      ['a destructured alias', 'const { message: reason } = props'],
+      ['a destructured name with a default', "const { tries = 3, reason = 'none' } = options"],
+      ['an array pattern', 'const [reason, setReason] = useState()'],
+      ['a default import', "import reason from './reason'"],
+      ['a named import', "import { other, reason } from './reasons'"],
+      ['an aliased import', "import { why as reason } from './reasons'"],
+      ['a namespace import', "import * as reason from './reasons'"],
+      ['a type import', "import type { reason } from './reasons'"],
+    ])('finds %s', (_what, source) => {
+      expect(declaresBinding(`${source}\n`, 'reason')).toBe(true)
+    })
+
+    it.each([
+      ['a property', 'const state = { reason: 1 }'],
+      ['a member read', 'if (route.query.reason) show()'],
+      ['a destructured source key', 'const { reason: why } = props'],
+      ['the original name of an aliased import', "import { reason as why } from './reasons'"],
+      ['a longer name', 'const reasonText = 1\nconst unreason = 2'],
+      ['a string', "const label = 'const reason = 1'"],
+      ['a comment', '// const reason = 1\n/* let reason */'],
+    ])('does not take %s for a declaration', (_what, source) => {
+      expect(declaresBinding(`${source}\n`, 'reason')).toBe(false)
+    })
+  })
+
+  describe('withoutComments', () => {
+    it('blanks both comment forms and keeps strings, lines and the rest', () => {
+      const source = [
+        "const url = 'https://example.com/a' // not // a comment in the string",
+        '/* testTimeout: 1,',
+        '   two lines */ const kept = `a // b`',
+        '',
+      ].join('\n')
+
+      expect(withoutComments(source)).toBe(
+        ["const url = 'https://example.com/a' ", '', ' const kept = `a // b`', ''].join('\n'),
+      )
+    })
+  })
+
+  describe('jsonStringSpan', () => {
+    const source = [
+      '{',
+      '  "name": "acme",',
+      '  "config": { "scripts": { "lint": "nested" } },',
+      '  "scripts": {',
+      '    "lint:all": "vp lint",',
+      '    "lint": "vp lint",',
+      '    "say": "echo \\"lint\\": \\"vp lint\\""',
+      '  },',
+      '  "files": ["lint"]',
+      '}',
+      '',
+    ].join('\n')
+
+    it('finds the string at a path, and only there', () => {
+      const span = jsonStringSpan(source, ['scripts', 'lint'])
+
+      expect(source.slice(span.start, span.end)).toBe('"vp lint"')
+      // The second `"vp lint"` in the text: the first belongs to `lint:all`.
+      expect(span.start).toBe(source.indexOf('"lint": "vp lint"') + '"lint": '.length)
+    })
+
+    it('finds nothing where there is no string', () => {
+      expect(jsonStringSpan(source, ['scripts', 'test'])).toBeUndefined()
+      expect(jsonStringSpan(source, ['files'])).toBeUndefined()
+      expect(jsonStringSpan('{ "scripts": { "lint": 3 } }', ['scripts', 'lint'])).toBeUndefined()
+    })
+  })
 })
 
 describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', () => {
@@ -299,6 +415,50 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       expect(changed(report)).toEqual([])
       expect(report.notes).toEqual([])
+    })
+
+    it('edits scripts.lint, not a script declared above it that runs the same command', async () => {
+      seed([PACKAGE])
+      const lint: string = JSON.parse(released(PACKAGE)).scripts.lint
+      // The same text twice: first under a key of the project's, then under `lint`.
+      const twice = released(PACKAGE).replace(
+        '    "lint": ',
+        `    "lint:all": ${JSON.stringify(lint)},\n    "lint": `,
+      )
+      expect(JSON.parse(twice).scripts['lint:all']).toBe(lint)
+      fixture.write(PACKAGE, twice)
+
+      const report = await upgrade()
+
+      const scripts = JSON.parse(fixture.read(PACKAGE)).scripts
+      expect(scripts.lint).toBe(lint.replace(STEP, ''))
+      // The project's own script is its own business.
+      expect(scripts['lint:all']).toBe(lint)
+      expect(fixture.read(PACKAGE)).toBe(
+        twice.replace(
+          `    "lint": ${JSON.stringify(lint)}`,
+          `    "lint": ${JSON.stringify(lint.replace(STEP, ''))}`,
+        ),
+      )
+      expect(report.notes).toEqual([])
+    })
+
+    it('takes every occurrence of the step out in one pass', async () => {
+      seed([PACKAGE])
+      fixture.write(
+        PACKAGE,
+        released(PACKAGE).replace(`${STEP}"`, `${STEP} && vp fmt --check${STEP}"`),
+      )
+
+      const report = await upgrade()
+
+      const lint: string = JSON.parse(fixture.read(PACKAGE)).scripts.lint
+      expect(lint).not.toContain('check-template-lock')
+      expect(lint.endsWith(' --quiet && vp fmt --check')).toBe(true)
+      expect(report.notes).toEqual([])
+
+      const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+      expect(changed(again)).toEqual([])
     })
   })
 
@@ -374,6 +534,54 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(fixture.read(ROUTER)).toBe(custom)
       expect(again.notes).toEqual([])
       expect(changed(again)).toEqual([])
+    })
+
+    it('reads the guard with its two conditions in either order', async () => {
+      seed([ROUTER])
+      await upgrade()
+      const swapped = fixture
+        .read(ROUTER)
+        .replace(
+          'if (!failure && from !== START_LOCATION) clearStaleChunkMarker()',
+          'if (from !== START_LOCATION && !failure) {\n    clearStaleChunkMarker()\n  }',
+        )
+      expect(swapped).toContain('from !== START_LOCATION && !failure')
+      fixture.write(ROUTER, swapped)
+
+      const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+      expect(fixture.read(ROUTER)).toBe(swapped)
+      expect(again.notes).toEqual([])
+    })
+
+    it('counts the calls: a second hook that clears without the guard is still noted', async () => {
+      seed([ROUTER])
+      await upgrade()
+      // One guarded call, which the upgrade wrote, and one of the project's own.
+      const second = `${fixture.read(ROUTER)}\nrouter.afterEach(() => {\n  clearStaleChunkMarker()\n})\n`
+      fixture.write(ROUTER, second)
+
+      const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+      expect(fixture.read(ROUTER)).toBe(second)
+      expect(texts(again)).toEqual([
+        expect.stringContaining('Every call to clearStaleChunkMarker() in the file needs that'),
+      ])
+    })
+
+    it('does not import START_LOCATION a second time into a file that already has it', async () => {
+      seed([ROUTER])
+      const has = `import { START_LOCATION } from 'vue-router'\n${released(ROUTER)}`
+      fixture.write(ROUTER, has)
+
+      const report = await upgrade()
+
+      const result = fixture.read(ROUTER)
+      expect(result).toContain('if (!failure && from !== START_LOCATION) clearStaleChunkMarker()')
+      // The one import the project wrote, and no second one in the shipped statement.
+      expect(result.startsWith("import { START_LOCATION } from 'vue-router'\n")).toBe(true)
+      expect(result).not.toContain('  START_LOCATION,\n')
+      expect(report.notes).toEqual([])
     })
   })
 
@@ -480,6 +688,38 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(report.notes).toEqual([])
       expect(changed(report)).toEqual([])
     })
+
+    // The shipped lines are all still there, so the blocks match. What the
+    // project wrote beside them is what makes the insertion a second declaration.
+    it.each([
+      [
+        'reads ?reason= for a message of its own',
+        "const reason = useRouteQueryParam('reason')\n" +
+          "const sessionExpired = computed(() => reason.value === 'expired')\n",
+      ],
+      ['declares a `reason` for something else', "const reason = ref('')\n"],
+      [
+        'takes `sessionExpired` from a composable',
+        'const { sessionExpired } = useSessionState()\n',
+      ],
+    ])('leaves a page that %s, and describes the notice', async (_what, declarations) => {
+      seed([LOGIN])
+      const own = released(LOGIN).replace(
+        'const notifications = useNotificationStore()\n',
+        `const notifications = useNotificationStore()\n${declarations}`,
+      )
+      expect(own).not.toBe(released(LOGIN))
+      fixture.write(LOGIN, own)
+
+      const report = await upgrade()
+
+      // Not a second `const reason`: the file would no longer compile.
+      expect(fixture.read(LOGIN)).toBe(own)
+      expect(changed(report)).toEqual([])
+      expect(texts(report)).toEqual([
+        expect.stringMatching(/useRouteQueryParam\('reason'\).*auth_session_expired/s),
+      ])
+    })
   })
 
   describe('pages that ship in a production bundle', () => {
@@ -545,6 +785,19 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(texts(report)).toEqual([expect.stringContaining(`${FORMS} ("demo@vuestrata.dev")`)])
     })
 
+    it('rewords a line the page quotes twice, both in one upgrade', async () => {
+      seed([DEEP_DIVE])
+      const line = "- Cross-tab sync via `BroadcastChannel('vuestrata-demo-auth')`.\n"
+      expect(released(DEEP_DIVE)).toContain(line)
+      fixture.write(DEEP_DIVE, `${released(DEEP_DIVE)}\n## Summary\n\n${line}`)
+
+      const report = await upgrade()
+
+      expect(fixture.read(DEEP_DIVE)).not.toContain('vuestrata-demo-auth')
+      expect(fixture.read(DEEP_DIVE).split('named by `DEMO_CHANNEL_NAME`')).toHaveLength(3)
+      expect(report.notes).toEqual([])
+    })
+
     it('says nothing in a project that ejected the docs and the showcase', async () => {
       seed([PACKAGE])
 
@@ -604,6 +857,82 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       expect(changed(again)).toEqual([])
       expect(again.notes).toEqual([])
+    })
+
+    describe('in a file that already has what the new assertions bring', () => {
+      const STORES_TEST = 'test/stores.test.ts'
+      const USE_RBAC_TEST = 'test/unit/composables/use-rbac.test.ts'
+      const SURFACE_TEST = 'test/unit/architecture/public-surface.test.ts'
+      const DRIFT_TEST = 'test/unit/architecture/registry-drift.test.ts'
+      const CONTRACT_TEST = 'test/unit/architecture/module-contract.test.ts'
+
+      it('does not import getRolePermissions a second time', async () => {
+        seed([STORES_TEST])
+        const line = "import { getRolePermissions } from '~/lib/rbac'\n"
+        // The project tests the role table in this file too.
+        const own = released(STORES_TEST).replace(
+          "import { useAppStore } from '@/stores/app'\n",
+          `import { useAppStore } from '@/stores/app'\n${line}`,
+        )
+        expect(own).not.toBe(released(STORES_TEST))
+        fixture.write(STORES_TEST, own)
+
+        const report = await upgrade()
+
+        const result = fixture.read(STORES_TEST)
+        expect(result.split(line)).toHaveLength(2)
+        // The assertions were still rewritten: only the import was already there.
+        expect(result).toContain('userPermissions derives from the role')
+        expect(report.notes).toEqual([])
+      })
+
+      it('leaves a use-rbac test that renamed the helper the new test calls', async () => {
+        seed([USE_RBAC_TEST])
+        const own = released(USE_RBAC_TEST).replaceAll('setupAuth', 'signIn')
+        expect(own).not.toBe(released(USE_RBAC_TEST))
+        fixture.write(USE_RBAC_TEST, own)
+
+        const report = await upgrade()
+
+        // Rewritten, it would call a `setupAuth` that is not there.
+        expect(fixture.read(USE_RBAC_TEST)).toBe(own)
+        expect(texts(report)).toEqual([
+          expect.stringContaining(`${USE_RBAC_TEST} still asserts what 1.0 did`),
+        ])
+      })
+
+      it('leaves a public-surface test that already declares MAINTAINER', async () => {
+        seed([SURFACE_TEST])
+        const own = released(SURFACE_TEST).replace(
+          'const ROOT = process.cwd()\n',
+          "const MAINTAINER = 'acme-platform'\nconst ROOT = process.cwd()\n",
+        )
+        expect(own).not.toBe(released(SURFACE_TEST))
+        fixture.write(SURFACE_TEST, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(SURFACE_TEST)).toBe(own)
+        expect(texts(report)).toEqual([expect.stringContaining('VUESTRATA_MAINTAINER=1')])
+      })
+
+      it.each([
+        [DRIFT_TEST, 'read each catalog with its overrides merged on top'],
+        [CONTRACT_TEST, 'count its keys with those of the catalog'],
+      ])('leaves %s when it already binds enOverrides', async (rel, change) => {
+        seed([rel])
+        const own = released(rel).replace(
+          "import enShell from '@/locales/en.json'\n",
+          "import enShell from '@/locales/en.json'\nimport enOverrides from '../../fixtures/overrides'\n",
+        )
+        expect(own).not.toBe(released(rel))
+        fixture.write(rel, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(rel)).toBe(own)
+        expect(texts(report)).toEqual([expect.stringContaining(change)])
+      })
     })
 
     describe('for a file the project edited and keeps', () => {
@@ -744,6 +1073,32 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(again.notes).toEqual([])
     })
 
+    it('is named once in the report, though three steps change it', async () => {
+      seed([VITE])
+
+      const report = await upgrade()
+
+      expect(changed(report)).toEqual([VITE])
+    })
+
+    it('reads a setting, not a comment that mentions one', async () => {
+      seed([VITE])
+      // The words, and no option: this project has chosen nothing.
+      fixture.write(
+        VITE,
+        lf(released(VITE)).replace(
+          SHIPPED_LINES,
+          "    // TODO: raise testTimeout and cap maxWorkers on the build agents\n    setupFiles: ['test/setup.ts'],\n\n    coverage: {\n",
+        ),
+      )
+
+      await upgrade()
+
+      const result = lf(fixture.read(VITE))
+      expect(result).toContain('    testTimeout: 15_000,\n')
+      expect(result).toContain("    ...(process.env.CI ? {} : { maxWorkers: '50%' }),\n")
+    })
+
     describe('and the copies an upgrade leaves in .vuestrata/', () => {
       const ENTRY = "      '.vuestrata/**',\n"
       const ignoreNotes = (report: Report) =>
@@ -813,6 +1168,23 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
         const report = await upgrade()
 
         expect(lf(fixture.read(VITE)).split(ENTRY)).toHaveLength(1)
+        expect(ignoreNotes(report)).toEqual([])
+      })
+
+      it('is not put off by a comment that mentions the directory', async () => {
+        seed([VITE])
+        fixture.write(
+          VITE,
+          lf(released(VITE)).replace(
+            "      'dist/**',\n",
+            "      // .vuestrata/ is where upgrades leave the files they would not overwrite\n      'dist/**',\n",
+          ),
+        )
+
+        const report = await upgrade()
+
+        // The comment ignores nothing, so the entry is still added.
+        expect(lf(fixture.read(VITE)).split(ENTRY)).toHaveLength(3)
         expect(ignoreNotes(report)).toEqual([])
       })
     })
