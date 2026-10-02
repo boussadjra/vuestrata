@@ -241,11 +241,14 @@ function requireAccessToken(body: Record<string, unknown>, what: string): string
  *   oauthToken — an OAuth 2.0 token endpoint (RFC 6749 §5.1): `access_token`,
  *               `token_type` (must be Bearer), `expires_in?`, `refresh_token?`.
  *               It never carries a user, so the app asks the `me` endpoint.
+ *
+ * Arrow properties, not methods: a project passes one by reference
+ * (`mapAuthResponse: authResponseMappers.snakeCase`), and they use no `this`.
  */
 export const authResponseMappers = {
   vuestrata: (raw: unknown): MappedAuthResponse => record(raw, 'The auth response'),
 
-  snakeCase(raw: unknown): MappedAuthResponse {
+  snakeCase: (raw: unknown): MappedAuthResponse => {
     const body = record(raw, 'The auth response')
     const mfaRequired = body.mfa_required === true
     return compact({
@@ -261,7 +264,7 @@ export const authResponseMappers = {
     })
   },
 
-  oauthToken(raw: unknown): MappedAuthResponse {
+  oauthToken: (raw: unknown): MappedAuthResponse => {
     const body = record(raw, 'The token response')
     const type = body.token_type
     if (typeof type !== 'string' || type.toLowerCase() !== 'bearer') {
