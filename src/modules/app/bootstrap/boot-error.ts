@@ -1,4 +1,4 @@
-import { reportError } from '@/lib/errors'
+import { AppError, normalizeError, reportError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 
 import { removeAppLoader } from './app-loader'
@@ -13,8 +13,9 @@ import { removeAppLoader } from './app-loader'
  *
  * The screen has a heading, one sentence, a Reload button and a collapsed block
  * of technical detail. The detail is the error's name and its first message
- * line, with URLs and query strings removed: never a stack, never a response
- * body, because a person will paste this into a support ticket.
+ * line, with addresses, paths and anything that looks like data removed: never
+ * a stack, never a response body, because a person will paste this into a
+ * support ticket. A failed request shows its code and status and no message.
  *
  * It replaces what used to be a log-only function without changing the
  * signature, which is why `boot()` reaches it through its dependencies.
@@ -143,21 +144,73 @@ function prefersDark(): boolean {
 
 const MAX_DETAIL_LENGTH = 200
 
+/** An error's name, when it is one a class would have. Anything else is `Error`. */
+function nameOf(err: unknown): string {
+  const name = err instanceof Error ? err.name : ''
+  return /^[A-Za-z_$][\w$.]{0,59}$/.test(name) ? name : 'Error'
+}
+
 /**
- * A short, safe description of the failure: `Name: first line of the message`.
+ * The failed request behind an error, when there is one.
  *
- * URLs and query strings are cut out because a failed request's message can
- * carry a token or an id, and a stack is never included at all. Anything that
- * is not an `Error` is described by its type alone unless it is a string.
+ * An `AppError`, or anything `normalizeError()` recognises as a request that
+ * failed (ofetch's `FetchError`, an abort, a timeout). Its message is the
+ * server's own words for a 4xx, or carries the request URL, so it is never
+ * shown: the code and the status say what a support ticket needs.
+ */
+function requestFailure(err: unknown): AppError | null {
+  if (err instanceof AppError) return err
+  if (!(err instanceof Error)) return null
+  const normalized = normalizeError(err)
+  return normalized.kind && normalized.kind !== 'unknown' ? normalized : null
+}
+
+function describeRequestFailure(name: string, failure: AppError): string {
+  // The code can come from the response body too, so only a plain token is kept.
+  const code = /^[\w.-]{1,64}$/.test(failure.code) ? failure.code : ''
+  const status =
+    Number.isInteger(failure.status) && failure.status > 0 ? `status ${failure.status}` : ''
+  if (code && status) return `${name}: ${code} (${status})`
+  return code || status ? `${name}: ${code || status}` : name
+}
+
+/**
+ * The first line of a message, with everything that could identify a person, a
+ * session or a server taken out.
+ *
+ * In order: the line is cut at the first `{` or `[`, where a serialised
+ * response body would start; absolute URLs and `data:`-style URIs become
+ * `[url]`; any word with a slash in it (a relative URL, a protocol-relative
+ * host, a file path) becomes `[path]`, fragment and query included; and what is
+ * left of a `?query` or `#fragment` on a word without a slash is dropped.
+ */
+function scrub(message: string): string {
+  const line = message.split('\n', 1)[0] ?? ''
+  const beforeData = line.split(/[{[]/, 1)[0] ?? ''
+  return beforeData
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S*/gi, '[url]')
+    .replace(/\b(?:data|blob|file|mailto|tel|javascript):\S+/gi, '[url]')
+    .replace(/\S*[\\/]\S*/g, '[path]')
+    .replace(/[?#]\S*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * A short, safe description of the failure: `Name: first line of the message`,
+ * or `Name: CODE (status N)` for a failed request.
+ *
+ * A stack is never included. Anything that is not an `Error` is described by
+ * its type alone unless it is a string.
  */
 function describeFailure(err: unknown): string {
   try {
-    const name = err instanceof Error && err.name ? err.name : 'Error'
+    const name = nameOf(err)
+    const request = requestFailure(err)
+    if (request) return describeRequestFailure(name, request)
+
     const raw = err instanceof Error ? err.message : typeof err === 'string' ? err : ''
-    const message = (raw.split('\n', 1)[0] ?? '')
-      .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S*/gi, '[url]')
-      .replace(/\?\S*/g, '')
-      .trim()
+    const message = scrub(raw)
     const text = message ? `${name}: ${message}` : name
     return text.length > MAX_DETAIL_LENGTH ? `${text.slice(0, MAX_DETAIL_LENGTH)}…` : text
   } catch {

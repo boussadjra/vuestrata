@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 
 import { removeAppLoader } from '@/bootstrap/app-loader'
 import { renderBootFailure } from '@/bootstrap/boot-error'
-import { installErrorReporter, resetErrorReporter, type ErrorReporter } from '@/lib/errors'
+import {
+  AppError,
+  installErrorReporter,
+  resetErrorReporter,
+  transportError,
+  type ErrorReporter,
+} from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { APPEARANCE_KEYS } from '@/plugins/appearance'
 
@@ -127,6 +133,127 @@ describe('what it will not show', () => {
     expect(text()).not.toContain('abc123')
     expect(text()).not.toContain('session=9')
     expect(text()).toContain('[url]')
+  })
+
+  it('cuts a relative URL out whole, fragment included', () => {
+    // An OAuth callback's token travels in the fragment, on a relative URL.
+    renderBootFailure(
+      new Error('Redirect to /callback#access_token=SECRETTOKEN&state=xyz was refused'),
+    )
+
+    expect(text()).not.toContain('SECRETTOKEN')
+    expect(text()).not.toContain('access_token')
+    expect(text()).not.toContain('/callback')
+    expect(screen()?.querySelector('pre')?.textContent).toBe(
+      'Error: Redirect to [path] was refused',
+    )
+  })
+
+  it('drops a fragment or a query left on a word that is not a path', () => {
+    renderBootFailure(new Error('callback#access_token=SECRETTOKEN and state?session=9 failed'))
+
+    expect(text()).not.toContain('SECRETTOKEN')
+    expect(text()).not.toContain('session=9')
+    expect(screen()?.querySelector('pre')?.textContent).toBe('Error: callback and state failed')
+  })
+
+  it('cuts protocol-relative hosts, file paths and data: URIs out', () => {
+    renderBootFailure(
+      new Error(
+        'Load //cdn.internal.example/app.js from C:\\Users\\jane\\app or data:text/html;base64,U0VDUkVU failed',
+      ),
+    )
+
+    expect(text()).not.toContain('cdn.internal.example')
+    expect(text()).not.toContain('jane')
+    expect(text()).not.toContain('U0VDUkVU')
+    expect(screen()?.querySelector('pre')?.textContent).toBe(
+      'Error: Load [path] from [path] or [url] failed',
+    )
+  })
+
+  it('keeps the word "data:" when it is not a URI', () => {
+    renderBootFailure(new Error('Invalid data: the seed is empty'))
+
+    expect(screen()?.querySelector('pre')?.textContent).toBe(
+      'Error: Invalid data: the seed is empty',
+    )
+  })
+
+  it('cuts a response body out of the first line', () => {
+    renderBootFailure(
+      new Error('Unexpected response: {"password":"hunter2","user":{"email":"jane@example.com"}}'),
+    )
+    expect(text()).not.toContain('hunter2')
+    expect(text()).not.toContain('jane@example.com')
+    expect(screen()?.querySelector('pre')?.textContent).toBe('Error: Unexpected response:')
+
+    renderBootFailure(new Error('Unexpected rows ["hunter2","s3cret"] in the seed'))
+    expect(text()).not.toContain('hunter2')
+    expect(screen()?.querySelector('pre')?.textContent).toBe('Error: Unexpected rows')
+  })
+
+  it('shows the code and status of a failed request, never its message', () => {
+    // A 4xx `AppError` carries the `message` field of the server's response.
+    renderBootFailure(
+      new AppError({
+        message: 'No account for jane@example.com in tenant acme-internal',
+        code: 'ACCOUNT_NOT_FOUND',
+        status: 404,
+        kind: 'http',
+      }),
+    )
+
+    expect(text()).not.toContain('jane@example.com')
+    expect(text()).not.toContain('acme-internal')
+    expect(screen()?.querySelector('pre')?.textContent).toBe(
+      'AppError: ACCOUNT_NOT_FOUND (status 404)',
+    )
+  })
+
+  it('shows no status for a request that never got a response', () => {
+    renderBootFailure(transportError('network'))
+
+    expect(screen()?.querySelector('pre')?.textContent).toBe('AppError: NETWORK_ERROR')
+  })
+
+  it('treats an HTTP client error like the request failure it is', () => {
+    // What ofetch throws: the URL is in the message and the body is on `data`.
+    const failure = Object.assign(
+      new Error('[GET] "https://api.example.com/me?token=abc123": 401 Unauthorized'),
+      {
+        name: 'FetchError',
+        response: { status: 401 },
+        data: { message: 'Token abc123 has expired', code: 'TOKEN_EXPIRED' },
+      },
+    )
+
+    renderBootFailure(failure)
+
+    expect(text()).not.toContain('abc123')
+    expect(text()).not.toContain('api.example.com')
+    expect(screen()?.querySelector('pre')?.textContent).toBe(
+      'FetchError: TOKEN_EXPIRED (status 401)',
+    )
+  })
+
+  it('drops a request code that is not a plain token', () => {
+    renderBootFailure(
+      new AppError({ message: 'x', code: 'see https://idp.example.com/?t=1', status: 400 }),
+    )
+
+    expect(text()).not.toContain('idp.example.com')
+    expect(screen()?.querySelector('pre')?.textContent).toBe('AppError: status 400')
+  })
+
+  it('falls back to "Error" for a name that is not a class name', () => {
+    const failure = new Error('boom')
+    failure.name = 'see /callback#access_token=SECRETTOKEN'
+
+    renderBootFailure(failure)
+
+    expect(text()).not.toContain('SECRETTOKEN')
+    expect(screen()?.querySelector('pre')?.textContent).toBe('Error: boom')
   })
 
   it('shows only the first line of a multi-line message', () => {
