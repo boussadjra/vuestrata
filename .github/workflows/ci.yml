@@ -243,9 +243,49 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:8080
         run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
 
+      # Build once, deploy many: the SAME image, started for another
+      # environment. Its API URL, its CSP and its unrouted-API answer are all
+      # decided at start, on a read-only root filesystem with a writable /tmp.
+      - name: Start the same image for another environment
+        run: |
+          docker run -d --name vuestrata-ci-staging -p 8081:8080 \
+            --read-only --tmpfs /tmp \
+            -e VUESTRATA_API_URL=https://api.staging.example.test \
+            vuestrata:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8081/healthz >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs vuestrata-ci-staging
+          exit 1
+
+      - name: Smoke-test that environment
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8081
+          E2E_API_URL: https://api.staging.example.test
+        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+
+      # A value that could change the meaning of the nginx configuration or of
+      # runtime-config.js must stop the container, not be written out.
+      - name: A hostile value stops the container
+        run: |
+          if docker run --rm --read-only --tmpfs /tmp \
+            -e 'VUESTRATA_API_URL=https://a.example"; add_header X-Injected 1' \
+            vuestrata:ci nginx -t; then
+            echo "The container accepted a value it must refuse."
+            exit 1
+          fi
+
       - name: Container logs
         if: always()
-        run: docker logs vuestrata-ci || true
+        run: |
+          docker logs vuestrata-ci || true
+          docker logs vuestrata-ci-staging || true
 
       - uses: actions/upload-artifact@v4
         if: always()
