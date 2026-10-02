@@ -5,6 +5,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import {
+  ADAPTER_UNIT_FILES,
   APP_SHELL,
   MAIN_SHELL,
   mainShellFor,
@@ -122,16 +123,30 @@ describe('the promotion data', () => {
     }
   })
 
-  it('keeps the two headers scripts in one unit', async () => {
+  it('keeps the two headers scripts in one unit, and three adapter files in another', async () => {
     const steps: Step[] = (await promotions()).flatMap((migration: { steps: Step[] }) =>
       migration.steps.filter((step) => step.kind === 'promote' && step.unit),
     )
+    const unitOf = (file: string) => steps.find((step) => step.file === file)?.unit
 
     expect(steps.map((step) => step.file)).toEqual([
+      'src/modules/auth/adapters/base.ts',
+      'src/modules/auth/adapters/jwt.ts',
+      'src/modules/auth/adapters/types.ts',
       'scripts/security/headers.mjs',
       'scripts/security/sync-headers.mjs',
     ])
-    expect(new Set(steps.map((step) => step.unit)).size).toBe(1)
+    expect(new Set(steps.map((step) => step.unit)).size).toBe(2)
+    expect(unitOf('scripts/security/headers.mjs')).toBe(unitOf('scripts/security/sync-headers.mjs'))
+    expect(unitOf('src/modules/auth/adapters/base.ts')).toBe(
+      unitOf('src/modules/auth/adapters/jwt.ts'),
+    )
+    expect(unitOf('src/modules/auth/adapters/base.ts')).toBe(
+      unitOf('src/modules/auth/adapters/types.ts'),
+    )
+    // What a unit shares, a held-back member must still explain: each step
+    // carries the note, because the one that speaks is the first the project has.
+    expect(ADAPTER_UNIT_FILES).toEqual(steps.slice(0, 3).map((step) => step.file))
   })
 
   it.skipIf(!hasTags)(
@@ -381,6 +396,157 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
     expect(readLock(fixture.project).files[STORE]).toBeUndefined()
     expect(fixture.read(`.vuestrata/incoming/${STORE}`)).toBe(inRepo(STORE))
     expect(notesFor(report, STORE)[0]?.text).toMatch(/vuestrata adopt/)
+  })
+
+  it('says what a held-back store costs the files around it', async () => {
+    seedProject()
+    fixture.write(STORE, `${atTag(TAG, STORE)!}\n// project tweak\n`)
+
+    const report = await upgrade()
+
+    const text = notesFor(report, STORE)[0]?.text
+    // The effects are not in the store: they are in what waits for its event.
+    expect(text).toContain('`auth.logout`')
+    expect(text).toContain('does not clear the query cache')
+    expect(text).toContain('refresh-cookie')
+    expect(text).toContain('`userPermissions` is still []')
+    expect(text).toContain(`vuestrata adopt ${STORE}`)
+  })
+
+  describe('the auth adapters', () => {
+    const BASE = 'src/modules/auth/adapters/base.ts'
+    const JWT = 'src/modules/auth/adapters/jwt.ts'
+    const TYPES = 'src/modules/auth/adapters/types.ts'
+    const UNIT = [BASE, JWT, TYPES]
+    const OTHERS = [
+      'src/modules/auth/adapters/mock.ts',
+      'src/modules/auth/adapters/oauth.ts',
+      'src/modules/auth/adapters/pkce-state.ts',
+    ]
+    const ALL = [...UNIT, ADAPTERS, ...OTHERS]
+
+    function seedAdapters() {
+      for (const rel of ALL) fixture.write(rel, atTag(TAG, rel)!)
+      writeLock(fixture.project, emptyLock(FROM))
+    }
+
+    async function upgradeAdapters(version = '1.1.0-alpha.0') {
+      return runUpgrade({
+        root: fixture.project,
+        version,
+        flags: FLAGS,
+        apply: true,
+        source: writePayload(fixture.payload, {
+          version,
+          files: Object.fromEntries(ALL.map((rel) => [rel, inRepo(rel)])),
+        }),
+        migrations: await collectMigrationsAsync(FROM, version),
+      })
+    }
+
+    const incoming = (rel: string) => `.vuestrata/incoming/${rel}`
+
+    it('replaces all of them when none was edited', async () => {
+      seedAdapters()
+
+      const report = await upgradeAdapters()
+
+      for (const rel of ALL) expect(lf(fixture.read(rel)), rel).toBe(lf(inRepo(rel)))
+      expect(report.incoming).toEqual([])
+      // The only note is the one about the backend, which a replaced unit prints.
+      expect(report.notes.map((note: { rel?: string }) => note.rel)).toEqual([JWT])
+    })
+
+    // The case the unit exists for. base.ts holds the endpoint paths, so it is
+    // the file a project edits; jwt.ts it leaves alone. Replacing jwt.ts by
+    // itself would leave it calling endpoints the kept base.ts does not have.
+    it('holds jwt.ts and types.ts back with an edited base.ts, in one note that names the unit', async () => {
+      seedAdapters()
+      const edited = atTag(TAG, BASE)!.replace("'/auth/login'", "'/v2/auth/login'")
+      expect(edited).not.toBe(atTag(TAG, BASE))
+      fixture.write(BASE, edited)
+
+      const report = await upgradeAdapters()
+
+      expect(fixture.read(BASE)).toBe(edited)
+      // Unedited, and still not replaced.
+      expect(fixture.read(JWT)).toBe(atTag(TAG, JWT))
+      expect(fixture.read(TYPES)).toBe(atTag(TAG, TYPES))
+      for (const rel of UNIT) {
+        expect(lf(fixture.read(incoming(rel))), rel).toBe(lf(inRepo(rel)))
+        expect(readLock(fixture.project).files[rel], rel).toBeUndefined()
+      }
+
+      const notes = report.notes.filter((note: { rel?: string }) => UNIT.includes(note.rel ?? ''))
+      expect(notes).toHaveLength(1)
+      expect(notes[0].rel).toBe(BASE)
+      for (const rel of UNIT) expect(notes[0].text).toContain(rel)
+      expect(notes[0].text).toContain('are one unit')
+      expect(notes[0].text).toContain('`vuestrata adopt` on all three')
+      // What merging it changes for the backend, since the CORS note itself is
+      // only printed for a unit that was replaced.
+      expect(notes[0].text).toContain('Access-Control-Allow-Credentials: true')
+      expect(notes[0].text).toContain('UPGRADING.md')
+
+      // The rest of the directory does not wait for the unit.
+      for (const rel of [ADAPTERS, ...OTHERS]) {
+        expect(lf(fixture.read(rel)), rel).toBe(lf(inRepo(rel)))
+        expect(fixture.exists(incoming(rel)), rel).toBe(false)
+      }
+    })
+
+    it.each([
+      ['jwt.ts', JWT],
+      ['types.ts', TYPES],
+    ])('holds the unit back for an edited %s too', async (_name, rel) => {
+      seedAdapters()
+      fixture.write(rel, `${atTag(TAG, rel)!}\n// ours\n`)
+
+      const report = await upgradeAdapters()
+
+      for (const member of UNIT.filter((file) => file !== rel)) {
+        expect(fixture.read(member), member).toBe(atTag(TAG, member))
+      }
+      expect(
+        report.notes.filter((note: { text: string }) => /are one unit/.test(note.text)),
+      ).toHaveLength(1)
+    })
+
+    it('keeps an edited index.ts by itself: registering an adapter costs none of the fixes', async () => {
+      seedAdapters()
+      const edited = `${atTag(TAG, ADAPTERS)!}\n// our own adapter is registered above\n`
+      fixture.write(ADAPTERS, edited)
+
+      const report = await upgradeAdapters()
+
+      expect(fixture.read(ADAPTERS)).toBe(edited)
+      expect(lf(fixture.read(incoming(ADAPTERS)))).toBe(lf(inRepo(ADAPTERS)))
+      for (const rel of [...UNIT, ...OTHERS]) {
+        expect(lf(fixture.read(rel)), rel).toBe(lf(inRepo(rel)))
+      }
+      expect(
+        report.notes.filter((note: { text: string }) => /are one unit/.test(note.text)),
+      ).toEqual([])
+    })
+
+    it('takes the unit over on the upgrade after the project merged the incoming files', async () => {
+      seedAdapters()
+      fixture.write(BASE, `${atTag(TAG, BASE)!}\n// ours\n`)
+      await upgradeAdapters()
+
+      // Merged by hand: all three are now this release's files.
+      for (const rel of UNIT) fixture.write(rel, fixture.read(incoming(rel)))
+      const again = await upgradeAdapters('1.1.0-alpha.1')
+
+      const adopted = again.adopted.map((entry: { rel: string }) => entry.rel)
+      for (const rel of UNIT) {
+        expect(adopted, rel).toContain(rel)
+        expect(readLock(fixture.project).files[rel], rel).toMatchObject({ class: 'managed' })
+      }
+      expect(
+        again.notes.filter((note: { text: string }) => /are one unit/.test(note.text)),
+      ).toEqual([])
+    })
   })
 
   it('points an edited catalog at the overrides file', async () => {

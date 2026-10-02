@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 
-import { hashFor, LOCKFILE_NAME } from '../../src/lib/lockfile.mjs'
+import { LOCKFILE_NAME } from '../../src/lib/lockfile.mjs'
 import { compareVersions, releaseCore } from '../../src/lib/migrations.mjs'
-import { PRISTINE } from './promotions.mjs'
+import { adaptersBeingReplaced } from './promotions.mjs'
 import { listOf } from './text.mjs'
 
 /**
@@ -39,12 +39,12 @@ const JWT_ADAPTER = 'src/modules/auth/adapters/jwt.ts'
  * layers them for `--mode production`.
  *
  * Deliberately not every file a build can read. `.env.local` is one, but it is
- * the developer's own (the docs say to copy `.env.example` there, and the
- * example selects the mock adapter and a same-origin API), it is not committed,
- * and CI never sees it. `.env.development*` and `.env.test*` are not read by a
- * production build at all. A team that develops on mocks and sets `jwt` and a
- * cross-origin API in CI or a hosting dashboard is the ordinary case, and what
- * its local files say is no evidence about its deployment.
+ * the developer's own: the docs say to copy `.env.example` there, so nearly
+ * every project has one, holding the example's mock adapter and same-origin
+ * API. `.env.development*` and `.env.test*` are not read by a production build
+ * at all. A team that develops on mocks and sets `jwt` and a cross-origin API
+ * in CI or a hosting dashboard is the ordinary case, and what its local files
+ * say is no evidence about its deployment.
  */
 const PRODUCTION_ENV_FILES = ['.env.production.local', '.env.production', '.env']
 
@@ -115,9 +115,10 @@ function noProductionEvidence(ws) {
  * refused by the browser. It is the one change in 1.1.0 that can break a
  * deployment that works, so it is said here and not only in the changelog.
  *
- * Shown by the upgrade that replaces the adapter: while the project's jwt.ts is
- * still a release's copy. A project that edited it keeps its copy and the old
- * behaviour, and reads about the change in that file's own note.
+ * Shown by the upgrade that replaces the adapter: while jwt.ts, base.ts (where
+ * the credentials are set) and types.ts are all still a release's copy. They
+ * move as one unit, so a project that edited any of them keeps all three and
+ * the old behaviour, and reads about the change in the unit's own note.
  *
  * Withheld only on evidence that it cannot apply, and only a file a production
  * build is made from is evidence (`PRODUCTION_ENV_FILES`): one that selects
@@ -127,7 +128,7 @@ function noProductionEvidence(ws) {
  * is the project that sets these in CI or in a hosting dashboard.
  */
 function credentialedCorsNote(source, manifest, ws) {
-  if (!PRISTINE[JWT_ADAPTER].includes(hashFor(JWT_ADAPTER, source, 'managed'))) return undefined
+  if (!adaptersBeingReplaced(ws)) return undefined
 
   const adapter = productionValue(ws, 'VUESTRATA_AUTH_ADAPTER')
   const mode = productionValue(ws, 'VUESTRATA_SESSION_PERSISTENCE')

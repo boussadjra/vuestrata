@@ -37,6 +37,30 @@ export interface AuthWiringStore {
   setRefreshHandler: (fn: (() => void | Promise<void>) | null) => void
 }
 
+/** What a refresh through the adapter answers, as far as the wiring reads it. */
+interface RefreshedTokens {
+  token: string
+  refreshToken?: string
+  expiresIn?: number
+}
+
+/**
+ * The adapter members 1.1.0 added, as this file reads them.
+ *
+ * The same rule as `AuthWiringStore`, for the adapters. `auth/adapters/` is
+ * managed, but a project that edited one of those files keeps all of them as
+ * they were, and their `AuthAdapter` type declares neither member: reading
+ * `adapter.refreshSession` off that type does not compile, whatever `typeof`
+ * check surrounds it. Read through this type, a 1.0 adapter is one that has
+ * neither, which is what the checks below already handle. `name` is here only
+ * so that such an adapter has a member in common with the type.
+ */
+interface RefreshingAdapter {
+  readonly name: string
+  refreshSession?: () => Promise<RefreshedTokens | null>
+  canRefreshSession?: () => boolean
+}
+
 export interface AuthWiringDeps {
   /** The configured adapter name (`VUESTRATA_AUTH_ADAPTER`). */
   adapterName: string
@@ -74,10 +98,17 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
   // One adapter for the whole session: the refresh callbacks below and the
   // proactive handler share it. The token getters are what let it present a
   // refresh token held in memory; an adapter that predates them ignores them.
-  const adapter = createAuthAdapter(adapterName, {
+  //
+  // Named, not written into the call: the `createAuthAdapter` of an
+  // adapters/index.ts from before 1.1.0 declares no `getRefreshToken`, and an
+  // object literal with a property its parameter does not know is a type error
+  // there. A variable is only checked for what the two have in common.
+  const tokens = {
     getToken: () => authStore.token,
     getRefreshToken: () => authStore.refreshToken,
-  })
+  }
+  const adapter = createAuthAdapter(adapterName, tokens)
+  const refreshing: RefreshingAdapter = adapter
 
   // One refresh at a time, whoever asks. The 401 path and the proactive timer
   // can fire within the same second, and a backend that rotates the refresh
@@ -86,8 +117,10 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
   // joins the request already in flight. Feature-detected: an adapter a project
   // wrote (or edited) before `refreshSession` existed does not have it.
   const refreshSession =
-    typeof adapter.refreshSession === 'function' ? adapter.refreshSession.bind(adapter) : null
-  type Refreshed = Awaited<ReturnType<NonNullable<typeof refreshSession>>>
+    typeof refreshing.refreshSession === 'function'
+      ? refreshing.refreshSession.bind(refreshing)
+      : null
+  type Refreshed = RefreshedTokens | null
   let refreshInFlight: Promise<Refreshed> | null = null
 
   // Which session is in progress. A refresh takes a round trip, and the person
@@ -160,7 +193,7 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
     return flight
   }
   const canRefresh = (): boolean =>
-    typeof adapter.canRefreshSession !== 'function' || adapter.canRefreshSession()
+    typeof refreshing.canRefreshSession !== 'function' || refreshing.canRefreshSession()
 
   installApiAuth({
     // The adapter decides whether the app sends a bearer token or relies on a

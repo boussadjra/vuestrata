@@ -1364,7 +1364,9 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
   describe('the note about credentialed requests', () => {
     const ADAPTER = { [JWT]: inRepo(JWT) }
-    const CORS = /Access-Control-Allow-Credentials: true/
+    // How the note opens. The note of a held-back adapter unit names the same
+    // header, and is a different note.
+    const CORS = /^ACTION MAY BE NEEDED ON YOUR BACKEND/
 
     const cors = (report: Report) => report.notes.filter((note) => CORS.test(note.text))
 
@@ -1501,6 +1503,24 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       const report = await upgrade(ADAPTER)
 
       expect(fixture.exists(incoming(JWT))).toBe(true)
+      expect(cors(report)).toEqual([])
+      // It is told in the note of the file it kept: merging is what turns the
+      // credentials on.
+      expect(texts(report)).toEqual([
+        expect.stringMatching(/are one unit.*Access-Control-Allow-Credentials: true/s),
+      ])
+    })
+
+    it('is not said when base.ts was edited either: the unit is held back whole', async () => {
+      const BASE = 'src/modules/auth/adapters/base.ts'
+      seed([JWT, BASE])
+      fixture.write(BASE, `${released(BASE)}\n// ours\n`)
+      fixture.write('.env.production', 'VUESTRATA_AUTH_ADAPTER=jwt\n')
+
+      const report = await upgrade({ ...ADAPTER, [BASE]: inRepo(BASE) })
+
+      // jwt.ts is a release's copy, and it is not replaced: no credentials yet.
+      expect(fixture.read(JWT)).toBe(released(JWT))
       expect(cors(report)).toEqual([])
     })
 

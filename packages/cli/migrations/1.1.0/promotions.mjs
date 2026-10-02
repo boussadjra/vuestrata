@@ -8,7 +8,7 @@ import {
   HEADERS_SCRIPTS,
   REGENERATE_HEADERS,
 } from './headers-unit.mjs'
-import { eolOf } from './text.mjs'
+import { eolOf, listOf } from './text.mjs'
 
 /**
  * Files the project owned that Vuestrata maintains from 1.1.0, and the two
@@ -126,12 +126,69 @@ const PRISTINE_APP = ['sha256-8a816842089999d60f1a8d1cbf7fe0ec1ec33dec9c94f5f29f
 /** What the two headers scripts move as. Each is written against the other. */
 const HEADERS_UNIT = 'security-headers'
 
+/**
+ * The adapter files that are replaced together or not at all.
+ *
+ * Decided by what each reads from the others, at 1.0.1-alpha.6 and now:
+ *
+ *   jwt.ts    calls `authEndpoints.refreshWithToken` and `.getUserAs`, which
+ *             base.ts gained in 1.1.0, and imports `RefreshedSession`, which
+ *             types.ts gained. The other way round, the jwt.ts of 1.0 assigns
+ *             the result of `resumeWithRefreshCookie` to a type the new
+ *             base.ts no longer returns.
+ *   base.ts   imports `RefreshedSession` from types.ts.
+ *
+ * So one of the three left at 1.0 beside the other two does not compile, in a
+ * file the project never touched, and every token refresh throws. A project
+ * that edited base.ts (the endpoint paths are there, so it is the likely one)
+ * keeps all three, with the new versions in .vuestrata/incoming/.
+ *
+ * Not in the unit, on purpose:
+ *
+ *   index.ts  is where a project registers an adapter of its own, the most
+ *             likely edit in the directory, and it must not cost the session
+ *             fixes in the other three. It calls `createJwtAdapter` through a
+ *             type either version satisfies, and the callers of
+ *             `createAuthAdapter` do the same for it.
+ *   mock.ts, oauth.ts, pkce-state.ts
+ *             did not change in 1.1.0, and read only what base.ts and types.ts
+ *             already had in 1.0.
+ *
+ * test/unit/cli/held-back-1.1.0.test.ts type-checks every one of these
+ * statements: each file here and in the list above, left at 1.0 beside this
+ * release.
+ */
+export const ADAPTER_UNIT_FILES = [
+  'src/modules/auth/adapters/base.ts',
+  'src/modules/auth/adapters/jwt.ts',
+  'src/modules/auth/adapters/types.ts',
+]
+const ADAPTERS_UNIT = 'auth-adapters'
+
 /** The plumbing files, in the order a reader would look for them. */
-const PLAIN_PROMOTIONS = Object.keys(PRISTINE).filter((rel) => !HEADERS_SCRIPTS.includes(rel))
+const PLAIN_PROMOTIONS = Object.keys(PRISTINE).filter(
+  (rel) => !HEADERS_SCRIPTS.includes(rel) && !ADAPTER_UNIT_FILES.includes(rel),
+)
+
+/**
+ * This upgrade replaces the adapter unit: every member the project has is
+ * still a release's copy. False once it has, and false when one was edited:
+ * the three are then held back and behave as they did in 1.0.
+ *
+ * Notes ask, and they run before any promotion, so they ask the files.
+ */
+export function adaptersBeingReplaced(ws) {
+  const present = ADAPTER_UNIT_FILES.filter((rel) => ws.exists(rel))
+  return (
+    present.length > 0 &&
+    present.every((rel) => PRISTINE[rel].includes(hashFor(rel, ws.read(rel), 'managed')))
+  )
+}
 
 const LOCALE = /^src\/modules\/app\/locales\/(en|fr|ar)\.json$/
 const QUERY_PLUGIN = 'src/modules/app/plugins/vue-query.ts'
 const RUNTIME_BACKENDS = 'src/modules/app/state/runtime-backends.ts'
+const AUTH_STORE = 'src/modules/app/stores/auth.ts'
 
 function promoteNote(rel) {
   const locale = LOCALE.exec(rel)
@@ -171,8 +228,41 @@ function promoteNote(rel) {
     )
   }
 
+  // What a held-back store costs is not in the store: it is in every file
+  // that waits for what the new one announces.
+  if (rel === AUTH_STORE) {
+    return (
+      `${rel} is maintained by Vuestrata from 1.1.0, but this copy differs from every release ` +
+      `that shipped it, so it was left alone, and the app keeps working with it. Until you ` +
+      `merge it: it announces no \`auth.logout\` event, so signing out does not clear the ` +
+      `query cache (the next person on the tab can be shown the previous user's data) or reset ` +
+      `the API client's refresh state; its proactive refresh still needs a refresh token that ` +
+      `JavaScript holds, which under VUESTRATA_SESSION_PERSISTENCE=refresh-cookie there never ` +
+      `is; and \`userPermissions\` is still [] for a user whose backend sends a role and no ` +
+      `permissions, so the route guard refuses them the routes the sidebar shows. Merge what ` +
+      `you want from .vuestrata/incoming/${rel}, then run \`vuestrata adopt ${rel}\` and ` +
+      `\`vuestrata upgrade\` again, which brings test/stores.test.ts along.`
+    )
+  }
+
   return undefined
 }
+
+/** One note for the adapter unit, whichever member is the first the project has. */
+const ADAPTERS_NOTE =
+  `${listOf(ADAPTER_UNIT_FILES)} are one unit: jwt.ts calls endpoints base.ts gained in 1.1.0 ` +
+  'and both use a type types.ts gained, so they are replaced together or not at all. At least ' +
+  'one of yours differs from 1.0.1-alpha.6, so none was replaced, and the jwt adapter keeps ' +
+  'what 1.0 did: no cookies on /auth/* requests, so under ' +
+  'VUESTRATA_SESSION_PERSISTENCE=refresh-cookie (the production default) the refresh cookie ' +
+  'is never stored or sent, and a reload signs the user out. Merge your changes into the ' +
+  'copies in .vuestrata/incoming/src/modules/auth/adapters/ (take the ones you did not edit ' +
+  'whole), run `vuestrata adopt` on all three, then `vuestrata upgrade` again, which brings ' +
+  'the adapter tests along. MERGING THIS TURNS ON CREDENTIALED /auth/* REQUESTS under ' +
+  'refresh-cookie: an API on another origin than the app must then answer them with the ' +
+  'exact origin, `Access-Control-Allow-Credentials: true` and an explicit ' +
+  '`Access-Control-Allow-Headers`, or its login is refused by the browser. Read "A ' +
+  'cross-origin API must allow credentials" in UPGRADING.md before you deploy the merge.'
 
 // ─── vite.config.ts ──────────────────────────────────────────────────────────
 
@@ -394,6 +484,18 @@ export default [
       file,
       pristine: PRISTINE[file],
       note: promoteNote(file),
+    })),
+  },
+  {
+    description:
+      'the auth adapters are Vuestrata-maintained: base.ts, jwt.ts and types.ts move as one unit',
+    steps: ADAPTER_UNIT_FILES.map((file) => ({
+      kind: 'promote',
+      file,
+      unit: ADAPTERS_UNIT,
+      pristine: PRISTINE[file],
+      // On every member: the one that speaks is the first the project has.
+      note: ADAPTERS_NOTE,
     })),
   },
   {

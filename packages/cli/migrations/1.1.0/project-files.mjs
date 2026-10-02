@@ -1,6 +1,6 @@
 import { hashFor } from '../../src/lib/lockfile.mjs'
 import { inSlot } from '../../src/lib/manifest.mjs'
-import { envPlugin, PRISTINE } from './promotions.mjs'
+import { adaptersBeingReplaced, envPlugin, PRISTINE } from './promotions.mjs'
 import {
   declaresBinding,
   jsonStringSpan,
@@ -597,6 +597,9 @@ const SUBJECTS = {
     key: 'src/modules/auth/adapters/base.ts',
     file: inModules('auth/adapters/base.ts'),
     marker: 'skipAuthRefresh',
+    // base.ts moves with jwt.ts and types.ts: an unedited copy beside an
+    // edited jwt.ts is held back with it, and still does what 1.0 did.
+    replaced: adaptersBeingReplaced,
   },
 }
 
@@ -611,10 +614,11 @@ function subjectIsCurrent(subject, manifest, ws) {
   if (!ws.exists(rel)) return true
 
   const source = ws.read(rel)
-  return (
-    source.includes(subject.marker) ||
-    PRISTINE[subject.key].includes(hashFor(subject.key, source, 'managed'))
-  )
+  if (source.includes(subject.marker)) return true
+
+  return subject.replaced
+    ? subject.replaced(ws)
+    : PRISTINE[subject.key].includes(hashFor(subject.key, source, 'managed'))
 }
 
 const USE_RBAC_OLD = `  it('should default to guest role when no user is authenticated', () => {

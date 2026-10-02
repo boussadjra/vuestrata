@@ -39,12 +39,19 @@ const useAuthAdapterState = createGlobalState(() => {
   const cell: { adapter: AuthAdapter | null } = { adapter: null }
   return {
     get(): AuthAdapter {
-      cell.adapter ??= createAuthAdapter(configuredAuthAdapter, {
+      if (cell.adapter) return cell.adapter
+
+      // Named, not written into the call: an adapters/index.ts the project
+      // edited keeps the `createAuthAdapter` of 1.0, whose options have no
+      // `getRefreshToken`, and an object literal with a property the parameter
+      // does not know would not compile against it. That adapter ignores it.
+      const tokens = {
         // Threaded in so the JWT adapter can skip a request it knows will 401.
         getToken: () => useAuthStore().token,
         // ...and can present a refresh token held in memory.
         getRefreshToken: () => useAuthStore().refreshToken,
-      })
+      }
+      cell.adapter = createAuthAdapter(configuredAuthAdapter, tokens)
       return cell.adapter
     },
     reset(): void {

@@ -29,6 +29,22 @@ export function resolveAuthAdapterName(adapterName: string | undefined): Support
 }
 
 /**
+ * `createJwtAdapter`, as this file calls it.
+ *
+ * The second getter is new in 1.1.0. `jwt.ts`, `base.ts` and `types.ts` are
+ * replaced together or not at all, and this file is not one of them: it is
+ * where a project registers an adapter of its own, and that edit must not cost
+ * it the session fixes in the other three. So this file can be the release's
+ * beside a `jwt.ts` the project kept, whose factory takes the access-token
+ * getter alone. Called with two arguments that does not compile; a function of
+ * one parameter does fit this type, and ignores the second.
+ */
+const createJwt: (
+  getToken?: () => string | null,
+  getRefreshToken?: () => string | null,
+) => AuthAdapter = createJwtAdapter
+
+/**
  * Build the configured adapter.
  *
  * `getToken` is threaded through for the JWT adapter's expiry check, and
@@ -44,7 +60,7 @@ export function createAuthAdapter(
 
   switch (name) {
     case 'jwt':
-      return createJwtAdapter(options.getToken, options.getRefreshToken)
+      return createJwt(options.getToken, options.getRefreshToken)
     case 'oauth':
       return createOAuthAdapter()
     case 'mock':
