@@ -33,8 +33,9 @@ updates:
       - dependency-name: vitest
       - dependency-name: vite-plus
       - dependency-name: '@voidzero-dev/*'
-      # Pinned to a pkg.pr.new build; a registry range would not resolve.
-      # See SECURITY.md for the supply-chain caveat.
+      # Vendored: package.json resolves it from the tarball in vendor/, which a
+      # registry range would not replace. See SECURITY.md for why, and for what
+      # moving to the registry release would take.
       - dependency-name: comark
 
   - package-ecosystem: github-actions
