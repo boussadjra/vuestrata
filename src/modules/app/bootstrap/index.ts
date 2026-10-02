@@ -2,7 +2,13 @@ import { configure as configureFormwerk } from '@formwerk/core'
 import type { VueQueryPluginOptions } from '@tanstack/vue-query'
 import type { Pinia } from 'pinia'
 import { createApp, type App, type Component } from 'vue'
-import type { RouteComponent, Router } from 'vue-router'
+import {
+  isNavigationFailure,
+  NavigationFailureType,
+  START_LOCATION,
+  type RouteComponent,
+  type Router,
+} from 'vue-router'
 
 import { appConfig, authAdapter as configuredAuthAdapter } from '@/config/app.config'
 import { installErrorHandlers, reportError } from '@/lib/errors'
@@ -147,6 +153,12 @@ function setupVueErrorHandler(app: App): void {
  * `renderBootFailure()`, which replaces the splash with a static error screen;
  * `boot()` itself never rejects. A step that fails after the app has mounted is
  * only logged and reported.
+ *
+ * One failure is outside both this and the error boundary: the root component's
+ * own `setup()`. Vue hands it to `app.config.errorHandler` and `mount()` returns
+ * normally, so it is logged and reported, and the page is empty. `AppRoot.vue`
+ * is kept to wiring for that reason; anything that can fail belongs below the
+ * boundary it renders.
  */
 export async function boot(root: Component, options: BootOptions = {}): Promise<void> {
   const deps: BootDeps = { ...defaultDeps(options), ...options.deps }
@@ -161,6 +173,13 @@ export async function boot(root: Component, options: BootOptions = {}): Promise<
       // whole of #app: showing it here would take a working app away.
       logger.error('A step after mount failed:', { err })
       reportError(err, { source: 'bootstrap' })
+      // Taking the splash down is itself a step after mount. If that is the one
+      // that failed, the app is running underneath a spinner.
+      try {
+        removeAppLoader({ immediate: true })
+      } catch {
+        // Nothing else can be done about it.
+      }
       return
     }
     // When the first route's chunk is missing, `plugins/stale-chunk.ts` asks for
@@ -184,20 +203,39 @@ export async function boot(root: Component, options: BootOptions = {}): Promise<
  * ever: no error, no mount, and the splash spinner turning until the tab was
  * closed. The failure is remembered here instead, from the moment the router is
  * installed, and thrown when `boot()` gets round to asking.
+ *
+ * Two kinds are remembered, the two `isReady()` rejects for when it is already
+ * waiting: an error (a chunk that could not be fetched, a guard that threw) and
+ * a navigation a guard refused by returning `false`, which vue-router reports
+ * to `afterEach` and not to `onError`.
+ *
+ * A remembered failure only counts while the router still has no route. If it
+ * has one, a navigation succeeded: either a later one, or the very one the
+ * "failure" belongs to, because vue-router sends a `scrollBehavior` that throws
+ * to `onError` after the route has changed.
  */
 function watchFirstNavigation(router: Router): { settled: () => Promise<void> } {
   const outcome: { failure?: { error: unknown } } = {}
-  const stopWatching = router.onError((error) => {
-    outcome.failure ??= { error }
-  })
+  const stopWatching = [
+    router.onError((error) => {
+      outcome.failure ??= { error }
+    }),
+    router.afterEach((_to, _from, failure) => {
+      if (isNavigationFailure(failure, NavigationFailureType.aborted)) {
+        outcome.failure ??= { error: failure }
+      }
+    }),
+  ]
 
   return {
     async settled() {
       try {
-        if (outcome.failure) throw outcome.failure.error
+        if (outcome.failure && router.currentRoute.value === START_LOCATION) {
+          throw outcome.failure.error
+        }
         await router.isReady()
       } finally {
-        stopWatching()
+        for (const stop of stopWatching) stop()
       }
     },
   }

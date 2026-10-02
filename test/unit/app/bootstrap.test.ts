@@ -1,7 +1,14 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import type { App, Component } from 'vue'
-import type { Router } from 'vue-router'
+import {
+  createMemoryHistory,
+  createRouter,
+  isNavigationFailure,
+  NavigationFailureType,
+  START_LOCATION,
+  type Router,
+} from 'vue-router'
 
 import { boot, type BootDeps } from '@/bootstrap'
 import { renderBootFailure } from '@/bootstrap/boot-error'
@@ -54,6 +61,7 @@ function harness(overrides: Partial<BootDeps> = {}): Harness {
     tag: 'router',
     isReady: async () => void calls.push('router.isReady'),
     onError: () => () => undefined,
+    afterEach: () => () => undefined,
     replace: vi.fn(),
     currentRoute: { value: { meta: {}, path: '/', fullPath: '/' } },
   } as unknown as Router
@@ -303,7 +311,9 @@ describe('a failing step', () => {
         router: {
           isReady: () => Promise.reject(e),
           onError: () => () => undefined,
+          afterEach: () => () => undefined,
           replace: vi.fn(),
+          currentRoute: { value: START_LOCATION },
         } as never,
       }),
       'app.mount',
@@ -344,7 +354,10 @@ describe('a failing step', () => {
           listeners.push(listener)
           return stopWatching
         },
+        afterEach: () => () => undefined,
         replace: vi.fn(),
+        // No navigation has succeeded: the router still has no route.
+        currentRoute: { value: START_LOCATION },
       } as never,
       startMocks: async () => {
         for (const listener of listeners) listener(failure)
@@ -357,6 +370,108 @@ describe('a failing step', () => {
     expect(renderBootFailure).toHaveBeenCalledWith(failure)
     expect(calls).not.toContain('app.mount')
     expect(stopWatching).toHaveBeenCalledTimes(1)
+  })
+
+  it('mounts when the router reported an error for a first navigation that succeeded', async () => {
+    // vue-router sends a `scrollBehavior` that throws to `onError` after the
+    // route has changed. The app has its first route; that is not a failed boot.
+    const listeners: Array<(error: unknown) => void> = []
+    const renderBootFailure = vi.fn()
+    const { calls, deps } = harness({
+      router: {
+        isReady: async () => undefined,
+        onError: (listener: (error: unknown) => void) => {
+          listeners.push(listener)
+          return () => undefined
+        },
+        afterEach: () => () => undefined,
+        replace: vi.fn(),
+        currentRoute: { value: { meta: {}, path: '/', fullPath: '/' } },
+      } as never,
+      startMocks: async () => {
+        for (const listener of listeners) listener(new Error('scrollBehavior threw'))
+      },
+    })
+
+    await boot(root, { deps: { ...deps, renderBootFailure } })
+
+    expect(renderBootFailure).not.toHaveBeenCalled()
+    expect(calls).toContain('app.mount')
+  })
+
+  describe('with a real router', () => {
+    /** `boot()` is given a fake app, so the first navigation is started by hand. */
+    function realRouter() {
+      return createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          { path: '/', component: { render: () => null } },
+          { path: '/refused', component: { render: () => null } },
+          { path: '/broken', component: { render: () => null } },
+        ],
+      })
+    }
+
+    it('catches a first navigation a guard refused before boot got to waiting for it', async () => {
+      // A guard that returns `false` is not an error to vue-router, so it never
+      // reaches `onError`, and `isReady()` asked afterwards stays pending.
+      const router = realRouter()
+      router.beforeEach((to) => to.path !== '/refused')
+      const renderBootFailure = vi.fn()
+      const { calls, deps } = harness({
+        router,
+        startMocks: async () => {
+          await router.push('/refused')
+        },
+      })
+
+      await boot(root, { deps: { ...deps, renderBootFailure } })
+
+      expect(renderBootFailure).toHaveBeenCalledTimes(1)
+      const [reported] = renderBootFailure.mock.calls[0] as [unknown]
+      expect(isNavigationFailure(reported, NavigationFailureType.aborted)).toBe(true)
+      expect(calls).not.toContain('app.mount')
+    })
+
+    it('mounts when a first navigation failed and a later one succeeded before boot waited', async () => {
+      const router = realRouter()
+      router.beforeEach((to) => {
+        if (to.path === '/broken') throw new Error('a guard threw')
+      })
+      const renderBootFailure = vi.fn()
+      const { calls, deps } = harness({
+        router,
+        startMocks: async () => {
+          await router.push('/broken').catch(() => undefined)
+          await router.push('/')
+        },
+      })
+
+      await boot(root, { deps: { ...deps, renderBootFailure } })
+
+      expect(renderBootFailure).not.toHaveBeenCalled()
+      expect(calls).toContain('app.mount')
+    })
+
+    it('still fails the boot when the only navigation there was threw', async () => {
+      const failure = new Error('a guard threw')
+      const router = realRouter()
+      router.beforeEach(() => {
+        throw failure
+      })
+      const renderBootFailure = vi.fn()
+      const { calls, deps } = harness({
+        router,
+        startMocks: async () => {
+          await router.push('/broken').catch(() => undefined)
+        },
+      })
+
+      await boot(root, { deps: { ...deps, renderBootFailure } })
+
+      expect(renderBootFailure).toHaveBeenCalledWith(failure)
+      expect(calls).not.toContain('app.mount')
+    })
   })
 
   it('does not run the steps after a failed demo seed', async () => {
@@ -466,7 +581,9 @@ describe('a failure while a stale-chunk reload is on its way', () => {
           return Promise.reject(staleChunk)
         },
         onError: () => () => undefined,
+        afterEach: () => () => undefined,
         replace: vi.fn(),
+        currentRoute: { value: START_LOCATION },
       } as never,
     }
   }
@@ -506,6 +623,29 @@ describe('a failure while a stale-chunk reload is on its way', () => {
 })
 
 describe('a step after mount', () => {
+  it('takes the splash down itself when removing it is the step that failed', async () => {
+    const loggerError = vi.spyOn(logger, 'error').mockImplementation(() => undefined)
+    document.body.innerHTML = '<div id="app"></div><div id="app-loader"></div>'
+    const renderBootFailure = vi.fn()
+    const { calls, deps } = harness({
+      removeAppLoader: () => {
+        throw new Error('matchMedia is not a function')
+      },
+    })
+
+    try {
+      await boot(root, { deps: { ...deps, renderBootFailure } })
+
+      expect(calls).toContain('app.mount')
+      expect(renderBootFailure).not.toHaveBeenCalled()
+      // The app is running: it must not be left underneath the spinner.
+      expect(document.getElementById('app-loader')).toBeNull()
+    } finally {
+      loggerError.mockRestore()
+      document.body.innerHTML = ''
+    }
+  })
+
   it('is reported but does not replace the running app with the failure screen', async () => {
     const failure = new Error('build info threw')
     const reporter = { name: 'test', captureException: vi.fn(), setUser: vi.fn() }
