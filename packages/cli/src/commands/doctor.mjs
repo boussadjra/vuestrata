@@ -6,6 +6,7 @@ import { logger } from '../lib/cli.mjs'
 import {
   DEPLOY_CONFIG_READERS,
   deployWiringSteps,
+  dockerfileWithoutRuntimeConfig,
   readsDeployConfig,
 } from '../lib/deploy-wiring.mjs'
 import { driftedFiles, LOCKFILE_NAME, readLock, regionHash } from '../lib/lockfile.mjs'
@@ -127,6 +128,7 @@ export function diagnose({ root, version, source, migrations }) {
     const unwired = unwiredRbacOverrides({ root, manifest })
     if (unwired) findings.warnings.push(unwired)
     findings.warnings.push(...unreadDeployConfig({ root, manifest }))
+    findings.warnings.push(...dockerfileWarnings(root))
     return findings
   }
 
@@ -244,6 +246,7 @@ export function diagnose({ root, version, source, migrations }) {
     (plan?.adopted ?? []).some((entry) => entry.rel === rel) ||
     (lock.files[rel]?.class === 'managed' && !drifted.has(rel))
   findings.warnings.push(...unreadDeployConfig({ root, manifest, skip: willBeCurrent }))
+  findings.warnings.push(...dockerfileWarnings(root))
 
   // ── 7. Which vuestrata: regions were edited? ─────────────────────────────
   for (const registry of PROJECT_REGISTRIES) {
@@ -314,6 +317,14 @@ function unreadDeployConfig({ root, manifest, skip = () => false }) {
       `${config} exists, but ${file} does not read it, so ${consequence}. ` +
       deployWiringSteps(file, incomingPath(file)),
   )
+}
+
+/** What is wrong with the project's Dockerfile, when it has one. It is the project's file. */
+function dockerfileWarnings(root) {
+  const full = path.join(root, 'Dockerfile')
+  if (!fs.existsSync(full)) return []
+  const warning = dockerfileWithoutRuntimeConfig(fs.readFileSync(full, 'utf8'))
+  return warning ? [warning] : []
 }
 
 /** The upgrade report, or `undefined` (and an error finding) if it cannot be planned. */

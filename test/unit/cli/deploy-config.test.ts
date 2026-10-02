@@ -325,3 +325,72 @@ describe.skipIf(!CLI_PRESENT)('doctor and a deploy.config.ts that nothing reads'
     expect(warningsOf()).not.toMatch(/does not read it/)
   })
 })
+
+describe.skipIf(!CLI_PRESENT)(
+  'doctor and a Dockerfile that builds the image for one API origin',
+  () => {
+    // The Dockerfile is the project's file, so an upgrade cannot change it. One
+    // that copies the entrypoint builds an image whose API URL is read at start,
+    // and the generator has to be told, or the page's own CSP tag blocks the
+    // origin a container is given. Nothing fails until one is.
+    const WITHOUT_FLAG =
+      /Dockerfile runs scripts\/security\/sync-headers\.mjs without --runtime-config/
+    const COPIES_ENTRYPOINT = 'COPY --from=build /app/docker/entrypoint.d/ /docker-entrypoint.d/\n'
+
+    const warningsOf = () =>
+      diagnose({ root: project, version: '1.2.0', migrations: [] }).warnings.join('\n')
+
+    it('says nothing about the Dockerfile this release ships', () => {
+      expect(wiring.dockerfileWithoutRuntimeConfig(real('Dockerfile'))).toBeUndefined()
+
+      write('Dockerfile', real('Dockerfile'))
+      expect(warningsOf()).not.toMatch(WITHOUT_FLAG)
+    })
+
+    it.each([
+      ['tracked', true],
+      ['not tracked yet', false],
+    ])('warns when the generator step lacks the flag, in a project that is %s', (_, tracked) => {
+      write('Dockerfile', `RUN node scripts/security/sync-headers.mjs\n${COPIES_ENTRYPOINT}`)
+      if (tracked) writeLock(project, emptyLock('1.2.0'))
+
+      const text = warningsOf()
+
+      expect(text).toMatch(WITHOUT_FLAG)
+      // The line to write, so the warning can be acted on as it is.
+      expect(text).toContain(
+        'RUN node scripts/security/sync-headers.mjs --runtime-config --api-url="$VUESTRATA_API_URL"',
+      )
+    })
+
+    it('warns about the step this work package first shipped', () => {
+      const before = real('Dockerfile').replace(
+        / --runtime-config --api-url="\$VUESTRATA_API_URL"/,
+        '',
+      )
+      expect(before).not.toBe(real('Dockerfile'))
+
+      expect(wiring.dockerfileWithoutRuntimeConfig(before)).toMatch(WITHOUT_FLAG)
+    })
+
+    it.each([
+      [
+        'a Dockerfile from before the entrypoint, which bakes one API origin on purpose',
+        'RUN node scripts/security/sync-headers.mjs --api-url="$VUESTRATA_API_URL"\n',
+      ],
+      ['a Dockerfile that never runs the generator', COPIES_ENTRYPOINT],
+      [
+        'a step that is only mentioned in a comment',
+        `# RUN node scripts/security/sync-headers.mjs\nRUN node scripts/security/sync-headers.mjs --runtime-config\n${COPIES_ENTRYPOINT}`,
+      ],
+    ])('says nothing about %s', (_, dockerfile) => {
+      write('Dockerfile', dockerfile)
+
+      expect(warningsOf()).not.toMatch(WITHOUT_FLAG)
+    })
+
+    it('says nothing in a project with no Dockerfile', () => {
+      expect(warningsOf()).not.toMatch(WITHOUT_FLAG)
+    })
+  },
+)

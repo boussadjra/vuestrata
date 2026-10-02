@@ -40,3 +40,33 @@ export const deployWiringSteps = (file, incoming) =>
   `${file} is a copy from before that file existed. Compare it with this release's version ` +
   `(the next \`vuestrata upgrade\` writes it to ${incoming}), merge your changes into that one, ` +
   `then run \`vuestrata adopt ${file}\`.`
+
+/**
+ * A warning for a Dockerfile that builds the runtime-configured image without
+ * telling the header generator so, or `undefined`.
+ *
+ * The image reads its API URL when a container starts, so its page must leave
+ * connections to the header: a browser enforces the page's CSP `<meta>` as
+ * well, and a tag written for the build's API origin blocks the one a
+ * container is given. `sync-headers.mjs --runtime-config` is what writes the
+ * open tag. The Dockerfile is the project's file, so an upgrade cannot add the
+ * flag, and without it nothing fails until a container is started against
+ * another origin. The image is recognised by its copying the entrypoint.
+ */
+export function dockerfileWithoutRuntimeConfig(source) {
+  if (!/docker-entrypoint\.d/.test(source)) return undefined
+
+  const steps = source
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith('#') && /sync-headers\.mjs/.test(line))
+  if (steps.length === 0 || steps.every((line) => /--runtime-config\b/.test(line))) {
+    return undefined
+  }
+
+  return (
+    'Dockerfile runs scripts/security/sync-headers.mjs without --runtime-config. The image ' +
+    'reads its API URL when a container starts, and its page would then block an API origin ' +
+    'the container was given. Make the step ' +
+    '`RUN node scripts/security/sync-headers.mjs --runtime-config --api-url="$VUESTRATA_API_URL"`.'
+  )
+}
