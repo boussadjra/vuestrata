@@ -203,6 +203,16 @@ describe('request hooks', () => {
     expect(seen.map((headers) => headers['x-tenant'])).toEqual(['acme', 'globex', undefined])
   })
 
+  it('leaves a header the call set itself as the call set it', async () => {
+    configure({ headers: { 'X-Tenant': () => 'acme', 'X-Client': 'web' } })
+    const seen = recordHeaders('get', '/orders')
+
+    await apiGet('/orders', { headers: { 'X-Tenant': 'globex' } })
+
+    // An admin screen acting for another tenant says so on the call.
+    expect(seen[0]).toMatchObject({ 'x-tenant': 'globex', 'x-client': 'web' })
+  })
+
   it('waits for an async hook before sending', async () => {
     configure({
       request: async ({ setHeader }) => {
@@ -640,6 +650,23 @@ describe('a 419 from Laravel', () => {
 
     expect(await apiPost('/orders', { sku: 'A-1' })).toEqual({ id: 'ORD-1' })
     expect(sent).toEqual(['old', 'new'])
+  })
+
+  it('does not replay under the bearer transport, where no token is sent', async () => {
+    configure({ backend: presets.laravel })
+    signIn({ token: 'session-token' })
+    let posts = 0
+    server.use(
+      http.post('*/api/orders', () => {
+        posts++
+        return HttpResponse.json({ message: 'CSRF token mismatch.' }, { status: 419 })
+      }),
+    )
+
+    const error = await failureOf(apiPost('/orders', { sku: 'A-1' }))
+
+    expect(posts).toBe(1)
+    expect(error).toMatchObject({ status: 419, messageKey: 'errors.csrf' })
   })
 
   it('sends no CSRF header under the bearer transport, whatever the strategy', async () => {

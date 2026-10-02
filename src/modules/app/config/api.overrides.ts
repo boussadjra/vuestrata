@@ -46,7 +46,8 @@
  *   export default defineApiOverrides({ backend: presets.laravel })
  *
  * A tenant header read from a store. The function runs per request, so it
- * sees the tenant selected now; returning nothing sends no header:
+ * sees the tenant selected now; returning nothing sends no header, and a call
+ * that passes its own `X-Tenant` keeps it:
  *
  *   import { useTenantStore } from '@/stores/tenant'
  *

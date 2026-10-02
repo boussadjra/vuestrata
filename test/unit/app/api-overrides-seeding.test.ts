@@ -77,6 +77,7 @@ describe('api.overrides.ts wiring', () => {
           if (value === null || value === undefined) headers.delete(name)
           else headers.set(name, value)
         },
+        hasCallerHeader: () => false,
       })
     }
     i18n.getI18n().global.locale.value = 'en'

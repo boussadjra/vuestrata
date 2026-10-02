@@ -51,6 +51,12 @@ export interface ApiRequestContext {
   readonly headers: Headers
   /** Set a header, or remove it with `null`. */
   readonly setHeader: (name: string, value: string | null | undefined) => void
+  /**
+   * Whether the code that made this request set the header itself, in its own
+   * `headers` option. A hook that supplies a default should leave such a
+   * header alone, as the `headers` table does: the call knows better.
+   */
+  readonly hasCallerHeader: (name: string) => boolean
 }
 
 /**
@@ -114,7 +120,8 @@ export type ApiErrorMapper = (context: ApiResponseContext) => MappedError | null
 
 /**
  * Headers to send with every request: a value, or a function that produces
- * one per request. A function that returns nothing sends no header.
+ * one per request. A function that returns nothing sends no header, and a
+ * header the call set itself is left as the call set it.
  */
 export type ApiHeaders = Record<
   string,
@@ -229,6 +236,8 @@ function headersHook(headers: ApiHeaders | undefined): ApiRequestHook[] {
   return [
     (context) => {
       for (const [name, value] of entries) {
+        // `apiGet(url, { headers })` is the more specific instruction.
+        if (context.hasCallerHeader(name)) continue
         const resolved = typeof value === 'function' ? value(context) : value
         // A function with nothing to say (no tenant selected yet) sends no
         // header, and leaves one an earlier hook set alone.

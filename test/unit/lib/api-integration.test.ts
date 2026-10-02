@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import {
   anonymousForbidden,
@@ -71,9 +71,13 @@ function response(overrides: Partial<ApiResponseContext> = {}): ApiResponseConte
   }
 }
 
-/** Run request hooks the way the client does, and return the headers they left. */
-async function headersAfter(hooks: readonly ApiRequestHook[], initial: HeadersInit = {}) {
-  const headers = new Headers(initial)
+/**
+ * Run request hooks the way the client does, and return the headers they left.
+ * `fromCaller` is what the call itself passed in its `headers` option.
+ */
+async function headersAfter(hooks: readonly ApiRequestHook[], fromCaller: HeadersInit = {}) {
+  const headers = new Headers(fromCaller)
+  const caller = new Headers(fromCaller)
   const context: ApiRequestContext = {
     url: 'http://localhost/api/orders',
     method: 'GET',
@@ -82,6 +86,7 @@ async function headersAfter(hooks: readonly ApiRequestHook[], initial: HeadersIn
       if (value === null || value === undefined) headers.delete(name)
       else headers.set(name, value)
     },
+    hasCallerHeader: (name) => caller.has(name),
   }
   for (const hook of hooks) await hook(context)
   return Object.fromEntries(headers.entries())
@@ -187,14 +192,28 @@ describe('how a preset and the project options combine', () => {
     expect(requestHooks[0]).toBe(appHook)
   })
 
-  it('sends no header for a function with nothing to say, and keeps an earlier one', async () => {
+  it('sends no header for a function with nothing to say', async () => {
     const { requestHooks } = resolveApiIntegration({
+      backend: { name: 'acme', headers: { 'X-Tenant': 'preset-tenant' } },
       headers: { 'X-Tenant': () => undefined, 'X-Region': () => '', 'X-Org': () => null },
     })
 
-    expect(await headersAfter(requestHooks, { 'X-Tenant': 'from-the-caller' })).toEqual({
-      'x-tenant': 'from-the-caller',
+    // Nothing to say is not "remove it": the preset's value stays.
+    expect(await headersAfter(requestHooks)).toEqual({ 'x-tenant': 'preset-tenant' })
+  })
+
+  it('leaves a header the call set itself alone, without asking the function', async () => {
+    const tenant = vi.fn(() => 'from-the-store')
+    const { requestHooks } = resolveApiIntegration({
+      backend: { name: 'acme', headers: { 'X-Tenant': 'preset-tenant' } },
+      headers: { 'X-Tenant': tenant, 'X-Client': 'web' },
     })
+
+    expect(await headersAfter(requestHooks, { 'x-tenant': 'from-the-call' })).toEqual({
+      'x-tenant': 'from-the-call',
+      'x-client': 'web',
+    })
+    expect(tenant).not.toHaveBeenCalled()
   })
 
   it('gives a header function the request it is for', async () => {

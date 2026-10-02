@@ -173,6 +173,14 @@ async function applyCsrfHeader(
   return strategy.header
 }
 
+/**
+ * Whether requests carry a CSRF header at all. Without one a replay would be
+ * the same request again, and a second refusal.
+ */
+function sendsCsrf(integration: ApiIntegration): boolean {
+  return getAuthTransport() === 'cookie' && integration.csrf.source !== 'none'
+}
+
 function hookFailure(): AppError {
   return new AppError({
     message: 'The request could not be sent.',
@@ -200,6 +208,7 @@ async function runRequestHooks(
   attempt: Attempt,
   headers: Headers,
   guarded: readonly string[],
+  fromCaller: ReadonlySet<string>,
 ): Promise<void> {
   if (hooks.length === 0) return
 
@@ -212,6 +221,7 @@ async function runRequestHooks(
       if (value === null || value === undefined) headers.delete(name)
       else headers.set(name, value)
     },
+    hasCallerHeader: (name) => fromCaller.has(name.toLowerCase()),
   }
 
   for (const hook of hooks) {
@@ -253,6 +263,9 @@ async function prepareRequest(
   integration: ApiIntegration,
 ): Promise<void> {
   const headers = new Headers(options.headers as HeadersInit)
+  // The names the request carried before the client touched it. `Headers`
+  // iterates them in lower case.
+  const fromCaller = new Set(headers.keys())
   applyAuthHeaders(headers)
 
   const method = (options.method ?? 'GET').toUpperCase()
@@ -299,6 +312,7 @@ async function prepareRequest(
     attempt,
     headers,
     csrfHeader ? ['Authorization', csrfHeader] : ['Authorization'],
+    fromCaller,
   )
 
   // Read back after the hooks: a hook may set either header too.
@@ -600,8 +614,15 @@ function createApiFetch(
 
     // A stale CSRF token: read a new one — fetching it first, if the strategy
     // can — and send the request again. Once: a backend that refuses the new
-    // token too is refusing for another reason.
-    if (verdict === 'csrf' && failure !== undefined && policy.replayable && !state.csrfReplayed) {
+    // token too is refusing for another reason. Only where a token is sent:
+    // under the bearer transport the replay would change nothing.
+    if (
+      verdict === 'csrf' &&
+      failure !== undefined &&
+      policy.replayable &&
+      !state.csrfReplayed &&
+      sendsCsrf(integration)
+    ) {
       state.csrfReplayed = true
       invalidateCsrfToken()
       await primeCsrfToken(integration.csrf, options.baseURL ?? fetchDefaults.baseURL ?? baseURL)
