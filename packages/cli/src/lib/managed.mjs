@@ -100,6 +100,7 @@ export const SEEDED_FILES = [
   'src/modules/app/styles/brand.css',
   'src/modules/app/config/app.overrides.ts',
   'src/modules/app/config/rbac.overrides.ts',
+  'src/modules/app/config/auth.config.ts',
   'src/modules/app/components/Logo.vue',
   'src/modules/app/locales/en.overrides.json',
   'src/modules/app/locales/fr.overrides.json',

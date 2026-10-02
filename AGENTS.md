@@ -89,6 +89,12 @@ colour belongs in `brand.css`, a string in `<locale>.overrides.json`, the produc
 name and footer links in `app.overrides.ts`. Editing the underlying file works,
 and costs that file its updates forever.
 
+Authentication has the same kind of seam, also `seeded`:
+`src/modules/app/config/auth.config.ts`. Endpoint paths, response and user
+shapes, the social providers and an auth adapter of the project's own go there,
+never in `src/modules/auth/adapters/`. Recipe:
+`docs/9.recipes/9.write-your-own-auth-adapter.md`.
+
 Breaking any of the contracts in `RELEASE.md` requires a migration under
 `packages/cli/migrations/<version>/`. That is a release rule, not a preference.
 

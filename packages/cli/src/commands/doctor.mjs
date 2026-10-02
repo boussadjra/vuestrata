@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { AUTH_WIRING_STEPS, isAuthConfigWired } from '../lib/auth-wiring.mjs'
 import { logger } from '../lib/cli.mjs'
 import { driftedFiles, LOCKFILE_NAME, readLock, regionHash } from '../lib/lockfile.mjs'
 import { PROJECT_REGISTRIES, SEEDED_FILES } from '../lib/managed.mjs'
@@ -119,8 +120,12 @@ export function diagnose({ root, version, source, migrations }) {
       `No ${LOCKFILE_NAME}. Nothing is tracked yet, so an upgrade cannot tell your edits ` +
         'from untouched files. Run `vuestrata init` to start tracking.',
     )
-    const unwired = unwiredRbacOverrides({ root, manifest })
-    if (unwired) findings.warnings.push(unwired)
+    for (const unwired of [
+      unwiredRbacOverrides({ root, manifest }),
+      unwiredAuthConfig({ root, manifest }),
+    ]) {
+      if (unwired) findings.warnings.push(unwired)
+    }
     return findings
   }
 
@@ -223,13 +228,23 @@ export function diagnose({ root, version, source, migrations }) {
   // ── 6. Is rbac.overrides.ts wired in? ────────────────────────────────────
   // An upgrade that replaces state/runtime-backends.ts settles this, so only a
   // copy that will stay as it is is worth a warning.
-  const backends = runtimeBackendsFile(manifest)
-  const replaced =
-    (plan?.adopted ?? []).some((entry) => entry.rel === backends) ||
-    (lock.files[backends]?.class === 'managed' &&
-      !driftedFiles(root, lock).some((entry) => entry.rel === backends))
-  const unwired = replaced ? undefined : unwiredRbacOverrides({ root, manifest })
+  /** Whether the next upgrade puts this release's copy of `rel` in place. */
+  const replaced = (rel) =>
+    (plan?.adopted ?? []).some((entry) => entry.rel === rel) ||
+    (lock.files[rel]?.class === 'managed' &&
+      !driftedFiles(root, lock).some((entry) => entry.rel === rel))
+
+  const unwired = replaced(runtimeBackendsFile(manifest))
+    ? undefined
+    : unwiredRbacOverrides({ root, manifest })
   if (unwired) findings.warnings.push(unwired)
+
+  // ── 6b. Is auth.config.ts wired in? ──────────────────────────────────────
+  // The same question for the auth seam, which bootstrap/seams.ts installs.
+  const unwiredAuth = replaced(seamsFile(manifest))
+    ? undefined
+    : unwiredAuthConfig({ root, manifest })
+  if (unwiredAuth) findings.warnings.push(unwiredAuth)
 
   // ── 7. Which vuestrata: regions were edited? ─────────────────────────────
   for (const registry of PROJECT_REGISTRIES) {
@@ -275,6 +290,32 @@ function unwiredRbacOverrides({ root, manifest }) {
     `${overrides} exists, but ${backends} does not install it, so the permissions you declare, ` +
     'grant and withdraw there have no effect. ' +
     RBAC_WIRING_STEPS
+  )
+}
+
+const seamsFile = (manifest) => `${slot(manifest, 'appDir')}/bootstrap/seams.ts`
+
+/**
+ * A warning when the project has an `auth.config.ts` that nothing installs.
+ *
+ * `bootstrap/seams.ts` is what hands the seam to the auth module. A copy from
+ * before the seam existed does not, so the endpoints, mappers, providers and
+ * adapters the project configures there have no effect — and nothing fails to
+ * say so.
+ */
+function unwiredAuthConfig({ root, manifest }) {
+  const config = slot(manifest, 'authConfig')
+  const seams = seamsFile(manifest)
+  if (!fs.existsSync(path.join(root, config)) || !fs.existsSync(path.join(root, seams))) {
+    return undefined
+  }
+
+  if (isAuthConfigWired(fs.readFileSync(path.join(root, seams), 'utf8'))) return undefined
+
+  return (
+    `${config} exists, but ${seams} does not install it, so the endpoints, response mappers, ` +
+    'providers and adapters you configure there have no effect. ' +
+    AUTH_WIRING_STEPS
   )
 }
 
