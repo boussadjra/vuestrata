@@ -43,7 +43,7 @@
     },
     "src/modules/app/bootstrap/boot-error.ts": {
       "class": "managed",
-      "hash": "sha256-acc6763fdcb753af5b15e2e5830312e741bbfd9d71ace31551e2ced87949d95b",
+      "hash": "sha256-cfbd90d22a383e900aedf4f237cf81972f07b4e87fdefb1eec6e0103193935f7",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/demo.ts": {
@@ -53,7 +53,7 @@
     },
     "src/modules/app/bootstrap/index.ts": {
       "class": "managed",
-      "hash": "sha256-90d3ffe8ff7a928c7667b16f6fdca69d26fde423d694b8eab521223b6e3f6e2c",
+      "hash": "sha256-0284368d3ddb37980382bd135aae753874a8f401974a2bd6ae292b3c197c9501",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/mocks.ts": {
@@ -83,7 +83,7 @@
     },
     "src/modules/app/components/layout/AppErrorBoundary.vue": {
       "class": "managed",
-      "hash": "sha256-b817ec50990f11fc9321092c1ec0fdc7471fcc50190a0e25b3f485067747ee40",
+      "hash": "sha256-4e5672bcdb0ab85cdd9f2e6f26d4151de46c474266bad6c0c7dfa36ab001c564",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/layout/AppFooter.vue": {
