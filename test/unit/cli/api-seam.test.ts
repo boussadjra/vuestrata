@@ -10,7 +10,7 @@ import { createFixture, hash, writePayload, type Fixture } from './fixture'
 // file instead of failing to collect it.
 const { diagnose } = await loadCli('src/commands/doctor.mjs')
 const { runUpgrade } = await loadCli('src/commands/upgrade.mjs')
-const { API_WIRING_STEPS, isApiWired } = await loadCli('src/lib/api-wiring.mjs')
+const { API_WIRING_STEPS, isApiWired, stripComments } = await loadCli('src/lib/api-wiring.mjs')
 const { emptyLock, readLock, writeLock } = await loadCli('src/lib/lockfile.mjs')
 const { classify, SEEDED_FILES } = await loadCli('src/lib/managed.mjs')
 const { DEFAULT_SLOTS, loadManifest, missingSlots, SEEDED_SLOTS } =
@@ -122,6 +122,47 @@ describe.skipIf(!CLI_PRESENT)('isApiWired', () => {
     expect(isApiWired("import { installApiIntegration } from '~/lib/runtime'\n")).toBe(false)
     expect(isApiWired('// TODO: installApiIntegration here\n')).toBe(false)
     expect(isApiWired('reinstallApiIntegration(x)\n')).toBe(false)
+  })
+
+  it('does not count a call that was commented out', () => {
+    const call = 'installApiIntegration(resolveApiIntegration(apiOverrides))'
+
+    expect(isApiWired(`  // ${call}\n`)).toBe(false)
+    expect(isApiWired(`  doSomething() // ${call}\n`)).toBe(false)
+    expect(isApiWired(`/*\n  ${call}\n*/\n`)).toBe(false)
+    expect(isApiWired(`/** Was: ${call} */\nexport function installSeams() {}\n`)).toBe(false)
+    // A comment that is never closed hides everything after it.
+    expect(isApiWired(`/* ${call}`)).toBe(false)
+  })
+
+  it('still counts a call that only has comments around it', () => {
+    const call = 'installApiIntegration(resolveApiIntegration(apiOverrides))'
+
+    expect(isApiWired(`// the API seam\n${call} // installs it\n`)).toBe(true)
+    expect(isApiWired(`/* before */ ${call} /* after */`)).toBe(true)
+    expect(isApiWired('installApiIntegration/* why */(resolved)')).toBe(true)
+  })
+
+  it('does not take a // inside a string for the start of a comment', () => {
+    const call = 'installApiIntegration(resolveApiIntegration(apiOverrides))'
+
+    expect(isApiWired(`const docs = 'https://vuestrata.dev'; ${call}\n`)).toBe(true)
+    expect(isApiWired(`const a = "//"; const b = \`/* \${x}\`; ${call}\n`)).toBe(true)
+    expect(isApiWired(`const quote = 'it\\'s // fine'; ${call}\n`)).toBe(true)
+  })
+
+  it('does not count a call that only exists as text', () => {
+    const call = 'installApiIntegration(resolveApiIntegration(apiOverrides))'
+
+    expect(isApiWired(`const hint = '${call}'\n`)).toBe(false)
+    expect(isApiWired(`const hint = "// ${call}"\n`)).toBe(false)
+    expect(isApiWired(`logger.warn(\`add ${call} to installSeams()\`)\n`)).toBe(false)
+  })
+
+  it('strips comments, and string contents only when asked', () => {
+    expect(stripComments('a // b\nc /* d */ e\n')).toBe('a \nc   e\n')
+    expect(stripComments("'// kept' // dropped")).toBe("'// kept' ")
+    expect(stripComments("f('a\\'b', \"c\") // dropped", { strings: false })).toBe('f(\'\', "") ')
   })
 })
 
