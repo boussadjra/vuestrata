@@ -19,7 +19,15 @@
  * build time, and a deploy-time value cannot bring back code that was compiled
  * out.
  */
-import { ENV_KEYS } from './env.schema'
+import {
+  describeEnvValueIssue,
+  ENV_KEYS,
+  resolveRuntimeEnv,
+  SESSION_PERSISTENCE_MODES,
+  type RawEnv,
+  type ResolveOptions,
+  type RuntimeEnv,
+} from './env.schema'
 
 /** The global `runtime-config.js` assigns. */
 export const RUNTIME_CONFIG_GLOBAL = '__VUESTRATA_RUNTIME__'
@@ -40,6 +48,31 @@ export const RUNTIME_OVERRIDABLE_KEYS = [
 ] as const
 
 export type RuntimeOverridableKey = (typeof RUNTIME_OVERRIDABLE_KEYS)[number]
+
+/**
+ * What a container may be started with for a key, when that is something other
+ * than the URL-safe characters every value is held to.
+ *
+ *   text  — may also hold spaces. Written to `runtime-config.js` and nowhere
+ *           else: never to a header or to the server configuration.
+ *   enum  — one of a fixed list, so a typo stops the container with the list
+ *           in the message instead of reaching the browser as a warning.
+ */
+export type RuntimeKeyFormat =
+  | { readonly kind: 'text' }
+  | { readonly kind: 'enum'; readonly values: readonly string[] }
+
+/**
+ * The built-in keys that have such a format. `docker/runtime/keys` is
+ * generated from this, beside `RUNTIME_OVERRIDABLE_KEYS`, so the entrypoint
+ * and the schema in `env.schema.ts` cannot disagree about what a key accepts.
+ */
+export const RUNTIME_KEY_FORMATS: Readonly<
+  Partial<Record<RuntimeOverridableKey, RuntimeKeyFormat>>
+> = {
+  [ENV_KEYS.title]: { kind: 'text' },
+  [ENV_KEYS.sessionPersistence]: { kind: 'enum', values: SESSION_PERSISTENCE_MODES },
+}
 
 const BUILTIN_KEYS: ReadonlySet<string> = new Set(Object.values(ENV_KEYS))
 
@@ -121,4 +154,47 @@ export function readRuntimeOverlay(
   }
 
   return overlay
+}
+
+/**
+ * The environment the app runs with: what the build inlined, with the overlay
+ * on top.
+ *
+ * Two things set a start-time value apart from a built one.
+ *
+ * A value that is invalid ON ITS OWN is dropped before the two are merged, so
+ * the key keeps what the app was built with. Merged first, it would displace
+ * the built value and then fail validation, and the key would fall through to
+ * the schema's default: an image built with `VUESTRATA_SESSION_PERSISTENCE=none`
+ * and started with a typo would silently resume sessions from a cookie.
+ *
+ * An API URL set at start is taken as it is, placeholder host included. That
+ * rule exists to catch a BUILD nobody configured, which would deploy pointing
+ * at `localhost`. Whoever passes the URL to a running container chose it; the
+ * container's headers already allow that origin, and an app that fell back to
+ * `/api` instead would be answered by its own server.
+ */
+export function resolveRuntimeEnvWithOverlay(
+  built: RawEnv,
+  overlay: Readonly<Record<string, string>>,
+  options: ResolveOptions = {},
+): RuntimeEnv {
+  const usable: Record<string, string> = {}
+
+  for (const [key, value] of Object.entries(overlay)) {
+    const issue = describeEnvValueIssue(key, value)
+    if (issue) {
+      options.onWarn?.(
+        `Ignoring ${key} set at start: ${issue.replace(/\.$/, '')}. ` +
+          'The value the app was built with applies.',
+      )
+      continue
+    }
+    usable[key] = value
+  }
+
+  return resolveRuntimeEnv(
+    { ...built, ...usable },
+    { ...options, serving: options.serving === true || ENV_KEYS.apiUrl in usable },
+  )
 }

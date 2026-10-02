@@ -93,6 +93,17 @@ describe('appEnv', () => {
     expect(env.VUESTRATA_SUPABASE_URL).toBeUndefined()
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('VUESTRATA_SUPABASE_URL'))
   })
+
+  it('falls back to what the build inlined, when it inlined something', async () => {
+    vi.stubEnv('VUESTRATA_SUPABASE_URL', 'https://built.supabase.co')
+
+    const env = await loadAppEnv({ VUESTRATA_SUPABASE_URL: 'not a url' })
+
+    expect(env.VUESTRATA_SUPABASE_URL).toBe('https://built.supabase.co')
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/VUESTRATA_SUPABASE_URL set at start.*built with applies/),
+    )
+  })
 })
 
 describe('the seeded deploy.config.ts', () => {

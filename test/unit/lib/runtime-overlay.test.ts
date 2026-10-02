@@ -2,10 +2,17 @@ import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test'
 
-import { ENV_KEYS, resolveRuntimeEnv } from '~/lib/config/env.schema'
+import {
+  ENV_KEYS,
+  parseRuntimeEnv,
+  resolveRuntimeEnv,
+  SESSION_PERSISTENCE_MODES,
+} from '~/lib/config/env.schema'
 import {
   readRuntimeOverlay,
+  resolveRuntimeEnvWithOverlay,
   RUNTIME_CONFIG_GLOBAL,
+  RUNTIME_KEY_FORMATS,
   RUNTIME_OVERRIDABLE_KEYS,
 } from '~/lib/config/runtime-overlay'
 
@@ -238,25 +245,194 @@ describe('precedence', () => {
     expect(resolved.title).toBe('Built')
   })
 
-  it('holds a runtime value to the same rules, with a warning and a fallback', () => {
-    const onWarn = vi.fn()
+  it('agrees with a plain merge when every runtime value is valid', () => {
     const overlay = readRuntimeOverlay(
-      scope({
-        [ENV_KEYS.sessionPersistence]: 'forever',
-        [ENV_KEYS.errorReportingDsn]: 'not a url',
-        [ENV_KEYS.apiUrl]: 'ftp://files.test',
-      }),
+      scope({ [ENV_KEYS.apiUrl]: 'https://api.runtime.test', [ENV_KEYS.release]: 'abc123' }),
     )
 
-    const resolved = resolveRuntimeEnv({ ...built, ...overlay }, { onWarn })
+    expect(resolveRuntimeEnvWithOverlay(built, overlay)).toEqual(
+      resolveRuntimeEnv({ ...built, ...overlay }),
+    )
+  })
+})
 
-    // Never a throw, never a blank page: each bad value costs a warning.
+describe('a start-time value that is invalid on its own', () => {
+  /** A build that set every key a deployment may override. */
+  const configured = {
+    ...built,
+    [ENV_KEYS.sessionPersistence]: 'none',
+    [ENV_KEYS.errorReportingDsn]: 'https://key@errors.build.test/1',
+    [ENV_KEYS.release]: 'built-release',
+  }
+
+  it('is dropped before the merge, so the BUILT value applies, not the default', () => {
+    // Merged first, the typo would displace `none` and then fail validation,
+    // and the key would fall through to the schema default: an image built for
+    // a kiosk would resume sessions from a cookie.
+    const onWarn = vi.fn()
+
+    const resolved = resolveRuntimeEnvWithOverlay(
+      configured,
+      readRuntimeOverlay(scope({ [ENV_KEYS.sessionPersistence]: 'Session' })),
+      { onWarn },
+    )
+
+    expect(resolved.sessionPersistence).toBe('none')
+    expect(onWarn).toHaveBeenCalledTimes(1)
+    expect(onWarn).toHaveBeenCalledWith(
+      expect.stringMatching(
+        new RegExp(`${ENV_KEYS.sessionPersistence} set at start.*built with applies`),
+      ),
+    )
+  })
+
+  it('costs one warning per key, naming it, and never a throw', () => {
+    const onWarn = vi.fn()
+
+    const resolved = resolveRuntimeEnvWithOverlay(
+      configured,
+      readRuntimeOverlay(
+        scope({
+          [ENV_KEYS.sessionPersistence]: 'forever',
+          [ENV_KEYS.errorReportingDsn]: 'not a url',
+          [ENV_KEYS.apiUrl]: 'ftp://files.test',
+          [ENV_KEYS.title]: 'Kept',
+        }),
+      ),
+      { onWarn },
+    )
+
+    expect(resolved.sessionPersistence).toBe('none')
+    expect(resolved.errorReporting.dsn).toBe('https://key@errors.build.test/1')
+    expect(resolved.apiUrl).toBe('https://api.build.test')
+    // A valid value beside them is still taken.
+    expect(resolved.title).toBe('Kept')
+    expect(onWarn).toHaveBeenCalledTimes(3)
+    for (const key of [ENV_KEYS.sessionPersistence, ENV_KEYS.errorReportingDsn, ENV_KEYS.apiUrl]) {
+      expect(onWarn).toHaveBeenCalledWith(expect.stringContaining(`${key} set at start`))
+    }
+  })
+
+  it('falls through to the default only when the build set nothing either', () => {
+    const resolved = resolveRuntimeEnvWithOverlay(
+      built,
+      readRuntimeOverlay(scope({ [ENV_KEYS.sessionPersistence]: 'forever' })),
+    )
+
     expect(resolved.sessionPersistence).toBe('refresh-cookie')
-    expect(resolved.errorReporting.dsn).toBeUndefined()
-    expect(resolved.apiUrl).toBe('/api')
-    expect(onWarn).toHaveBeenCalledWith(expect.stringContaining(ENV_KEYS.sessionPersistence))
-    expect(onWarn).toHaveBeenCalledWith(expect.stringContaining(ENV_KEYS.errorReportingDsn))
+  })
+
+  it.each([
+    ['a protocol-relative URL', '//evil.test/api'],
+    ['a backslash a browser reads as a slash', '/\\evil.test/api'],
+    ['another scheme', 'javascript:alert(1)'],
+    ['a bare host', 'api.acme.test'],
+  ])('keeps the built API URL for %s', (_, apiUrl) => {
+    const onWarn = vi.fn()
+
+    const resolved = resolveRuntimeEnvWithOverlay(
+      built,
+      readRuntimeOverlay(scope({ [ENV_KEYS.apiUrl]: apiUrl })),
+      { onWarn },
+    )
+
+    expect(resolved.apiUrl).toBe('https://api.build.test')
     expect(onWarn).toHaveBeenCalledWith(expect.stringContaining(ENV_KEYS.apiUrl))
+  })
+
+  it('still corrects a value that is only wrong in combination', () => {
+    // `session` is a valid persistence mode; beside the oauth adapter it means
+    // nothing. That is a rule about two keys, and it runs after the merge.
+    const onWarn = vi.fn()
+
+    const resolved = resolveRuntimeEnvWithOverlay(
+      { ...built, [ENV_KEYS.authAdapter]: 'oauth', [ENV_KEYS.sessionPersistence]: 'none' },
+      readRuntimeOverlay(scope({ [ENV_KEYS.sessionPersistence]: 'session' })),
+      { onWarn },
+    )
+
+    expect(resolved.sessionPersistence).toBe('none')
+    expect(onWarn).toHaveBeenCalledWith(expect.stringContaining('Auto-correcting'))
+  })
+})
+
+describe('an API URL on a placeholder host', () => {
+  const PLACEHOLDERS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000/api',
+    'http://0.0.0.0:8000',
+    'https://api.example.com/v1',
+  ]
+  /** A production bundle, as a browser runs it: not dev, not served by Vite. */
+  const shipped = { isDev: false, serving: false }
+  const sameOriginBuild = { ...built, [ENV_KEYS.apiUrl]: '/api' }
+
+  it.each(PLACEHOLDERS)('is honoured when it was set at start: %s', (apiUrl) => {
+    // Whoever passed it to `docker run` chose it. The container's headers
+    // already allow that origin; an app that fell back to /api would be
+    // answered by its own server instead.
+    const onWarn = vi.fn()
+
+    const resolved = resolveRuntimeEnvWithOverlay(
+      sameOriginBuild,
+      readRuntimeOverlay(scope({ [ENV_KEYS.apiUrl]: apiUrl })),
+      { ...shipped, onWarn },
+    )
+
+    expect(resolved.apiUrl).toBe(apiUrl)
+    expect(onWarn).not.toHaveBeenCalled()
+  })
+
+  it.each(PLACEHOLDERS)('is still refused when a BUILD points at it: %s', (apiUrl) => {
+    // The rule exists for a build nobody configured. That has not changed.
+    const forgotten = { ...built, [ENV_KEYS.apiUrl]: apiUrl }
+    const onWarn = vi.fn()
+
+    expect(() => parseRuntimeEnv(forgotten, shipped)).toThrow(/placeholder host/)
+    // And in the browser, with no overlay to vouch for it.
+    expect(resolveRuntimeEnvWithOverlay(forgotten, {}, { ...shipped, onWarn }).apiUrl).toBe('/api')
+    expect(onWarn).toHaveBeenCalledWith(expect.stringContaining('placeholder host'))
+  })
+
+  it('is not vouched for by some other key being set at start', () => {
+    const forgotten = { ...built, [ENV_KEYS.apiUrl]: 'http://localhost:8000' }
+
+    const resolved = resolveRuntimeEnvWithOverlay(
+      forgotten,
+      readRuntimeOverlay(scope({ [ENV_KEYS.title]: 'Staging' })),
+      shipped,
+    )
+
+    expect(resolved.apiUrl).toBe('/api')
+    expect(resolved.title).toBe('Staging')
+  })
+
+  it('relaxes nothing else: a mock adapter set at start is still ignored', () => {
+    const resolved = resolveRuntimeEnvWithOverlay(
+      sameOriginBuild,
+      readRuntimeOverlay(
+        scope({ [ENV_KEYS.apiUrl]: 'http://localhost:8000', [ENV_KEYS.authAdapter]: 'mock' }),
+      ),
+      shipped,
+    )
+
+    expect(resolved.authAdapter).toBe('jwt')
+    expect(resolved.useMocks).toBe(false)
+  })
+})
+
+describe('the formats the entrypoint is generated from', () => {
+  it('lets a title hold spaces, and holds session persistence to the schema list', () => {
+    expect(RUNTIME_KEY_FORMATS).toEqual({
+      [ENV_KEYS.title]: { kind: 'text' },
+      [ENV_KEYS.sessionPersistence]: { kind: 'enum', values: SESSION_PERSISTENCE_MODES },
+    })
+  })
+
+  it('names only keys a deployment may set at start', () => {
+    for (const key of Object.keys(RUNTIME_KEY_FORMATS)) {
+      expect(RUNTIME_OVERRIDABLE_KEYS).toContain(key)
+    }
   })
 })
 
@@ -292,6 +468,26 @@ describe('the app, started with a runtime overlay', () => {
     // `onUnhandledRequest: 'error'` fails this unless the request went to the
     // overlaid origin and path.
     await expect(apiFetch('/ping')).resolves.toEqual({ pong: true })
+  })
+
+  it('keeps what the build set when the value given at start is not one', async () => {
+    vi.stubEnv(ENV_KEYS.runtimeMode, 'production')
+    vi.stubEnv(ENV_KEYS.useMocks, 'false')
+    vi.stubEnv(ENV_KEYS.authAdapter, 'jwt')
+    vi.stubEnv(ENV_KEYS.sessionPersistence, 'session')
+    Object.assign(globalThis, {
+      [RUNTIME_CONFIG_GLOBAL]: { [ENV_KEYS.sessionPersistence]: 'Session' },
+    })
+    vi.resetModules()
+
+    try {
+      const { runtimeEnv } = await import('~/lib/config')
+
+      // Not `refresh-cookie`, the schema default: the build's own choice.
+      expect(runtimeEnv.sessionPersistence).toBe('session')
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('is exactly the built configuration when the overlay is empty', async () => {

@@ -192,6 +192,13 @@ export function parseAppEnv<Env extends AppEnvShape>(
 }
 
 interface ResolveAppEnvOptions {
+  /**
+   * What the deployment set at start, by key (`readRuntimeOverlay`). A value
+   * here wins over the one in `raw`, unless its schema refuses it: it is then
+   * dropped with a warning and the built value applies, rather than the
+   * schema's default.
+   */
+  overlay?: Readonly<Record<string, unknown>>
   onWarn?: (message: string) => void
 }
 
@@ -208,9 +215,23 @@ export function resolveAppEnv<Env extends AppEnvShape>(
   options: ResolveAppEnvOptions = {},
 ): AppEnv<DeployConfig<Env>> {
   const warn = options.onWarn ?? (() => {})
+  const overlay = options.overlay ?? {}
   const values: Record<string, unknown> = {}
 
   for (const [key, schema] of Object.entries(config.env ?? {})) {
+    const overlaid = optional(overlay[key])
+    if (overlaid !== undefined) {
+      const parsed = schema.safeParse(overlaid)
+      if (parsed.success) {
+        values[key] = parsed.data
+        continue
+      }
+      warn(
+        `Ignoring ${key} set at start: ${describeIssues(parsed.error)}. ` +
+          'The value the app was built with applies.',
+      )
+    }
+
     const value = optional(raw[key])
     const parsed = schema.safeParse(value)
     if (parsed.success) {

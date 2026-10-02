@@ -191,4 +191,44 @@ describe('resolveAppEnv (lenient, in the browser)', () => {
   it('does not require a warning sink', () => {
     expect(() => resolveAppEnv(config, { VUESTRATA_PAGE_SIZE: 'many' })).not.toThrow()
   })
+
+  describe('with values set at start', () => {
+    it('puts a valid one over the built value', () => {
+      const env = resolveAppEnv(config, valid, {
+        overlay: { VUESTRATA_SUPABASE_URL: 'https://staging.supabase.co' },
+      })
+
+      expect(env.VUESTRATA_SUPABASE_URL).toBe('https://staging.supabase.co')
+      expect(env.VUESTRATA_FEATURE_BILLING).toBe('on')
+    })
+
+    it('drops an invalid one, so the BUILT value applies and not the default', () => {
+      const onWarn = vi.fn()
+
+      const env = resolveAppEnv(config, valid, {
+        overlay: { VUESTRATA_PAGE_SIZE: 'many', VUESTRATA_SUPABASE_URL: 'not a url' },
+        onWarn,
+      })
+
+      // 50 is what the build set; 25 is the schema's default.
+      expect(env.VUESTRATA_PAGE_SIZE).toBe(50)
+      expect(env.VUESTRATA_SUPABASE_URL).toBe('https://abc.supabase.co')
+      expect(onWarn).toHaveBeenCalledTimes(2)
+      expect(onWarn).toHaveBeenCalledWith(
+        expect.stringMatching(/VUESTRATA_PAGE_SIZE set at start.*built with applies/),
+      )
+    })
+
+    it('reads an empty one as not set', () => {
+      const onWarn = vi.fn()
+
+      const env = resolveAppEnv(config, valid, {
+        overlay: { VUESTRATA_SUPABASE_URL: '' },
+        onWarn,
+      })
+
+      expect(env.VUESTRATA_SUPABASE_URL).toBe('https://abc.supabase.co')
+      expect(onWarn).not.toHaveBeenCalled()
+    })
+  })
 })
