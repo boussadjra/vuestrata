@@ -84,6 +84,15 @@ describe('DocsContent', () => {
     expect(headings[0]?.text()).toBe('Form Builder')
   })
 
+  it('shows the full title where the sidebar lists a shorter one', () => {
+    // docs/5.components/1.overview.md is "Components", listed as "Overview".
+    // Its own "# Components" is removed, so the header is where the title is.
+    const wrapper = mountContent(doc({ title: 'Overview', heading: 'Components' }))
+
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    expect(wrapper.get('h1').text()).toBe('Components')
+  })
+
   it('leaves the heading to content that brings its own', async () => {
     const Demo = defineComponent({
       render: () => h('div', [h('h1', 'Accordion'), h('p', 'Collapsible sections.')]),

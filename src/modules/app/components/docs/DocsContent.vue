@@ -48,7 +48,7 @@ const emit = defineEmits<{ back: [] }>()
               :is="doc.ownHeading ? 'p' : 'h1'"
               class="text-foreground mt-3 text-3xl font-bold tracking-tight"
             >
-              {{ doc.title }}
+              {{ doc.heading || doc.title }}
             </component>
             <p
               v-if="doc.description"

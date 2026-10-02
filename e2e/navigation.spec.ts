@@ -98,7 +98,8 @@ test.describe('Components page', () => {
   test('should show collapsed component demo tree in docs sidebar', async ({ page }) => {
     await page.goto('/docs/components/overview')
     const docsNav = page.getByRole('navigation', { name: 'Documentation' })
-    await expect(page.getByRole('heading', { name: 'Overview', exact: true }).first()).toBeVisible()
+    // The page is "Components"; "Overview" is its name in the sidebar, asserted below.
+    await expect(page.getByRole('heading', { name: 'Components', level: 1 })).toBeVisible()
     await openDocsSidebarIfNeeded(page)
     await expect(docsNav).toBeVisible()
     const componentTopLevelLabels = await docsNav

@@ -2,7 +2,14 @@ import type { Component } from 'vue'
 
 export interface DocEntry {
   slug: string
+  /** The name in the sidebar: the short `navTitle` where a page has one. */
   title: string
+  /**
+   * The page's full title, where the sidebar's is a shorter one ("Components",
+   * listed as "Overview"). The header shows it as the page's `<h1>`: it is what
+   * the markdown's own `# Title` said, and that heading is removed.
+   */
+  heading?: string
   description: string
   content: string
   order: number

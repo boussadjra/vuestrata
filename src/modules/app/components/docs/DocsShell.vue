@@ -366,6 +366,7 @@ for (const path of Object.keys(markdownModules)) {
   docs.push({
     slug: buildSlug(path),
     title: metadata.navTitle || metadata.title || getFallbackDocTitle(parts),
+    heading: metadata.title,
     description,
     content: '',
     order,
