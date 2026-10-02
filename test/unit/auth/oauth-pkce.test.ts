@@ -53,6 +53,7 @@ describe('OAuth adapter — authorization code exchange', () => {
 
     expect(result.token).toBe('access')
     expect(apiFetch).toHaveBeenCalledWith('/auth/token', {
+      skipAuthRefresh: true,
       method: 'POST',
       body: {
         grant_type: 'authorization_code',

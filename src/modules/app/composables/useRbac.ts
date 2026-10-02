@@ -3,9 +3,9 @@ import {
   hasAnyPermission,
   hasAllPermissions,
   isRoleAtLeast,
-  getRolePermissions,
   hasNamespacePermission,
 } from '~/lib/rbac'
+import { resolveSubjectPermissions } from '~/lib/rbac/identity'
 import type { RbacUserSource } from '~/lib/rbac/types'
 import { useAuthStore } from '~/stores/auth'
 import type { Permission, Role } from '~/types'
@@ -25,7 +25,10 @@ export function useRbac(source?: RbacUserSource) {
   } else {
     const auth = useAuthStore()
     role = computed(() => auth.user?.role ?? 'guest')
-    permissions = computed(() => auth.user?.permissions ?? getRolePermissions(role.value))
+    // The resolution the route guard uses (see `resolveSubjectPermissions`), so
+    // what the sidebar offers is what the guard opens. Resolved here rather
+    // than read off the store so it holds for a store a project has edited.
+    permissions = computed(() => resolveSubjectPermissions(auth.user))
   }
 
   function can(permission: Permission, context?: Record<string, unknown>): boolean {

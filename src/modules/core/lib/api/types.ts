@@ -9,6 +9,17 @@
  */
 export type ApiAuthTransport = 'bearer' | 'cookie'
 
+/**
+ * What a provider's `refresh()` resolves to. `refreshToken` is absent when the
+ * backend keeps that credential in an HttpOnly cookie and never puts it in the
+ * body; `expiresIn` is the new access token's lifetime in seconds.
+ */
+export interface ApiRefreshResult {
+  token: string
+  refreshToken?: string
+  expiresIn?: number
+}
+
 export interface ApiAuthProvider {
   /**
    * Defaults to 'bearer' when omitted. Sending both an ambient cookie and a
@@ -19,7 +30,12 @@ export interface ApiAuthProvider {
   transport?: ApiAuthTransport
   getToken: () => string | null
   getRefreshToken: () => string | null
-  setAuth: (token: string, refreshToken: string) => void
+  /**
+   * Store a refreshed session. `refreshToken` is an empty string when the
+   * backend sent none (an HttpOnly-cookie session): keep the one held, if any.
+   * `expiresIn` lets the store reschedule its proactive refresh.
+   */
+  setAuth: (token: string, refreshToken: string, expiresIn?: number) => void
   clearAuth: () => void
   /**
    * Current CSRF token, used by the refresh request under the cookie
@@ -34,4 +50,21 @@ export interface ApiAuthProvider {
    * provided so existing wiring keeps working.
    */
   refreshEndpoint?: string
+  /**
+   * Mint a new access token. When present the interceptor calls this instead
+   * of POSTing `{ refreshToken }` itself, so the adapter owns what the request
+   * looks like: which credential it presents (a body token, or an HttpOnly
+   * cookie with no body at all), the endpoint, and the credentials mode.
+   * Resolves to `null` when there is nothing to refresh with; a rejection is a
+   * failed attempt and is retried like the legacy path.
+   *
+   * Optional: a provider without it keeps the body-token behaviour, which needs
+   * `getRefreshToken()` to return something.
+   */
+  refresh?: () => Promise<ApiRefreshResult | null>
+  /**
+   * Whether `refresh()` has a credential to present right now. Checked before
+   * every refresh. Omitted means "just call `refresh()`".
+   */
+  canRefresh?: () => boolean
 }

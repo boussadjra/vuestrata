@@ -108,6 +108,37 @@ export interface AuthAdapter {
    * resume simply omits it, and the bootstrap treats that as "no session".
    */
   resumeSession?: () => Promise<ResumedSession | null>
+
+  /**
+   * Mint a new access token for the session in progress, presenting whichever
+   * refresh credential this adapter's deployment uses: an HttpOnly cookie
+   * (no body, cookies attached) or a refresh token held in memory or Web
+   * Storage. Resolves to null when there is no credential to present; rejects
+   * when the backend refuses or is unreachable.
+   *
+   * The interceptor (on a 401) and the store's proactive timer both call it
+   * through the provider `bootstrap/auth-wiring.ts` installs. It is optional
+   * and feature-detected there, so an adapter written before it existed keeps
+   * the body-token refresh it always had.
+   */
+  refreshSession?: () => Promise<RefreshedSession | null>
+  /** Whether `refreshSession` has a credential to present right now. */
+  canRefreshSession?: () => boolean
+}
+
+/**
+ * The answer of `POST /auth/refresh`.
+ *
+ * Deliberately NOT `AuthResponse`: the documented contract carries no `user`
+ * (the app asks `/auth/me` for that), and under `refresh-cookie` no
+ * `refreshToken` either — the rotated credential travels as a cookie. `user`
+ * stays optional so a backend that does return one is used as it is.
+ */
+export interface RefreshedSession {
+  token: string
+  refreshToken?: string
+  expiresIn?: number
+  user?: User
 }
 
 /**

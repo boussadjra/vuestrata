@@ -6,6 +6,7 @@ import {
   hasPermission,
   isRoleAtLeast,
 } from '~/lib/rbac'
+import { resolveSubjectPermissions } from '~/lib/rbac/identity'
 import type { Permission, Role } from '~/types'
 
 const guardLogger = createScopedLogger('router')
@@ -33,6 +34,10 @@ export interface GuardedRoute {
 export interface GuardSubject {
   isAuthenticated: boolean
   role: Role
+  /**
+   * `undefined` means the backend sent none, so the role decides; an array,
+   * even an empty one, is the user's whole set.
+   */
   permissions: Permission[] | undefined
 }
 
@@ -72,7 +77,11 @@ export function resolveRouteAccess(route: GuardedRoute, subject: GuardSubject): 
   // anonymous users — the check was skipped for exactly the visitors it existed
   // to stop. An anonymous subject evaluates as `guest`, whose permission set is
   // empty, so such a route now fails closed.
-  const { role, permissions } = subject
+  const { role } = subject
+  // The same resolution the sidebar and `useRbac` use, so a link the UI shows
+  // is a route the guard opens. A visitor who is not signed in holds nothing,
+  // whatever role label they carry.
+  const permissions = subject.isAuthenticated ? resolveSubjectPermissions(subject) : []
 
   if (route.meta.requiredRole && !isRoleAtLeast(role, route.meta.requiredRole)) {
     return { type: 'forbidden' }
