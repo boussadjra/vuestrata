@@ -33,7 +33,7 @@
     },
     "src/modules/app/bootstrap/app-loader.ts": {
       "class": "managed",
-      "hash": "sha256-ac4f1644b4524fddeae85b93daf830c98e1a9502a119f8b98b84076ca629b0af",
+      "hash": "sha256-75c71d7632d928987bd785ee6f174052f1dcf22d61de4e82f7be32a12f80913d",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/auth-wiring.ts": {
@@ -43,7 +43,7 @@
     },
     "src/modules/app/bootstrap/boot-error.ts": {
       "class": "managed",
-      "hash": "sha256-0eb24dce09dba6d5768204a9804a2cf384517334565fd748cbb15471d6d8aac6",
+      "hash": "sha256-cfbd90d22a383e900aedf4f237cf81972f07b4e87fdefb1eec6e0103193935f7",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/demo.ts": {
@@ -53,7 +53,7 @@
     },
     "src/modules/app/bootstrap/index.ts": {
       "class": "managed",
-      "hash": "sha256-8116089c733a86aac30192ab722065c3708bae8f914068246228fbda3364b429",
+      "hash": "sha256-4aef49170a0c20fade3a4af7166a38e9b73d00a8d88e689ed23681147112cf9f",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/mocks.ts": {
@@ -71,6 +71,11 @@
       "hash": "sha256-068ae5af0fcd1c984530168d0ff4381c9c3bfe746b17f493c33f07f60ecd2e1c",
       "since": "1.0.1-alpha.6"
     },
+    "src/modules/app/bootstrap/stale-chunk-reload.ts": {
+      "class": "managed",
+      "hash": "sha256-83baadff6b775718d4bf748ce1f4a9d51a9ef3202001755149f2509a36fc782b",
+      "since": "1.0.1-alpha.6"
+    },
     "src/modules/app/components/layout/AppBreadcrumb.vue": {
       "class": "managed",
       "hash": "sha256-c074c68af013befc5458dbc7ec754640865ff1f06863efed36ab1b3bdd72f197",
@@ -78,7 +83,7 @@
     },
     "src/modules/app/components/layout/AppErrorBoundary.vue": {
       "class": "managed",
-      "hash": "sha256-f46eb177b35a8ccbcc4a0b39f4528d99bc832a7c167c96294f4c88fa623558c7",
+      "hash": "sha256-4e5672bcdb0ab85cdd9f2e6f26d4151de46c474266bad6c0c7dfa36ab001c564",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/layout/AppFooter.vue": {
@@ -605,7 +610,7 @@
     },
     "src/modules/app/locales/ar.json": {
       "class": "managed",
-      "hash": "sha256-a32992bb2fa5d9711b6d1810bcbb1e516cf483315a3aa81657bf6ecec67122ef",
+      "hash": "sha256-0a83794344d9ff1e717b3b74a81447362c056516ab3b122ca87be53a6219714c",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/locales/ar.overrides.json": {
@@ -614,7 +619,7 @@
     },
     "src/modules/app/locales/en.json": {
       "class": "managed",
-      "hash": "sha256-198c510e307c1477ab47a48a9e5083f4646ff193dd792e6409c304ac00ef7034",
+      "hash": "sha256-52e790ff31fc0831bf0235d7b0ead595d11c00bd91b1169b7b5eebd683bd6395",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/locales/en.overrides.json": {
@@ -623,7 +628,7 @@
     },
     "src/modules/app/locales/fr.json": {
       "class": "managed",
-      "hash": "sha256-728d12bc8ace5e0f21cb7eea89167609986d27c8a4dfdc38d2a46aa54bc1eced",
+      "hash": "sha256-177e8c5361c7c0616e8ea93632ee5f64e864a398771b65dea65b322a0ef72491",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/locales/fr.overrides.json": {
@@ -866,12 +871,17 @@
     },
     "src/modules/core/lib/errors/index.ts": {
       "class": "managed",
-      "hash": "sha256-45c5ba46ff347963efeb2965934931cda4d1dcea07bbf54d3877152beda6afbc",
+      "hash": "sha256-ecc81a06810064a6f23680eec2a319af775c915eb739442091dfebb9a0cf98cc",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/errors/reporter.ts": {
       "class": "managed",
       "hash": "sha256-a8a91d159de443deac1de3b2fc67625e44ea2d7733530c269afcbb0f04090051",
+      "since": "1.0.1-alpha.6"
+    },
+    "src/modules/core/lib/errors/vue-error-info.ts": {
+      "class": "managed",
+      "hash": "sha256-20b2e64836667824b03579169c4f220c42ca1ae70e17e88fe77b538fa9c453ae",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/events.ts": {
