@@ -323,8 +323,10 @@ prerelease after the first: every step looks for what is still to do.
   tuned `plugins/vue-query.ts`, the new `main.ts` passes your options:
   `boot(App, { queryOptions: vueQueryOptions })`.
 - In `vite.config.ts`, replaces the inline env plugin with an import of
-  `scripts/vite/vuestrata-plugin.mjs`, and gives an unedited test block
-  `testTimeout: 15_000` and, off CI, `maxWorkers: '50%'`.
+  `scripts/vite/vuestrata-plugin.mjs`, gives an unedited test block
+  `testTimeout: 15_000` and, off CI, `maxWorkers: '50%'`, and adds
+  `'.vuestrata/**'` to the lint and format ignore lists, so the copies an
+  upgrade leaves in `.vuestrata/incoming/` are not linted as source.
 - Records the `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts` as
   merged files, keeping what `vuestrata add` wrote into their `app:` regions.
 - Writes `src/modules/app/config/rbac.overrides.ts`.
@@ -342,6 +344,10 @@ prerelease after the first: every step looks for what is still to do.
 - Updates eight tests that asserted what 1.0 did (`test/stores.test.ts`, the
   two `use-rbac` tests, `adapters.test.ts`, `oauth-pkce.test.ts`, and the
   `public-surface`, `registry-drift` and `module-contract` architecture tests).
+  A test follows the file it tests: where you edited `stores/auth.ts`,
+  `useRbac.ts` or `auth/adapters/base.ts` and so keep your copy, its test is
+  left as it is, and is updated by the first `vuestrata upgrade` you run after
+  merging the incoming file.
 - Replaces `Dockerfile`, `docker-compose.yml`, `.dockerignore`,
   `.github/dependabot.yml`, `.github/workflows/ci.yml`,
   `e2e/production-artifact.spec.ts` and `scripts/lint/check-toolchain-pins.mjs`
@@ -555,6 +561,11 @@ one. Without it the dev-server proxy (`DEV_API_TARGET`) never runs.
 ```ts
 import { vuestrataEnv } from './scripts/vite/vuestrata-plugin.mjs'
 ```
+
+And if you changed its `lint.ignorePatterns`, add `'.vuestrata/**'` there (and
+to `fmt.ignorePatterns`). Without it `vp check` and `vpr lint` type-check the
+copies in `.vuestrata/incoming/`, which fail by design: they sit outside the
+alias roots.
 
 **9. Demo literals.** `verify-bundle --mode=production` now fails when any
 chunk, your docs pages included, contains `demo@vuestrata.dev`,

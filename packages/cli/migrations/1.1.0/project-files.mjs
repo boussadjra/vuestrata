@@ -1,4 +1,6 @@
+import { hashFor } from '../../src/lib/lockfile.mjs'
 import { inSlot } from '../../src/lib/manifest.mjs'
+import { PRISTINE } from './promotions.mjs'
 import { listOf, replaceBlocks, toLf } from './text.mjs'
 
 /**
@@ -495,7 +497,55 @@ wrapped in an envelope carrying an \`integrityHash\`.
  * would fail `vpr test --run` on code it never wrote. Each entry replaces the
  * assertions as shipped, and `pins` recognises a copy that still asserts the
  * old behaviour in some other form, for the note.
+ *
+ * A test follows the file it tests and never leads it. Where the project
+ * edited that file, it keeps its copy and the 1.0 behaviour (the promotion
+ * leaves it, with a note), and its test is still right about it: rewriting the
+ * test would make it fail on the project's own decision. `subject` names that
+ * file, and the test is rewritten on the upgrade that replaces it, or on the
+ * first one after the project merged the incoming copy.
  */
+
+/**
+ * A file a test asserts the behaviour of: `key` is where it ships (and its key
+ * in the promotions' pristine lists), `file` where this project has it, and
+ * `marker` something only the 1.1.0 version says.
+ */
+const SUBJECTS = {
+  authStore: {
+    key: 'src/modules/app/stores/auth.ts',
+    file: inApp('stores/auth.ts'),
+    marker: 'resolveSubjectPermissions',
+  },
+  useRbac: {
+    key: 'src/modules/app/composables/useRbac.ts',
+    file: inApp('composables/useRbac.ts'),
+    marker: 'resolveSubjectPermissions',
+  },
+  authEndpoints: {
+    key: 'src/modules/auth/adapters/base.ts',
+    file: inModules('auth/adapters/base.ts'),
+    marker: 'skipAuthRefresh',
+  },
+}
+
+/**
+ * The subject has the 1.1.0 behaviour, or is about to: it is a release's copy,
+ * which this same upgrade adopts and replaces. A project without the file has
+ * nothing for the test to wait for.
+ */
+function subjectIsCurrent(subject, manifest, ws) {
+  if (!subject) return true
+  const rel = subject.file(manifest)
+  if (!ws.exists(rel)) return true
+
+  const source = ws.read(rel)
+  return (
+    source.includes(subject.marker) ||
+    PRISTINE[subject.key].includes(hashFor(subject.key, source, 'managed'))
+  )
+}
+
 const USE_RBAC_OLD = `  it('should default to guest role when no user is authenticated', () => {
     const { role, permissions } = useRbac()
     expect(role.value).toBe('guest')
@@ -522,6 +572,7 @@ const USE_RBAC_NEW = `  it('should default to guest role, holding nothing, when 
 
 const useRbacTest = (file) => ({
   file,
+  subject: SUBJECTS.useRbac,
   pins: (source) => source.includes("'should default to guest role when no user is authenticated'"),
   blocks: [{ from: USE_RBAC_OLD, to: USE_RBAC_NEW }],
   change:
@@ -532,6 +583,7 @@ const useRbacTest = (file) => ({
 const TESTS = [
   {
     file: 'test/stores.test.ts',
+    subject: SUBJECTS.authStore,
     pins: (source) =>
       source.includes("'userPermissions is empty array when user has no permissions field'"),
     blocks: [
@@ -576,6 +628,7 @@ const TESTS = [
   useRbacTest('test/integration/composables/use-rbac.test.ts'),
   {
     file: 'test/unit/auth/adapters.test.ts',
+    subject: SUBJECTS.authEndpoints,
     pins: (source) =>
       /toHaveBeenCalledWith\('\/auth\/me'\)/.test(source) ||
       /toHaveBeenCalledWith\('\/auth\/login', \{\s*method:/.test(source),
@@ -600,6 +653,7 @@ const TESTS = [
   },
   {
     file: 'test/unit/auth/oauth-pkce.test.ts',
+    subject: SUBJECTS.authEndpoints,
     pins: (source) => /toHaveBeenCalledWith\('\/auth\/token', \{\s*method:/.test(source),
     blocks: [
       {
@@ -729,23 +783,45 @@ import frOverrides from '@/locales/fr.overrides.json'
 const pinnedTests = [
   ...TESTS.map((test) => ({
     file: test.file,
-    pending: test.pins,
+    pending: (source, manifest, ws) =>
+      test.pins(source) && subjectIsCurrent(test.subject, manifest, ws),
     apply: (source) => replaceBlocks(source, test.blocks),
     note: false,
   })),
   {
     kind: 'note',
     note: (source, manifest, ws) => {
-      const left = TESTS.filter((test) => ws.exists(test.file) && test.pins(ws.read(test.file)))
-      if (left.length === 0) return undefined
+      const pinning = TESTS.filter((test) => ws.exists(test.file) && test.pins(ws.read(test.file)))
+      // Still asserting 1.0 after the steps above: not the shipped text.
+      const left = pinning.filter((test) => subjectIsCurrent(test.subject, manifest, ws))
+      // Asserting 1.0 about a file that still does what 1.0 did.
+      const waiting = pinning.filter((test) => !left.includes(test))
+      const parts = []
 
-      return (
-        `${listOf(left.map((test) => test.file))} still ` +
-        `${left.length === 1 ? 'asserts' : 'assert'} what 1.0 did, in a form the migration does ` +
-        `not recognise, so ${left.length === 1 ? 'it was' : 'they were'} left alone and will ` +
-        `fail or mislead. What changed: ` +
-        `${left.map((test) => `${test.file}: ${test.change}`).join('; ')}.`
-      )
+      if (left.length > 0) {
+        parts.push(
+          `${listOf(left.map((test) => test.file))} still ` +
+            `${left.length === 1 ? 'asserts' : 'assert'} what 1.0 did, in a form the migration ` +
+            `does not recognise, so ${left.length === 1 ? 'it was' : 'they were'} left alone and ` +
+            `will fail or mislead. What changed: ` +
+            `${left.map((test) => `${test.file}: ${test.change}`).join('; ')}.`,
+        )
+      }
+
+      if (waiting.length > 0) {
+        const subjects = [...new Set(waiting.map((test) => test.subject.file(manifest)))]
+        parts.push(
+          `${listOf(waiting.map((test) => test.file))} ` +
+            `${waiting.length === 1 ? 'was' : 'were'} left as ` +
+            `${waiting.length === 1 ? 'it is' : 'they are'}, because ` +
+            `${waiting.length === 1 ? 'it tests' : 'they test'} ${listOf(subjects)}, which you ` +
+            `edited and keep: the 1.0 assertions still hold for your copy. Once you have merged ` +
+            `the incoming version and run \`vuestrata adopt\`, run \`vuestrata upgrade\` again ` +
+            `and the ${waiting.length === 1 ? 'test follows' : 'tests follow'}.`,
+        )
+      }
+
+      return parts.length > 0 ? parts.join(' ') : undefined
     },
   },
 ]
@@ -803,6 +879,59 @@ const testRoom = {
     /\b(?:testTimeout|maxWorkers)\b/.test(source)
       ? source
       : replaceBlocks(source, [{ from: TEST_BLOCK_OLD, to: TEST_BLOCK_NEW }]),
+}
+
+// ─── vite.config.ts: .vuestrata/ is not source ───────────────────────────────
+
+const LINT_IGNORE_OLD = `      'packages/cli/payload/**',
+      '.agents/**',
+`
+
+const LINT_IGNORE_NEW = `      'packages/cli/payload/**',
+      // What \`vuestrata upgrade\` leaves beside a file it would not overwrite:
+      // the release's version, to compare and merge. Not part of the app, and
+      // outside the alias roots like the payload, so type-checking it fails.
+      '.vuestrata/**',
+      '.agents/**',
+`
+
+const FMT_IGNORE_OLD = `    ignorePatterns: [
+      '.agents/**',
+      '*.d.ts',
+`
+
+const FMT_IGNORE_NEW = `    ignorePatterns: [
+      '.agents/**',
+      // A release's files as that release formatted them, kept to be compared.
+      '.vuestrata/**',
+      '*.d.ts',
+`
+
+/**
+ * An upgrade that holds a file back writes the release's version to
+ * .vuestrata/incoming/, and the type-aware linter then read it as source: a
+ * TypeScript file outside the alias roots, where `@/bootstrap` resolves to
+ * nothing. So the first upgrade that left a copy behind turned `vp check` and
+ * `vpr lint` red until the copy was merged, which is the opposite of what the
+ * copy is for.
+ *
+ * The linter's list is the one that matters. The formatter's is added where
+ * its shipped lines are still there, and is not missed where they are not.
+ */
+const incomingIgnored = {
+  file: 'vite.config.ts',
+  pending: (source) => !source.includes('.vuestrata/'),
+  apply: (source) =>
+    replaceBlocks(source, [
+      { from: LINT_IGNORE_OLD, to: LINT_IGNORE_NEW },
+      { from: FMT_IGNORE_OLD, to: FMT_IGNORE_NEW, optional: true },
+    ]),
+  note:
+    "vite.config.ts: add `'.vuestrata/**'` to `lint.ignorePatterns` (and to " +
+    '`fmt.ignorePatterns`). The list there is not the one 1.0.1-alpha.6 shipped, so it was left ' +
+    'alone. Without that entry `vp check` and `vpr lint` type-check the copies an upgrade ' +
+    'leaves in .vuestrata/incoming/, and those fail by design: they sit outside the alias ' +
+    'roots, so their imports resolve to nothing.',
 }
 
 // ─── The three merged files ──────────────────────────────────────────────────
@@ -873,5 +1002,9 @@ export default [
   {
     description: 'the test runner allows 15 s a test and, off CI, uses half the cores',
     steps: [testRoom],
+  },
+  {
+    description: 'the linter and the formatter leave .vuestrata/ alone',
+    steps: [incomingIgnored],
   },
 ]

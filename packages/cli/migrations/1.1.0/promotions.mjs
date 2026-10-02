@@ -151,7 +151,11 @@ function promoteNote(rel) {
       `from src/modules/app/bootstrap/query-client.ts, which boot() reads. This copy differs ` +
       `from every release that shipped it, so it was left alone. A src/main.ts this upgrade ` +
       `replaced passes your \`vueQueryOptions\` to boot(), so they still apply; a main.ts you ` +
-      `edited keeps reading this file as before. To hand the file over, first move your options ` +
+      `edited keeps reading this file as before. Check the retry settings in it either way: ` +
+      `the API client no longer retries on its own, so the \`retry: 1\` that 1.0 shipped is now ` +
+      `one retry for every failed query, a 404 included. Set \`retry: shouldRetryQuery\` and ` +
+      `\`retryDelay: queryRetryDelay\` (from '~/lib/api/retry') on queries, and ` +
+      `\`retry: false\` on mutations. To hand the file over, first move your options ` +
       `into a file of your own and pass them with \`boot(App, { queryOptions })\` (spread ` +
       `\`vueQueryOptions\` from '@/bootstrap/query-client' to keep the retry policy), then run ` +
       `\`vuestrata adopt ${rel}\` once this file matches .vuestrata/incoming/${rel}. Adopting it ` +

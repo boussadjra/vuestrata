@@ -151,6 +151,10 @@ export default defineConfig({
       // every finding twice, and type-checking it fails outright: the copies
       // sit outside the alias roots, so `@/types` resolves to nothing.
       'packages/cli/payload/**',
+      // What `vuestrata upgrade` leaves beside a file it would not overwrite:
+      // the release's version, to compare and merge. Not part of the app, and
+      // outside the alias roots like the payload, so type-checking it fails.
+      '.vuestrata/**',
       '.agents/**',
       '*.d.ts',
       'auto-imports.d.ts',
@@ -174,6 +178,8 @@ export default defineConfig({
     sortTailwindcss: true,
     ignorePatterns: [
       '.agents/**',
+      // A release's files as that release formatted them, kept to be compared.
+      '.vuestrata/**',
       '*.d.ts',
       'auto-imports.d.ts',
       'components.d.ts',

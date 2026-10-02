@@ -287,10 +287,11 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
 
     const report = await upgrade()
 
-    // Everything down to the test block is as the project left it, the inline
-    // plugin included. The test block is another step's, and nobody edited it
-    // here, so it does get this release's settings (migration-1.1.0.test.ts).
-    const upTo = (text: string) => text.slice(0, text.indexOf('  test: {'))
+    // Everything down to the config object is as the project left it: the
+    // imports and the inline plugin. The ignore lists and the test block below
+    // are other steps', and nobody edited them here, so they do get this
+    // release's entries (migration-1.1.0.test.ts).
+    const upTo = (text: string) => text.slice(0, text.indexOf('export default defineConfig('))
     const result = fixture.read(VITE)
     expect(upTo(edited)).toContain("'VUESTRATA_', 'ACME_'")
     expect(upTo(result)).toBe(upTo(edited))
@@ -427,6 +428,12 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
       const note = notesFor(report, QUERY)[0]?.text
       expect(note).toMatch(/passes your `vueQueryOptions` to boot\(\)/)
       expect(note).toMatch(/Adopting it first would drop your options/)
+      // The tuned file still holds 1.0's `retry: 1`, over a client that no
+      // longer retries: the note gives the three settings to change.
+      expect(tuned).toContain('retry: 1')
+      expect(note).toMatch(/retry: shouldRetryQuery/)
+      expect(note).toMatch(/retryDelay: queryRetryDelay/)
+      expect(note).toMatch(/retry: false/)
     })
 
     it('differs from the plain shell only by the import and the option', async () => {

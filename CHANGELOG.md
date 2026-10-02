@@ -211,6 +211,8 @@ Docker image. The rest is what lets those fixes reach an existing project.
   on every upgrade
 - a replaced `main.ts` dropped the query options of an edited
   `plugins/vue-query.ts` without a word
+- the first upgrade that left a copy in `.vuestrata/incoming/` turned
+  `vp check` and `vpr lint` red: the linter type-checked the copies as source
 - `eject` deleted a project's own docs pages, landing page, scripts and whole
   specs, left `vpr lint` red, and left the header and footer linking to a
   docs site that was gone
@@ -285,8 +287,9 @@ for you, and leaves the release's version of any file it held back in
 - the demo literals leave the three docs pages and the showcase forms page
   that quoted them, and `e2e/forms.spec.ts` follows
 - eight tests that asserted 1.0 behaviour of files this release replaces are
-  updated, and an unedited test block in `vite.config.ts` gets the 15 s
-  timeout and the worker cap
+  updated, an unedited test block in `vite.config.ts` gets the 15 s timeout
+  and the worker cap, and its lint and format ignore lists gain
+  `'.vuestrata/**'`
 - `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.github/dependabot.yml`,
   `.github/workflows/ci.yml`, `e2e/production-artifact.spec.ts` and
   `scripts/lint/check-toolchain-pins.mjs` are replaced when unedited

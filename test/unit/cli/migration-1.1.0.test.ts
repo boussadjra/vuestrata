@@ -109,8 +109,9 @@ const BECOMES: Record<string, string> = {
   'src/modules/showcase/pages/forms.vue':
     'sha256-61f5ae4a05b7434b860775a9e2ff9453b94f621991058b99aee83eeea5fe0439',
   'e2e/forms.spec.ts': 'sha256-5173d57b438e6f70c4595f4b4a55c91bd39766d31c17b16de9af5088b99b0d47',
-  // After both of its codemods: the env plugin import (promotions) and the test block.
-  'vite.config.ts': 'sha256-d19a7b3af7fbc24b6ffc76a232711c713dc6c1a09527776b9601e19d0760c438',
+  // After its three codemods: the env plugin import (promotions), the test
+  // block, and `.vuestrata/` in the ignore lists.
+  'vite.config.ts': 'sha256-242b39d3ab26b15c0cf87408ceff7b26094971b6e4c64a89d33a287da04db0dc',
   'test/stores.test.ts': 'sha256-b3059a058cd1090b419d50510ac25f2a15c31a71a3b6366471dcac4ef9e94a8d',
   'test/unit/composables/use-rbac.test.ts':
     'sha256-282e7036330f710e4b21945162fc75cc87b4535f1c5b8da0d3025becc9f4cfec',
@@ -604,6 +605,66 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(changed(again)).toEqual([])
       expect(again.notes).toEqual([])
     })
+
+    describe('for a file the project edited and keeps', () => {
+      const STORE = 'src/modules/app/stores/auth.ts'
+      const STORES_TEST = 'test/stores.test.ts'
+      const BASE = 'src/modules/auth/adapters/base.ts'
+      const ADAPTER_TESTS = ['test/unit/auth/adapters.test.ts', 'test/unit/auth/oauth-pkce.test.ts']
+      /** What this release ships at those paths. */
+      const SHIPPED_FILES = { [STORE]: inRepo(STORE), [BASE]: inRepo(BASE) }
+      const waitingNotes = (report: Report) =>
+        texts(report).filter((text) => /which you edited and keep/.test(text))
+
+      it('leaves the test that is still right about that file, and says when it follows', async () => {
+        seed([...PINNED_TESTS, STORE, BASE])
+        // The project's own line in the store: it stays, with what 1.0 did.
+        const edited = `// ACME: reviewed by security.\n${released(STORE)}`
+        fixture.write(STORE, edited)
+
+        const report = await upgrade(SHIPPED_FILES)
+
+        expect(fixture.read(STORE)).toBe(edited)
+        // Rewritten, the test would assert a userPermissions this store does not compute.
+        expect(fixture.read(STORES_TEST)).toBe(released(STORES_TEST))
+        expect(waitingNotes(report)).toHaveLength(1)
+        expect(waitingNotes(report)[0]).toContain(`${STORES_TEST} was left as it is`)
+        expect(waitingNotes(report)[0]).toContain(STORE)
+        expect(waitingNotes(report)[0]).toMatch(/run `vuestrata upgrade` again/)
+        // The other subjects were replaced, so their tests moved with them.
+        for (const rel of ADAPTER_TESTS) expect(hash(fixture.read(rel)), rel).toBe(BECOMES[rel])
+        expect(waitingNotes(report)[0]).not.toContain('adapters.test.ts')
+      })
+
+      it('rewrites it on the upgrade after the project merged the new file', async () => {
+        seed([...PINNED_TESTS, STORE, BASE])
+        fixture.write(STORE, `// ACME: reviewed by security.\n${released(STORE)}`)
+        await upgrade(SHIPPED_FILES)
+        expect(fixture.read(STORES_TEST)).toBe(released(STORES_TEST))
+
+        // Merged by hand: the release's store, with the project's line kept.
+        fixture.write(STORE, `// ACME: reviewed by security.\n${inRepo(STORE)}`)
+        const again = await upgrade(SHIPPED_FILES, { version: '1.1.0-alpha.1' })
+
+        expect(hash(fixture.read(STORES_TEST))).toBe(BECOMES[STORES_TEST])
+        expect(waitingNotes(again)).toEqual([])
+      })
+
+      it('keeps both adapter tests while the shared endpoints file is the edited one', async () => {
+        seed([...PINNED_TESTS, STORE, BASE])
+        fixture.write(BASE, `// ACME: one more endpoint below.\n${released(BASE)}`)
+
+        const report = await upgrade(SHIPPED_FILES)
+
+        for (const rel of ADAPTER_TESTS) expect(fixture.read(rel), rel).toBe(released(rel))
+        expect(hash(fixture.read(STORES_TEST))).toBe(BECOMES[STORES_TEST])
+        expect(waitingNotes(report)).toHaveLength(1)
+        expect(waitingNotes(report)[0]).toContain(
+          `${ADAPTER_TESTS.join(' and ')} were left as they are`,
+        )
+        expect(waitingNotes(report)[0]).toContain(`they test ${BASE}`)
+      })
+    })
   })
 
   describe('vite.config.ts', () => {
@@ -680,6 +741,80 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       expect(fixture.read(VITE)).toBe(once)
       expect(changed(again)).toEqual([])
+      expect(again.notes).toEqual([])
+    })
+
+    describe('and the copies an upgrade leaves in .vuestrata/', () => {
+      const ENTRY = "      '.vuestrata/**',\n"
+      const ignoreNotes = (report: Report) =>
+        texts(report).filter((text) => text.includes("'.vuestrata/**'"))
+
+      it('keeps the linter and the formatter out of them', async () => {
+        seed([VITE])
+        expect(released(VITE)).not.toContain('.vuestrata')
+
+        const report = await upgrade()
+
+        const result = lf(fixture.read(VITE))
+        // Once in `lint.ignorePatterns`, once in `fmt.ignorePatterns`.
+        expect(result.split(ENTRY)).toHaveLength(3)
+        const lint = result.slice(result.indexOf('  lint: {'), result.indexOf('  fmt: {'))
+        const fmt = result.slice(result.indexOf('  fmt: {'), result.indexOf('  staged: {'))
+        expect(lint).toContain(ENTRY)
+        expect(fmt).toContain(ENTRY)
+        expect(ignoreNotes(report)).toEqual([])
+      })
+
+      it('adds it to the linter alone where the formatter list was changed', async () => {
+        seed([VITE])
+        fixture.write(
+          VITE,
+          lf(released(VITE)).replace(
+            "    ignorePatterns: [\n      '.agents/**',\n      '*.d.ts',\n",
+            "    ignorePatterns: [\n      'legacy/**',\n      '.agents/**',\n      '*.d.ts',\n",
+          ),
+        )
+
+        const report = await upgrade()
+
+        const result = lf(fixture.read(VITE))
+        expect(result.split(ENTRY)).toHaveLength(2)
+        expect(result).toContain("'legacy/**'")
+        expect(ignoreNotes(report)).toEqual([])
+      })
+
+      it('says what to add where the linter list is no longer the shipped one', async () => {
+        seed([VITE])
+        const own = lf(released(VITE)).replace(
+          "      'packages/cli/payload/**',\n      '.agents/**',\n",
+          "      'packages/cli/payload/**',\n      'legacy/**',\n      '.agents/**',\n",
+        )
+        expect(own).not.toBe(lf(released(VITE)))
+        fixture.write(VITE, own)
+
+        const report = await upgrade()
+
+        expect(lf(fixture.read(VITE))).not.toContain('.vuestrata')
+        expect(ignoreNotes(report)).toHaveLength(1)
+        expect(ignoreNotes(report)[0]).toMatch(/lint\.ignorePatterns/)
+        expect(fixture.exists(incoming(VITE))).toBe(false)
+      })
+
+      it('has nothing to say to a project that already ignores the directory', async () => {
+        seed([VITE])
+        fixture.write(
+          VITE,
+          lf(released(VITE)).replace(
+            "      'dist/**',\n",
+            "      'dist/**',\n      '.vuestrata/',\n",
+          ),
+        )
+
+        const report = await upgrade()
+
+        expect(lf(fixture.read(VITE)).split(ENTRY)).toHaveLength(1)
+        expect(ignoreNotes(report)).toEqual([])
+      })
     })
   })
 
