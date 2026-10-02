@@ -11,6 +11,8 @@ export {
   setErrorReporterUser,
 } from './reporter'
 export type { ErrorReporter, ErrorReportContext } from './reporter'
+export { parseVueErrorInfo } from './vue-error-info'
+export type { VueErrorCode, VueErrorInfo } from './vue-error-info'
 
 /**
  * What failed, answered once at the boundary so no caller has to re-derive it
