@@ -37,7 +37,7 @@ export interface SessionRestoreStore {
   readonly token: string | null
   setAuth: (user: User, token: string, refreshToken?: string, expiresIn?: number) => void
   setUser: (user: User) => void
-  clearAuth: () => void
+  clearAuth: (reason?: 'logout' | 'expired') => void
 }
 
 export interface SessionRestoreDeps {
@@ -81,6 +81,17 @@ export async function restoreSession(deps: SessionRestoreDeps): Promise<void> {
   const resumed = await deps.resumeSession?.()
   if (!resumed) return
 
+  // A session with no user is not a session. The type says `user` is present,
+  // but this is the boundary with an adapter a project may have written (or
+  // edited), and `/auth/refresh` is documented to return no user at all: an
+  // adapter that forwards that response as it is would store `undefined`, and
+  // the app would then be signed out by `isAuthenticated` while holding a live
+  // access token. Treat it as no session instead.
+  if (!resumed.user) {
+    restoreLogger.warn('Resumed a session without a user — treating it as no session')
+    return
+  }
+
   if (resumed.token) {
     store.setAuth(resumed.user, resumed.token, resumed.refreshToken, resumed.expiresIn)
   } else {
@@ -105,7 +116,7 @@ async function refreshCurrentUser(deps: SessionRestoreDeps): Promise<void> {
     const appErr = normalizeError(err)
     if (appErr.status === 401 || appErr.status === 403) {
       restoreLogger.warn('Session no longer valid — clearing auth', { status: appErr.status })
-      deps.store.clearAuth()
+      deps.store.clearAuth('expired')
     } else {
       restoreLogger.warn('Session restoration failed (kept current state)', {
         code: appErr.code,

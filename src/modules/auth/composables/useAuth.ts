@@ -41,6 +41,8 @@ const useAuthAdapterState = createGlobalState(() => {
       cell.adapter ??= createAuthAdapter(configuredAuthAdapter, {
         // Threaded in so the JWT adapter can skip a request it knows will 401.
         getToken: () => useAuthStore().token,
+        // ...and can present a refresh token held in memory.
+        getRefreshToken: () => useAuthStore().refreshToken,
       })
       return cell.adapter
     },
@@ -175,7 +177,7 @@ export function useAuth() {
     // already decided to end their session, so client-side cleanup proceeds
     // regardless of network or backend availability. The adapter logs it.
     await getAuthAdapter().logout()
-    store.clearAuth()
+    store.clearAuth('logout')
     // The lockout counter and any half-completed MFA challenge belong to the
     // session that just ended — clear them so the next login starts clean.
     challenge.resetAttempts()
@@ -194,7 +196,7 @@ export function useAuth() {
       // Only clear auth on 401 (session truly expired). Transient errors
       // (network, 5xx) must not log the user out.
       if (appErr.status === 401) {
-        store.clearAuth()
+        store.clearAuth('expired')
       } else {
         authLogger.warn('fetchUser failed (session kept)', {
           code: appErr.code,

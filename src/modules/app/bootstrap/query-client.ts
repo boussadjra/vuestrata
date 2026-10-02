@@ -1,6 +1,14 @@
-import { VueQueryPlugin, type VueQueryPluginOptions } from '@tanstack/vue-query'
+import {
+  VueQueryPlugin as TanstackVueQueryPlugin,
+  useQueryClient,
+  type QueryClient,
+  type VueQueryPluginOptions,
+} from '@tanstack/vue-query'
+import type { Plugin } from 'vue'
 
 import { queryRetryDelay, shouldRetryQuery } from '~/lib/api/retry'
+import { setErrorReporterUser } from '~/lib/errors'
+import { appEvents } from '~/lib/events'
 
 /**
  * The options `boot()` installs `VueQueryPlugin` with.
@@ -34,4 +42,36 @@ export const vueQueryOptions: VueQueryPluginOptions = {
   },
 }
 
-export { VueQueryPlugin }
+/**
+ * Forget the signed-in user's data when the session ends.
+ *
+ * TanStack's cache outlives a logout: a second person signing in on the same
+ * tab would be shown the first one's lists until the refetches landed, and the
+ * error reporter would keep attributing errors to someone who has left. Both
+ * are dropped on `auth.logout`, which the auth store's `clearAuth` emits for
+ * a sign-out and an expiry alike.
+ *
+ * Returns the unsubscribe function. The subscription belongs to whatever
+ * created `queryClient`, so it is released with it — see `VueQueryPlugin`.
+ */
+export function clearQueryCacheOnSessionEnd(queryClient: QueryClient): () => void {
+  return appEvents.on('auth.logout', () => {
+    queryClient.clear()
+    setErrorReporterUser(null)
+  })
+}
+
+/**
+ * TanStack's `VueQueryPlugin`, plus the session-end reset above.
+ *
+ * It wraps rather than replaces so `boot()` and a project's own
+ * `app.use(VueQueryPlugin, options)` (`plugins/vue-query.ts` re-exports this
+ * name) get it without changing a line.
+ */
+export const VueQueryPlugin: Plugin<[VueQueryPluginOptions?]> = {
+  install(app, options) {
+    app.use(TanstackVueQueryPlugin, options)
+    const queryClient = app.runWithContext(() => useQueryClient(options?.queryClientKey))
+    app.onUnmount(clearQueryCacheOnSessionEnd(queryClient))
+  },
+}

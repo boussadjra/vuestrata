@@ -3,7 +3,7 @@ import { ofetch } from 'ofetch'
 import { createScopedLogger } from '~/lib/logger'
 import { getApiAuthBackend, tryGetApiAuthBackend } from '~/lib/runtime'
 
-import type { ApiAuthProvider, ApiAuthTransport } from './types'
+import type { ApiAuthProvider, ApiAuthTransport, ApiRefreshResult } from './types'
 
 const authLogger = createScopedLogger('api:auth')
 
@@ -107,14 +107,34 @@ export function notifySessionExpired(): void {
   tryGetApiAuthBackend()?.getProvider()?.onSessionExpired?.()
 }
 
-async function refreshAccessToken(baseURL: string): Promise<string | null> {
-  const provider = tryGetApiAuthBackend()?.getProvider()
-  if (!provider) return null
+/** The HTTP status carried by a failed request, whichever client raised it. */
+function statusOf(error: unknown): number | undefined {
+  const carrier = error as { status?: unknown; response?: { status?: unknown } } | null
+  const status = carrier?.status ?? carrier?.response?.status
+  return typeof status === 'number' ? status : undefined
+}
+
+/**
+ * The request `refreshAccessToken` retries, or `null` when there is nothing to
+ * refresh with.
+ *
+ * A provider that implements `refresh()` owns the whole request. One that does
+ * not gets the legacy shape: `{ refreshToken }` in the body, which needs a
+ * JavaScript-held token. That is the only path a project with an old provider
+ * has, so it stays exactly as it was.
+ */
+function refreshRequestFor(
+  provider: ApiAuthProvider,
+  baseURL: string,
+): (() => Promise<ApiRefreshResult | null>) | null {
+  if (typeof provider.refresh === 'function') {
+    if (typeof provider.canRefresh === 'function' && !provider.canRefresh()) return null
+    return () => provider.refresh!()
+  }
+
   const refreshToken = provider.getRefreshToken()
   if (!refreshToken) return null
 
-  const refreshLogger = createScopedLogger('auth-refresh')
-  const maxRetries = 2
   const endpoint = provider.refreshEndpoint ?? '/auth/refresh'
   const refreshUrl = `${baseURL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
   const transport = getAuthTransport()
@@ -132,20 +152,37 @@ async function refreshAccessToken(baseURL: string): Promise<string | null> {
     if (csrfToken) headers.set('X-CSRF-Token', csrfToken)
   }
 
+  return () =>
+    ofetch<ApiRefreshResult>(refreshUrl, {
+      method: 'POST',
+      body: { refreshToken },
+      credentials,
+      headers,
+    })
+}
+
+async function refreshAccessToken(baseURL: string): Promise<string | null> {
+  const provider = tryGetApiAuthBackend()?.getProvider()
+  if (!provider) return null
+  const request = refreshRequestFor(provider, baseURL)
+  if (!request) return null
+
+  const refreshLogger = createScopedLogger('auth-refresh')
+  const maxRetries = 2
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const res = await ofetch<{
-        token: string
-        refreshToken: string
-        expiresIn: number
-      }>(refreshUrl, {
-        method: 'POST',
-        body: { refreshToken },
-        credentials,
-        headers,
-      })
+      const res = await request()
+      // `null` is the provider saying it had nothing to present. That is not a
+      // failed attempt to repeat; the session-expired path takes it from here.
+      if (!res?.token) {
+        refreshLogger.warn('Refresh returned no access token')
+        return null
+      }
       try {
-        provider.setAuth(res.token, res.refreshToken)
+        // An empty string, not undefined: `setAuth`'s second parameter predates
+        // providers whose refresh credential never reaches JavaScript.
+        provider.setAuth(res.token, res.refreshToken ?? '', res.expiresIn)
       } catch (persistErr) {
         // A failure here (localStorage quota, JSON serialization, store
         // teardown mid-flight) must not leave the caller believing the
@@ -157,6 +194,14 @@ async function refreshAccessToken(baseURL: string): Promise<string | null> {
       refreshLogger.info('Token refreshed successfully')
       return res.token
     } catch (err) {
+      // The backend answered, and the answer was no: the refresh credential is
+      // spent or revoked, and asking again only delays the sign-in page.
+      const status = statusOf(err)
+      if (status === 401 || status === 403) {
+        refreshLogger.warn('Refresh credential rejected, clearing auth', { status })
+        provider.clearAuth()
+        return null
+      }
       refreshLogger.warn(`Refresh attempt ${attempt + 1}/${maxRetries + 1} failed`, { error: err })
       if (attempt < maxRetries) {
         // Exponential backoff: 500ms, 1000ms

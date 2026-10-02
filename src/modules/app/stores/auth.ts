@@ -7,6 +7,7 @@ import {
   persistRefreshToken,
   usesWebStorage,
 } from '~/lib/auth/session-persistence'
+import { appEvents } from '~/lib/events'
 import { createScopedLogger } from '~/lib/logger'
 import { resolveSubjectPermissions } from '~/lib/rbac/identity'
 import type { User, Role, Permission } from '~/types'
@@ -98,8 +99,10 @@ export const useAuthStore = defineStore('auth', () => {
     refreshTimer = setTimeout(() => {
       // Guard: the session may have been cleared between scheduling and firing
       // (logout, forced 401 from another request, tab restore, etc.). Running
-      // the handler in that state would try to refresh with stale tokens.
-      if (!token.value || !refreshToken.value) {
+      // the handler in that state would try to refresh a session that is gone.
+      // Deliberately NOT conditioned on a JavaScript-held refresh token: under
+      // `refresh-cookie` there is none, and the adapter presents the cookie.
+      if (!token.value) {
         refreshTimer = null
         return
       }
@@ -139,7 +142,20 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = u
   }
 
-  function clearAuth() {
+  /**
+   * End the session in this tab.
+   *
+   * Announces it on the event bus, so whatever holds the previous user's data
+   * (the query cache, a module store) can drop it. `reason` is optional so a
+   * caller that predates it keeps working; it distinguishes a sign-out from an
+   * expiry for subscribers that care.
+   *
+   * Only a session that existed is announced. The 401 path clears twice — when
+   * the refresh is refused, and again when the client reports the expiry — and
+   * a visitor who was never signed in has nothing to end.
+   */
+  function clearAuth(reason?: 'logout' | 'expired') {
+    const hadSession = user.value !== null || token.value !== null
     user.value = null
     token.value = null
     refreshToken.value = null
@@ -148,6 +164,7 @@ export const useAuthStore = defineStore('auth', () => {
     // a usable refresh token behind, including one written before the
     // deployment's persistence mode was changed.
     clearPersistedRefreshToken()
+    if (hadSession) appEvents.emit('auth.logout', reason ? { reason } : {})
   }
 
   /**

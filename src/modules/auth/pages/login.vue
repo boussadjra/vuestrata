@@ -21,6 +21,12 @@ const {
 } = useAuth()
 const notifications = useNotificationStore()
 
+// The session-expiry redirect (bootstrap/auth-wiring.ts) arrives here with
+// `?reason=expired`. `useAuth().login` already returns the visitor to the
+// `redirect` it carries once they sign in again.
+const reason = useRouteQueryParam('reason')
+const sessionExpired = computed(() => reason.value === 'expired')
+
 /**
  * Demo credential hint.
  *
@@ -186,6 +192,14 @@ const socialProviders = computed(() => [
         class="mb-6"
         @update:model-value="setMode"
       />
+
+      <div
+        v-if="sessionExpired"
+        role="status"
+        class="border-warning-200 dark:border-warning-800 bg-warning-subtle text-warning-800 dark:text-warning-200 mb-4 rounded-[var(--shape-radius-sm)] border p-3 text-sm"
+      >
+        {{ t('auth_session_expired') }}
+      </div>
 
       <div
         v-if="error"

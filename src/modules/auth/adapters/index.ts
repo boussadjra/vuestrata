@@ -31,19 +31,20 @@ export function resolveAuthAdapterName(adapterName: string | undefined): Support
 /**
  * Build the configured adapter.
  *
- * `getToken` is threaded through for the JWT adapter's expiry check. It is a
- * callback rather than a value because the adapter is constructed once and the
- * token changes on every refresh.
+ * `getToken` is threaded through for the JWT adapter's expiry check, and
+ * `getRefreshToken` for the refresh token it presents when one is held in
+ * memory. Both are callbacks rather than values because the adapter is
+ * constructed once and the tokens change on every refresh.
  */
 export function createAuthAdapter(
   adapterName: string | undefined,
-  options: { getToken?: () => string | null } = {},
+  options: { getToken?: () => string | null; getRefreshToken?: () => string | null } = {},
 ): AuthAdapter {
   const name = resolveAuthAdapterName(adapterName)
 
   switch (name) {
     case 'jwt':
-      return createJwtAdapter(options.getToken)
+      return createJwtAdapter(options.getToken, options.getRefreshToken)
     case 'oauth':
       return createOAuthAdapter()
     case 'mock':

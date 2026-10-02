@@ -98,6 +98,7 @@
   "auth_reset_link": "Password reset link sent",
   "auth_reset_sent": "Reset link sent to your email",
   "auth_reset_success": "Password reset successfully",
+  "auth_session_expired": "Your session expired. Sign in again to pick up where you left off.",
   "auth_username": "Username",
   "billing_add_card": "+ Add card",
   "billing_cancel_msg": "Your subscription will end at period close.",

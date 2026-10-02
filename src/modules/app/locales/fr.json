@@ -98,6 +98,7 @@
   "auth_reset_link": "Lien de réinitialisation envoyé",
   "auth_reset_sent": "Le lien de réinitialisation a été envoyé à votre adresse e-mail",
   "auth_reset_success": "Mot de passe réinitialisé avec succès",
+  "auth_session_expired": "Votre session a expiré. Reconnectez-vous pour reprendre là où vous en étiez.",
   "auth_username": "Nom d'utilisateur",
   "billing_add_card": "+ Ajouter une carte",
   "billing_cancel_msg": "Votre abonnement prendra fin à la clôture de la période.",
