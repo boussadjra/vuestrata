@@ -96,6 +96,7 @@
   "auth_register_fail": "تعذر إنشاء الحساب",
   "auth_register_subtitle": "أنشئ حسابك لتبدأ",
   "auth_register_success": "تم إنشاء الحساب بنجاح",
+  "auth_register_unavailable": "لا يمكن إنشاء الحسابات من هنا. اطلب الوصول من مسؤول النظام.",
   "auth_remember": "تذكرني",
   "auth_reset": "إعادة تعيين كلمة المرور",
   "auth_reset_fail": "تعذرت إعادة تعيين كلمة المرور",

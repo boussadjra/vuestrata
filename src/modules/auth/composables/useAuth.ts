@@ -6,6 +6,7 @@ import type { AuthCredentials } from '~/types'
 
 import {
   createAuthAdapter,
+  getAuthProviders,
   OAuthRedirectError,
   requireCapability,
   type AuthAdapter,
@@ -91,6 +92,13 @@ export function useAuth() {
    * user find out it does nothing.
    */
   const capabilities = computed(() => getAuthAdapter().capabilities)
+
+  /**
+   * The social sign-in providers to offer, in order: the built-in three, or
+   * the list in `app/config/auth.config.ts`. Whether to offer any is
+   * `capabilities.social`.
+   */
+  const providers = computed(() => getAuthProviders())
 
   async function login(credentials: AuthCredentials) {
     if (challenge.isLockedOut()) {
@@ -294,6 +302,7 @@ export function useAuth() {
     isLoading,
     error,
     capabilities,
+    providers,
     mfaRequired: computed(() => challenge.mfaRequired),
     mfaToken: computed(() => challenge.mfaToken),
     loginAttempts: computed(() => challenge.loginAttempts),

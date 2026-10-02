@@ -96,6 +96,7 @@
   "auth_register_fail": "L'inscription a échoué",
   "auth_register_subtitle": "Créez votre compte pour démarrer",
   "auth_register_success": "Inscription réussie",
+  "auth_register_unavailable": "Les comptes ne sont pas créés ici. Demandez un accès à votre administrateur.",
   "auth_remember": "Se souvenir de moi",
   "auth_reset": "Réinitialiser le mot de passe",
   "auth_reset_fail": "La réinitialisation du mot de passe a échoué",
