@@ -4,14 +4,16 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vite-p
 
 import { restoreSessionForBoot, setupAuthInterceptor } from '@/bootstrap/auth-wiring'
 import { apiFetch } from '@/lib/api/client'
-import { AppError } from '@/lib/errors'
 import {
   authRefreshBodies,
   authResponseMappers,
-  createAuthAdapter,
   defineAuthConfig,
   installAuthConfig,
-} from '@/modules/auth'
+  resolveAuthConfig,
+  type AuthConfig,
+} from '@/lib/auth'
+import { AppError } from '@/lib/errors'
+import { createAuthAdapter } from '@/modules/auth'
 import { useAuthStore } from '@/stores/auth'
 import { readPersistedRefreshToken } from '~/lib/auth/session-persistence'
 import { runtimeEnv, type SessionPersistence } from '~/lib/config'
@@ -37,11 +39,14 @@ import { resetRuntimeState } from '../../utils/reset-runtime-state'
 
 const server = setupServer()
 
+/** Put a configuration in force, as `installSeams()` does with the project's file. */
+const configure = (config: AuthConfig = {}) => installAuthConfig(resolveAuthConfig(config))
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => {
   server.resetHandlers()
   useAuthStore().reset()
-  installAuthConfig({})
+  configure()
   runtimeEnv.sessionPersistence = DEFAULT_PERSISTENCE
   sessionStorage.clear()
   localStorage.clear()
@@ -186,7 +191,7 @@ const protectedRoute = {
 /** What `boot()` does: install the seam, then wire auth. */
 function wire(mode: SessionPersistence) {
   runtimeEnv.sessionPersistence = mode
-  installAuthConfig(authConfig)
+  configure(authConfig)
   const store = useAuthStore()
   const router = {
     replace: vi.fn().mockResolvedValue(undefined),

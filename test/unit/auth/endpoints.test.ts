@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import type { AuthEndpointOverrides, AuthEndpoints } from '@/modules/auth/adapters/endpoints'
+import type { AuthConfig, AuthEndpointOverrides, AuthEndpoints } from '@/lib/auth'
 import type { SessionPersistence } from '~/lib/config'
 
 /**
  * The endpoint table: where each auth request goes.
  *
- * The paths and methods were literals inside `adapters/base.ts`. A backend
+ * The paths and methods were literals inside the auth module's `adapters/base.ts`. A backend
  * with `/api/v1/session` or `/users/me` had nowhere to say so. They are now a
  * table a project overrides from `app/config/auth.config.ts`, and the first
  * thing to hold on to is that the table it starts from is the old literals.
@@ -24,11 +24,12 @@ const apiFetch = vi.fn(async (path: string, _options?: object) =>
 // Each test therefore takes a fresh module graph with the client stubbed, the
 // way `adapters.test.ts` does, which also gives it the shipped configuration.
 let createAuthAdapter: typeof import('@/modules/auth').createAuthAdapter
-let createAuthEndpoints: typeof import('@/modules/auth').createAuthEndpoints
-let endpointPresets: typeof import('@/modules/auth').endpointPresets
-let installAuthConfig: typeof import('@/modules/auth').installAuthConfig
-let resolveAuthEndpoints: typeof import('@/modules/auth/adapters/endpoints').resolveAuthEndpoints
-let AuthEndpointDisabledError: typeof import('@/modules/auth/adapters/endpoints').AuthEndpointDisabledError
+let createAuthEndpoints: typeof import('@/lib/auth').createAuthEndpoints
+let endpointPresets: typeof import('@/lib/auth').endpointPresets
+let resolveAuthEndpoints: typeof import('@/lib/auth').resolveAuthEndpoints
+let AuthEndpointDisabledError: typeof import('@/lib/auth').AuthEndpointDisabledError
+/** Put a configuration in force, as `installSeams()` does with the project's file. */
+let configure: (config?: AuthConfig) => void
 let setPersistence: (mode: SessionPersistence) => void
 
 beforeEach(async () => {
@@ -36,10 +37,10 @@ beforeEach(async () => {
   apiFetch.mockClear()
   vi.doMock('~/lib/api/client', () => ({ apiFetch }))
 
-  ;({ createAuthAdapter, createAuthEndpoints, endpointPresets, installAuthConfig } =
-    await import('@/modules/auth'))
-  ;({ resolveAuthEndpoints, AuthEndpointDisabledError } =
-    await import('@/modules/auth/adapters/endpoints'))
+  const lib = await import('@/lib/auth')
+  ;({ createAuthEndpoints, endpointPresets, resolveAuthEndpoints, AuthEndpointDisabledError } = lib)
+  configure = (config = {}) => lib.installAuthConfig(lib.resolveAuthConfig(config))
+  ;({ createAuthAdapter } = await import('@/modules/auth'))
   const { runtimeEnv } = await import('~/lib/config')
   setPersistence = (mode) => {
     runtimeEnv.sessionPersistence = mode
@@ -252,7 +253,7 @@ describe('overrides', () => {
     ['me switched off', { me: false }, /"me" endpoint cannot be switched off/],
   ])('refuse %s, naming auth.config.ts', (_case, overrides, message) => {
     expect(() => resolveAuthEndpoints(overrides as AuthEndpointOverrides)).toThrow(message)
-    expect(() => installAuthConfig({ endpoints: overrides as AuthEndpointOverrides })).toThrow(
+    expect(() => configure({ endpoints: overrides as AuthEndpointOverrides })).toThrow(
       /^auth\.config\.ts: /,
     )
   })
@@ -296,7 +297,7 @@ describe('an endpoint the project switched off', () => {
   ] as const)(
     '%s takes the jwt adapter’s %s capability with it',
     (_name, endpoints, capability, methods) => {
-      installAuthConfig({ endpoints })
+      configure({ endpoints })
 
       const adapter = createAuthAdapter('jwt')
 
@@ -312,7 +313,7 @@ describe('an endpoint the project switched off', () => {
 
   it('leaves a jwt adapter with no refresh endpoint nothing to refresh or resume with', async () => {
     setPersistence('refresh-cookie')
-    installAuthConfig({ endpoints: { refresh: null } })
+    configure({ endpoints: { refresh: null } })
     const adapter = createAuthAdapter('jwt', { getRefreshToken: () => 'held' })
 
     // Present, and answering "no": without them the API client would fall
@@ -324,7 +325,7 @@ describe('an endpoint the project switched off', () => {
   })
 
   it('takes the oauth adapter’s capabilities the same way', () => {
-    installAuthConfig({ endpoints: { providerAuthorize: null, token: null } })
+    configure({ endpoints: { providerAuthorize: null, token: null } })
 
     const adapter = createAuthAdapter('oauth')
 
@@ -335,7 +336,7 @@ describe('an endpoint the project switched off', () => {
   })
 
   it('stops an oauth sign-in that has nowhere to start', async () => {
-    installAuthConfig({ endpoints: { authorize: null } })
+    configure({ endpoints: { authorize: null } })
 
     await expect(createAuthAdapter('oauth').login({ email: '', password: '' })).rejects.toThrow(
       /`authorize` endpoint, which is switched off/,
@@ -345,7 +346,7 @@ describe('an endpoint the project switched off', () => {
 
 describe('capabilities a project disclaims', () => {
   it('are switched off for a backend that has the endpoint but not the feature', () => {
-    installAuthConfig({ capabilities: { magicLink: false, mfa: false } })
+    configure({ capabilities: { magicLink: false, mfa: false } })
 
     const adapter = createAuthAdapter('jwt')
 
@@ -356,7 +357,7 @@ describe('capabilities a project disclaims', () => {
   })
 
   it('cannot be switched on: `true` adds nothing an adapter does not implement', () => {
-    installAuthConfig({ capabilities: { social: true, codeExchange: true } })
+    configure({ capabilities: { social: true, codeExchange: true } })
 
     const adapter = createAuthAdapter('jwt')
 
@@ -366,7 +367,7 @@ describe('capabilities a project disclaims', () => {
   })
 
   it('reach the oauth adapter too', () => {
-    installAuthConfig({ capabilities: { social: false } })
+    configure({ capabilities: { social: false } })
 
     expect(createAuthAdapter('oauth').capabilities.social).toBe(false)
     expect(createAuthAdapter('oauth').socialLogin).toBeUndefined()
@@ -377,7 +378,7 @@ describe('the mock adapter', () => {
   // Its backend is the demo's service worker, which serves the documented
   // contract whatever the project configured for its real one.
   it('keeps speaking the documented contract under a configured backend', async () => {
-    installAuthConfig({
+    configure({
       endpoints: { login: '/api/v1/session', me: '/users/me', magicLink: null },
       capabilities: { mfa: false },
       mapAuthResponse: () => {

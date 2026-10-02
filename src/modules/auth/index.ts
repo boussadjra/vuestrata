@@ -24,8 +24,6 @@ import accountI18nFr from './i18n/fr.json'
  *   - useAuth, exchangeOAuthCode, createAuthAdapter, resolveAuthAdapterName
  *   - OAuthRedirectError, AuthAdapter
  *   - PKCE helpers
- *   - defineAuthConfig and what goes in it: endpoint presets, response
- *     mappers, the adapter contract for a project's own adapter
  */
 const authModule: ModuleDefinition = {
   config: {
@@ -112,31 +110,5 @@ export {
   type AuthCapabilities,
   type AuthTransport,
   type SupportedAuthAdapter,
-} from './adapters'
-// What `app/config/auth.config.ts` and a project's own adapter are written
-// with. That file imports from here, so nothing above may import it back:
-// `bootstrap/seams.ts` reads it and hands it to `installAuthConfig`.
-export {
-  authRefreshBodies,
-  authResponseMappers,
-  createAuthEndpoints,
-  defineAuthConfig,
-  endpointPresets,
-  getAuthProviders,
-  installAuthConfig,
-  loadAuthAdapter,
-  parseUser,
-  registeredAuthAdapters,
-  type AuthAdapterFactory,
-  type AuthAdapterOptions,
-  type AuthAdapterRegistration,
-  type AuthConfig,
-  type AuthEndpointOverrides,
-  type AuthProviderId,
-  type AuthProviderOption,
-  type AuthStateChange,
-  type MappedAuthResponse,
-  type RefreshedSession,
-  type ResumedSession,
 } from './adapters'
 export { generateCodeVerifier, generateCodeChallenge, generateState } from './lib/pkce'

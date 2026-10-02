@@ -1,10 +1,10 @@
+import { getAuthConfig } from '~/lib/auth/config'
 import { runtimeEnv } from '~/lib/config'
 import { normalizeError } from '~/lib/errors'
 import type { AuthResponse } from '~/types'
 
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '../lib/pkce'
 import { assertOAuthProvider, authEndpoints, authLogger } from './base'
-import { getAuthConfig } from './config'
 import { clearPkceState, OAUTH_STATE_TTL_MS, persistPkceState, readPkceState } from './pkce-state'
 import {
   OAuthRedirectError,

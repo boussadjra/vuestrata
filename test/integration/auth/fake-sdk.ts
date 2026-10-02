@@ -3,7 +3,7 @@ import {
   type AuthAdapter,
   type AuthAdapterFactory,
   type ResumedSession,
-} from '@/modules/auth'
+} from '@/lib/auth'
 import type { AuthResponse } from '~/types'
 
 /**

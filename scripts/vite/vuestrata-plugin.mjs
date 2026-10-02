@@ -29,7 +29,7 @@ import {
  */
 const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
 
-/** The same rule `auth/adapters/config.ts` applies when the app starts. */
+/** The same rule `core/lib/auth/config.ts` applies when the app starts. */
 const AUTH_ADAPTER_NAME = /^[a-z][a-z0-9-]*$/
 
 /**

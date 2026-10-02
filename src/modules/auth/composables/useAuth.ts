@@ -1,4 +1,5 @@
 import { authAdapter as configuredAuthAdapter } from '~/config/app.config'
+import { getAuthProviders } from '~/lib/auth/config'
 import { normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import { useAuthStore } from '~/stores/auth'
@@ -6,7 +7,6 @@ import type { AuthCredentials } from '~/types'
 
 import {
   createAuthAdapter,
-  getAuthProviders,
   OAuthRedirectError,
   requireCapability,
   type AuthAdapter,

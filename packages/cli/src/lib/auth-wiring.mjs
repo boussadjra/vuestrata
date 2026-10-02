@@ -1,9 +1,10 @@
 /**
- * How `bootstrap/seams.ts` hands `auth.config.ts` to the auth module.
+ * How `bootstrap/seams.ts` hands `auth.config.ts` to the auth adapters.
  *
- * The auth module cannot import the seeded file itself: that file imports its
- * helpers from the module's barrel, and a barrel that reached back to it would
- * be a cycle. So `installSeams()` reads it and calls `installAuthConfig()`.
+ * The adapters read the project's configuration from a runtime slot in
+ * `core/lib`, and `installSeams()` is what fills it: it imports the seeded
+ * file, resolves it and calls `installAuthConfig()`. Nothing else reads that
+ * file at runtime.
  *
  * `seams.ts` is Vuestrata's, so a pristine project gets the wired copy from
  * the upgrade. An edited copy stays as it was, and without this call the
@@ -17,7 +18,9 @@ export const isAuthConfigWired = (source) => /\binstallAuthConfig\s*\(/.test(sou
 
 /** The change to an edited copy, as one paragraph for a warning. */
 export const AUTH_WIRING_STEPS =
-  'To wire it in, add two imports to bootstrap/seams.ts — ' +
-  "`import authConfig from '@/config/auth.config'` and " +
-  "`import { installAuthConfig } from '@/modules/auth'` — and call " +
-  '`installAuthConfig(authConfig)` inside installSeams(). The copy this release ships shows it.'
+  'To wire it in, add three imports to bootstrap/seams.ts — ' +
+  "`import authConfig from '@/config/auth.config'`, " +
+  "`import { resolveAuthConfig } from '@/lib/auth/config'` and " +
+  "`import { installAuthConfig } from '@/lib/runtime'` — and call " +
+  '`installAuthConfig(resolveAuthConfig(authConfig))` inside installSeams(). The copy this ' +
+  'release ships shows it.'

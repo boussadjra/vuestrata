@@ -1,15 +1,13 @@
 import { beforeAll, describe, expect, it, vi } from 'vite-plus/test'
 
 /**
- * `app/config/auth.config.ts` reaches the auth module through `installSeams()`.
- * The seeded file is empty in the template, so it is replaced here by one that
- * configures something of every kind: what is asserted is the wiring, not the
- * file's contents.
+ * `app/config/auth.config.ts` reaches the auth module through `installSeams()`,
+ * which resolves it and installs it in the `core/lib` runtime slot the adapters
+ * read. The seeded file is empty in the template, so it is replaced here by one
+ * that configures something of every kind: what is asserted is the wiring, not
+ * the file's contents.
  *
- * The auth module does not import the seeded file itself. That file imports
- * its helpers from the module's barrel, so a barrel that reached back to it
- * would be an import cycle; `bootstrap/seams.ts` reads it instead. Everything
- * is imported after the mock, from a fresh module graph, as
+ * Everything is imported after the mock, from a fresh module graph, as
  * `rbac-overrides-seeding.test.ts` does.
  */
 const { factory } = vi.hoisted(() => ({
@@ -40,19 +38,21 @@ vi.mock('~/config/auth.config', () => ({
   },
 }))
 
-let auth: typeof import('@/modules/auth')
+let auth: typeof import('@/modules/auth/adapters')
+let lib: typeof import('@/lib/auth')
 let seams: typeof import('@/bootstrap/seams')
 
 beforeAll(async () => {
   vi.resetModules()
-  auth = await import('@/modules/auth')
+  auth = await import('@/modules/auth/adapters')
+  lib = await import('@/lib/auth')
   seams = await import('@/bootstrap/seams')
 })
 
 describe('auth.config.ts wiring', () => {
   it('has no effect until the seams are installed: the built-in defaults apply', () => {
     expect(auth.registeredAuthAdapters()).toEqual(['mock', 'jwt', 'oauth'])
-    expect(auth.getAuthProviders().map((provider) => provider.id)).toEqual([
+    expect(lib.getAuthProviders().map((provider) => provider.id)).toEqual([
       'google',
       'github',
       'microsoft',
@@ -79,7 +79,7 @@ describe('auth.config.ts wiring', () => {
   it('makes the project’s providers the ones the login page renders and the adapter accepts', async () => {
     seams.installSeams()
 
-    expect(auth.getAuthProviders()).toEqual([{ id: 'gitlab', label: 'GitLab' }])
+    expect(lib.getAuthProviders()).toEqual([{ id: 'gitlab', label: 'GitLab' }])
     // `google` is no longer offered, so it is no longer accepted either: a
     // provider id becomes a path segment of the authorize URL.
     await expect(auth.createAuthAdapter('oauth').socialLogin!('google')).rejects.toThrow(

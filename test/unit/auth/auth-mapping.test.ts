@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import type { AuthConfig } from '@/modules/auth'
-import type { AuthEndpoints } from '@/modules/auth/adapters/endpoints'
+import type { AuthConfig, AuthEndpoints } from '@/lib/auth'
 import type { AppError } from '~/lib/errors'
 
 /**
@@ -14,13 +13,14 @@ import type { AppError } from '~/lib/errors'
  * see was passed straight through.
  */
 
-type Auth = typeof import('@/modules/auth')
+type Auth = typeof import('@/lib/auth')
 
 /** The backend. Each test says what it answers. */
 const apiFetch = vi.fn(async (_path: string, _options?: object): Promise<unknown> => undefined)
 
+/** The seam's helpers, `~/lib/auth`, from the fresh module graph. */
 let auth: Auth
-let resolveAuthConfig: typeof import('@/modules/auth/adapters/config').resolveAuthConfig
+let createAuthAdapter: typeof import('@/modules/auth').createAuthAdapter
 /** `AppError` as the freshly loaded modules know it, for `instanceof`. */
 let FreshAppError: typeof AppError
 let logged: ReturnType<typeof vi.fn>
@@ -35,8 +35,8 @@ beforeEach(async () => {
     return { logger: scoped, createScopedLogger: () => scoped }
   })
 
-  auth = await import('@/modules/auth')
-  ;({ resolveAuthConfig } = await import('@/modules/auth/adapters/config'))
+  auth = await import('@/lib/auth')
+  ;({ createAuthAdapter } = await import('@/modules/auth'))
   ;({ AppError: FreshAppError } = await import('~/lib/errors'))
   const { runtimeEnv } = await import('~/lib/config')
   runtimeEnv.sessionPersistence = 'none'
@@ -48,7 +48,7 @@ afterEach(() => {
 })
 
 /** The wire calls for a configuration, as the built-in adapters get them. */
-const endpoints = (config: AuthConfig = {}) => resolveAuthConfig(config).endpoints
+const endpoints = (config: AuthConfig = {}) => auth.resolveAuthConfig(config).endpoints
 
 const user = { id: 'u1', email: 'ada@example.test', name: 'Ada Lovelace', role: 'manager' }
 
@@ -324,9 +324,9 @@ describe('mapUser', () => {
     apiFetch.mockImplementation(async (path) =>
       path === '/auth/me' ? backendUser : { token: 'access-2', expiresIn: 900 },
     )
-    auth.installAuthConfig({ mapUser })
+    auth.installAuthConfig(auth.resolveAuthConfig({ mapUser }))
 
-    await expect(auth.createAuthAdapter('jwt').resumeSession!()).resolves.toEqual({
+    await expect(createAuthAdapter('jwt').resumeSession!()).resolves.toEqual({
       user: mapped,
       token: 'access-2',
       expiresIn: 900,

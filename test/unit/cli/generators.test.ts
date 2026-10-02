@@ -252,13 +252,15 @@ describe('the auth.config.ts seam', () => {
     expect(real(AUTH_CONFIG)).not.toMatch(/(?:vuestrata|app):[a-z-]+-(?:start|end)/)
   })
 
-  it('ships empty, and takes everything it uses from the auth module barrel', () => {
+  it('ships empty, and takes everything it uses from core/lib', () => {
     const source = real(AUTH_CONFIG)
 
     // Data only: its types and helpers are Vuestrata's, so a release can add
-    // an optional member without this file having to change.
+    // an optional member without this file having to change. And from
+    // `core/lib` specifically: a module barrel is the project's file, so a
+    // helper exported only there would be missing in a project that upgrades.
     const imports = [...source.matchAll(/^import .* from '([^']+)'$/gm)].map((match) => match[1])
-    expect(imports).toEqual(['~/modules/auth'])
+    expect(imports).toEqual(['~/lib/auth'])
     expect(source).toMatch(/export default defineAuthConfig\(\{\}\)\n$/)
   })
 })

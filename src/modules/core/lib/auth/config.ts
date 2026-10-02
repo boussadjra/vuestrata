@@ -1,16 +1,12 @@
+import { AUTH_ADAPTERS } from '../config/env.schema'
+import { tryGetAuthConfig } from '../runtime'
+import type { AuthAdapterFactory, AuthCapabilities, AuthProviderId, AuthTransport } from './adapter'
 import {
   createAuthEndpoints,
   type AuthEndpointOverrides,
   type AuthEndpoints,
   type AuthMapping,
 } from './endpoints'
-import {
-  SUPPORTED_AUTH_ADAPTERS,
-  type AuthAdapterFactory,
-  type AuthCapabilities,
-  type AuthProviderId,
-  type AuthTransport,
-} from './types'
 
 /**
  * One adapter of the project's own, under the name `VUESTRATA_AUTH_ADAPTER`
@@ -108,6 +104,15 @@ export interface ResolvedAuthConfig {
   readonly endpoints: AuthEndpoints
   readonly capabilities: Partial<AuthCapabilities>
   readonly providers: readonly AuthProviderOption[]
+  /**
+   * The factories of adapters registered with `load`, once fetched, and the
+   * fetches on their way. Kept on the configuration they belong to, so
+   * installing another one starts from nothing loaded.
+   */
+  readonly lazy: {
+    readonly loaded: Map<string, AuthAdapterFactory>
+    readonly loading: Map<string, Promise<void>>
+  }
 }
 
 function resolveAdapters(
@@ -122,7 +127,7 @@ function resolveAdapters(
           'and dashes, starting with a letter.',
       )
     }
-    if ((SUPPORTED_AUTH_ADAPTERS as readonly string[]).includes(name)) {
+    if ((AUTH_ADAPTERS as readonly string[]).includes(name)) {
       throw new Error(
         `auth.config.ts: "${name}" is a built-in adapter and cannot be replaced. Register yours ` +
           'under another name; `endpoints` and the mappers configure the built-in one.',
@@ -197,46 +202,24 @@ export function resolveAuthConfig(config: AuthConfig = {}): ResolvedAuthConfig {
     }),
     capabilities: config.capabilities ?? {},
     providers: resolveProviders(config.providers),
+    lazy: { loaded: new Map(), loading: new Map() },
   }
 }
 
-/**
- * The configuration in force, held in `createGlobalState` so it is shared by
- * every adapter and replaceable from a test.
- *
- * `revision` moves on each install. The adapter registry keeps what it loaded
- * lazily against it, so a new configuration never hands out a factory that an
- * old one loaded.
- */
-const useAuthConfigState = createGlobalState(() => ({
-  config: resolveAuthConfig(),
-  revision: 0,
-}))
+/** What an untouched `auth.config.ts` resolves to: the documented contract. */
+const DEFAULT_AUTH_CONFIG = resolveAuthConfig()
 
 /**
- * Put the project's `auth.config.ts` in force.
+ * The configuration in force.
  *
- * `bootstrap/seams.ts` calls it, right after the runtime backends are wired
- * and before anything builds an adapter. The auth module does not import the
- * seeded file itself: that file imports its helpers from this module's barrel,
- * and a barrel that reached back to it would be a cycle. Until this is called
- * the built-in defaults apply, which is exactly what an untouched
- * `auth.config.ts` holds.
+ * `bootstrap/seams.ts` resolves the project's `auth.config.ts` and installs it
+ * in the runtime slot (`installAuthConfig` in `core/lib/runtime.ts`), right
+ * after the runtime backends are wired and before anything builds an adapter.
+ * Until then, and in any test that installs nothing, the built-in defaults
+ * apply — which is exactly what the shipped, empty file holds.
  */
-export function installAuthConfig(config: AuthConfig = {}): void {
-  const state = useAuthConfigState()
-  state.config = resolveAuthConfig(config)
-  state.revision++
-}
-
-/** The configuration in force. */
 export function getAuthConfig(): ResolvedAuthConfig {
-  return useAuthConfigState().config
-}
-
-/** Which install the configuration in force came from. */
-export function authConfigRevision(): number {
-  return useAuthConfigState().revision
+  return tryGetAuthConfig() ?? DEFAULT_AUTH_CONFIG
 }
 
 /** The social sign-in buttons to render, in order. */

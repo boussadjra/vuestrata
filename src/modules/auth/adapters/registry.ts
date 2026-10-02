@@ -1,13 +1,20 @@
 import { AUTH_ADAPTER_ENV_KEY } from '~/config/app.config'
+import {
+  AUTH_CONFIG_FILE,
+  createRegisteredAuthAdapter,
+  registeredAuthAdapterNames,
+  unknownAuthAdapterMessage,
+} from '~/lib/auth/registry'
 
-import { authConfigRevision, getAuthConfig, type ResolvedAdapterRegistration } from './config'
 import { createJwtAdapter } from './jwt'
 import { createMockAdapter } from './mock'
 import { createOAuthAdapter } from './oauth'
 import type { AuthAdapter, AuthAdapterFactory, AuthAdapterOptions } from './types'
 
-/** Where a project registers its own adapters. Named in every message here. */
-const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
+// The other half of this registry: a project's adapter that is loaded on
+// demand. It lives in `core/lib` because `boot()` calls it, and the bootstrap
+// may only import what Vuestrata ships.
+export { loadAuthAdapter } from '~/lib/auth/registry'
 
 /**
  * The adapters Vuestrata ships, as factories.
@@ -21,8 +28,9 @@ const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
  * call site that builds it, still gets it from a plain function call.
  */
 function builtinFactory(name: string): AuthAdapterFactory | undefined {
-  if (name === 'jwt')
+  if (name === 'jwt') {
     return ({ getToken, getRefreshToken }) => createJwtAdapter(getToken, getRefreshToken)
+  }
   if (name === 'oauth') return () => createOAuthAdapter()
   if (name === 'mock') return __VUESTRATA_DEMO__ ? () => createMockAdapter() : undefined
   return undefined
@@ -33,32 +41,9 @@ function builtinNames(): string[] {
   return __VUESTRATA_DEMO__ ? ['mock', 'jwt', 'oauth'] : ['jwt', 'oauth']
 }
 
-/**
- * What has been loaded lazily, and what is on its way. Held in
- * `createGlobalState` rather than at module scope, and tied to the
- * configuration it was loaded for: a factory loaded under one `auth.config.ts`
- * is never handed out under another.
- */
-const useRegistryState = createGlobalState(() => ({
-  revision: -1,
-  loaded: new Map<string, AuthAdapterFactory>(),
-  loading: new Map<string, Promise<void>>(),
-}))
-
-function registryState() {
-  const state = useRegistryState()
-  const revision = authConfigRevision()
-  if (state.revision !== revision) {
-    state.revision = revision
-    state.loaded.clear()
-    state.loading.clear()
-  }
-  return state
-}
-
 /** Every adapter name `VUESTRATA_AUTH_ADAPTER` can select in this build. */
 export function registeredAuthAdapters(): string[] {
-  return [...builtinNames(), ...Object.keys(getAuthConfig().adapters)]
+  return [...builtinNames(), ...registeredAuthAdapterNames()]
 }
 
 /**
@@ -84,88 +69,7 @@ export function resolveAuthAdapterName(adapterName: string | undefined): string 
         `or an adapter registered in ${AUTH_CONFIG_FILE}.`,
     )
   }
-  throw new Error(
-    `Unknown ${AUTH_ADAPTER_ENV_KEY} value "${adapterName}". Built in: ${builtinNames().join(', ')}. ` +
-      `To use your own adapter, register it under \`adapters\` in ${AUTH_CONFIG_FILE}.`,
-  )
-}
-
-const isAdapterShaped = (value: unknown): value is AuthAdapter => {
-  const adapter = value as Partial<AuthAdapter> | null
-  return (
-    typeof adapter === 'object' &&
-    adapter !== null &&
-    (adapter.transport === 'bearer' || adapter.transport === 'cookie') &&
-    typeof adapter.login === 'function' &&
-    typeof adapter.logout === 'function' &&
-    typeof adapter.getUser === 'function' &&
-    typeof adapter.capabilities === 'object' &&
-    adapter.capabilities !== null
-  )
-}
-
-/** The members of an adapter that answer with a session, and so with tokens. */
-const SESSION_METHODS = [
-  'login',
-  'register',
-  'refreshToken',
-  'verifyMagicLink',
-  'verifyMfa',
-  'exchangeCode',
-  'resumeSession',
-  'refreshSession',
-] as const
-
-/**
- * Keep an SDK-owned session's refresh token out of the app.
- *
- * An adapter that declares `persistence: 'external'` says its SDK stores the
- * session. The auth store writes a refresh token it is given to Web Storage
- * under `VUESTRATA_SESSION_PERSISTENCE=session|local`, so the guarantee is made
- * here, at the one place every session passes through: the token is taken off
- * whatever such an adapter returns, and the store is never given one to write.
- * The adapter is wrapped rather than changed, and its methods still run with
- * the adapter itself as `this`.
- */
-function withoutRefreshTokens(adapter: AuthAdapter): AuthAdapter {
-  const sealed = Object.create(adapter) as Record<string, unknown>
-  for (const method of SESSION_METHODS) {
-    const original = adapter[method] as ((...args: unknown[]) => Promise<unknown>) | undefined
-    if (typeof original !== 'function') continue
-    sealed[method] = async (...args: unknown[]) => {
-      const result = await original.apply(adapter, args)
-      if (typeof result !== 'object' || result === null || !('refreshToken' in result))
-        return result
-      const { refreshToken: _dropped, ...session } = result as { refreshToken?: unknown }
-      return session
-    }
-  }
-  return sealed as unknown as AuthAdapter
-}
-
-/** Check what a project's factory returned, and apply what it declared. */
-function finishCustomAdapter(
-  name: string,
-  registration: ResolvedAdapterRegistration,
-  adapter: unknown,
-): AuthAdapter {
-  if (!isAdapterShaped(adapter)) {
-    throw new Error(
-      `The "${name}" adapter registered in ${AUTH_CONFIG_FILE} did not return an auth adapter: ` +
-        'it needs `transport`, `capabilities`, `login`, `logout` and `getUser`.',
-    )
-  }
-  // The build validated VUESTRATA_SESSION_PERSISTENCE against the transport
-  // written in the config file, which it read as text. If the adapter turns
-  // out to use the other one, that validation was for the wrong thing.
-  if (adapter.transport !== registration.transport) {
-    throw new Error(
-      `${AUTH_CONFIG_FILE} registers "${name}" as a ${registration.transport}-transport adapter, ` +
-        `but the adapter it builds uses ${JSON.stringify(adapter.transport)}. Declare it: ` +
-        `\`${name}: { transport: '${String(adapter.transport)}', … }\`.`,
-    )
-  }
-  return adapter.persistence === 'external' ? withoutRefreshTokens(adapter) : adapter
+  throw new Error(unknownAuthAdapterMessage(adapterName, builtinNames()))
 }
 
 /**
@@ -191,61 +95,5 @@ export function createAuthAdapter(
   if (builtin) return builtin(options)
 
   // `resolveAuthAdapterName` has checked the name is registered.
-  const registration = getAuthConfig().adapters[name]!
-  const factory = registration.create ?? registryState().loaded.get(name)
-  if (!factory) {
-    throw new Error(
-      `The "${name}" auth adapter is loaded on demand and has not been loaded yet. Await ` +
-        `loadAuthAdapter("${name}") first; boot() does, before it wires auth.`,
-    )
-  }
-  return finishCustomAdapter(name, registration, factory(options))
-}
-
-/**
- * Make `createAuthAdapter(name)` callable: fetch the module of an adapter
- * registered with `load`. Resolves at once for every other adapter.
- *
- * `boot()` awaits it once, so a deployment that selects an SDK-backed adapter
- * downloads that SDK and no other deployment does. A name nothing registered,
- * a module that cannot be fetched and a module with no factory all reject, and
- * `boot()` shows the failure screen: there is no adapter to fall back to that
- * would not be the wrong one.
- */
-export async function loadAuthAdapter(adapterName: string | undefined): Promise<void> {
-  const name = resolveAuthAdapterName(adapterName)
-  if (builtinFactory(name)) return
-
-  const load = getAuthConfig().adapters[name]!.load
-  const state = registryState()
-  if (!load || state.loaded.has(name)) return
-
-  // Callers that arrive while the module is on its way share the one request.
-  const inFlight = state.loading.get(name)
-  if (inFlight) return inFlight
-
-  const revision = state.revision
-  const loading: Promise<void> = Promise.resolve()
-    .then(load)
-    .then((module) => {
-      const factory = module?.default
-      if (typeof factory !== 'function') {
-        throw new Error('its module has no default export that is a factory function')
-      }
-      // A configuration installed while this was on its way does not get it.
-      if (registryState().revision === revision) state.loaded.set(name, factory)
-    })
-    .catch((err: unknown) => {
-      throw new Error(
-        `Could not load the "${name}" auth adapter registered in ${AUTH_CONFIG_FILE}: ` +
-          (err instanceof Error ? err.message : String(err)),
-        { cause: err },
-      )
-    })
-    .finally(() => {
-      // Loaded, or failed: either way the next call starts from what is true.
-      if (state.loading.get(name) === loading) state.loading.delete(name)
-    })
-  state.loading.set(name, loading)
-  return loading
+  return createRegisteredAuthAdapter(name, options)!
 }

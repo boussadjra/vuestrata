@@ -1,7 +1,6 @@
 import type { FetchContext } from 'ofetch'
 
 import { apiFetch, type ApiFetchOptions } from '~/lib/api/client'
-import { usesRefreshCookie } from '~/lib/auth/session-persistence'
 import { AppError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import type {
@@ -13,7 +12,8 @@ import type {
   User,
 } from '~/types'
 
-import type { RefreshedSession } from './types'
+import type { RefreshedSession } from './adapter'
+import { usesRefreshCookie } from './session-persistence'
 import { authContractMismatch, parseUser, type UserInput } from './user'
 
 export const authLogger = createScopedLogger('auth')

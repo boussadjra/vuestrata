@@ -44,6 +44,6 @@
  *
  * `docs/9.recipes/9.write-your-own-auth-adapter.md` walks through both.
  */
-import { defineAuthConfig } from '~/modules/auth'
+import { defineAuthConfig } from '~/lib/auth'
 
 export default defineAuthConfig({})

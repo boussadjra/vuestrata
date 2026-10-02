@@ -1,5 +1,6 @@
-import { getAuthConfig } from './config'
-import { authLogger, type AuthEndpoints } from './endpoints'
+import { getAuthConfig } from '~/lib/auth/config'
+import { authLogger, type AuthEndpoints } from '~/lib/auth/endpoints'
+
 import type { AuthProviderId } from './types'
 
 /**
@@ -20,12 +21,13 @@ export function assertOAuthProvider(provider: AuthProviderId): void {
  * The wire calls every built-in adapter shares, for the configuration in
  * force.
  *
- * The calls themselves are built by `createAuthEndpoints` (`./endpoints`) from
- * the project's `auth.config.ts`, which is installed during `boot()` — after
- * this module has been evaluated. So this is a view rather than a value: each
- * property read returns the current configuration's function. An adapter reads
- * the ones it uses when it is built (`login: authEndpoints.login`), and that
- * is always after the configuration is in place.
+ * The calls themselves are built by `createAuthEndpoints`
+ * (`core/lib/auth/endpoints.ts`) from the project's `auth.config.ts`, which is
+ * installed during `boot()` — after this module has been evaluated. So this is
+ * a view rather than a value: each property read returns the current
+ * configuration's function. An adapter reads the ones it uses when it is built
+ * (`login: authEndpoints.login`), and that is always after the configuration is
+ * in place.
  */
 export const authEndpoints: AuthEndpoints = new Proxy({} as AuthEndpoints, {
   get: (_target, key) => Reflect.get(getAuthConfig().endpoints, key),

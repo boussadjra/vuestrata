@@ -11,10 +11,11 @@ import {
 } from 'vue-router'
 
 import { appConfig, authAdapter as configuredAuthAdapter } from '@/config/app.config'
+import { loadAuthAdapter } from '@/lib/auth/registry'
 import { installErrorHandlers, reportError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { setupModules } from '@/modules'
-import { createAuthAdapter, loadAuthAdapter } from '@/modules/auth'
+import { createAuthAdapter } from '@/modules/auth'
 import { appModules } from '@/modules/setup'
 import { bootstrapTheme } from '@/plugins/bootstrap-theme'
 import { installErrorReporting } from '@/plugins/error-reporting'

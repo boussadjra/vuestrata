@@ -945,8 +945,10 @@ describe.skipIf(!CLI_PRESENT)('doctor and an auth.config.ts that nothing install
   const UNWIRED = 'export function installSeams(): void {\n  // Intentionally empty.\n}\n'
   const WIRED =
     "import authConfig from '@/config/auth.config'\n" +
-    "import { installAuthConfig } from '@/modules/auth'\n\n" +
-    'export function installSeams(): void {\n  installAuthConfig(authConfig)\n}\n'
+    "import { resolveAuthConfig } from '@/lib/auth/config'\n" +
+    "import { installAuthConfig } from '@/lib/runtime'\n\n" +
+    'export function installSeams(): void {\n' +
+    '  installAuthConfig(resolveAuthConfig(authConfig))\n}\n'
   const UNINSTALLED = /auth\.config\.ts exists, but .*bootstrap\/seams\.ts does not install it/
 
   const warningsOf = (options: { source?: unknown; migrations?: unknown[] } = {}) =>
@@ -963,8 +965,9 @@ describe.skipIf(!CLI_PRESENT)('doctor and an auth.config.ts that nothing install
     const text = warningsOf()
     expect(text).toMatch(UNINSTALLED)
     // The change itself, so the warning can be acted on without the docs.
-    expect(text).toContain('installAuthConfig(authConfig)')
+    expect(text).toContain('installAuthConfig(resolveAuthConfig(authConfig))')
     expect(text).toContain("import authConfig from '@/config/auth.config'")
+    expect(text).toContain("import { installAuthConfig } from '@/lib/runtime'")
   })
 
   it('warns in a project that is not tracked yet', () => {
@@ -1027,7 +1030,7 @@ describe.skipIf(!CLI_PRESENT)('doctor and an auth.config.ts that nothing install
 describe.skipIf(!CLI_PRESENT)('auth.config.ts in an upgrade', () => {
   const CONFIG = 'src/modules/app/config/auth.config.ts'
   const SHIPPED =
-    "import { defineAuthConfig } from '~/modules/auth'\n\nexport default defineAuthConfig({})\n"
+    "import { defineAuthConfig } from '~/lib/auth'\n\nexport default defineAuthConfig({})\n"
 
   const upgradeTo = (version: string) =>
     runUpgrade({

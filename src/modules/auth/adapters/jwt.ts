@@ -1,5 +1,6 @@
 import { jwtDecode } from 'jwt-decode'
 
+import { getAuthConfig } from '~/lib/auth/config'
 import {
   persistRefreshToken,
   readPersistedRefreshToken,
@@ -9,7 +10,6 @@ import {
 import { normalizeError } from '~/lib/errors'
 
 import { authEndpoints, authLogger } from './base'
-import { getAuthConfig } from './config'
 import type { AuthAdapter, RefreshedSession, ResumedSession } from './types'
 
 /**

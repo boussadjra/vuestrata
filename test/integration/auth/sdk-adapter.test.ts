@@ -4,7 +4,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vite-p
 
 import { restoreSessionForBoot, setupAuthInterceptor } from '@/bootstrap/auth-wiring'
 import { apiFetch } from '@/lib/api/client'
-import { createAuthAdapter, installAuthConfig, loadAuthAdapter } from '@/modules/auth'
+import { installAuthConfig, loadAuthAdapter, resolveAuthConfig, type AuthConfig } from '@/lib/auth'
+import { createAuthAdapter } from '@/modules/auth'
 import { useAuthStore } from '@/stores/auth'
 import { runtimeEnv, type SessionPersistence } from '~/lib/config'
 
@@ -31,11 +32,14 @@ import { createFakeSdk, createSdkAdapterFactory, SDK_STORAGE_KEY, type FakeSdk }
 
 const server = setupServer()
 
+/** Put a configuration in force, as `installSeams()` does with the project's file. */
+const configure = (config: AuthConfig = {}) => installAuthConfig(resolveAuthConfig(config))
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => {
   server.resetHandlers()
   useAuthStore().reset()
-  installAuthConfig({})
+  configure({})
   runtimeEnv.sessionPersistence = DEFAULT_PERSISTENCE
   sessionStorage.clear()
   localStorage.clear()
@@ -77,7 +81,7 @@ function api(sdk: FakeSdk) {
 async function boot(sdk: FakeSdk, mode: SessionPersistence = 'refresh-cookie') {
   runtimeEnv.sessionPersistence = mode
   const load = vi.fn(async () => ({ default: createSdkAdapterFactory(sdk) }))
-  installAuthConfig({ adapters: { 'fake-sdk': { transport: 'bearer', load } } })
+  configure({ adapters: { 'fake-sdk': { transport: 'bearer', load } } })
   await loadAuthAdapter('fake-sdk')
 
   const store = useAuthStore()
@@ -107,7 +111,7 @@ describe('registration', () => {
   it('fetches the adapter’s module once, when the boot resolves it, and not before', async () => {
     const sdk = createFakeSdk()
     const load = vi.fn(async () => ({ default: createSdkAdapterFactory(sdk) }))
-    installAuthConfig({ adapters: { 'fake-sdk': { transport: 'bearer', load } } })
+    configure({ adapters: { 'fake-sdk': { transport: 'bearer', load } } })
 
     // Registered, and still not downloaded: a deployment on `jwt` never pays
     // for an SDK it does not use.

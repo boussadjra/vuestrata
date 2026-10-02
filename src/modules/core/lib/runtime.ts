@@ -13,6 +13,7 @@
  */
 
 import type { ApiAuthProvider } from './api/types'
+import type { ResolvedAuthConfig } from './auth/config'
 import type { AuthorizationHookFn, Permission, PredicateFn, Role } from './rbac/types'
 
 /** Backend that owns API-auth runtime state (provider, refresh, CSRF cache). */
@@ -64,6 +65,7 @@ let apiAuthBackend: ApiAuthBackend | null = null
 let rbacBackend: RbacBackend | null = null
 let validationCacheBackend: ValidationCacheBackend | null = null
 let rbacConfig: RbacConfig | null = null
+let authConfig: ResolvedAuthConfig | null = null
 
 export function installApiAuthBackend(backend: ApiAuthBackend): void {
   apiAuthBackend = backend
@@ -101,6 +103,19 @@ export function tryGetRbacConfig(): RbacConfig | null {
   return rbacConfig
 }
 
+/**
+ * The project's `app/config/auth.config.ts`, resolved: endpoints, response
+ * mappers, providers and its own adapters. Installed once at bootstrap by
+ * `bootstrap/seams.ts`. Optional: with none installed the documented defaults
+ * apply (`getAuthConfig()` in `core/lib/auth/config.ts` is the reader).
+ */
+export function installAuthConfig(config: ResolvedAuthConfig): void {
+  authConfig = config
+}
+export function tryGetAuthConfig(): ResolvedAuthConfig | null {
+  return authConfig
+}
+
 export function installValidationCacheBackend<T>(backend: ValidationCacheBackend<T>): void {
   validationCacheBackend = backend as ValidationCacheBackend
 }
@@ -119,4 +134,5 @@ export function __resetRuntimeSlots(): void {
   rbacBackend = null
   validationCacheBackend = null
   rbacConfig = null
+  authConfig = null
 }

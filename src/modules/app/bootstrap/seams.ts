@@ -1,5 +1,6 @@
 import authConfig from '@/config/auth.config'
-import { installAuthConfig } from '@/modules/auth'
+import { resolveAuthConfig } from '@/lib/auth/config'
+import { installAuthConfig } from '@/lib/runtime'
 
 /**
  * Where the project's seeded configuration files reach the runtime.
@@ -22,7 +23,7 @@ import { installAuthConfig } from '@/modules/auth'
  */
 export function installSeams(): void {
   // `app/config/auth.config.ts`: endpoints, response shapes, providers and the
-  // project's own adapters. The auth module cannot import that file itself —
-  // the file imports its helpers from the module's barrel.
-  installAuthConfig(authConfig)
+  // project's own adapters. Resolving it checks it, so a mistake in that file
+  // fails the boot with a message that names it.
+  installAuthConfig(resolveAuthConfig(authConfig))
 }

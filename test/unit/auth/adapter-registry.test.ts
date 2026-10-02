@@ -1,15 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import {
-  createAuthAdapter,
   installAuthConfig,
-  loadAuthAdapter,
-  registeredAuthAdapters,
-  resolveAuthAdapterName,
+  resolveAuthConfig,
   type AuthAdapter,
   type AuthAdapterFactory,
   type AuthConfig,
-} from '@/modules/auth'
+} from '@/lib/auth'
+import {
+  createAuthAdapter,
+  loadAuthAdapter,
+  registeredAuthAdapters,
+  resolveAuthAdapterName,
+} from '@/modules/auth/adapters'
 
 /**
  * The adapter registry: the built-in adapters, plus whatever a project
@@ -21,9 +24,12 @@ import {
  * endpoints that exist only inside the demo's service worker.
  */
 
+/** Put a configuration in force, as `installSeams()` does with the project's file. */
+const configure = (config: AuthConfig = {}) => installAuthConfig(resolveAuthConfig(config))
+
 afterEach(() => {
   // The shipped, empty configuration.
-  installAuthConfig({})
+  configure()
   vi.unstubAllGlobals()
 })
 
@@ -88,7 +94,7 @@ describe('an unknown name', () => {
   })
 
   it('is never answered with the mock adapter', () => {
-    installAuthConfig({ adapters: { company: () => adapter() } })
+    configure({ adapters: { company: () => adapter() } })
 
     expect(() => createAuthAdapter('compnay')).toThrow(/Unknown/)
   })
@@ -102,7 +108,9 @@ describe('outside a demo build', () => {
 
     expect(registeredAuthAdapters()).toEqual(['jwt', 'oauth'])
     expect(() => createAuthAdapter('mock')).toThrow(/"mock" needs a demo build/)
-    await expect(loadAuthAdapter('mock')).rejects.toThrow(/"mock" needs a demo build/)
+    // There is nothing to fetch for a built-in name, so the load step passes
+    // it on; building it is what refuses, and that fails the boot all the same.
+    await expect(loadAuthAdapter('mock')).resolves.toBeUndefined()
   })
 
   it('defaults to jwt when no name is configured, as the env schema does', () => {
@@ -122,7 +130,7 @@ describe('outside a demo build', () => {
 describe('an adapter the project registered with a factory', () => {
   it('is built synchronously, with the options it was asked for', () => {
     const factory = vi.fn<AuthAdapterFactory>(() => adapter({ name: 'company' }))
-    installAuthConfig({ adapters: { company: factory } })
+    configure({ adapters: { company: factory } })
     const options = { getToken: () => 'access', getRefreshToken: () => 'refresh' }
 
     const built = createAuthAdapter('company', options)
@@ -133,13 +141,13 @@ describe('an adapter the project registered with a factory', () => {
   })
 
   it('needs no loading either', async () => {
-    installAuthConfig({ adapters: { company: () => adapter() } })
+    configure({ adapters: { company: () => adapter() } })
 
     await expect(loadAuthAdapter('company')).resolves.toBeUndefined()
   })
 
   it('may state its transport', () => {
-    installAuthConfig({
+    configure({
       adapters: { sso: { transport: 'cookie', create: () => adapter({ transport: 'cookie' }) } },
     })
 
@@ -148,7 +156,7 @@ describe('an adapter the project registered with a factory', () => {
 
   it('must use the transport it declared, because the build validated against that', () => {
     // A function is shorthand for a bearer adapter; this one is not.
-    installAuthConfig({ adapters: { sso: () => adapter({ transport: 'cookie' }) } })
+    configure({ adapters: { sso: () => adapter({ transport: 'cookie' }) } })
 
     expect(() => createAuthAdapter('sso')).toThrow(
       /registers "sso" as a bearer-transport adapter, but the adapter it builds uses "cookie".*sso: \{ transport: 'cookie'/s,
@@ -156,7 +164,7 @@ describe('an adapter the project registered with a factory', () => {
   })
 
   it('must return an adapter', () => {
-    installAuthConfig({ adapters: { broken: (() => ({ name: 'broken' })) as never } })
+    configure({ adapters: { broken: (() => ({ name: 'broken' })) as never } })
 
     expect(() => createAuthAdapter('broken')).toThrow(
       /"broken" adapter registered in src\/modules\/app\/config\/auth\.config\.ts did not return an auth adapter/,
@@ -165,7 +173,7 @@ describe('an adapter the project registered with a factory', () => {
 
   it('must say which transport it uses', () => {
     // Without one the API client would not know whether to send a token.
-    installAuthConfig({ adapters: { vague: () => adapter({ transport: undefined as never }) } })
+    configure({ adapters: { vague: () => adapter({ transport: undefined as never }) } })
 
     expect(() => createAuthAdapter('vague')).toThrow(/did not return an auth adapter/)
   })
@@ -175,7 +183,7 @@ describe('an adapter the project registered to load on demand', () => {
   /** A registration whose module is fetched only when `load` is called. */
   function lazy(factory: AuthAdapterFactory = () => adapter({ name: 'sdk' })) {
     const load = vi.fn(async () => ({ default: factory }))
-    installAuthConfig({ adapters: { sdk: { transport: 'bearer', load } } })
+    configure({ adapters: { sdk: { transport: 'bearer', load } } })
     return load
   }
 
@@ -218,7 +226,7 @@ describe('an adapter the project registered to load on demand', () => {
       .fn<() => Promise<{ default: AuthAdapterFactory }>>()
       .mockRejectedValueOnce(new Error('Failed to fetch dynamically imported module'))
       .mockResolvedValue({ default: () => adapter({ name: 'sdk' }) })
-    installAuthConfig({ adapters: { sdk: { load } } })
+    configure({ adapters: { sdk: { load } } })
 
     await expect(loadAuthAdapter('sdk')).rejects.toThrow(
       'Could not load the "sdk" auth adapter registered in src/modules/app/config/auth.config.ts: ' +
@@ -231,7 +239,7 @@ describe('an adapter the project registered to load on demand', () => {
   })
 
   it('rejects when the module has no factory as its default export', async () => {
-    installAuthConfig({
+    configure({
       adapters: { sdk: { load: (async () => ({ createAdapter: adapter })) as never } },
     })
 
@@ -254,7 +262,7 @@ describe('an adapter the project registered to load on demand', () => {
     // The same name, a different module: what the old configuration loaded
     // must not be handed out for it.
     const load = vi.fn(async () => ({ default: () => adapter({ name: 'another-sdk' }) }))
-    installAuthConfig({ adapters: { sdk: { load } } })
+    configure({ adapters: { sdk: { load } } })
 
     expect(() => createAuthAdapter('sdk')).toThrow(/has not been loaded yet/)
     await loadAuthAdapter('sdk')
@@ -263,7 +271,7 @@ describe('an adapter the project registered to load on demand', () => {
 })
 
 describe('what a configuration may not register', () => {
-  const install = (adapters: AuthConfig['adapters']) => () => installAuthConfig({ adapters })
+  const install = (adapters: AuthConfig['adapters']) => () => configure({ adapters })
 
   it.each(['jwt', 'oauth', 'mock'])('refuses the built-in name %s', (name) => {
     expect(install({ [name]: () => adapter() })).toThrow(
@@ -291,7 +299,7 @@ describe('what a configuration may not register', () => {
   })
 
   it('leaves the previous configuration in force when it refuses one', () => {
-    installAuthConfig({ adapters: { company: () => adapter({ name: 'company' }) } })
+    configure({ adapters: { company: () => adapter({ name: 'company' }) } })
 
     expect(install({ jwt: () => adapter() })).toThrow()
 
@@ -304,7 +312,7 @@ describe("an adapter whose SDK keeps the session (persistence: 'external')", () 
   const session = { user, token: 'access', refreshToken: 'held-by-the-sdk', expiresIn: 900 }
 
   function external(overrides: Partial<AuthAdapter> = {}) {
-    installAuthConfig({
+    configure({
       adapters: {
         sdk: () =>
           adapter({
@@ -362,7 +370,7 @@ describe("an adapter whose SDK keeps the session (persistence: 'external')", () 
   })
 
   it('does not touch an adapter that keeps no such promise', async () => {
-    installAuthConfig({ adapters: { own: () => adapter({ login: async () => session }) } })
+    configure({ adapters: { own: () => adapter({ login: async () => session }) } })
 
     await expect(
       createAuthAdapter('own').login({ email: 'a@b.test', password: 'pw' }),

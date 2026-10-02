@@ -21,9 +21,9 @@ const optional = <T extends z.ZodType>(schema: T) =>
  * role nothing recognised. It now fails at the boundary, as a contract
  * mismatch, like domain data does.
  *
- * It lives here and not beside the `User` type because that type is in
- * `app/types/index.ts`, which is the project's file: an upgrade cannot add an
- * export to it, and Vuestrata's own code may only read what it ships.
+ * It lives in `core/lib` and not beside the `User` type because that type is
+ * in `app/types/index.ts`, which is the project's file: an upgrade cannot add
+ * an export to it, and Vuestrata's own code may only read what it ships.
  *
  * Three deliberate choices:
  *

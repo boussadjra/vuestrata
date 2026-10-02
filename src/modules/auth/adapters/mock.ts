@@ -1,7 +1,7 @@
+import { createAuthEndpoints } from '~/lib/auth/endpoints'
 import type { AuthResponse } from '~/types'
 
 import { assertOAuthProvider } from './base'
-import { createAuthEndpoints } from './endpoints'
 import { clearPkceState, persistPkceState, readPkceState } from './pkce-state'
 import type { AuthAdapter, AuthProviderId } from './types'
 

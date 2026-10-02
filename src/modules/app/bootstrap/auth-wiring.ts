@@ -1,9 +1,10 @@
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
+import type { AuthStateChange } from '@/lib/auth/adapter'
 import { appEvents } from '@/lib/events'
 import { logger } from '@/lib/logger'
-import type { AuthStateChange, createAuthAdapter as createAdapter } from '@/modules/auth'
+import type { createAuthAdapter as createAdapter } from '@/modules/auth'
 import { restoreSession as restoreSessionDefault } from '@/plugins/session-restore'
 import type { User } from '~/types'
 
