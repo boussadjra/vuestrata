@@ -34,33 +34,79 @@ function comingFromBefore110(ws) {
 
 const JWT_ADAPTER = 'src/modules/auth/adapters/jwt.ts'
 
-/** `.env`, `.env.local`, `.env.production`, …: what a build may read. Not the example. */
-function envFiles(root) {
+/**
+ * The files that say what a deployment is built with, strongest first, as Vite
+ * layers them for `--mode production`.
+ *
+ * Deliberately not every file a build can read. `.env.local` is one, but it is
+ * the developer's own (the docs say to copy `.env.example` there, and the
+ * example selects the mock adapter and a same-origin API), it is not committed,
+ * and CI never sees it. `.env.development*` and `.env.test*` are not read by a
+ * production build at all. A team that develops on mocks and sets `jwt` and a
+ * cross-origin API in CI or a hosting dashboard is the ordinary case, and what
+ * its local files say is no evidence about its deployment.
+ */
+const PRODUCTION_ENV_FILES = ['.env.production.local', '.env.production', '.env']
+
+/** Every other `.env*` file in the project, except the example: what a developer runs with. */
+function localEnvFiles(root) {
   try {
     return fs
       .readdirSync(root)
-      .filter((name) => /^\.env(\..+)?$/.test(name) && !name.endsWith('.example'))
+      .filter(
+        (name) =>
+          /^\.env\..+$/.test(name) &&
+          !name.endsWith('.example') &&
+          !PRODUCTION_ENV_FILES.includes(name),
+      )
       .sort((a, b) => a.localeCompare(b))
   } catch {
     return []
   }
 }
 
-/** Every value `key` is given across `files`, with the file that gives it. */
-function envValues(ws, files, key) {
+/** The value `source` gives `key` (its last assignment, as dotenv reads it), or `undefined`. */
+function envValue(source, key) {
   const pattern = new RegExp(`^[ \\t]*(?:export[ \\t]+)?${key}[ \\t]*=[ \\t]*(.*)$`, 'gm')
-  const found = []
+  const last = [...source.matchAll(pattern)].at(-1)
+  if (!last) return undefined
 
-  for (const file of files) {
-    for (const match of ws.read(file).matchAll(pattern)) {
-      const value = match[1]
-        .replace(/[ \t]+#.*$/, '')
-        .trim()
-        .replace(/^(['"])(.*)\1$/, '$2')
-      found.push({ file, value })
-    }
+  return last[1]
+    .replace(/[ \t]+#.*$/, '')
+    .trim()
+    .replace(/^(['"])(.*)\1$/, '$2')
+}
+
+/**
+ * What a production build reads for `key` from the project's files, with the
+ * file that says it: the strongest production file that sets it wins.
+ * `undefined` when none does, which is the case for a project that configures
+ * its deployment in CI.
+ */
+function productionValue(ws, key) {
+  for (const file of PRODUCTION_ENV_FILES) {
+    if (!ws.exists(file)) continue
+    const value = envValue(ws.read(file), key)
+    if (value !== undefined) return { file, value }
   }
-  return found
+  return undefined
+}
+
+/**
+ * Why the note is a condition: nothing a deployment is built from names the
+ * adapter. Says so about the local files that do, or the reader is left
+ * wondering why a project whose `.env.local` says `mock` is being told this.
+ */
+function noProductionEvidence(ws) {
+  const local = localEnvFiles(ws.root).filter(
+    (file) => envValue(ws.read(file), 'VUESTRATA_AUTH_ADAPTER') !== undefined,
+  )
+
+  return local.length > 0
+    ? `${listOf(local)} ${local.length === 1 ? 'sets' : 'set'} the adapter for local work, ` +
+        'which says nothing about what a deployment is built with (CI or the hosting ' +
+        'dashboard may set another), and no .env or .env.production file here does.'
+    : 'No .env or .env.production file here says which adapter a deployment uses.'
 }
 
 /**
@@ -73,30 +119,28 @@ function envValues(ws, files, key) {
  * still a release's copy. A project that edited it keeps its copy and the old
  * behaviour, and reads about the change in that file's own note.
  *
- * Narrowed by what the project's .env files say, where they say anything: not
- * shown for a project that builds with another adapter, has chosen another
- * session mode, or calls a same-origin path. A project that sets these in CI
- * has no file to read, and is told as a condition.
+ * Withheld only on evidence that it cannot apply, and only a file a production
+ * build is made from is evidence (`PRODUCTION_ENV_FILES`): one that selects
+ * another adapter, another session mode, or a same-origin API. Silence is the
+ * expensive mistake here, so everything short of that prints the note: as a
+ * fact when such a file selects `jwt`, and as a condition when none says, which
+ * is the project that sets these in CI or in a hosting dashboard.
  */
 function credentialedCorsNote(source, manifest, ws) {
   if (!PRISTINE[JWT_ADAPTER].includes(hashFor(JWT_ADAPTER, source, 'managed'))) return undefined
 
-  const files = envFiles(ws.root)
-  const adapters = envValues(ws, files, 'VUESTRATA_AUTH_ADAPTER')
-  const modes = envValues(ws, files, 'VUESTRATA_SESSION_PERSISTENCE')
-  const urls = envValues(ws, files, 'VUESTRATA_API_URL')
+  const adapter = productionValue(ws, 'VUESTRATA_AUTH_ADAPTER')
+  const mode = productionValue(ws, 'VUESTRATA_SESSION_PERSISTENCE')
+  const url = productionValue(ws, 'VUESTRATA_API_URL')
 
-  const jwt = adapters.filter((entry) => entry.value === 'jwt')
-  if (adapters.length > 0 && jwt.length === 0) return undefined
-  if (modes.length > 0 && modes.every((entry) => entry.value !== 'refresh-cookie')) return undefined
-  if (urls.length > 0 && urls.every((entry) => entry.value.startsWith('/'))) return undefined
+  if (adapter && adapter.value !== 'jwt') return undefined
+  if (mode && mode.value !== 'refresh-cookie') return undefined
+  if (url && url.value.startsWith('/')) return undefined
 
-  const who =
-    jwt.length > 0
-      ? `This project builds with VUESTRATA_AUTH_ADAPTER=jwt ` +
-        `(${listOf([...new Set(jwt.map((entry) => entry.file))])}).`
-      : 'This applies if the project builds with VUESTRATA_AUTH_ADAPTER=jwt; no .env file here ' +
-        'says which adapter it uses.'
+  const who = adapter
+    ? `This project builds with VUESTRATA_AUTH_ADAPTER=jwt (${adapter.file}).`
+    : 'This applies if the project builds with VUESTRATA_AUTH_ADAPTER=jwt and calls an API on ' +
+      `another origin. ${noProductionEvidence(ws)}`
 
   return (
     `ACTION MAY BE NEEDED ON YOUR BACKEND. ${who} From 1.1.0, under the default ` +
@@ -104,10 +148,14 @@ function credentialedCorsNote(source, manifest, ws) {
     "(`credentials: 'include'`) on its /auth/* requests, which is what makes the refresh " +
     'cookie work at all. When the API is on another origin than the app, it must answer those ' +
     'requests with `Access-Control-Allow-Origin: <the exact origin of the app>` and ' +
-    '`Access-Control-Allow-Credentials: true`. An API that answers `*` has its login refused ' +
-    'by the browser. If the backend sets no refresh cookie, set ' +
+    '`Access-Control-Allow-Credentials: true`, and list the request headers it accepts ' +
+    '(`Access-Control-Allow-Headers: Authorization, Content-Type`). A `*` in any of the three ' +
+    'is read literally on a credentialed request, so an API that answers `*` has its login ' +
+    'refused by the browser. If the backend sets no refresh cookie, set ' +
     'VUESTRATA_SESSION_PERSISTENCE to none, session or local instead, and nothing changes. ' +
-    'An API served from the same origin (VUESTRATA_API_URL=/api) needs neither.'
+    'An API served from the same origin (VUESTRATA_API_URL=/api) needs none of this. ' +
+    'UPGRADING.md has the steps, and docs/6.configuration/1.environment.md what the backend ' +
+    'must do under refresh-cookie.'
   )
 }
 

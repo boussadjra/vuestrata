@@ -1043,6 +1043,84 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(cors(report)).toEqual([])
     })
 
+    // What the docs tell a new project to do, and what the example holds: the
+    // mock adapter, a same-origin API and no persistence. All three are about
+    // the developer's machine. The deployment is configured in CI.
+    it('is said, as a condition, to a project that copied the example to .env.local', async () => {
+      seed([JWT])
+      const example = released('.env.example')
+      for (const line of [
+        'VUESTRATA_AUTH_ADAPTER=mock',
+        'VUESTRATA_API_URL=/api',
+        'VUESTRATA_SESSION_PERSISTENCE=none',
+      ]) {
+        expect(example).toContain(`\n${line}\n`)
+      }
+      fixture.write('.env.local', example)
+
+      const report = await upgrade(ADAPTER)
+
+      expect(cors(report)).toHaveLength(1)
+      const text = cors(report)[0]?.text
+      expect(text).toContain('This applies if the project builds with VUESTRATA_AUTH_ADAPTER=jwt')
+      // And why the file it can see did not settle it.
+      expect(text).toContain('.env.local sets the adapter for local work')
+      expect(text).toContain('Access-Control-Allow-Headers: Authorization, Content-Type')
+    })
+
+    it.each(['.env.development', '.env.development.local', '.env.test'])(
+      'takes a lone %s that selects the mock adapter as no evidence',
+      async (file) => {
+        seed([JWT])
+        fixture.write(file, 'VUESTRATA_AUTH_ADAPTER=mock\nVUESTRATA_API_URL=/api\n')
+
+        const report = await upgrade(ADAPTER)
+
+        expect(cors(report)).toHaveLength(1)
+        expect(cors(report)[0]?.text).toContain('This applies if the project builds with')
+        expect(cors(report)[0]?.text).toContain(`${file} sets the adapter for local work`)
+      },
+    )
+
+    it('is not said when a production file proves a same-origin API, whatever a local one says', async () => {
+      seed([JWT])
+      fixture.write(
+        '.env.local',
+        'VUESTRATA_AUTH_ADAPTER=jwt\nVUESTRATA_API_URL=https://staging.acme.test\n',
+      )
+      fixture.write('.env.production', 'VUESTRATA_AUTH_ADAPTER=jwt\nVUESTRATA_API_URL=/api\n')
+
+      const report = await upgrade(ADAPTER)
+
+      expect(cors(report)).toEqual([])
+    })
+
+    it('names the production file that selects jwt and a cross-origin API', async () => {
+      seed([JWT])
+      // The shared defaults are for development; the production file overrides them.
+      fixture.write('.env', 'VUESTRATA_AUTH_ADAPTER=mock\nVUESTRATA_API_URL=/api\n')
+      fixture.write(
+        '.env.production',
+        'VUESTRATA_AUTH_ADAPTER=jwt\nVUESTRATA_API_URL=https://api.acme.test\n',
+      )
+
+      const report = await upgrade(ADAPTER)
+
+      expect(cors(report)).toHaveLength(1)
+      expect(cors(report)[0]?.text).toContain('VUESTRATA_AUTH_ADAPTER=jwt (.env.production)')
+      expect(cors(report)[0]?.text).not.toContain('This applies if')
+    })
+
+    it('lets the strongest production file decide', async () => {
+      seed([JWT])
+      fixture.write('.env.production', 'VUESTRATA_AUTH_ADAPTER=jwt\n')
+      fixture.write('.env.production.local', 'VUESTRATA_AUTH_ADAPTER=oauth\n')
+
+      const report = await upgrade(ADAPTER)
+
+      expect(cors(report)).toEqual([])
+    })
+
     it('is not said to a project that kept its own adapter, which still omits credentials', async () => {
       seed([JWT])
       fixture.write(JWT, `${released(JWT)}\n// ours\n`)
