@@ -310,7 +310,9 @@ afterEach(() => {
 
 // No payload unless a test supplies one: `vp exec vuestrata eject` in a project
 // built from the template runs the CLI from `packages/cli`, which has none.
-const eject = (flags: Record<string, unknown> = {}, source?: { docs?: string[] }) =>
+// `null`, not `undefined`, which would read the payload a maintainer's checkout
+// has once the gates built it, and make these tests depend on that.
+const eject = (flags: Record<string, unknown> = {}, source: { docs?: string[] } | null = null) =>
   runEject({ root: fixture.project, flags: { ...FLAGS, ...flags }, source })
 
 /** Forget which `docs/` pages the template shipped, as a lock from before 1.1.0 has. */
