@@ -196,7 +196,8 @@ export interface AppConfig {
   title: string
   apiUrl: string
   useMocks: boolean
-  authProvider: 'jwt' | 'oauth' | 'mock'
+  /** A built-in adapter, or the name of one registered in `config/auth.config.ts`. */
+  authProvider: 'jwt' | 'oauth' | 'mock' | (string & {})
   /**
    * How a bearer session survives a page reload. See
    * `SESSION_PERSISTENCE_MODES` in core/lib/config/env.schema.ts for the
@@ -222,7 +223,9 @@ export interface AppConfig {
 export type { Role, Permission, BuiltinPermission, RoleDefinition }
 
 // ─── Auth ────────────────────────────────────────────────
-export type AuthProvider = 'credentials' | 'google' | 'github' | 'microsoft'
+// The `string & {}` arm admits a provider listed under `providers` in
+// `config/auth.config.ts` without costing these names their autocomplete.
+export type AuthProvider = 'credentials' | 'google' | 'github' | 'microsoft' | (string & {})
 export type AuthStrategy = 'jwt' | 'oauth' | 'magic-link' | 'mock'
 
 export interface User {

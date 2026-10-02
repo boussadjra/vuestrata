@@ -1,9 +1,31 @@
 import { createScopedLogger } from '../logger'
-import { resolveRuntimeEnv } from './env.schema'
+import { resolveRuntimeEnv, type RegisteredAuthAdapters } from './env.schema'
 
 export * from './env.schema'
 
 const configLogger = createScopedLogger('app-config')
+
+/**
+ * Build-time constant injected by the `vuestrata:env` plugin: the adapters the
+ * project registered in `app/config/auth.config.ts`, by name, with the
+ * transport each declares. The plugin reads them from that file as text, and
+ * validates `VUESTRATA_AUTH_ADAPTER` against them before anything is bundled.
+ *
+ * Declared here rather than in `src/env.d.ts` because that file is the
+ * project's: an upgrade cannot add a declaration to it, and this module has to
+ * type-check in a project that has not touched it.
+ */
+declare const __VUESTRATA_AUTH_ADAPTERS__: RegisteredAuthAdapters | undefined
+
+/**
+ * The same registrations the build validated against, so the browser accepts
+ * the names the build accepted. `core/lib` cannot import the app's config
+ * file, and `runtimeEnv` is resolved before any seam is installed, which is
+ * why they arrive as a constant. Absent — a Vite config without the plugin —
+ * only the built-in adapters are known.
+ */
+const registeredAuthAdapters: RegisteredAuthAdapters =
+  typeof __VUESTRATA_AUTH_ADAPTERS__ === 'undefined' ? {} : (__VUESTRATA_AUTH_ADAPTERS__ ?? {})
 
 /**
  * The validated runtime environment, resolved once at module load.
@@ -24,5 +46,6 @@ export const runtimeEnv = resolveRuntimeEnv(import.meta.env, {
   // startup and this would quietly "correct" it back to `/api` in the page. A
   // build has already rejected such a URL, so this relaxes nothing that ships.
   serving: import.meta.env.DEV,
+  authAdapters: registeredAuthAdapters,
   onWarn: (message) => configLogger.warn(message),
 })

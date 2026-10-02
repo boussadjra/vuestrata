@@ -29,7 +29,32 @@ import { z } from 'zod'
  *   production — real deployment. No MSW, no demo state, real auth adapter.
  */
 export const RUNTIME_MODES = ['production', 'demo'] as const
+/**
+ * The auth adapters Vuestrata ships. `VUESTRATA_AUTH_ADAPTER` also accepts
+ * any name a project registers under `adapters` in
+ * `src/modules/app/config/auth.config.ts`; see `ResolveOptions.authAdapters`.
+ */
 export const AUTH_ADAPTERS = ['mock', 'jwt', 'oauth'] as const
+
+/** How an auth adapter proves identity. Mirrors `AuthTransport` in the auth module. */
+export type AuthAdapterTransport = 'bearer' | 'cookie'
+
+/**
+ * The project's own adapters, by name, with the transport each one declares.
+ * Passed in rather than imported: this module has no dependencies, and the
+ * file that registers them belongs to the app.
+ */
+export type RegisteredAuthAdapters = Readonly<Record<string, AuthAdapterTransport>>
+
+/** Where a project registers an adapter. Named in the message for an unknown one. */
+const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
+
+/** The transport of the built-in adapters. `oauth` is a cookie session by design. */
+const BUILTIN_TRANSPORTS: Record<AuthAdapterName, AuthAdapterTransport> = {
+  mock: 'bearer',
+  jwt: 'bearer',
+  oauth: 'cookie',
+}
 
 /**
  * How a bearer-transport session survives a page reload.
@@ -165,28 +190,55 @@ const retentionHours = z
   .optional()
 
 /**
+ * An adapter name: a built-in one, or one the project registered.
+ *
+ * An unknown name is an error that says where adapters are registered. It is
+ * never replaced by `mock`: that adapter's endpoints exist only inside the
+ * demo's service worker, so a production app that fell back to it would fail
+ * every sign-in with nothing to say why.
+ */
+function authAdapterName(registered: RegisteredAuthAdapters) {
+  return z
+    .string()
+    .refine(
+      (name) =>
+        (AUTH_ADAPTERS as readonly string[]).includes(name) || Object.hasOwn(registered, name),
+      {
+        error: (issue) =>
+          `unknown auth adapter "${String(issue.input)}". Built in: ${AUTH_ADAPTERS.join(', ')}. ` +
+          `To use your own, register it under \`adapters\` in ${AUTH_CONFIG_FILE}.`,
+      },
+    )
+    .optional()
+}
+
+/**
  * Per-field validation only. Cross-field rules live in `applyCombinationRules`
  * because they need the resolved defaults, which depend on `runtimeMode`.
  */
-const envSchema = z.object({
-  [ENV_KEYS.runtimeMode]: z.enum(RUNTIME_MODES).optional(),
-  [ENV_KEYS.title]: z.string().min(1).optional(),
-  [ENV_KEYS.apiUrl]: z.string().min(1).optional(),
-  [ENV_KEYS.useMocks]: booleanish,
-  [ENV_KEYS.authAdapter]: z.enum(AUTH_ADAPTERS).optional(),
-  [ENV_KEYS.sessionPersistence]: z.enum(SESSION_PERSISTENCE_MODES).optional(),
-  [ENV_KEYS.iconProvider]: z.enum(ICON_PROVIDERS).optional(),
-  [ENV_KEYS.theme]: z
-    .string()
-    .regex(/^[a-z0-9-]+$/, 'must be lowercase alphanumeric with dashes')
-    .optional(),
-  [ENV_KEYS.demoRetentionHours]: retentionHours,
-  // A DSN is a public ingest endpoint, not a secret — it is designed to be
-  // embedded in client bundles. Auth tokens for the provider's API are a
-  // different thing entirely and must never appear in a VUESTRATA_ variable.
-  [ENV_KEYS.errorReportingDsn]: z.url('must be a valid DSN URL').optional(),
-  [ENV_KEYS.release]: z.string().min(1).optional(),
-})
+function createEnvSchema(registered: RegisteredAuthAdapters) {
+  return z.object({
+    [ENV_KEYS.runtimeMode]: z.enum(RUNTIME_MODES).optional(),
+    [ENV_KEYS.title]: z.string().min(1).optional(),
+    [ENV_KEYS.apiUrl]: z.string().min(1).optional(),
+    [ENV_KEYS.useMocks]: booleanish,
+    [ENV_KEYS.authAdapter]: authAdapterName(registered),
+    [ENV_KEYS.sessionPersistence]: z.enum(SESSION_PERSISTENCE_MODES).optional(),
+    [ENV_KEYS.iconProvider]: z.enum(ICON_PROVIDERS).optional(),
+    [ENV_KEYS.theme]: z
+      .string()
+      .regex(/^[a-z0-9-]+$/, 'must be lowercase alphanumeric with dashes')
+      .optional(),
+    [ENV_KEYS.demoRetentionHours]: retentionHours,
+    // A DSN is a public ingest endpoint, not a secret — it is designed to be
+    // embedded in client bundles. Auth tokens for the provider's API are a
+    // different thing entirely and must never appear in a VUESTRATA_ variable.
+    [ENV_KEYS.errorReportingDsn]: z.url('must be a valid DSN URL').optional(),
+    [ENV_KEYS.release]: z.string().min(1).optional(),
+  })
+}
+
+type ParsedEnv = z.infer<ReturnType<typeof createEnvSchema>>
 
 // ─── Resolved shape ───────────────────────────────────────────────────────────
 
@@ -195,7 +247,12 @@ export interface RuntimeEnv {
   title: string
   apiUrl: string
   useMocks: boolean
-  authAdapter: AuthAdapterName
+  /**
+   * A built-in adapter, or the name of one the project registered in
+   * `auth.config.ts`. The `string & {}` arm admits those without costing the
+   * built-in names their autocomplete.
+   */
+  authAdapter: AuthAdapterName | (string & {})
   /**
    * Reload-survival strategy for bearer sessions. Ignored by cookie-transport
    * adapters, which resume from their session cookie regardless.
@@ -234,7 +291,11 @@ type Correction = {
  * Each rule carries a correction so the lenient path can recover instead of
  * throwing. The strict path ignores the corrections and reports the messages.
  */
-function collectCombinationIssues(env: RuntimeEnv, serving: boolean): Correction[] {
+function collectCombinationIssues(
+  env: RuntimeEnv,
+  serving: boolean,
+  registered: RegisteredAuthAdapters,
+): Correction[] {
   const issues: Correction[] = []
 
   if (env.runtimeMode === 'demo') {
@@ -293,12 +354,16 @@ function collectCombinationIssues(env: RuntimeEnv, serving: boolean): Correction
   // session cookie and the app resumes from it unconditionally. Configuring a
   // bearer strategy alongside it is a contradiction, and silently honouring it
   // would mean writing a refresh token to Web Storage for an adapter that
-  // never receives one.
-  if (env.authAdapter === 'oauth' && env.sessionPersistence !== 'none') {
+  // never receives one. The rule follows the transport, so it holds for an
+  // adapter the project registered as `cookie` exactly as it does for `oauth`.
+  const transport = Object.hasOwn(BUILTIN_TRANSPORTS, env.authAdapter)
+    ? BUILTIN_TRANSPORTS[env.authAdapter as AuthAdapterName]
+    : registered[env.authAdapter]
+  if (transport === 'cookie' && env.sessionPersistence !== 'none') {
     issues.push({
       message:
         `${ENV_KEYS.sessionPersistence}="${env.sessionPersistence}" has no meaning with ` +
-        `${ENV_KEYS.authAdapter}="oauth": that adapter uses cookie transport and resumes from ` +
+        `${ENV_KEYS.authAdapter}="${env.authAdapter}": that adapter uses cookie transport and resumes from ` +
         `its session cookie. Set it to "none".`,
       apply: (draft) => {
         draft.sessionPersistence = 'none'
@@ -399,6 +464,14 @@ interface ResolveOptions {
    * MSW and the mock adapter — applies either way.
    */
   serving?: boolean
+  /**
+   * The adapters the project registered in `auth.config.ts`, with the
+   * transport each declares. Their names are accepted for
+   * `VUESTRATA_AUTH_ADAPTER`, and the cross-field rules apply to them by
+   * transport. The Vite plugin reads them from that file and passes them to
+   * both parsers; leave it out and only the built-in names are valid.
+   */
+  authAdapters?: RegisteredAuthAdapters
   onWarn?: (message: string) => void
 }
 
@@ -411,7 +484,7 @@ function normalize(raw: RawEnv): Record<string, string | undefined> {
 }
 
 /** Turns validated-but-sparse fields into a fully-defaulted config. */
-function applyDefaults(parsed: z.infer<typeof envSchema>, isDev: boolean): RuntimeEnv {
+function applyDefaults(parsed: ParsedEnv, isDev: boolean): RuntimeEnv {
   const runtimeMode: RuntimeMode = parsed[ENV_KEYS.runtimeMode] ?? (isDev ? 'demo' : 'production')
   const demo = runtimeMode === 'demo'
 
@@ -456,9 +529,9 @@ function formatFieldIssues(error: z.ZodError): string[] {
  * browser.
  */
 export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): RuntimeEnv {
-  const { isDev = false, serving = false } = options
+  const { isDev = false, serving = false, authAdapters = {} } = options
 
-  const parsed = envSchema.safeParse(normalize(raw))
+  const parsed = createEnvSchema(authAdapters).safeParse(normalize(raw))
   if (!parsed.success) {
     throw new Error(
       `[vuestrata:env] Invalid environment configuration:\n  - ${formatFieldIssues(parsed.error).join('\n  - ')}`,
@@ -466,7 +539,7 @@ export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Runt
   }
 
   const resolved = applyDefaults(parsed.data, isDev)
-  const combination = collectCombinationIssues(resolved, serving)
+  const combination = collectCombinationIssues(resolved, serving, authAdapters)
   if (combination.length > 0) {
     throw new Error(
       `[vuestrata:env] Incompatible environment configuration:\n  - ${combination
@@ -491,14 +564,15 @@ export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Runt
  * values — this path only matters for tests and hand-edited local setups.
  */
 export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): RuntimeEnv {
-  const { isDev = false, serving = false, onWarn } = options
+  const { isDev = false, serving = false, authAdapters = {}, onWarn } = options
   const warn = onWarn ?? (() => {})
 
   const normalized = normalize(raw)
+  const envSchema = createEnvSchema(authAdapters)
 
   // Drop individually-invalid values so their defaults apply, warning per field.
   const parsed = envSchema.safeParse(normalized)
-  let data: z.infer<typeof envSchema>
+  let data: ParsedEnv
   if (parsed.success) {
     data = parsed.data
   } else {
@@ -513,7 +587,7 @@ export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Ru
   }
 
   const resolved = applyDefaults(data, isDev)
-  for (const issue of collectCombinationIssues(resolved, serving)) {
+  for (const issue of collectCombinationIssues(resolved, serving, authAdapters)) {
     warn(`${issue.message} Auto-correcting.`)
     issue.apply(resolved)
   }

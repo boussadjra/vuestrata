@@ -13,7 +13,11 @@ import {
 } from 'vite-plus'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { vuestrataEnv } from '../../../scripts/vite/vuestrata-plugin.mjs'
+import {
+  readAuthAdapters,
+  scanAuthAdapters,
+  vuestrataEnv,
+} from '../../../scripts/vite/vuestrata-plugin.mjs'
 
 /**
  * The Vite plugin is where the env schema meets the build: it decides what
@@ -316,7 +320,11 @@ describe('the build target', () => {
 
       const { result } = await runConfig(root, env)
 
-      expect(result.define).toEqual({ __VUESTRATA_DEMO__: demo })
+      expect(result.define).toEqual({
+        __VUESTRATA_DEMO__: demo,
+        // No auth.config.ts in this root, so no adapter of the project's own.
+        __VUESTRATA_AUTH_ADAPTERS__: '{}',
+      })
       expect(result.build).toEqual({ sourcemap })
     },
   )
@@ -383,5 +391,138 @@ describe('the dev page CSP', () => {
     const html = await transformHtml(plugin, page, { server })
 
     expect(connectSrc(html as string)).toEqual(["'self'", 'http://localhost:8000'])
+  })
+})
+
+describe('the adapters a project registered in auth.config.ts', () => {
+  const AUTH_CONFIG = 'src/modules/app/config/auth.config.ts'
+
+  /** A project root whose `auth.config.ts` is `source`. */
+  function projectWith(source: string, vars: Record<string, string> = {}) {
+    const root = project({ '.env': { ...production, VUESTRATA_API_URL: '/api', ...vars } })
+    const file = path.join(root, AUTH_CONFIG)
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, source)
+    return root
+  }
+
+  const config = (body: string) =>
+    `import { defineAuthConfig } from '~/modules/auth'\n\nexport default defineAuthConfig(${body})\n`
+
+  // What a real one looks like: a lazy SDK adapter, a cookie-transport one,
+  // and a plain factory. None of these imports resolves from the temp root,
+  // which is the point: the file is read, never run.
+  const REGISTERED = config(`{
+    endpoints: { ...endpointPresets.vuestrata, me: '/users/me' },
+    adapters: {
+      supabase: { transport: 'bearer', load: () => import('~/auth/supabase-adapter') },
+      'company-sso': { transport: 'cookie' as const, create: createSsoAdapter },
+      legacy: createLegacyAdapter,
+    },
+  }`)
+
+  it('accepts a registered name and hands the registrations to the browser', async () => {
+    const root = projectWith(REGISTERED, { VUESTRATA_AUTH_ADAPTER: 'supabase' })
+
+    const { result } = await runConfig(root, build())
+
+    expect(JSON.parse(String(result.define?.__VUESTRATA_AUTH_ADAPTERS__))).toEqual({
+      supabase: 'bearer',
+      'company-sso': 'cookie',
+      legacy: 'bearer',
+    })
+  })
+
+  it('fails the build for a name that is not registered, naming the file', async () => {
+    const root = projectWith(REGISTERED, { VUESTRATA_AUTH_ADAPTER: 'firebase' })
+
+    await expect(runConfig(root, build())).rejects.toThrow(
+      /unknown auth adapter "firebase".*src\/modules\/app\/config\/auth\.config\.ts/s,
+    )
+  })
+
+  it('applies the session-persistence rule by the transport the adapter declares', async () => {
+    const cookie = projectWith(REGISTERED, { VUESTRATA_AUTH_ADAPTER: 'company-sso' })
+    await expect(runConfig(cookie, build())).rejects.toThrow(
+      /has no meaning with VUESTRATA_AUTH_ADAPTER="company-sso"/,
+    )
+
+    const explicit = projectWith(REGISTERED, {
+      VUESTRATA_AUTH_ADAPTER: 'company-sso',
+      VUESTRATA_SESSION_PERSISTENCE: 'none',
+    })
+    await expect(runConfig(explicit, build())).resolves.toBeDefined()
+  })
+
+  it('reads the shipped, empty file as no adapters', () => {
+    expect(readAuthAdapters(process.cwd())).toEqual({})
+    expect(scanAuthAdapters(config('{}'))).toEqual({})
+  })
+
+  it('reads a project with no auth.config.ts as no adapters', () => {
+    expect(readAuthAdapters(project({}))).toEqual({})
+  })
+
+  it('never runs the file', () => {
+    // An SDK that expects a browser, and a statement that would end the build.
+    const source = `import { createClient } from 'an-sdk-that-is-not-installed'
+import { defineAuthConfig } from '~/modules/auth'
+
+const client = createClient(window.location.origin)
+throw new Error('auth.config.ts was executed')
+
+export default defineAuthConfig({
+  adapters: { sdk: { transport: 'bearer', create: () => client.adapter() } },
+})
+`
+    expect(scanAuthAdapters(source)).toEqual({ sdk: 'bearer' })
+  })
+
+  it('sees through the type-level wrappers a project may add', () => {
+    expect(
+      scanAuthAdapters(
+        `export default defineAuthConfig(({ adapters: { one: (create as AuthAdapterFactory) } }) satisfies AuthConfig)`,
+      ),
+    ).toEqual({ one: 'bearer' })
+    expect(
+      scanAuthAdapters(`export default { adapters: { two: { load } } } satisfies AuthConfig`),
+    ).toEqual({ two: 'bearer' })
+  })
+
+  // Each of these would register an adapter the build cannot see, or one whose
+  // transport it would have to guess. The build says so instead.
+  it.each([
+    ['a spread in adapters', '{ adapters: { ...others } }', /`adapters` uses a spread/],
+    ['a spread in the configuration', '{ ...base }', /the configuration uses a spread/],
+    ['a computed name', '{ adapters: { [NAME]: create } }', /computed name/],
+    ['adapters held in a variable', '{ adapters }', /`adapters` is not an object literal/],
+    [
+      'a transport that is not a literal',
+      '{ adapters: { sso: { transport: TRANSPORT, create } } }',
+      /adapter "sso" does not declare its transport as a literal/,
+    ],
+    [
+      'a transport that is not one',
+      "{ adapters: { sso: { transport: 'header', create } } }",
+      /adapter "sso" does not declare its transport as a literal/,
+    ],
+    ['a built-in name', '{ adapters: { jwt: create } }', /"jwt" is a built-in adapter/],
+    ['a name that is not usable', '{ adapters: { My_SSO: create } }', /not a usable adapter name/],
+  ])('refuses %s', (_case, body, message) => {
+    expect(() => scanAuthAdapters(config(body))).toThrow(message)
+    // Every one of them explains how the file has to be written.
+    expect(() => scanAuthAdapters(config(body))).toThrow(/without running it/)
+  })
+
+  it('refuses a file whose default export it cannot read', () => {
+    expect(() => scanAuthAdapters('export default config\n')).toThrow(/not an object literal/)
+    expect(() => scanAuthAdapters('export const config = {}\n')).toThrow(/no default export/)
+    expect(() => scanAuthAdapters('export default {')).toThrow(/could not be parsed/)
+  })
+
+  it('fails the build, rather than ignoring adapters it cannot read', async () => {
+    const root = projectWith(config('{ adapters: { ...others } }'))
+
+    await expect(runConfig(root, build())).rejects.toThrow(/auth\.config\.ts.*spread/s)
   })
 })
