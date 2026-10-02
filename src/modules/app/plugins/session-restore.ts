@@ -10,7 +10,7 @@
  * never asked.
  *
  * Extracted here for the same reason `route-guard.ts` was: it is the kind of
- * decision that must be testable without booting an application. `main.ts`
+ * decision that must be testable without booting an application. `boot()`
  * supplies the real dependencies; tests supply fakes.
  */
 import { normalizeError } from '~/lib/errors'
@@ -50,7 +50,7 @@ export interface SessionRestoreDeps {
    */
   resumeSession?: () => Promise<RestorableSession | null>
   /**
-   * Demo-only IndexedDB restore. Supplied by `main.ts` only when this is a
+   * Demo-only IndexedDB restore. Supplied by `boot()` only when this is a
    * demo build running the mock adapter; its presence IS the demo branch, so
    * this module needs no build-mode constant of its own.
    */
