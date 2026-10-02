@@ -227,6 +227,12 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Add a Nav Group',
     description: 'Add a sidebar section — and why modules cannot define their own.',
   },
+  '/docs/9.recipes/9.write-your-own-auth-adapter.md': {
+    navTitle: 'Write an auth adapter',
+    title: 'Write Your Own Auth Adapter',
+    description:
+      'Point the app at your auth backend, or put an SDK behind the adapter contract, from one file that is yours.',
+  },
 }
 
 const markdownModules = import.meta.glob('/docs/**/*.md', {
