@@ -1,57 +1,47 @@
-import { AUTH_ADAPTER_ENV_KEY } from '~/config/app.config'
-import { createScopedLogger } from '~/lib/logger'
-
-import { createJwtAdapter } from './jwt'
-import { createMockAdapter } from './mock'
-import { createOAuthAdapter } from './oauth'
-import {
-  SUPPORTED_AUTH_ADAPTERS,
-  UnsupportedAuthCapabilityError,
-  type AuthAdapter,
-  type AuthCapabilities,
-  type SupportedAuthAdapter,
-} from './types'
-
-const adapterLogger = createScopedLogger('auth:adapter')
+import { UnsupportedAuthCapabilityError, type AuthAdapter, type AuthCapabilities } from './types'
 
 export * from './types'
 export { isJwtExpired } from './jwt'
-
-export function resolveAuthAdapterName(adapterName: string | undefined): SupportedAuthAdapter {
-  if (!adapterName) return 'mock'
-  if ((SUPPORTED_AUTH_ADAPTERS as readonly string[]).includes(adapterName)) {
-    return adapterName as SupportedAuthAdapter
-  }
-  adapterLogger.warn(
-    `Unknown ${AUTH_ADAPTER_ENV_KEY} value "${adapterName}", falling back to "mock".`,
-  )
-  return 'mock'
-}
-
-/**
- * Build the configured adapter.
- *
- * `getToken` is threaded through for the JWT adapter's expiry check, and
- * `getRefreshToken` for the refresh token it presents when one is held in
- * memory. Both are callbacks rather than values because the adapter is
- * constructed once and the tokens change on every refresh.
- */
-export function createAuthAdapter(
-  adapterName: string | undefined,
-  options: { getToken?: () => string | null; getRefreshToken?: () => string | null } = {},
-): AuthAdapter {
-  const name = resolveAuthAdapterName(adapterName)
-
-  switch (name) {
-    case 'jwt':
-      return createJwtAdapter(options.getToken, options.getRefreshToken)
-    case 'oauth':
-      return createOAuthAdapter()
-    case 'mock':
-    default:
-      return createMockAdapter()
-  }
-}
+export {
+  createAuthAdapter,
+  loadAuthAdapter,
+  registeredAuthAdapters,
+  resolveAuthAdapterName,
+} from './registry'
+export {
+  AUTH_ADAPTER_NAME_PATTERN,
+  DEFAULT_AUTH_PROVIDERS,
+  defineAuthConfig,
+  getAuthConfig,
+  getAuthProviders,
+  installAuthConfig,
+  resolveAuthConfig,
+  type AuthAdapterRegistration,
+  type AuthConfig,
+  type AuthProviderOption,
+  type ResolvedAuthConfig,
+} from './config'
+export {
+  AUTH_ENDPOINT_NAMES,
+  AuthEndpointDisabledError,
+  authRefreshBodies,
+  authResponseMappers,
+  createAuthEndpoints,
+  endpointPresets,
+  resolveAuthEndpoints,
+  type AuthEndpoint,
+  type AuthEndpointMethod,
+  type AuthEndpointName,
+  type AuthEndpointOverrides,
+  type AuthEndpoints,
+  type AuthEndpointSetting,
+  type AuthEndpointSpec,
+  type AuthMapping,
+  type AuthRequestBody,
+  type AuthResponseMapper,
+  type MappedAuthResponse,
+} from './endpoints'
+export { parseUser, userSchema } from './user'
 
 /**
  * Narrow an optional adapter method to a callable one, or throw a message that

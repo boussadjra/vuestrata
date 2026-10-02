@@ -3,7 +3,7 @@ import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
 import { appEvents } from '@/lib/events'
 import { logger } from '@/lib/logger'
-import type { createAuthAdapter as createAdapter } from '@/modules/auth'
+import type { AuthStateChange, createAuthAdapter as createAdapter } from '@/modules/auth'
 import { restoreSession as restoreSessionDefault } from '@/plugins/session-restore'
 import type { User } from '~/types'
 
@@ -243,6 +243,56 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
       logger.warn('Proactive token refresh failed — falling back to 401 interceptor', { err })
     }
   })
+
+  // An adapter whose session is kept by an SDK learns of changes the app never
+  // asked for: a redirect sign-in the SDK completed, a token it rotated in the
+  // background, a sign-out in another tab. It reports them here, and this is
+  // what puts them in the store. Feature-detected, like `refreshSession`: the
+  // built-in adapters have nothing to announce. The subscription lasts as long
+  // as the provider installed above, which is the lifetime of the app.
+  if (typeof adapter.subscribe === 'function') {
+    // Such an adapter usually also declares that the SDK stores the session.
+    // The store is then never handed a refresh token, so it has none to write.
+    const external = adapter.persistence === 'external'
+
+    adapter.subscribe(({ session, reason }: AuthStateChange) => {
+      if (session) {
+        if (!session.user) {
+          logger.warn('The auth adapter announced a session without a user — ignoring it')
+          return
+        }
+        if (session.token) {
+          const refreshToken = external ? undefined : session.refreshToken
+          authStore.setAuth(session.user, session.token, refreshToken, session.expiresIn)
+        } else {
+          // Cookie transport: the credential is the browser's, not the app's.
+          authStore.setUser(session.user)
+        }
+        return
+      }
+
+      // The session ended somewhere else. Whoever is on a protected page is
+      // sent to sign in again, with the way back, and told why only when it
+      // was not their own doing. A sign-out this tab asked for arrives here
+      // too; `useAuth().logout()` then finds nothing left to clear.
+      if (!hasSession()) return
+      const target = expiredSessionTarget(router.currentRoute?.value)
+      if (reason === 'expired') {
+        expireSession()
+        unreportedExpiry = false
+      } else {
+        authStore.clearAuth('logout')
+      }
+      if (!target) return
+      const destination =
+        reason === 'expired'
+          ? target
+          : ({ name: target.name, query: { redirect: target.query.redirect } } as const)
+      router.replace(destination).catch((err) => {
+        logger.error('Redirect to login failed after the session ended', { err })
+      })
+    })
+  }
 }
 
 export interface SessionRestoreDeps extends Pick<

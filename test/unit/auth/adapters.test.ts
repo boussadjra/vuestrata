@@ -10,7 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
  * transport, and every advertised capability has a real method behind it.
  */
 
-async function loadAdapters(apiFetch = vi.fn()) {
+/** A user that satisfies the `User` schema every identity response is held to. */
+const user = { id: 'u1', email: 'a@b.test', name: 'A', role: 'member' }
+
+async function loadAdapters(apiFetch: (...args: never[]) => unknown = vi.fn()) {
   vi.doMock('~/lib/api/client', () => ({ apiFetch }))
   const mod = await import('@/modules/auth')
   return { ...mod, apiFetch }
@@ -35,10 +38,18 @@ describe('adapter selection', () => {
     expect(createAuthAdapter('oauth').name).toBe('oauth')
   })
 
-  it('falls back to mock for an unknown name', async () => {
+  it('refuses a name nothing registered, and says where adapters are registered', async () => {
     const { createAuthAdapter } = await loadAdapters()
 
-    expect(createAuthAdapter('saml').name).toBe('mock')
+    // It used to answer with the mock adapter and a warning, so a mistyped
+    // name in a real deployment signed nobody in and said nothing.
+    expect(() => createAuthAdapter('saml')).toThrow(/"saml".*auth\.config\.ts/)
+  })
+
+  it('uses the mode default when no name is configured', async () => {
+    const { createAuthAdapter } = await loadAdapters()
+
+    // Tests compile as a demo build, where the default is the mock adapter.
     expect(createAuthAdapter(undefined).name).toBe('mock')
   })
 })
@@ -140,7 +151,7 @@ describe('JWT adapter — expiry awareness', () => {
   })
 
   it('still requests /auth/me when the token is valid', async () => {
-    const apiFetch = vi.fn().mockResolvedValue({ id: 'u1', email: 'a@b.test' })
+    const apiFetch = vi.fn().mockResolvedValue(user)
     const { createAuthAdapter } = await loadAdapters(apiFetch)
     const adapter = createAuthAdapter('jwt', { getToken: () => makeJwt(3600) })
 
@@ -151,7 +162,7 @@ describe('JWT adapter — expiry awareness', () => {
 
 describe('endpoint contract', () => {
   it('posts credentials to /auth/login', async () => {
-    const apiFetch = vi.fn().mockResolvedValue({})
+    const apiFetch = vi.fn().mockResolvedValue({ user, token: 'access' })
     const { createAuthAdapter } = await loadAdapters(apiFetch)
 
     await createAuthAdapter('jwt').login({ email: 'a@b.test', password: 'pw' })
@@ -166,7 +177,10 @@ describe('endpoint contract', () => {
   })
 
   it('marks every /auth/* call as part of authentication, whatever its URL', async () => {
-    const apiFetch = vi.fn().mockResolvedValue({ token: 'access' })
+    // A backend's answers: the user from `/auth/me`, a session from the rest.
+    const apiFetch = vi.fn(async (url: string, _options?: object) =>
+      url === '/auth/me' ? user : { user, token: 'access' },
+    )
     const { createAuthAdapter } = await loadAdapters(apiFetch)
     const adapter = createAuthAdapter('jwt', { getRefreshToken: () => 'held' })
 

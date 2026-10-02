@@ -51,12 +51,36 @@ export interface AuthCapabilities {
   readonly codeExchange: boolean
 }
 
+/** The adapters Vuestrata ships. A project registers its own in `app/config/auth.config.ts`. */
 export const SUPPORTED_AUTH_ADAPTERS = ['mock', 'jwt', 'oauth'] as const
 export type SupportedAuthAdapter = (typeof SUPPORTED_AUTH_ADAPTERS)[number]
 
 /**
+ * A social sign-in provider: one of the three the template ships buttons for,
+ * or any id a project lists under `providers` in `auth.config.ts`. The
+ * `string & {}` arm accepts those without costing the built-in names their
+ * autocomplete.
+ */
+export type AuthProviderId = Exclude<AuthProvider, 'credentials'> | (string & {})
+
+/**
+ * What an adapter reports through `subscribe`: a change to the session that
+ * the app did not ask for, because an SDK made it.
+ */
+export interface AuthStateChange {
+  /** The session now in force, or null when there is none. */
+  session: ResumedSession | null
+  /**
+   * Why a session ended. `'expired'` sends a visitor on a protected page to
+   * the login page with the notice that says so; anything else is a sign-out,
+   * and they are sent there without it.
+   */
+  reason?: 'logout' | 'expired'
+}
+
+/**
  * The single authentication contract, implemented once per strategy in
- * `adapters/{mock,jwt,oauth}.ts`.
+ * `adapters/{mock,jwt,oauth}.ts`, and by any adapter a project registers.
  *
  * Only `login`, `logout` and `getUser` are required — every adapter must be
  * able to start a session, end one, and identify the current user. Everything
@@ -66,7 +90,8 @@ export type SupportedAuthAdapter = (typeof SUPPORTED_AUTH_ADAPTERS)[number]
  * `docs/6.configuration/2.auth-rbac.md`.
  */
 export interface AuthAdapter {
-  readonly name: SupportedAuthAdapter
+  /** A built-in name, or the name a project registered its own adapter under. */
+  readonly name: SupportedAuthAdapter | (string & {})
   readonly transport: AuthTransport
   readonly capabilities: AuthCapabilities
 
@@ -80,7 +105,7 @@ export interface AuthAdapter {
 
   register?: (credentials: AuthCredentials & { name: string }) => Promise<AuthResponse>
   refreshToken?: (token: string) => Promise<AuthResponse>
-  socialLogin?: (provider: AuthProvider) => Promise<void>
+  socialLogin?: (provider: AuthProviderId) => Promise<void>
   sendMagicLink?: (request: MagicLinkRequest) => Promise<{ message: string }>
   verifyMagicLink?: (token: string) => Promise<AuthResponse>
   setupMfa?: () => Promise<MfaSetupResponse>
@@ -124,7 +149,47 @@ export interface AuthAdapter {
   refreshSession?: () => Promise<RefreshedSession | null>
   /** Whether `refreshSession` has a credential to present right now. */
   canRefreshSession?: () => boolean
+
+  /**
+   * Be told when the session changes without the app having asked: an SDK
+   * that finished a redirect sign-in, rotated its token in the background, or
+   * saw a sign-out in another tab. The bootstrap subscribes once, for the life
+   * of the app, and writes each change to the auth store. Returns the function
+   * that stops it.
+   *
+   * Optional and feature-detected, like `refreshSession`. The built-in
+   * adapters have nothing to announce: every change to their session is the
+   * answer to a request the app made.
+   */
+  subscribe?: (listener: (change: AuthStateChange) => void) => () => void
+
+  /**
+   * `'external'` when the adapter (in practice, the SDK behind it) keeps the
+   * session itself. The app then holds the access token in memory only and is
+   * never handed a refresh token, so there is nothing for it to write to Web
+   * Storage, whatever `VUESTRATA_SESSION_PERSISTENCE` says. Leave it out for an
+   * adapter whose refresh token the app is meant to keep.
+   */
+  persistence?: 'external'
 }
+
+/**
+ * What an adapter is built with. Both are callbacks rather than values because
+ * an adapter is constructed once and the tokens change on every refresh.
+ */
+export interface AuthAdapterOptions {
+  /** The access token the store holds, for an adapter that checks its expiry. */
+  getToken?: () => string | null
+  /** The refresh token the store holds in memory, if any. */
+  getRefreshToken?: () => string | null
+}
+
+/**
+ * Builds an adapter. It is called more than once (the boot wiring, the session
+ * restore and `useAuth()` each ask for one), so an SDK client belongs outside
+ * it, created once by the module that exports the factory.
+ */
+export type AuthAdapterFactory = (options: AuthAdapterOptions) => AuthAdapter
 
 /**
  * The answer of `POST /auth/refresh`.

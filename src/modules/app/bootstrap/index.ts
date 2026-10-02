@@ -14,7 +14,7 @@ import { appConfig, authAdapter as configuredAuthAdapter } from '@/config/app.co
 import { installErrorHandlers, reportError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { setupModules } from '@/modules'
-import { createAuthAdapter } from '@/modules/auth'
+import { createAuthAdapter, loadAuthAdapter } from '@/modules/auth'
 import { appModules } from '@/modules/setup'
 import { bootstrapTheme } from '@/plugins/bootstrap-theme'
 import { installErrorReporting } from '@/plugins/error-reporting'
@@ -60,6 +60,13 @@ export interface BootDeps {
   installSeams: () => void
   useAuthStore: () => AuthWiringStore
   createAuthAdapter: typeof createAuthAdapter
+  /**
+   * Makes the configured adapter buildable: fetches the module of one the
+   * project registered to load on demand, and rejects for a name nothing
+   * registered. A test that passes its own `createAuthAdapter` and a made-up
+   * adapter name passes this too.
+   */
+  loadAuthAdapter: (adapterName: string) => Promise<void>
   installQuery: (app: App) => void
   installI18n: (app: App) => void
   setupModules: (
@@ -124,6 +131,7 @@ function defaultDeps(options: BootOptions): BootDeps {
     installSeams,
     useAuthStore,
     createAuthAdapter,
+    loadAuthAdapter,
     installQuery: (app) => app.use(VueQueryPlugin, options.queryOptions ?? vueQueryOptions),
     installI18n,
     setupModules,
@@ -308,6 +316,13 @@ async function runBoot(
   // backends, so a seam can register into them, and before anything below
   // reads an API client, a role or a permission.
   deps.installSeams()
+  // After the seams, which is where the project's own adapters are registered,
+  // and before anything builds one. Awaited because an adapter can be a lazy
+  // chunk (an SDK only the deployment that selects it should download); for a
+  // built-in adapter it resolves at once. An unknown name rejects here and
+  // boot shows the failure screen: there is no adapter to fall back to that
+  // would not be the wrong one.
+  await deps.loadAuthAdapter(config.authAdapter)
   const authStore = deps.useAuthStore()
   setupAuthInterceptor(authStore, { ...wiring, router })
 

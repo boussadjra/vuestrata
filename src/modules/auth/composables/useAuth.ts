@@ -2,13 +2,14 @@ import { authAdapter as configuredAuthAdapter } from '~/config/app.config'
 import { normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import { useAuthStore } from '~/stores/auth'
-import type { AuthCredentials, AuthProvider } from '~/types'
+import type { AuthCredentials } from '~/types'
 
 import {
   createAuthAdapter,
   OAuthRedirectError,
   requireCapability,
   type AuthAdapter,
+  type AuthProviderId,
 } from '../adapters'
 import { safeRedirectPath } from '../lib/safe-redirect'
 import { useAuthChallengeStore } from '../stores/challenge'
@@ -185,7 +186,7 @@ export function useAuth() {
     }
   }
 
-  async function socialLogin(provider: AuthProvider) {
+  async function socialLogin(provider: AuthProviderId) {
     isLoading.value = true
     error.value = null
     try {

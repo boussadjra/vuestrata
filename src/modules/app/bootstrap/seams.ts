@@ -1,3 +1,6 @@
+import authConfig from '@/config/auth.config'
+import { installAuthConfig } from '@/modules/auth'
+
 /**
  * Where the project's seeded configuration files reach the runtime.
  *
@@ -5,19 +8,21 @@
  * project never has to edit it. The way a project changes behaviour instead is
  * a small file it owns — brand colours, API conventions, RBAC roles — which
  * Vuestrata's own code reads. This function is the one place those files are
- * read and handed to the framework-agnostic `core/lib` runtime slots.
+ * read and handed to the code that uses them.
  *
- * It is a deliberate no-op in this release. It exists now so that the boot
- * order is fixed before any seam depends on it: `boot()` calls it right after
- * `installRuntimeBackends()` and before anything reads an API client, a role
- * definition or a permission, so a later release adds its seam here and every
- * project that has taken this release picks it up without editing `main.ts`.
+ * `boot()` calls it right after `installRuntimeBackends()` and before anything
+ * reads an API client, an auth adapter, a role definition or a permission.
+ * Each seam is imported statically, at the top of this file, on purpose: a
+ * seeded file that was deleted fails the build instead of quietly restoring
+ * the defaults.
  *
  * Keep it synchronous. A seam that needs to load something asynchronously
  * belongs in its own boot step, where a failure reaches `renderBootFailure()`
  * like any other.
  */
 export function installSeams(): void {
-  // Intentionally empty. Later packages read the project's seeded config
-  // files (`*.overrides.ts`) here and install them into `core/lib`.
+  // `app/config/auth.config.ts`: endpoints, response shapes, providers and the
+  // project's own adapters. The auth module cannot import that file itself —
+  // the file imports its helpers from the module's barrel.
+  installAuthConfig(authConfig)
 }
