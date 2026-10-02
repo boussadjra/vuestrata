@@ -109,16 +109,21 @@ function callPatterns(names) {
  * is recognised as a spec, even though no name in it says so.
  */
 const TEST_LIKE =
-  /^[ \t]*[\w$]+(?:\.(?:only|skip|fixme|slow))?\(\s*(['"`])((?:(?!\1)[^\n\\]|\\.)*)\1\s*,\s*(?:\{[^{}]*\}\s*,\s*)?(?:async\b|function\b|\(|[\w$]+\s*=>)/gm
+  /^[ \t]*([\w$]+)(?:\.(?:only|skip|fixme|slow))?\(\s*(['"`])((?:(?!\2)[^\n\\]|\\.)*)\2\s*,\s*(?:\{[^{}]*\}\s*,\s*)?(?:async\b|function\b|\(|[\w$]+\s*=>)/gm
 
-/** The `{ title, text }` of each test-like call in `source`. */
+/** The `{ name, title, text, start }` of each test-like call in `source`. */
 function testLikeCalls(source) {
   const calls = []
   for (const match of source.matchAll(TEST_LIKE)) {
     const open = match.index + match[0].indexOf('(')
     const close = findClose(source, open)
     if (close === -1) continue
-    calls.push({ title: match[2], text: source.slice(match.index, close) })
+    calls.push({
+      name: match[1],
+      title: match[3],
+      text: source.slice(match.index, close),
+      start: match.index,
+    })
   }
   return calls
 }
@@ -184,6 +189,28 @@ export function pruneSpec(source, prefixes, { home = false } = {}) {
   let dropped = 0
   let next = pruneRouteLists(source, prefixes)
   const tainted = taintedHelpers(next, prefixes)
+  const visitsRemoved = (text) => mentionsRemovedRoute(text, prefixes) || callsAny(text, tainted)
+
+  // Tests declared through a name this spec gives no account of. They cannot be
+  // cut one by one, so nothing that holds one is cut whole either.
+  const unreadable = (text) =>
+    testLikeCalls(stripComments(text)).filter((call) => !names.includes(call.name))
+
+  /** The smallest `describe` around `range`, or the file. */
+  const scopeOf = (text, range) =>
+    statementRanges(text, patterns.describe)
+      .filter((scope) => scope.start <= range.start && range.end <= scope.end)
+      .sort((a, b) => a.end - a.start - (b.end - b.start))[0] ?? {
+      start: 0,
+      end: text.length,
+      file: true,
+    }
+
+  /** Where each hook that opens a removed route applies. */
+  const poisonedScopes = (text) =>
+    statementRanges(text, patterns.hook)
+      .filter((hook) => visitsRemoved(text.slice(hook.start, hook.end)))
+      .map((hook) => scopeOf(text, hook))
 
   for (;;) {
     const before = next
@@ -199,9 +226,7 @@ export function pruneSpec(source, prefixes, { home = false } = {}) {
 
     for (const range of statementRanges(next, patterns.leaf)) {
       const text = next.slice(range.start, range.end)
-      if (!mentionsRemovedRoute(text, prefixes) && !callsAny(text, tainted) && !isHomeTest(text)) {
-        continue
-      }
+      if (!visitsRemoved(text) && !isHomeTest(text)) continue
       next = cut(next, range)
       dropped++
       break
@@ -210,23 +235,32 @@ export function pruneSpec(source, prefixes, { home = false } = {}) {
 
     // A hook that opens a removed route poisons every test it runs before, so
     // the scope it belongs to goes — the enclosing `describe`, or the file.
-    const describes = statementRanges(next, patterns.describe)
-    const hook = statementRanges(next, patterns.hook).find((range) => {
-      const text = next.slice(range.start, range.end)
-      return mentionsRemovedRoute(text, prefixes) || callsAny(text, tainted)
-    })
-    if (hook) {
-      const scope = describes
-        .filter((range) => range.start <= hook.start && hook.end <= range.end)
-        .sort((a, b) => a.end - a.start - (b.end - b.start))[0]
-      if (!scope) return { contents: null, changed: true, dropped, leftovers: [], stray: false }
-      next = cut(next, scope)
-      continue
-    }
+    // Unless that scope holds a test this cannot read: then the tests it can
+    // read go one at a time, and the hook stays with the rest, for the report.
+    for (const scope of poisonedScopes(next)) {
+      const text = next.slice(scope.start, scope.end)
 
-    for (const range of describes) {
-      const text = next.slice(range.start, range.end)
-      if (patterns.hasLeaf.test(stripComments(text))) continue
+      if (unreadable(text).length === 0) {
+        if (scope.file) {
+          return { contents: null, changed: true, dropped, leftovers: [], stray: false }
+        }
+        next = cut(next, scope)
+        break
+      }
+
+      const [leaf] = statementRanges(text, patterns.leaf)
+      if (!leaf) continue
+      next = cut(next, { start: scope.start + leaf.start, end: scope.start + leaf.end })
+      dropped++
+      break
+    }
+    if (next !== before) continue
+
+    // A `describe` with no test left in it. One that holds a test this cannot
+    // read is not empty, whatever it looks like to the patterns above.
+    for (const range of statementRanges(next, patterns.describe)) {
+      const text = stripComments(next.slice(range.start, range.end))
+      if (patterns.hasLeaf.test(text) || testLikeCalls(text).length > 0) continue
       next = cut(next, range)
       break
     }
@@ -241,8 +275,15 @@ export function pruneSpec(source, prefixes, { home = false } = {}) {
     return { contents: null, changed: true, dropped, leftovers: [], stray: false }
   }
 
+  // What is left that still opens a removed route: in its own body, or through
+  // a hook that was kept because it runs before a test this could not read.
+  const poisoned = poisonedScopes(remaining)
   const leftovers = calls
-    .filter((call) => mentionsRemovedRoute(call.text, prefixes) || callsAny(call.text, tainted))
+    .filter(
+      (call) =>
+        visitsRemoved(call.text) ||
+        poisoned.some((scope) => scope.start <= call.start && call.start < scope.end),
+    )
     .map((call) => call.title)
   // A removed route named where no test could be made out: a constant, a
   // fixture, a list that holds more than routes.

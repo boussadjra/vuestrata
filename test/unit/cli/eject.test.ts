@@ -668,6 +668,69 @@ describe('eject and a spec written on a fixture', () => {
     expect(foreign.contents).toBe(FOREIGN_SPEC)
     expect(foreign.leftovers).toEqual(['orders list'])
   })
+
+  it('does not take a describe for empty when its tests are on a fixture it cannot read', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\nimport { authedTest } from './fixtures'\n\n" +
+      "test.describe('accounts', () => {\n" +
+      "  authedTest('the account page', async ({ page }) => {\n    await page.goto('/dashboard/account')\n  })\n" +
+      '})\n\n' +
+      "test('orders', async ({ page }) => {\n  await page.goto('/dashboard/orders')\n})\n"
+
+    const result = pruneSpec(spec, ['/dashboard/orders'])
+
+    // The one test it can read goes; the describe it cannot see into stays.
+    expect(result.dropped).toBe(1)
+    expect(result.contents).not.toContain("test('orders'")
+    expect(result.contents).toContain("test.describe('accounts'")
+    expect(result.contents).toContain("authedTest('the account page'")
+    expect(result.leftovers).toEqual([])
+  })
+
+  it('keeps a spec whose hook opens a removed route when it cannot read the tests under it', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\nimport { authedTest } from './fixtures'\n\n" +
+      "test.beforeEach(async ({ page }) => {\n  await page.goto('/dashboard/orders')\n})\n\n" +
+      "test('sorts the list', async ({ page }) => {\n  await page.getByRole('columnheader').click()\n})\n\n" +
+      "authedTest('filters the list', async ({ page }) => {\n  await page.getByRole('button').click()\n})\n"
+
+    const result = pruneSpec(spec, ['/dashboard/orders'])
+
+    // The hook runs before both. The test it can read goes, as it would with
+    // the file; the other stays with the hook, and is named.
+    expect(result.contents).not.toBeNull()
+    expect(result.contents).not.toContain("test('sorts the list'")
+    expect(result.contents).toContain('test.beforeEach(')
+    expect(result.contents).toContain("authedTest('filters the list'")
+    expect(result.dropped).toBe(1)
+    expect(result.leftovers).toEqual(['filters the list'])
+
+    // Every test readable: the file goes, as before.
+    const readable = spec.replace("authedTest('filters", "test('filters")
+    expect(pruneSpec(readable, ['/dashboard/orders']).contents).toBeNull()
+  })
+
+  it('does the same for a describe: the hook and the tests it cannot read stay, and are named', () => {
+    const spec =
+      "import { test } from '@playwright/test'\n\nimport { authedTest } from './fixtures'\n\n" +
+      "test.describe('orders', () => {\n" +
+      "  test.beforeEach(async ({ page }) => {\n    await page.goto('/dashboard/orders')\n  })\n\n" +
+      "  authedTest('filters the list', async ({ page }) => {\n    await page.getByRole('button').click()\n  })\n" +
+      '})\n\n' +
+      "test('the account page', async ({ page }) => {\n  await page.goto('/dashboard/account')\n})\n"
+
+    const result = pruneSpec(spec, ['/dashboard/orders'])
+    expect(result.contents).toBe(spec)
+    expect(result.leftovers).toEqual(['filters the list'])
+
+    // With tests it can read, the describe goes whole and the rest stays.
+    const readable = pruneSpec(spec.replace("authedTest('filters", "test('filters"), [
+      '/dashboard/orders',
+    ])
+    expect(readable.contents).not.toContain("test.describe('orders'")
+    expect(readable.contents).toContain("test('the account page'")
+    expect(readable.leftovers).toEqual([])
+  })
 })
 
 describe('eject and the home-page tests', () => {
