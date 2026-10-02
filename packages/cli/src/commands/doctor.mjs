@@ -3,6 +3,11 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { logger } from '../lib/cli.mjs'
+import {
+  DEPLOY_CONFIG_READERS,
+  deployWiringSteps,
+  readsDeployConfig,
+} from '../lib/deploy-wiring.mjs'
 import { driftedFiles, LOCKFILE_NAME, readLock, regionHash } from '../lib/lockfile.mjs'
 import { PROJECT_REGISTRIES, SEEDED_FILES } from '../lib/managed.mjs'
 import {
@@ -121,6 +126,7 @@ export function diagnose({ root, version, source, migrations }) {
     )
     const unwired = unwiredRbacOverrides({ root, manifest })
     if (unwired) findings.warnings.push(unwired)
+    findings.warnings.push(...unreadDeployConfig({ root, manifest }))
     return findings
   }
 
@@ -231,6 +237,14 @@ export function diagnose({ root, version, source, migrations }) {
   const unwired = replaced ? undefined : unwiredRbacOverrides({ root, manifest })
   if (unwired) findings.warnings.push(unwired)
 
+  // ── 6b. Is deploy.config.ts read by the tooling that acts on it? ─────────
+  // The same reasoning: a script the upgrade replaces is about to read it.
+  const drifted = new Set(driftedFiles(root, lock).map((entry) => entry.rel))
+  const willBeCurrent = (rel) =>
+    (plan?.adopted ?? []).some((entry) => entry.rel === rel) ||
+    (lock.files[rel]?.class === 'managed' && !drifted.has(rel))
+  findings.warnings.push(...unreadDeployConfig({ root, manifest, skip: willBeCurrent }))
+
   // ── 7. Which vuestrata: regions were edited? ─────────────────────────────
   for (const registry of PROJECT_REGISTRIES) {
     const rel = slot(manifest, registry.slot)
@@ -275,6 +289,30 @@ function unwiredRbacOverrides({ root, manifest }) {
     `${overrides} exists, but ${backends} does not install it, so the permissions you declare, ` +
     'grant and withdraw there have no effect. ' +
     RBAC_WIRING_STEPS
+  )
+}
+
+/**
+ * A warning for each script that should read the project's `deploy.config.ts`
+ * and is a copy that does not.
+ *
+ * The Vite plugin and the header generator are what give the file its effect.
+ * A copy from before it existed ignores it, so the variables, runtime keys and
+ * header sources declared there do nothing — and nothing fails to say so.
+ * `skip` names the copies an upgrade is about to replace.
+ */
+function unreadDeployConfig({ root, manifest, skip = () => false }) {
+  const config = slot(manifest, 'deployConfig')
+  if (!fs.existsSync(path.join(root, config))) return []
+
+  return DEPLOY_CONFIG_READERS.filter(({ file }) => {
+    const full = path.join(root, file)
+    if (!fs.existsSync(full) || skip(file)) return false
+    return !readsDeployConfig(fs.readFileSync(full, 'utf8'))
+  }).map(
+    ({ file, consequence }) =>
+      `${config} exists, but ${file} does not read it, so ${consequence}. ` +
+      deployWiringSteps(file, incomingPath(file)),
   )
 }
 

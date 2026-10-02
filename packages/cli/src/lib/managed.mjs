@@ -30,6 +30,10 @@ export const MANAGED_DIRS = [
   // means is not something a project should have to carry a fix for.
   'src/modules/auth/adapters',
   'src/modules/auth/lib',
+  // What the Docker image runs before nginx starts. It writes deploy-time
+  // values into a script and a server configuration, so a fix here is a
+  // security fix, and a project has no reason to carry its own copy.
+  'docker/entrypoint.d',
 ]
 
 /** Managed files that do not sit under a managed directory. */
@@ -73,10 +77,14 @@ export const MANAGED_FILES = [
   // Deployment tooling.
   'scripts/security/headers.mjs',
   'scripts/security/sync-headers.mjs',
+  'scripts/security/deploy-config.mjs',
   'scripts/build/verify-bundle.mjs',
   'scripts/build/write-version.mjs',
   'scripts/vite/vuestrata-plugin.mjs',
   'scripts/vite/vuestrata-plugin.d.mts',
+  // The empty runtime overlay every page loads. A deployment answers the URL
+  // with its own values; the file in the repository stays Vuestrata's.
+  'public/runtime-config.js',
 ]
 
 /**
@@ -100,6 +108,7 @@ export const SEEDED_FILES = [
   'src/modules/app/styles/brand.css',
   'src/modules/app/config/app.overrides.ts',
   'src/modules/app/config/rbac.overrides.ts',
+  'src/modules/app/config/deploy.config.ts',
   'src/modules/app/components/Logo.vue',
   'src/modules/app/locales/en.overrides.json',
   'src/modules/app/locales/fr.overrides.json',
