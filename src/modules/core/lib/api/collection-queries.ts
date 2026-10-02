@@ -111,6 +111,18 @@ const collectionLogger = createScopedLogger('collection')
  */
 const RECORDLESS_WRITE_STATUSES = new Set([200, 201, 204])
 
+/**
+ * What every read here tells the API client: the body is about to be parsed
+ * as data, so a web page or a file in its place is an error to raise at once
+ * (`UNEXPECTED_RESPONSE`), not a string to hand to a schema. A misrouted API
+ * URL answered by a static host's fallback page is the usual cause.
+ *
+ * The writes do not say it. A create or an update may answer with no record
+ * at all (see `writtenRecord`), and a delete's body is never read: a backend
+ * that answers `OK` in plain text has still done what it was asked.
+ */
+const READS_JSON = { expectJson: true } as const
+
 function isEmptyBody(body: unknown): boolean {
   return body === undefined || body === null || (typeof body === 'string' && body.trim() === '')
 }
@@ -222,7 +234,7 @@ export function createCollectionApi<
 
     const path = followUpPath(response, updatedId)
     if (path === undefined) throw contractMismatch(resource, parsed.error.issues)
-    return parse(schema, await apiGet<unknown>(path))
+    return parse(schema, await apiGet<unknown>(path, READS_JSON))
   }
 
   function useList(filters: Ref<TFilters>) {
@@ -234,6 +246,7 @@ export function createCollectionApi<
           // A superseded page or search is aborted rather than left to run:
           // nothing will read it, and the server can stop working on it.
           signal,
+          ...READS_JSON,
         })
         return parse(listSchema, raw)
       },
@@ -258,7 +271,10 @@ export function createCollectionApi<
     const query = useQuery({
       queryKey: computed(() => keys.detail(toValue(id) ?? '')),
       queryFn: async ({ signal }) =>
-        parse(schema, await apiGet<unknown>(`/${resource}/${toValue(id)}`, { signal })),
+        parse(
+          schema,
+          await apiGet<unknown>(`/${resource}/${toValue(id)}`, { signal, ...READS_JSON }),
+        ),
       // Route params arrive before the component that reads them has mounted;
       // firing `/orders/undefined` produces a 404 the user briefly sees.
       enabled: computed(() => Boolean(toValue(id))),

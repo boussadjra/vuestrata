@@ -24,6 +24,14 @@ export interface ApiTracing {
   requestIdHeader: string
   /** Send a W3C Trace Context `traceparent`, with a new trace per request. */
   traceparent: boolean
+  /**
+   * The `sampled` flag of that `traceparent`. On by default, which asks a
+   * backend that honours the caller's decision (OpenTelemetry's parent-based
+   * sampler, the usual default) to record EVERY request the app makes. Turn it
+   * off to leave the decision to the backend's own sampler; the ids are sent
+   * either way, so a failure can still be correlated.
+   */
+  sampled: boolean
 }
 
 /** What `tracing` accepts in the overrides: `true` for both headers, or a choice. */
@@ -33,6 +41,7 @@ export const DEFAULT_TRACING: ApiTracing = Object.freeze({
   requestId: false,
   requestIdHeader: 'X-Request-Id',
   traceparent: false,
+  sampled: true,
 })
 
 /** The full settings for whatever the overrides said. */
@@ -43,6 +52,7 @@ export function resolveTracing(options: ApiTracingOptions | undefined): ApiTraci
     requestId: options.requestId ?? DEFAULT_TRACING.requestId,
     requestIdHeader: options.requestIdHeader || DEFAULT_TRACING.requestIdHeader,
     traceparent: options.traceparent ?? DEFAULT_TRACING.traceparent,
+    sampled: options.sampled ?? DEFAULT_TRACING.sampled,
   }
 }
 
@@ -74,11 +84,12 @@ export function createRequestId(): string {
 
 /**
  * A `traceparent` for a request that starts a trace: version `00`, a 16-byte
- * trace id, an 8-byte parent id, and the `sampled` flag.
+ * trace id, an 8-byte parent id, and the trace flags: `01` when `sampled`,
+ * `00` when the decision is left to the backend.
  *
  * The browser is the root of the trace, so the ids are new each time. A random
  * id is all-zero (which the spec forbids) once in 2^128 requests.
  */
-export function createTraceparent(): string {
-  return `00-${randomHex(16)}-${randomHex(8)}-01`
+export function createTraceparent(sampled = true): string {
+  return `00-${randomHex(16)}-${randomHex(8)}-${sampled ? '01' : '00'}`
 }

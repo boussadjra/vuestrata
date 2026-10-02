@@ -14,6 +14,12 @@
  * Presets bundle the ones a framework needs (`core/lib/api/presets`); a
  * project adds its own under `classify` in `app/config/api.overrides.ts`.
  *
+ * `unauthenticated` makes the client refresh the session and SEND THE REQUEST
+ * AGAIN. For a `POST` that is only safe when the first attempt was refused
+ * before it did anything, so a classifier answers it only on evidence of a
+ * refusal (a 401, a 403 that says so, a redirect to the sign-in page), never
+ * on a guess from what the response looks like.
+ *
  * Framework-agnostic.
  */
 import type { ApiResponseClass, ApiResponseClassifier, ApiResponseContext } from './integration'
@@ -45,10 +51,9 @@ export interface LoginRedirectOptions {
   /** Tested against the path the redirect ended on. Defaults to `DEFAULT_LOGIN_PATH`. */
   loginPath?: RegExp
   /**
-   * Also treat a redirect that ended on an HTML page, for a request that asked
-   * for JSON, as a login redirect, whatever its path. On by default: an API
-   * that redirects a JSON request to a web page is sending the browser
-   * somewhere to sign in far more often than anywhere else.
+   * Also report a redirect that ended on an HTML page somewhere else, for a
+   * request that asked for JSON, as an `unexpected` response. On by default:
+   * the alternative is that page handed to the caller as if it were data.
    */
   html?: boolean
 }
@@ -64,20 +69,32 @@ function pathOf(url: string): string {
 /**
  * A request that was redirected to the sign-in page.
  *
- * Only a response `fetch` reached through a redirect qualifies. An HTML page
- * served directly at an API URL is a misrouted request (a static host's SPA
- * fallback answering `/api`), not an expired session, and the client reports
- * that as `UNEXPECTED_RESPONSE` instead of signing the user out.
+ * Only a response `fetch` reached through a redirect qualifies, and only the
+ * path it ended on says "sign in": the backend refused the request and sent
+ * the browser to authenticate, so nothing was applied and the request can be
+ * replayed after a refresh, whatever its method.
  *
- * It cannot see a redirect to another origin (an identity provider): the
- * browser blocks that response for CORS, and it arrives as a network error.
+ * A redirect that ended on an HTML page anywhere else is NOT read as an
+ * expired session. It is a `POST` the backend applied and then answered with
+ * a redirect to a page (replaying it would apply it twice), or a `GET` that a
+ * static host's fallback page answered (refreshing would end a session that
+ * is perfectly valid). The response is `unexpected` instead: the caller gets
+ * an `UNEXPECTED_RESPONSE` error, nothing is refreshed and nothing is sent
+ * again.
+ *
+ * An HTML page served directly at an API URL, with no redirect, is left alone
+ * here; see `expectJson` on the API client for failing on one.
+ *
+ * A redirect to another origin (an identity provider) is visible only when
+ * that origin allows the app's origin through CORS. Otherwise the browser
+ * blocks the response, and it arrives as a network error no classifier sees.
  */
 export function loginRedirect(options: LoginRedirectOptions = {}): ApiResponseClassifier {
   const { loginPath = DEFAULT_LOGIN_PATH, html = true } = options
   return (context) => {
     if (!context.redirected) return null
     if (loginPath.test(pathOf(context.responseUrl))) return 'unauthenticated'
-    if (html && context.expectsJson && context.contentType === 'text/html') return 'unauthenticated'
+    if (html && context.expectsJson && context.contentType === 'text/html') return 'unexpected'
     return null
   }
 }
@@ -91,15 +108,36 @@ export interface AnonymousForbiddenOptions {
   codes?: readonly string[]
   /**
    * `detail` texts that mean the same, for a backend that sends no code.
-   * Defaults to DRF's English message. DRF translates it when a locale is
-   * active, so a backend that answers in the user's language needs its own
-   * entries here, or a code.
+   * Defaults to `DRF_ANONYMOUS_MESSAGES`: DRF's sentence in English, French and
+   * Arabic. Passing a list replaces the default, so spread it to add to it:
+   * `[...DRF_ANONYMOUS_MESSAGES, 'Anmeldedaten fehlen.']`.
    */
   messages?: readonly (string | RegExp)[]
 }
 
 const DRF_ANONYMOUS_CODES = ['not_authenticated', 'authentication_failed']
-const DRF_ANONYMOUS_MESSAGES = ['Authentication credentials were not provided.']
+
+/**
+ * `NotAuthenticated.default_detail` as DRF sends it, in the languages this
+ * template ships.
+ *
+ * DRF translates the sentence when Django's `LocaleMiddleware` is active, and
+ * the API client sends `Accept-Language`, so a French user's expired session
+ * arrives in French. The translations are DRF's own, copied from its catalogs
+ * (`rest_framework/locale/<lang>/LC_MESSAGES/django.po` in
+ * github.com/encode/django-rest-framework, msgid "Authentication credentials
+ * were not provided."), not written here: a paraphrase would match nothing.
+ *
+ * A sentence is the weakest signal there is. It covers three languages, and a
+ * backend that rewords it or answers in a fourth is read as "not allowed". The
+ * robust options are on the backend: answer 401 (give the first authentication
+ * class an `authenticate_header`), or put a `code` in the body.
+ */
+export const DRF_ANONYMOUS_MESSAGES: readonly string[] = [
+  'Authentication credentials were not provided.',
+  "Informations d'authentification non fournies.",
+  'لم يتم تزويد بيانات الدخول.',
+]
 
 function codesOf(body: Record<string, unknown>): string[] {
   const codes: string[] = []
@@ -119,7 +157,13 @@ function codesOf(body: Record<string, unknown>): string[] {
  * authentication is the first authenticator, because there is no
  * `WWW-Authenticate` challenge to send with a 401. The status alone cannot tell
  * the two apart, and reading every 403 as an expired session would sign a user
- * out for clicking something they may not do, so this matches on the body.
+ * out for clicking something they may not do, so this matches on the body: an
+ * error code first, which is the same in every language, then DRF's sentence.
+ *
+ * A `WWW-Authenticate` header on the 403 is deliberately not a signal. DRF
+ * never sends one with a 403 (when an authenticator provides the header it
+ * answers 401, which the built-in classifier reads), and an OAuth resource
+ * server sends one with a 403 that means the opposite: `insufficient_scope`.
  */
 export function anonymousForbidden(options: AnonymousForbiddenOptions = {}): ApiResponseClassifier {
   const { codes = DRF_ANONYMOUS_CODES, messages = DRF_ANONYMOUS_MESSAGES } = options

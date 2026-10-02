@@ -400,6 +400,17 @@ describe('tracing', () => {
     expect(seen[0]).not.toHaveProperty('traceparent')
   })
 
+  it('leaves the sampling decision to the backend when told to', async () => {
+    configure({ tracing: { traceparent: true, sampled: false } })
+    const seen = recordHeaders('get', '/orders')
+
+    await apiGet('/orders')
+
+    // Flags 00: the ids still correlate a failure, and the backend's own
+    // sampler decides what to record instead of recording every request.
+    expect(seen[0]!.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-00$/)
+  })
+
   it('reports the id it sent on a failure the backend did not name', async () => {
     configure({ tracing: { requestId: true } })
     let sent: string | null = null
@@ -540,13 +551,153 @@ describe('a session that expired behind a redirect to the login page', () => {
     expect(onSessionExpired).not.toHaveBeenCalled()
   })
 
-  it('without the classifier, is at least an explicit error and not a page of HTML', async () => {
-    signIn()
+  it('without the classifier, is an explicit error for a call that reads JSON', async () => {
+    const { onSessionExpired } = signIn()
     redirectingEndpoint('/orders')
+
+    const error = await failureOf(apiGet('/orders', { expectJson: true }))
+
+    expect(error).toMatchObject({ code: 'UNEXPECTED_RESPONSE', kind: 'contract' })
+    expect(onSessionExpired).not.toHaveBeenCalled()
+  })
+
+  it('is replayed for a POST too: the request was refused before it did anything', async () => {
+    configure({ backend: presets.aspnet })
+    const { onSessionExpired } = signIn()
+    const refreshes = refreshEndpoint()
+    const posts: (string | null)[] = []
+    server.use(
+      http.post('*/api/orders', ({ request }) => {
+        const authorization = request.headers.get('Authorization')
+        posts.push(authorization)
+        if (authorization === 'Bearer fresh-token') {
+          return HttpResponse.json({ id: 'ORD-1' }, { status: 201 })
+        }
+        // 303 where ASP.NET sends 302: the interceptor these tests run on
+        // follows a 302 only for a request without a body. A browser follows
+        // both, and the client sees the same thing either way.
+        return new HttpResponse(null, {
+          status: 303,
+          headers: { Location: `${window.location.origin}/Account/Login?ReturnUrl=%2Forders` },
+        })
+      }),
+      http.get('*/Account/Login', () => HttpResponse.html('<!doctype html><title>Log in</title>')),
+    )
+
+    expect(await apiPost('/orders', { sku: 'A-1' })).toEqual({ id: 'ORD-1' })
+
+    expect(posts).toEqual(['Bearer expired-token', 'Bearer fresh-token'])
+    expect(refreshes).toHaveLength(1)
+    expect(onSessionExpired).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * `fetch` hides a redirect: all the client sees is the page it ended on. Only
+ * the sign-in page says "you were refused". Any other page says nothing about
+ * the session, and a preset used to read it as an expired one anyway: it
+ * refreshed, sent the request again, and signed the user out when the same
+ * page came back.
+ */
+describe('a redirect that ended on a page other than the sign-in page', () => {
+  const page = (title: string) => HttpResponse.html(`<!doctype html><title>${title}</title>`)
+
+  it.each(['aspnet', 'laravel', 'django', 'spring'] as const)(
+    'does not send a POST again that the %s backend applied and then redirected',
+    async (preset) => {
+      configure({ backend: presets[preset] })
+      const { onSessionExpired, session } = signIn({ token: 'valid-token' })
+      const refreshes = refreshEndpoint()
+      const orders: unknown[] = []
+      server.use(
+        // Post/Redirect/Get: the order is created, then the browser is sent
+        // to a page that shows it.
+        http.post('*/api/orders', async ({ request }) => {
+          orders.push(await request.json())
+          return new HttpResponse(null, {
+            status: 303,
+            headers: { Location: `${window.location.origin}/orders/confirmation` },
+          })
+        }),
+        http.get('*/orders/confirmation', () => page('Order placed')),
+      )
+
+      const error = await failureOf(apiPost('/orders', { sku: 'A-1' }))
+
+      // ONE order. A replay would have placed a second.
+      expect(orders).toEqual([{ sku: 'A-1' }])
+      expect(refreshes).toHaveLength(0)
+      expect(onSessionExpired).not.toHaveBeenCalled()
+      expect(session.token).toBe('valid-token')
+      expect(error).toMatchObject({
+        code: 'UNEXPECTED_RESPONSE',
+        kind: 'contract',
+        retryable: false,
+        messageKey: 'errors.unexpected_response',
+      })
+    },
+  )
+
+  it('does not sign the user out when a static host answers an API URL with its fallback page', async () => {
+    configure({ backend: presets.aspnet })
+    const { onSessionExpired, session } = signIn({ token: 'valid-token' })
+    const refreshes = refreshEndpoint()
+    let requests = 0
+    server.use(
+      http.get('*/api/orders', () => {
+        requests++
+        return new HttpResponse(null, {
+          status: 302,
+          headers: { Location: `${window.location.origin}/index.html` },
+        })
+      }),
+      http.get('*/index.html', () => page('App')),
+    )
 
     const error = await failureOf(apiGet('/orders'))
 
     expect(error).toMatchObject({ code: 'UNEXPECTED_RESPONSE', kind: 'contract' })
+    expect(requests).toBe(1)
+    expect(refreshes).toHaveLength(0)
+    expect(onSessionExpired).not.toHaveBeenCalled()
+    expect(session.token).toBe('valid-token')
+  })
+
+  it('leaves a redirect to another JSON resource alone', async () => {
+    configure({ backend: presets.aspnet })
+    signIn({ token: 'valid-token' })
+    server.use(
+      http.get('*/api/orders/latest', () =>
+        HttpResponse.redirect(`${window.location.origin}/api/orders/ORD-9`, 302),
+      ),
+      http.get('*/api/orders/ORD-9', () => HttpResponse.json({ id: 'ORD-9' })),
+    )
+
+    expect(await apiGet('/orders/latest')).toEqual({ id: 'ORD-9' })
+  })
+
+  it('leaves the page to a call that asked for it', async () => {
+    configure({ backend: presets.aspnet })
+    signIn({ token: 'valid-token' })
+    server.use(
+      http.get('*/api/help', () =>
+        HttpResponse.redirect(`${window.location.origin}/help.html`, 302),
+      ),
+      http.get('*/help.html', () => page('Help')),
+    )
+
+    expect(await apiFetch('/help', { headers: { Accept: 'text/html' } })).toContain('Help')
+    expect(await apiFetch('/help', { responseType: 'text' })).toContain('Help')
+  })
+
+  it('lets a project classifier call a success unexpected, with no preset', async () => {
+    configure({
+      classify: ({ ok, contentType }) => (ok && contentType === 'text/html' ? 'unexpected' : null),
+    })
+    signIn({ token: 'valid-token' })
+    server.use(http.get('*/api/orders', () => page('Maintenance')))
+
+    expect((await failureOf(apiGet('/orders'))).code).toBe('UNEXPECTED_RESPONSE')
   })
 })
 
@@ -957,6 +1108,76 @@ describe('error mapping', () => {
     expect(error).toMatchObject({ status: 500, kind: 'http', retryable: true })
   })
 
+  it('keeps every field error of a Laravel 422 with a field named "constructor"', async () => {
+    configure({ backend: presets.laravel })
+    server.use(
+      http.post(
+        '*/api/customers',
+        () =>
+          new HttpResponse(
+            `{"message":"The given data was invalid.","errors":{
+              "constructor":["The constructor field is required."],
+              "__proto__":["The proto field is invalid."],
+              "toString":["Too long."],
+              "email":["The email has already been taken."]}}`,
+            { status: 422, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    )
+
+    const error = await failureOf(apiPost('/customers', { email: 'a@b.test' }))
+
+    // The mapper used to throw on "constructor", the client skipped it, and
+    // the built-in mapper that ran instead knows no `errors`: every field
+    // error was lost, "email" among them.
+    expect(error.status).toBe(422)
+    // `__proto__` never gets as far as a mapper: ofetch's JSON parser drops
+    // the key. The mappers are tested with it directly, in error-mappers.test.ts.
+    expect(Object.keys(error.details ?? {}).toSorted()).toEqual([
+      'constructor',
+      'email',
+      'toString',
+    ])
+    expect(error.details?.email).toEqual(['The email has already been taken.'])
+    expect(Object.getOwnPropertyDescriptor(error.details, 'constructor')?.value).toEqual([
+      'The constructor field is required.',
+    ])
+  })
+
+  it('never carries the details or a URL code of a 5xx, whatever the mapper read', async () => {
+    configure({ backend: presets.django, errors: problemJsonErrorMapper })
+    server.use(
+      http.get('*/api/orders', () =>
+        HttpResponse.json(
+          { trace: ['File "/srv/app/orders.py", line 88'], detail: 'connection to db-7 refused' },
+          { status: 500 },
+        ),
+      ),
+      http.get('*/api/invoices', () =>
+        HttpResponse.json(
+          {
+            type: 'https://errors.internal/db-unreachable',
+            title: 'Database unreachable',
+            status: 503,
+            errors: { Db: ['Server=db-7.internal;Password=hunter2'] },
+          },
+          { status: 503, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+
+    const drf = await failureOf(apiGet('/orders'))
+    const problem = await failureOf(apiGet('/invoices'))
+
+    for (const error of [drf, problem]) {
+      expect(error.details).toBeUndefined()
+      expect(error.formErrors).toBeUndefined()
+      expect(error.serverMessage).toBeUndefined()
+      expect(error.code).toBe('API_ERROR')
+      expect(JSON.stringify(error.toApiError())).not.toMatch(/db-7|hunter2|orders\.py/)
+    }
+  })
+
   it('skips a mapper that throws', async () => {
     configure({
       errors: () => {
@@ -972,27 +1193,18 @@ describe('error mapping', () => {
 })
 
 describe('a success that is not JSON', () => {
-  it('is an UNEXPECTED_RESPONSE, not a string handed to a schema', async () => {
+  // What the client makes of every kind of 2xx, with and without `expectJson`,
+  // is pinned against bare ofetch in `response-matrix.test.ts`.
+  it('is handed to the caller as ofetch hands it over, unless the call expects JSON', async () => {
     // A static host's SPA fallback answering an API URL with index.html.
     server.use(
-      http.get('*/api/customers', () =>
-        HttpResponse.html('<!doctype html><div id="app"></div>', {
-          headers: { 'X-Request-Id': 'edge-1' },
-        }),
-      ),
+      http.get('*/api/customers', () => HttpResponse.html('<!doctype html><div id="app"></div>')),
     )
 
-    const error = await failureOf(apiGet('/customers'))
-
-    expect(error).toMatchObject({
-      code: 'UNEXPECTED_RESPONSE',
-      kind: 'contract',
-      retryable: false,
-      messageKey: 'errors.unexpected_response',
-      message: 'The server sent a response this app could not read.',
-      requestId: 'edge-1',
-    })
-    expect(error.message).not.toContain('html')
+    expect(await apiGet('/customers')).toBe('<!doctype html><div id="app"></div>')
+    expect((await failureOf(apiGet('/customers', { expectJson: true }))).code).toBe(
+      'UNEXPECTED_RESPONSE',
+    )
   })
 
   it('leaves a request that asked for text or a blob alone', async () => {
@@ -1006,18 +1218,6 @@ describe('a success that is not JSON', () => {
     expect(await apiFetch('/export', { headers: { Accept: 'text/csv' } })).toBe('id,name\n1,Ada')
   })
 
-  it('leaves an empty success alone, whatever it calls itself', async () => {
-    server.use(
-      http.delete('*/api/customers/1', () => new HttpResponse(null, { status: 204 })),
-      http.post('*/api/customers', () =>
-        HttpResponse.text('', { status: 201, headers: { 'Content-Type': 'text/plain' } }),
-      ),
-    )
-
-    await expect(apiFetch('/customers/1', { method: 'DELETE' })).resolves.toBeUndefined()
-    await expect(apiPost('/customers', { company: 'Acme' })).resolves.toBe('')
-  })
-
   it('accepts every JSON media type', async () => {
     server.use(
       http.get('*/api/customers', () =>
@@ -1027,7 +1227,7 @@ describe('a success that is not JSON', () => {
       ),
     )
 
-    expect(await apiGet('/customers')).toEqual({ ok: true })
+    expect(await apiGet('/customers', { expectJson: true })).toEqual({ ok: true })
   })
 })
 

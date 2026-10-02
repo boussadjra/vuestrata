@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import {
   anonymousForbidden,
   DEFAULT_LOGIN_PATH,
+  DRF_ANONYMOUS_MESSAGES,
   drfCsrfFailed,
   loginRedirect,
   statusMeans,
@@ -107,7 +108,13 @@ describe('the defaults', () => {
       errorMappers: [vuestrataErrorMapper],
       csrf: { source: 'meta', name: 'csrf-token', header: 'X-CSRF-Token' },
       timeoutMs: 15_000,
-      tracing: { requestId: false, requestIdHeader: 'X-Request-Id', traceparent: false },
+      tracing: {
+        requestId: false,
+        requestIdHeader: 'X-Request-Id',
+        traceparent: false,
+        sampled: true,
+      },
+      redirect: 'follow',
     })
   })
 
@@ -255,7 +262,31 @@ describe('how a preset and the project options combine', () => {
       requestId: false,
       requestIdHeader: 'X-Request-Id',
       traceparent: true,
+      sampled: true,
     })
+  })
+
+  it('follows redirects unless the project or the preset says to refuse them', () => {
+    expect(resolveApiIntegration({}).redirect).toBe('follow')
+    expect(resolveApiIntegration({ redirect: 'error' }).redirect).toBe('error')
+    expect(resolveApiIntegration({ backend: { ...backend, redirect: 'error' } }).redirect).toBe(
+      'error',
+    )
+    expect(
+      resolveApiIntegration({ backend: { ...backend, redirect: 'error' }, redirect: 'follow' })
+        .redirect,
+    ).toBe('follow')
+  })
+
+  it('keeps prime state only for a strategy that can prime, one per resolution', () => {
+    expect(resolveApiIntegration({}).csrfPrime).toBeUndefined()
+    expect(resolveApiIntegration({ csrf: csrfPresets.django }).csrfPrime).toBeUndefined()
+
+    const first = resolveApiIntegration({ backend: presets.laravel })
+    const second = resolveApiIntegration({ backend: presets.laravel })
+    expect(first.csrfPrime).toEqual({ inFlight: null, retryAfter: 0 })
+    // Never shared: what one installed integration learned is not another's.
+    expect(second.csrfPrime).not.toBe(first.csrfPrime)
   })
 
   it('lets a project adjust one field of a preset strategy by spreading it', () => {
@@ -424,14 +455,27 @@ describe('classifiers', () => {
       ).toBe('unauthenticated')
     })
 
-    it('reads a redirect that ended on any HTML page, for a request that asked for JSON', () => {
+    it('reads it for any method: the request was refused before it did anything', () => {
+      for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) {
+        expect(
+          classifier(response({ method, redirected: true, responseUrl: 'https://app.test/login' })),
+        ).toBe('unauthenticated')
+      }
+    })
+
+    it('reads a redirect that ended on any other HTML page as unexpected, never as signed out', () => {
       const html = response({
         redirected: true,
         responseUrl: 'https://app.test/welcome',
         contentType: 'text/html',
       })
 
-      expect(classifier(html)).toBe('unauthenticated')
+      // A POST the backend applied and answered with a redirect to a page, or
+      // a GET a static host's fallback answered: neither is an expired
+      // session, and "unauthenticated" would replay the one and end the other.
+      for (const method of ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']) {
+        expect(classifier({ ...html, method })).toBe('unexpected')
+      }
       expect(classifier({ ...html, expectsJson: false })).toBeNull()
       expect(loginRedirect({ html: false })(html)).toBeNull()
     })
@@ -492,12 +536,49 @@ describe('classifiers', () => {
       expect(classifier(forbidden({ detail: 'Interdit.', code: 'permission_denied' }))).toBeNull()
     })
 
-    it('takes the wording of a backend that answers in the user language', () => {
-      const classifier = anonymousForbidden({ messages: [/^Informations d'authentification/] })
+    it("reads DRF's own French and Arabic wording, which Accept-Language now asks for", () => {
+      const classifier = anonymousForbidden()
 
+      // Verbatim from rest_framework/locale/{fr,ar}/LC_MESSAGES/django.po.
       expect(
         classifier(forbidden({ detail: "Informations d'authentification non fournies." })),
       ).toBe('unauthenticated')
+      expect(classifier(forbidden({ detail: 'لم يتم تزويد بيانات الدخول.' }))).toBe(
+        'unauthenticated',
+      )
+      // The permission error stays one, in those languages too.
+      expect(
+        classifier(
+          forbidden({ detail: "Vous n'avez pas la permission d'effectuer cette action." }),
+        ),
+      ).toBeNull()
+      expect(DRF_ANONYMOUS_MESSAGES).toHaveLength(3)
+    })
+
+    it('takes the wording of a backend that answers in another language', () => {
+      const classifier = anonymousForbidden({
+        messages: [...DRF_ANONYMOUS_MESSAGES, /^Anmeldedaten fehlen/],
+      })
+
+      expect(classifier(forbidden({ detail: 'Anmeldedaten fehlen.' }))).toBe('unauthenticated')
+      expect(
+        classifier(forbidden({ detail: 'Authentication credentials were not provided.' })),
+      ).toBe('unauthenticated')
+      // Without it, a language nobody listed reads as a missing permission:
+      // the backend has to send a code, or a 401.
+      expect(anonymousForbidden()(forbidden({ detail: 'Anmeldedaten fehlen.' }))).toBeNull()
+    })
+
+    it('does not read a WWW-Authenticate header on a 403 as "not signed in"', () => {
+      // An OAuth resource server sends one with a 403 that means the opposite.
+      const insufficientScope = response({
+        status: 403,
+        ok: false,
+        headers: new Headers({ 'WWW-Authenticate': 'Bearer error="insufficient_scope"' }),
+        body: { detail: 'Insufficient scope.' },
+      })
+
+      expect(anonymousForbidden()(insufficientScope)).toBeNull()
     })
 
     it('only ever reads a 403 with a JSON body', () => {
@@ -528,6 +609,7 @@ describe('tracing', () => {
       requestId: false,
       requestIdHeader: 'X-Request-Id',
       traceparent: false,
+      sampled: true,
     })
   })
 
@@ -536,12 +618,15 @@ describe('tracing', () => {
       requestId: true,
       requestIdHeader: 'X-Request-Id',
       traceparent: true,
+      sampled: true,
     })
     expect(resolveTracing({ requestId: true, requestIdHeader: 'X-Correlation-Id' })).toEqual({
       requestId: true,
       requestIdHeader: 'X-Correlation-Id',
       traceparent: false,
+      sampled: true,
     })
+    expect(resolveTracing({ traceparent: true, sampled: false }).sampled).toBe(false)
   })
 
   it('makes request ids that are v4 UUIDs, and different each time', () => {
@@ -558,6 +643,10 @@ describe('tracing', () => {
 
     expect(first).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/)
     expect(createTraceparent()).not.toBe(first)
+  })
+
+  it('leaves the sampling decision to the backend when asked to', () => {
+    expect(createTraceparent(false)).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-00$/)
   })
 
   it('still makes ids where there is no Web Crypto', () => {

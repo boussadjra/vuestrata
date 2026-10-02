@@ -1,4 +1,4 @@
-import { i18n } from '@/plugins/i18n'
+import { getI18n } from '@/plugins/i18n'
 import apiOverrides from '~/config/api.overrides'
 import { resolveApiIntegration, type ApiRequestHook } from '~/lib/api/integration'
 import { installApiIntegration } from '~/lib/runtime'
@@ -38,7 +38,7 @@ export function installSeams(): void {
  */
 const acceptLanguage: ApiRequestHook = (request) => {
   if (request.headers.has('Accept-Language')) return
-  request.setHeader('Accept-Language', i18n.global.locale.value)
+  request.setHeader('Accept-Language', getI18n().global.locale.value)
 }
 
 /** `app/config/api.overrides.ts`: how the API client talks to this project's backend. */

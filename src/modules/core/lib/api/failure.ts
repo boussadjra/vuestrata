@@ -36,7 +36,8 @@ function responseOf(err: unknown): Response | undefined {
   return typeof headers?.get === 'function' ? (response as Response) : undefined
 }
 
-function isTimeoutReason(reason: unknown): boolean {
+/** Whether a signal was aborted by a deadline (`AbortSignal.timeout()`) rather than by its owner. */
+export function isTimeoutReason(reason: unknown): boolean {
   return (
     typeof reason === 'object' &&
     reason !== null &&

@@ -19,6 +19,8 @@ import { createMockJwt } from '@/mocks/utils'
 import {
   useCreateCustomerMutation,
   useCustomerQuery,
+  useCustomersQuery,
+  useDeleteCustomerMutation,
   useUpdateCustomerMutation,
 } from '@/modules/customers/composables/useCustomers'
 import { customersHandlers, resetCustomersMock } from '@/modules/customers/mocks/customers.handlers'
@@ -385,6 +387,68 @@ describe('createCollectionApi on other response shapes', () => {
       code: 'CONTRACT_MISMATCH',
     })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: customersModuleKeys.all })
+  })
+
+  // A static host's SPA fallback, or a proxy's error page, answering an API
+  // URL with a web page. The reads say `expectJson`, so it is named for what
+  // it is before a schema ever sees a string.
+  const fallbackPage = () => HttpResponse.html('<!doctype html><div id="app"></div>')
+
+  it('reports a web page where the list was expected as UNEXPECTED_RESPONSE', async () => {
+    server.use(http.get('*/api/customers', fallbackPage))
+    const list = withQueryClient(() => useCustomersQuery(ref({})))
+
+    await vi.waitFor(() => expect(list.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    expect(list.error.value).toMatchObject({
+      code: 'UNEXPECTED_RESPONSE',
+      kind: 'contract',
+      retryable: false,
+      messageKey: 'errors.unexpected_response',
+    })
+  })
+
+  it('reports one where a record was expected the same way', async () => {
+    server.use(http.get('*/api/customers/:id', fallbackPage))
+    const detail = withQueryClient(() => useCustomerQuery(ref('CUS-1000')))
+
+    await vi.waitFor(() => expect(detail.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    expect(detail.error.value).toMatchObject({ code: 'UNEXPECTED_RESPONSE', kind: 'contract' })
+  })
+
+  it('reports one in place of the record a write is read back from', async () => {
+    server.use(
+      http.patch('*/api/customers/:id', () => new HttpResponse(null, { status: 204 })),
+      http.get('*/api/customers/:id', fallbackPage),
+    )
+    const update = withQueryClient(() => useUpdateCustomerMutation())
+
+    await expect(update.mutateAsync({ id: 'CUS-1000', patch: draft })).rejects.toMatchObject({
+      code: 'UNEXPECTED_RESPONSE',
+    })
+  })
+
+  // Express's `res.sendStatus(200)`, Django's `HttpResponse('ok')`: the delete
+  // happened, and nobody reads the body. Reporting it as failed has the user
+  // delete again, and get a 404 for a record that is already gone.
+  it.each([
+    ['200 "OK" as text/plain', () => HttpResponse.text('OK')],
+    ['202 "Accepted" as text/plain', () => HttpResponse.text('Accepted', { status: 202 })],
+    ['200 "ok" as text/html', () => HttpResponse.html('ok')],
+    ['204 with no body', () => new HttpResponse(null, { status: 204 })],
+  ])('resolves a delete answered with %s', async (_, answer) => {
+    const deleted: string[] = []
+    server.use(
+      http.delete('*/api/customers/:id', ({ params }) => {
+        deleted.push(String(params.id))
+        return answer()
+      }),
+    )
+    const remove = withQueryClient(() => useDeleteCustomerMutation())
+
+    await expect(remove.mutateAsync('CUS-1000')).resolves.toBeUndefined()
+    expect(deleted).toEqual(['CUS-1000'])
   })
 })
 

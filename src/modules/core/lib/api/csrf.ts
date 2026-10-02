@@ -100,8 +100,36 @@ export const csrfPresets: Readonly<{
   none: { source: 'none' },
 }
 
-/** How long a prime request may take before the request waiting on it goes ahead without. */
+/**
+ * How long a prime step may take, a URL or a function alike, before the
+ * request waiting on it goes ahead without. A function that never settles
+ * would otherwise hold every state-changing request that follows it.
+ */
 const PRIME_TIMEOUT_MS = 10_000
+
+/**
+ * How long a prime that left no token to read is not tried again. A backend
+ * whose cookie is `HttpOnly`, or set for another domain, primes "successfully"
+ * for ever and never yields a token; without this every state-changing
+ * request would bring a prime request of its own.
+ */
+const PRIME_RETRY_AFTER_MS = 10_000
+
+/**
+ * What is known about priming, between requests: the prime in progress, which
+ * every request that needs a token shares, and when a fruitless one may be
+ * tried again. Lives in the installed `ApiIntegration`, so it is replaced with
+ * it and never outlives a test.
+ */
+export interface CsrfPrimeState {
+  inFlight: Promise<boolean> | null
+  /** A timestamp. Before it, a request that finds no token does not prime. */
+  retryAfter: number
+}
+
+export function createCsrfPrimeState(): CsrfPrimeState {
+  return { inFlight: null, retryAfter: 0 }
+}
 
 const csrfLogger = createScopedLogger('api:csrf')
 
@@ -187,18 +215,67 @@ export function invalidateCsrfToken(): void {
  * Never throws. A failed prime leaves the request without a token, the backend
  * refuses it, and that refusal is the error worth showing: it says what the
  * user can do about it, and this one does not.
+ *
+ * With a `state`, requests share the work: three writes that find no token
+ * together wait on one prime, and after a prime that left nothing to read the
+ * next one is not attempted for `PRIME_RETRY_AFTER_MS`.
  */
-export async function primeCsrfToken(strategy: CsrfStrategy, baseURL: string): Promise<boolean> {
+export async function primeCsrfToken(
+  strategy: CsrfStrategy,
+  baseURL: string,
+  state?: CsrfPrimeState,
+): Promise<boolean> {
   if (strategy.source === 'none' || !strategy.prime) return false
+  if (!state) return runPrime(strategy.prime, baseURL)
 
+  if (state.inFlight) return state.inFlight
+  // Only while there is still nothing to read: a token that has appeared since
+  // (a sign-in set the cookie) means the last result no longer describes the
+  // backend.
+  if (Date.now() < state.retryAfter && !readCsrfToken(strategy)) return false
+
+  const flight = runPrime(strategy.prime, baseURL)
+    .then((primed) => {
+      state.retryAfter = readCsrfToken(strategy) ? 0 : Date.now() + PRIME_RETRY_AFTER_MS
+      return primed
+    })
+    .finally(() => {
+      if (state.inFlight === flight) state.inFlight = null
+    })
+  state.inFlight = flight
+  return flight
+}
+
+/** Reject after `ms`, so a prime function that never settles cannot hold a request for ever. */
+function within<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const reason = new Error('The CSRF prime step timed out')
+      reason.name = 'TimeoutError'
+      reject(reason)
+    }, ms)
+    work.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error: unknown) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
+
+async function runPrime(prime: CsrfPrime, baseURL: string): Promise<boolean> {
   try {
-    if (typeof strategy.prime === 'function') {
-      await strategy.prime({ baseURL })
+    if (typeof prime === 'function') {
+      await within(Promise.resolve(prime({ baseURL })), PRIME_TIMEOUT_MS)
     } else {
       // Bare `ofetch`, not `apiFetch`: this runs inside a request of the API
       // client, and going back through it would ask for a token to fetch the
       // token.
-      await ofetch.raw(resolvePrimeUrl(strategy.prime, baseURL), {
+      await ofetch.raw(resolvePrimeUrl(prime, baseURL), {
         method: 'GET',
         credentials: 'include',
         headers: { Accept: 'application/json' },

@@ -3,6 +3,7 @@ import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test'
 
 import {
+  createCsrfPrimeState,
   csrfPresets,
   DEFAULT_CSRF_STRATEGY,
   getCsrfToken,
@@ -258,5 +259,131 @@ describe('priming', () => {
       },
     }
     expect(await primeCsrfToken(broken, 'http://localhost/api')).toBe(false)
+  })
+
+  it('answers false for a prime function that throws before it returns a promise', async () => {
+    const broken: CsrfStrategy = {
+      ...csrfPresets.django,
+      prime: (() => {
+        throw new TypeError('not a function')
+      }) as never,
+    }
+
+    expect(await primeCsrfToken(broken, 'http://localhost/api')).toBe(false)
+  })
+
+  it('gives up on a prime function that never settles', async () => {
+    vi.useFakeTimers()
+    try {
+      const hung: CsrfStrategy = { ...csrfPresets.django, prime: () => new Promise(() => {}) }
+      const state = createCsrfPrimeState()
+
+      const outcome = primeCsrfToken(hung, 'http://localhost/api', state)
+      await vi.advanceTimersByTimeAsync(10_000)
+
+      expect(await outcome).toBe(false)
+      // And it no longer stands in the way of the next one.
+      expect(state.inFlight).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('priming, shared between requests', () => {
+  /** A prime endpoint that counts its requests and can be held open. */
+  function primeEndpoint(onPrime: () => void = () => {}) {
+    const calls = { count: 0 }
+    const gate: { open: () => void } = { open: () => {} }
+    const held = new Promise<void>((resolve) => {
+      gate.open = resolve
+    })
+    server.use(
+      http.get('*/sanctum/csrf-cookie', async () => {
+        calls.count++
+        await held
+        onPrime()
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    return { calls, open: gate.open }
+  }
+
+  it('makes one prime request for writes that find no token together', async () => {
+    const state = createCsrfPrimeState()
+    const endpoint = primeEndpoint(() => {
+      document.cookie = 'XSRF-TOKEN=primed; path=/'
+    })
+
+    const waiting = [1, 2, 3].map(() =>
+      primeCsrfToken(csrfPresets.laravel, 'https://api.acme.test/api', state),
+    )
+    endpoint.open()
+
+    expect(await Promise.all(waiting)).toEqual([true, true, true])
+    expect(endpoint.calls.count).toBe(1)
+    expect(state.inFlight).toBeNull()
+  })
+
+  it('primes again once the shared one has finished and a token is there', async () => {
+    const state = createCsrfPrimeState()
+    const endpoint = primeEndpoint(() => {
+      document.cookie = 'XSRF-TOKEN=primed; path=/'
+    })
+    endpoint.open()
+
+    await primeCsrfToken(csrfPresets.laravel, 'https://api.acme.test/api', state)
+    // A 419 later on: the token is there and stale, and a new one is fetched.
+    await primeCsrfToken(csrfPresets.laravel, 'https://api.acme.test/api', state)
+
+    expect(endpoint.calls.count).toBe(2)
+  })
+
+  it('does not repeat a prime that left no token to read, for a while', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const state = createCsrfPrimeState()
+      // The cookie is HttpOnly, or for another domain: the prime "works" and
+      // JavaScript still has nothing to read.
+      const endpoint = primeEndpoint()
+      endpoint.open()
+      const prime = () => primeCsrfToken(csrfPresets.laravel, 'https://api.acme.test/api', state)
+
+      expect(await prime()).toBe(true)
+      expect(await prime()).toBe(false)
+      expect(await prime()).toBe(false)
+      expect(endpoint.calls.count).toBe(1)
+
+      vi.setSystemTime(Date.now() + 10_001)
+      expect(await prime()).toBe(true)
+      expect(endpoint.calls.count).toBe(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('forgets that as soon as a token can be read', async () => {
+    const state = createCsrfPrimeState()
+    const endpoint = primeEndpoint()
+    endpoint.open()
+    const prime = () => primeCsrfToken(csrfPresets.laravel, 'https://api.acme.test/api', state)
+
+    await prime()
+    expect(await prime()).toBe(false)
+    // A sign-in set the cookie in the meantime.
+    document.cookie = 'XSRF-TOKEN=from-login; path=/'
+
+    expect(await prime()).toBe(true)
+    expect(endpoint.calls.count).toBe(2)
+  })
+
+  it('keeps nothing between calls without a state', async () => {
+    const endpoint = primeEndpoint()
+    endpoint.open()
+
+    await primeCsrfToken(csrfPresets.laravel, 'https://api.acme.test/api')
+    await primeCsrfToken(csrfPresets.laravel, 'https://api.acme.test/api')
+
+    expect(endpoint.calls.count).toBe(2)
   })
 })

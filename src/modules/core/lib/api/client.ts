@@ -12,7 +12,13 @@ import {
 } from 'ofetch'
 
 import { runtimeEnv } from '~/lib/config'
-import { AppError, ERROR_MESSAGE_KEYS, httpError, type MappedError } from '~/lib/errors'
+import {
+  AppError,
+  ERROR_MESSAGE_KEYS,
+  httpError,
+  transportError,
+  type MappedError,
+} from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 
 import {
@@ -21,8 +27,8 @@ import {
   handleTokenRefresh,
   notifySessionExpired,
 } from './auth-interceptor'
-import { getCsrfToken, invalidateCsrfToken, primeCsrfToken, type CsrfStrategy } from './csrf'
-import { parseRetryAfter, redactUrl, toAppError } from './failure'
+import { getCsrfToken, invalidateCsrfToken, primeCsrfToken } from './csrf'
+import { isTimeoutReason, parseRetryAfter, redactUrl, toAppError } from './failure'
 import {
   currentApiIntegration,
   type ApiIntegration,
@@ -48,6 +54,35 @@ export interface ApiFetchOptions<
    * would recurse into the flow that is already failing.
    */
   skipAuthRefresh?: boolean
+  /**
+   * The answer must be JSON. A success with any other body (a web page, a
+   * file, a line of text) fails with an `AppError` (`UNEXPECTED_RESPONSE`,
+   * kind `contract`) instead of resolving with that body.
+   *
+   * Off by default, and that is deliberate: plenty of backends answer a write
+   * with `OK` or `Created` as plain text, and a caller that ignores the body
+   * must not see a save that happened reported as failed. Set it on a call
+   * that goes on to read the body as data, where a static host's fallback page
+   * or a proxy's error page would otherwise reach a schema as a string. The
+   * collection layer sets it on its reads.
+   *
+   * An empty body always passes, and so does one that parsed as JSON whatever
+   * its `Content-Type` says.
+   */
+  expectJson?: boolean
+  /**
+   * Treat a URL on another origin as the API.
+   *
+   * Only a request to the API's own origin (the origin of `VUESTRATA_API_URL`)
+   * carries the session: the `Authorization` header, cookies, the CSRF token,
+   * and everything `api.overrides.ts` adds (headers, request hooks, tracing).
+   * A request to any other origin gets none of them, is never refreshed or
+   * replayed, and is not run through the classifiers. `trusted: true` opts
+   * one call in, or every call of a client made with `apiFetch.create()`:
+   * for a second API of your own that accepts the same credentials. Never for
+   * a third party.
+   */
+  trusted?: boolean
 }
 
 /**
@@ -101,6 +136,15 @@ const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const JSON_MEDIA_TYPE = /^application\/(?:[\w!#$%&*.^`~-]*\+)?json$/i
 
 /**
+ * Whether a request string names its own host. The same test ofetch applies
+ * (ufo's `hasProtocol`) to decide whether to put the base URL in front, so the
+ * two can never disagree about where a request goes: `//host/path` and
+ * `\\host` are paths under the base URL, while `https:/host`, and anything
+ * else that opens with a scheme, goes to `fetch` as it is.
+ */
+const HAS_PROTOCOL = /^[\s\w\0+.-]{2,}:(?:[/\\]{2})?/
+
+/**
  * What one attempt at the network leaves behind for whoever handles its
  * outcome: the hooks run inside ofetch, and this is how what they decided gets
  * back out.
@@ -113,6 +157,23 @@ interface Attempt {
   expectsJson: boolean
   /** The correlation id this attempt was sent with, if any. */
   requestId?: string
+}
+
+/** What was decided about one `apiFetch` call before it was sent, for all its attempts. */
+interface CallPolicy {
+  /**
+   * The request goes to the API's origin, or the call vouched for where it
+   * goes. Everything that belongs to the session depends on it.
+   */
+  forApi: boolean
+  /** An unauthenticated answer may be met with a token refresh and a replay. */
+  refreshable: boolean
+  /** The body survives a first attempt, so the request can be sent again. */
+  replayable: boolean
+  /** The caller will read the body as JSON: anything else is an error. */
+  expectJson: boolean
+  /** `ignoreResponseError`: the caller wants the response, whatever it is. */
+  passThrough: boolean
 }
 
 /** One `apiFetch` call, across its replays. */
@@ -131,14 +192,55 @@ function urlOf(request: FetchRequest): string {
   return typeof request === 'string' ? request : request.url
 }
 
+/** Whether ofetch will resolve this request against the base URL. */
+function isUnderBase(request: FetchRequest, base: string | undefined): boolean {
+  return typeof request === 'string' && Boolean(base) && !HAS_PROTOCOL.test(request)
+}
+
 /**
  * The request URL as a hook sees it: absolute, and without the query string,
  * which is where user data travels.
  */
 function resolveUrl(request: FetchRequest, base: string | undefined): string {
   const raw = redactUrl(urlOf(request))
-  if (!base || /^(?:[a-z][a-z\d+.-]*:)?\/\//i.test(raw)) return raw
-  return `${base.replace(/\/+$/, '')}/${raw.replace(/^\/+/, '')}`
+  if (!isUnderBase(request, base)) return raw
+  return `${base!.replace(/\/+$/, '')}/${raw.replace(/^\/+/, '')}`
+}
+
+function pageOrigin(): string {
+  return typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'http://localhost'
+}
+
+/** The origin a URL leads to, as `fetch` will resolve it. `undefined` for one it cannot parse. */
+function originOf(url: string): string | undefined {
+  try {
+    return new URL(url, pageOrigin()).origin
+  } catch {
+    return undefined
+  }
+}
+
+/** The origin of the API: the one place the session's credentials are for. */
+const apiOrigin = originOf(baseURL)
+
+/**
+ * Whether a request goes to the API's origin.
+ *
+ * `apiFetch` accepts any URL, and it used to treat them all alike: a call to
+ * `https://hooks.example/notify` carried the user's bearer token, and under
+ * the cookie transport the CSRF token and `credentials: 'include'`. Whatever a
+ * project then added for its API in `api.overrides.ts` (a gateway key, a
+ * tenant) would have gone along. The session is for the API, so the question
+ * is asked once per call and everything else follows from the answer.
+ *
+ * A URL that cannot be parsed is not the API: the request will fail anyway,
+ * and it should fail without credentials on it.
+ */
+function isApiRequest(request: FetchRequest, base: string | undefined): boolean {
+  const origin = originOf(isUnderBase(request, base) ? base! : urlOf(request))
+  return origin !== undefined && origin === apiOrigin
 }
 
 /**
@@ -155,16 +257,17 @@ function resolveUrl(request: FetchRequest, base: string | undefined): string {
 async function applyCsrfHeader(
   headers: Headers,
   isMutating: boolean,
-  strategy: CsrfStrategy,
+  integration: ApiIntegration,
   base: string,
 ): Promise<string | undefined> {
+  const strategy = integration.csrf
   if (strategy.source === 'none') return undefined
 
   let csrfToken = getCsrfToken(strategy)
   if (!csrfToken && isMutating) {
     invalidateCsrfToken()
     csrfToken = getCsrfToken(strategy)
-    if (!csrfToken && (await primeCsrfToken(strategy, base))) {
+    if (!csrfToken && (await primeCsrfToken(strategy, base, integration.csrfPrime))) {
       csrfToken = getCsrfToken(strategy)
     }
   }
@@ -254,19 +357,20 @@ async function runRequestHooks(
  *     when tracing is on
  *  3. the integration's request hooks, among them `Accept-Language`
  *
- * Runs before any hook the caller passes, so a caller's own `onRequest` can
- * never switch it off by replacing it.
+ * Only `Accept` goes on a request that is not for the API (see
+ * `isApiRequest`): the rest is the session, or the project's arrangements with
+ * its own backend, and neither is anyone else's to receive.
  */
-async function prepareRequest(
+async function applyRequestSetup(
   { request, options }: FetchContext,
   attempt: Attempt,
   integration: ApiIntegration,
+  policy: CallPolicy,
 ): Promise<void> {
   const headers = new Headers(options.headers as HeadersInit)
   // The names the request carried before the client touched it. `Headers`
   // iterates them in lower case.
   const fromCaller = new Set(headers.keys())
-  applyAuthHeaders(headers)
 
   const method = (options.method ?? 'GET').toUpperCase()
   const isMutating = !IDEMPOTENT_METHODS.has(method)
@@ -274,22 +378,35 @@ async function prepareRequest(
   attempt.method = method
   attempt.url = resolveUrl(request, options.baseURL)
 
-  // `credentials` is set per-request rather than once on `ofetch.create`
-  // because it depends on the configured auth adapter, which is not known
-  // at module-evaluation time. It was previously hardcoded to 'include',
-  // so a bearer-token deployment sent ambient cookies on every request
-  // while ALSO sending an Authorization header — two credentials for a
-  // backend that asked for one.
-  options.credentials ??= transport === 'cookie' ? 'include' : 'omit'
+  let csrfHeader: string | undefined
+  if (policy.forApi) {
+    applyAuthHeaders(headers)
 
-  // CSRF is a cookie-transport concern. With bearer tokens there is no
-  // ambient credential for a third-party page to ride on, so the header
-  // adds nothing; sending it anyway invites a backend to treat header
-  // presence as proof of a same-site request.
-  const csrfHeader =
-    transport === 'cookie'
-      ? await applyCsrfHeader(headers, isMutating, integration.csrf, options.baseURL ?? baseURL)
-      : undefined
+    // `credentials` is set per-request rather than once on `ofetch.create`
+    // because it depends on the configured auth adapter, which is not known
+    // at module-evaluation time. It was previously hardcoded to 'include',
+    // so a bearer-token deployment sent ambient cookies on every request
+    // while ALSO sending an Authorization header — two credentials for a
+    // backend that asked for one.
+    options.credentials ??= transport === 'cookie' ? 'include' : 'omit'
+
+    // CSRF is a cookie-transport concern. With bearer tokens there is no
+    // ambient credential for a third-party page to ride on, so the header
+    // adds nothing; sending it anyway invites a backend to treat header
+    // presence as proof of a same-site request.
+    if (transport === 'cookie') {
+      csrfHeader = await applyCsrfHeader(
+        headers,
+        isMutating,
+        integration,
+        options.baseURL ?? baseURL,
+      )
+    }
+  } else {
+    // Another origin's cookies are not this app's session. A caller that
+    // wants them sent says so with `credentials` on the call.
+    options.credentials ??= 'omit'
+  }
 
   // Say what the client can read. Without it a backend answers a browser, not
   // an API client: Laravel redirects an expired session to its login page
@@ -300,26 +417,99 @@ async function prepareRequest(
   if (wantsJson && !headers.has('Accept')) headers.set('Accept', 'application/json')
 
   const { tracing } = integration
-  if (tracing.requestId && !headers.has(tracing.requestIdHeader)) {
-    headers.set(tracing.requestIdHeader, createRequestId())
-  }
-  if (tracing.traceparent && !headers.has('traceparent')) {
-    headers.set('traceparent', createTraceparent())
-  }
+  if (policy.forApi) {
+    if (tracing.requestId && !headers.has(tracing.requestIdHeader)) {
+      headers.set(tracing.requestIdHeader, createRequestId())
+    }
+    if (tracing.traceparent && !headers.has('traceparent')) {
+      headers.set('traceparent', createTraceparent(tracing.sampled))
+    }
 
-  await runRequestHooks(
-    integration.requestHooks,
-    attempt,
-    headers,
-    csrfHeader ? ['Authorization', csrfHeader] : ['Authorization'],
-    fromCaller,
-  )
+    await runRequestHooks(
+      integration.requestHooks,
+      attempt,
+      headers,
+      csrfHeader ? ['Authorization', csrfHeader] : ['Authorization'],
+      fromCaller,
+    )
+  }
 
   // Read back after the hooks: a hook may set either header too.
   attempt.requestId = headers.get(tracing.requestIdHeader) ?? undefined
+  // An `Accept` the caller wrote is the caller's contract, whatever it lists:
+  // `application/json, text/plain, */*` says text is welcome.
   attempt.expectsJson =
-    wantsJson && !options.parseResponse && /json/i.test(headers.get('Accept') ?? '')
+    policy.expectJson || (wantsJson && !options.parseResponse && !fromCaller.has('accept'))
   options.headers = headers
+}
+
+/**
+ * Settle with `work`, unless the request's deadline passes or its caller gives
+ * up first.
+ *
+ * ofetch arms its timeout only once the request hooks have returned, so a hook
+ * waiting on a key service that never answers, or a CSRF prime function that
+ * never settles, used to hold the request open long past its deadline, with a
+ * spinner nothing would ever end.
+ */
+function beforeDeadline<T>(
+  work: Promise<T>,
+  signal: AbortSignal | null | undefined,
+  timeoutMs: number | undefined,
+): Promise<T> {
+  if (!signal && !timeoutMs) return work
+
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => finish(() => reject(abortError(signal)))
+    const timer = timeoutMs
+      ? setTimeout(() => finish(() => reject(transportError('timeout'))), timeoutMs)
+      : undefined
+    const finish = (settle: () => void) => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      settle()
+    }
+
+    if (signal?.aborted) onAbort()
+    else signal?.addEventListener('abort', onAbort, { once: true })
+    work.then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) => finish(() => reject(error)),
+    )
+  })
+}
+
+/** The error for a request whose signal fired: a deadline that passed, or a caller that left. */
+function abortError(signal: AbortSignal | null | undefined): AppError {
+  return transportError(isTimeoutReason(signal?.reason) ? 'timeout' : 'aborted')
+}
+
+/**
+ * `applyRequestSetup`, within the request's deadline.
+ *
+ * Runs before any hook the caller passes, so a caller's own `onRequest` can
+ * never switch it off by replacing it.
+ */
+async function prepareRequest(
+  context: FetchContext,
+  attempt: Attempt,
+  integration: ApiIntegration,
+  policy: CallPolicy,
+): Promise<void> {
+  const { options } = context
+  const startedAt = Date.now()
+  await beforeDeadline(
+    applyRequestSetup(context, attempt, integration, policy),
+    options.signal,
+    options.timeout,
+  )
+  // One deadline for the attempt, not one for the hooks and another for the
+  // network: ofetch starts its timer after this returns, with what is left.
+  // (With a caller's signal the deadline is `linkDeadline`'s, and already
+  // covers both.)
+  if (!options.signal && options.timeout) {
+    options.timeout = Math.max(1, options.timeout - (Date.now() - startedAt))
+  }
 }
 
 function hooksOf(hooks: FetchOptions['onRequest']): FetchHook[] {
@@ -377,6 +567,28 @@ function mediaTypeOf(response: Response): string {
 
 function isEmptyBody(body: unknown): boolean {
   return body === undefined || body === null || (typeof body === 'string' && body.trim() === '')
+}
+
+/**
+ * Whether a response's body is JSON, or nothing at all.
+ *
+ * Decided by what ofetch made of the body, not by its label: a backend that
+ * calls its JSON `text/plain` is wrong about the label and right about the
+ * data. A value that parsed is an object, an array, a number or a boolean. A
+ * string is what ofetch hands back when the body did NOT parse, unless the
+ * response declared JSON, in which case the body was a JSON string. A blob or
+ * a stream is a file.
+ */
+function isJsonBody(response: FetchResponse<any>): boolean {
+  const body: unknown = response._data
+  if (isEmptyBody(body)) return true
+  if (typeof body === 'string') {
+    const mediaType = mediaTypeOf(response)
+    return mediaType === '' || JSON_MEDIA_TYPE.test(mediaType)
+  }
+  if (typeof body !== 'object') return true
+  const tag = Object.prototype.toString.call(body)
+  return tag === '[object Object]' || tag === '[object Array]'
 }
 
 /** A request whose body the first attempt did not consume, so it can be sent again. */
@@ -496,6 +708,33 @@ function responseError(
 }
 
 /**
+ * The error for a success that is not the API's answer: a web page or a file
+ * where the caller was going to read JSON. A misrouted API URL answered by a
+ * static host's fallback page, a proxy's interstitial, a redirect to a page.
+ * Left alone it reaches a schema as a string, and fails three layers down as
+ * a validation error nobody can read.
+ */
+function unexpectedResponse(
+  response: FetchResponse<any>,
+  attempt: Attempt,
+  integration: ApiIntegration,
+): AppError {
+  apiLogger.error('API answered with a body that is not JSON', {
+    url: attempt.url,
+    status: response.status,
+    contentType: mediaTypeOf(response),
+  })
+  return new AppError({
+    message: 'The server sent a response this app could not read.',
+    code: 'UNEXPECTED_RESPONSE',
+    kind: 'contract',
+    retryable: false,
+    messageKey: ERROR_MESSAGE_KEYS.unexpectedResponse,
+    requestId: response.headers.get(integration.tracing.requestIdHeader) ?? attempt.requestId,
+  })
+}
+
+/**
  * Build a client: a thin wrapper around a raw ofetch instance that owns
  * what ofetch cannot do on its own.
  *
@@ -512,12 +751,24 @@ function responseError(
  *   request carries, what counts as "not signed in" or "stale CSRF token", and
  *   how an error body is read all come from the `ApiIntegration` the bootstrap
  *   installed (`core/lib/api/integration.ts`), read on every request.
+ * - **The session stays on the API's origin.** Credentials, the CSRF token and
+ *   the integration's headers go to the API and nowhere else; see
+ *   `isApiRequest` and the `trusted` option.
+ * - **A success is ofetch's success.** Unless a call says `expectJson` or a
+ *   classifier says otherwise, a 2xx resolves with exactly what bare ofetch
+ *   would have returned; `test/integration/api/response-matrix.test.ts` holds
+ *   the client to that.
  */
 function createApiFetch(
   defaults: ApiFetchOptions,
   globalOptions: CreateFetchOptions = {},
 ): ApiFetch {
-  const { skipAuthRefresh: skipAuthRefreshByDefault = false, ...fetchDefaults } = defaults
+  const {
+    skipAuthRefresh: skipAuthRefreshByDefault = false,
+    expectJson: expectJsonByDefault = false,
+    trusted: trustedByDefault = false,
+    ...fetchDefaults
+  } = defaults
   const base = ofetch.create(fetchDefaults, globalOptions)
 
   /** One attempt at the network. */
@@ -526,19 +777,29 @@ function createApiFetch(
     options: FetchOptions,
     attempt: Attempt,
     integration: ApiIntegration,
+    policy: CallPolicy,
   ): Promise<FetchResponse<any>> {
     const signal = options.signal ?? fetchDefaults.signal
     const timeout = options.timeout ?? fetchDefaults.timeout ?? integration.timeoutMs
     const deadline = signal && timeout ? linkDeadline(signal, timeout) : undefined
+    // The integration's `redirect` is the API's, and a call's own always wins.
+    const redirect =
+      policy.forApi &&
+      integration.redirect === 'error' &&
+      !options.redirect &&
+      !fetchDefaults.redirect
+        ? ({ redirect: 'error' } as const)
+        : {}
     try {
       return await base.raw(request, {
         ...options,
+        ...redirect,
         timeout,
         // The linked signal carries the deadline, and ofetch's own timeout
         // must stay off: with it set, ofetch reads an abort as retryable.
         ...(deadline ? { signal: deadline.signal, timeout: undefined } : {}),
         onRequest: [
-          (context) => prepareRequest(context, attempt, integration),
+          (context) => prepareRequest(context, attempt, integration, policy),
           ...hooksOf(options.onRequest ?? fetchDefaults.onRequest),
         ],
       })
@@ -570,7 +831,7 @@ function createApiFetch(
   async function execute(
     request: FetchRequest,
     options: FetchOptions,
-    policy: { refreshable: boolean; replayable: boolean },
+    policy: CallPolicy,
     state: CallState,
   ): Promise<FetchResponse<any>> {
     const integration = currentApiIntegration()
@@ -581,7 +842,7 @@ function createApiFetch(
     let response: FetchResponse<any> | undefined
     let failure: unknown
     try {
-      response = await send(request, options, attempt, integration)
+      response = await send(request, options, attempt, integration, policy)
     } catch (error) {
       failure = error
       response = responseOf(error)
@@ -589,8 +850,29 @@ function createApiFetch(
     // No answer at all: the network, a deadline, an abort, a hook that threw.
     if (!response) throw failure
 
+    // The API sent the request on to another origin, and everything on it but
+    // `Authorization` and the cookies went along: the browser decides that,
+    // not this client. Worth a line, because nobody chose it. See `redirect`
+    // in `ApiConventions` for refusing redirects outright.
+    if (policy.forApi && response.redirected && originOf(response.url) !== originOf(attempt.url)) {
+      apiLogger.warn('An API request was redirected to another origin', {
+        url: attempt.url,
+        to: originOf(response.url),
+      })
+    }
+
+    // The caller asked for the response whatever it is (`ignoreResponseError`):
+    // a 401 it means to read is not a session to refresh, and a body it means
+    // to inspect is not the client's to judge.
+    if (policy.passThrough) {
+      if (failure !== undefined) throw failure
+      return response
+    }
+
     const context = describeResponse(response, attempt)
-    const verdict = classify(context, integration)
+    // The classifiers describe the API. What another origin answers is not
+    // theirs to read: its 401 says nothing about this app's session.
+    const verdict = policy.forApi ? classify(context, integration) : null
     state.answer = { context, verdict }
 
     if (verdict === 'unauthenticated' && policy.refreshable) {
@@ -625,7 +907,17 @@ function createApiFetch(
     ) {
       state.csrfReplayed = true
       invalidateCsrfToken()
-      await primeCsrfToken(integration.csrf, options.baseURL ?? fetchDefaults.baseURL ?? baseURL)
+      // Within the deadline the request itself had: a prime that hangs must
+      // not hold the replay, and the caller, for ever.
+      await beforeDeadline(
+        primeCsrfToken(
+          integration.csrf,
+          options.baseURL ?? fetchDefaults.baseURL ?? baseURL,
+          integration.csrfPrime,
+        ),
+        options.signal ?? fetchDefaults.signal,
+        options.timeout ?? fetchDefaults.timeout ?? integration.timeoutMs,
+      )
       return execute(request, options, policy, state)
     }
 
@@ -639,27 +931,12 @@ function createApiFetch(
       throw error
     }
 
-    // The request asked for JSON and got a web page, or a file: a misrouted
-    // API URL answered by a static host's fallback, a proxy's error page. Left
-    // alone it reaches a schema as a string, and fails three layers down as a
-    // validation error nobody can read.
-    if (attempt.expectsJson && !isEmptyBody(response._data)) {
-      const contentType = context.contentType
-      if (contentType && !JSON_MEDIA_TYPE.test(contentType)) {
-        apiLogger.error('API answered with a body that is not JSON', {
-          url: attempt.url,
-          status: response.status,
-          contentType,
-        })
-        throw new AppError({
-          message: 'The server sent a response this app could not read.',
-          code: 'UNEXPECTED_RESPONSE',
-          kind: 'contract',
-          retryable: false,
-          messageKey: ERROR_MESSAGE_KEYS.unexpectedResponse,
-          requestId: response.headers.get(integration.tracing.requestIdHeader) ?? attempt.requestId,
-        })
-      }
+    // A success that is not the API's answer: a classifier said so, or the
+    // caller was going to read JSON (`expectJson`) and this is not it. A call
+    // that parses the body itself is the judge of what it got.
+    const ownParser = options.parseResponse ?? fetchDefaults.parseResponse
+    if (verdict === 'unexpected' || (policy.expectJson && !ownParser && !isJsonBody(response))) {
+      throw unexpectedResponse(response, attempt, integration)
     }
 
     return response
@@ -715,13 +992,28 @@ function createApiFetch(
     request: FetchRequest,
     options: ApiFetchOptions<R> = {},
   ): Promise<FetchResponse<MappedResponseType<R, T>>> {
-    const { skipAuthRefresh = skipAuthRefreshByDefault, ...rest } = options
+    const {
+      skipAuthRefresh = skipAuthRefreshByDefault,
+      expectJson = expectJsonByDefault,
+      trusted = trustedByDefault,
+      ...rest
+    } = options
     // `R` only shapes what the caller gets back; inside, every call is
     // handled alike whatever its response type.
     const fetchOptions = rest as FetchOptions
-    const policy = {
-      refreshable: !skipAuthRefresh && isRefreshable(request, fetchOptions),
+    const forApi = trusted || isApiRequest(request, fetchOptions.baseURL ?? fetchDefaults.baseURL)
+    const passThrough =
+      (fetchOptions.ignoreResponseError ?? fetchDefaults.ignoreResponseError) === true
+    const policy: CallPolicy = {
+      forApi,
+      // The session's token was not sent to another origin, so a 401 from
+      // there is not the session's, and a caller reading error responses
+      // itself has said what it wants done with a 401: nothing.
+      refreshable:
+        forApi && !passThrough && !skipAuthRefresh && isRefreshable(request, fetchOptions),
       replayable: isReplayable(request, fetchOptions.body),
+      expectJson,
+      passThrough,
     }
     const state: CallState = { refreshed: false, csrfReplayed: false }
     try {
