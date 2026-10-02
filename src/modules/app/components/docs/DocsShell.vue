@@ -10,6 +10,8 @@ import {
   buildSidebarSections,
   findActiveSidebarGroup,
   getGroupKey,
+  showsDocHeader,
+  stripLeadingHeading,
   type DocEntry,
 } from './docsNavigation'
 import DocsSidebar from './DocsSidebar.vue'
@@ -268,12 +270,17 @@ function getFallbackDocTitle(parts: string[]): string {
   return parts[parts.length - 1]!.replace(/^\d+\./, '').replace(/-/g, ' ')
 }
 
-function createMarkdownDocComponent(loadMarkdown: (() => Promise<string>) | undefined) {
+function createMarkdownDocComponent(
+  loadMarkdown: (() => Promise<string>) | undefined,
+  // The header above the content shows the title as the page's `<h1>`.
+  { underHeader }: { underHeader: boolean },
+) {
   if (!loadMarkdown) return undefined
 
   return defineAsyncComponent({
     loader: async () => {
-      const markdown = stripFrontmatter(await loadMarkdown())
+      const body = stripFrontmatter(await loadMarkdown())
+      const markdown = underHeader ? stripLeadingHeading(body) : body
 
       return defineComponent({
         name: 'DocsMarkdownContent',
@@ -354,17 +361,21 @@ for (const path of Object.keys(markdownModules)) {
       sections.set(section, { label: section.replace(/-/g, ' '), order: sectionOrder })
   }
 
+  const description = metadata.description || ''
+
   docs.push({
     slug: buildSlug(path),
     title: metadata.navTitle || metadata.title || getFallbackDocTitle(parts),
-    description: metadata.description || '',
+    description,
     content: '',
     order,
     section,
     sectionOrder,
     subsection,
     subsectionOrder,
-    component: createMarkdownDocComponent(markdownModules[path]),
+    component: createMarkdownDocComponent(markdownModules[path], {
+      underHeader: showsDocHeader({ description, section }),
+    }),
   })
 }
 
@@ -386,6 +397,8 @@ for (const demo of COMPONENT_DEMO_DOCS) {
     subsectionLabel: demo.groupLabel,
     subsectionOrder: demo.groupOrder,
     component,
+    // A demo page opens with its own `<h1>` and introduction.
+    ownHeading: true,
   })
 }
 

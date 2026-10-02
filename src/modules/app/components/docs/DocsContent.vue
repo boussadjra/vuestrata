@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { UiButton } from '@/components/ui'
 import { docsComarkComponents, docsComarkPlugins } from '@/config/comark'
 
-import type { DocEntry } from './docsNavigation'
+import { showsDocHeader, type DocEntry } from './docsNavigation'
 
 const { t } = useI18n()
 
@@ -20,7 +20,7 @@ const emit = defineEmits<{ back: [] }>()
   <main class="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
     <div class="mx-auto flex w-full max-w-6xl flex-col gap-6 py-2 lg:py-6">
       <section
-        v-if="doc && (doc.description || doc.section)"
+        v-if="doc && showsDocHeader(doc)"
         class="border-surface-200/80 bg-surface-50/86 dark:border-surface-800 dark:bg-surface-900/78 rounded-[calc(var(--shape-radius)+0.25rem)] border px-5 py-4 shadow-[var(--shadow-soft)] sm:px-6 sm:py-5"
       >
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -39,9 +39,17 @@ const emit = defineEmits<{ back: [] }>()
                 {{ doc.subsectionLabel || doc.subsection?.replace(/-/g, ' ') }}
               </span>
             </div>
-            <h1 class="text-foreground mt-3 text-3xl font-bold tracking-tight">
+            <!--
+              The page's one <h1>. Content that brings its own (a component
+              demo page) leaves this as the same text without the role, and
+              DocsShell removes the "# Title" a markdown page opens with.
+            -->
+            <component
+              :is="doc.ownHeading ? 'p' : 'h1'"
+              class="text-foreground mt-3 text-3xl font-bold tracking-tight"
+            >
               {{ doc.title }}
-            </h1>
+            </component>
             <p
               v-if="doc.description"
               class="text-muted-foreground mt-3 max-w-3xl text-sm leading-6 sm:text-base"

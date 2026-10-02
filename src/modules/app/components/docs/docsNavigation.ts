@@ -12,6 +12,35 @@ export interface DocEntry {
   subsectionLabel?: string
   subsectionOrder?: number
   component?: Component
+  /**
+   * The content renders a level-one heading of its own, as every component
+   * demo page does. The page header then shows the title as plain text: a page
+   * has one `<h1>`, and a screen reader that lists two has two answers to what
+   * the page is.
+   */
+  ownHeading?: boolean
+}
+
+/**
+ * Whether the page header (section, title, description) is shown above a doc.
+ * The header carries the page's `<h1>`, so whoever prepares the content asks
+ * this to know whether the content may bring another.
+ */
+export function showsDocHeader(doc: Pick<DocEntry, 'description' | 'section'>): boolean {
+  return Boolean(doc.description || doc.section)
+}
+
+/**
+ * A markdown page without the `# Title` it opens with.
+ *
+ * Every page under `docs/` starts with one, which is right for the file read
+ * on its own (in an editor, on GitHub). Rendered here it sat under a header
+ * that already shows the title as the page's `<h1>`: two level-one headings,
+ * both naming the page. Only the opening heading goes; a `#` further down, or
+ * inside a code fence, is not touched.
+ */
+export function stripLeadingHeading(markdown: string): string {
+  return markdown.replace(/^\s*# [^\n]*(?:\n+|$)/, '')
 }
 
 export interface SubsectionGroup {

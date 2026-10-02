@@ -77,6 +77,22 @@ test.describe('Components page', () => {
     await page.goto('/components/forms/form-builder')
     await expect(page).toHaveURL(/\/docs\/components\/forms\/form-builder/)
     await expect(page.getByRole('heading', { name: 'Form Builder', exact: true })).toBeVisible()
+
+    // Strict on purpose. The page used to show its title twice, in the header
+    // and as the `# Form Builder` the markdown opens with, and the locator
+    // above matched two elements as soon as the markdown had rendered: a test
+    // that passed or failed on timing. Wait for the markdown, then hold the
+    // page to one level-one heading.
+    await expect(page.locator('article.docs-content h2').first()).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+  })
+
+  test('should give a component demo page one level-one heading too', async ({ page }) => {
+    await page.goto('/docs/components/demos/accordions')
+    // The demo page brings the heading; the header above it shows the title as text.
+    await expect(page.locator('article.docs-content h2').first()).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Accordion')
   })
 
   test('should show collapsed component demo tree in docs sidebar', async ({ page }) => {
