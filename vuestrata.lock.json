@@ -53,7 +53,7 @@
     },
     "src/modules/app/bootstrap/index.ts": {
       "class": "managed",
-      "hash": "sha256-1e04af7a0a295998e7a1773fedb7fd9f29c62ab755855747bbe254aa12cd0508",
+      "hash": "sha256-8116089c733a86aac30192ab722065c3708bae8f914068246228fbda3364b429",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/mocks.ts": {
@@ -652,7 +652,7 @@
     },
     "src/modules/app/plugins/session-restore.ts": {
       "class": "managed",
-      "hash": "sha256-4613308c94ee51d6fc95098e11a39a9c461b116ef81df8cf803f841e25f1df97",
+      "hash": "sha256-ed0de367371cb89f02ab37249aad1dabec5ab04b5d949235e9dd235d03194329",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/plugins/vue-query.ts": {
@@ -667,7 +667,7 @@
     },
     "src/modules/app/state/runtime-backends.ts": {
       "class": "managed",
-      "hash": "sha256-a6fe88b7878eab4ee3b936bdf9e67f6c7f3d169bb17ce75cb13947f36212e7cb",
+      "hash": "sha256-31523a980cc5eea43f0600fa6376802d61a18d55bb10d4f7c15faad49d9897bc",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/stores/api-runtime.ts": {
@@ -990,5 +990,52 @@
       "vuestrata:modules": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   },
-  "ejected": []
+  "ejected": [],
+  "docs": [
+    "docs/1.getting-started/1.installation.md",
+    "docs/1.getting-started/2.configuration.md",
+    "docs/1.getting-started/3.starting-a-project.md",
+    "docs/1.getting-started/4.develop-against-your-backend.md",
+    "docs/10.troubleshooting.md",
+    "docs/2.architecture/1.overview.md",
+    "docs/2.architecture/2.adapters.md",
+    "docs/2.architecture/3.routing.md",
+    "docs/2.architecture/4.route-pages.md",
+    "docs/3.modules/1.overview.md",
+    "docs/3.modules/2.creating-a-module.md",
+    "docs/3.modules/3.built-in-modules.md",
+    "docs/3.modules/4.navigation.md",
+    "docs/4.theming/1.overview.md",
+    "docs/4.theming/2.semantic-tokens.md",
+    "docs/5.components/1.overview.md",
+    "docs/5.components/2.forms/1.text-inputs.md",
+    "docs/5.components/2.forms/2.choice-inputs.md",
+    "docs/5.components/2.forms/3.selection-inputs.md",
+    "docs/5.components/2.forms/4.date-time.md",
+    "docs/5.components/2.forms/5.specialized.md",
+    "docs/5.components/2.forms/6.form-builder.md",
+    "docs/5.components/2.forms/index.md",
+    "docs/5.components/2.provider-architecture.md",
+    "docs/5.components/3.data-tables.md",
+    "docs/5.components/4.charts.md",
+    "docs/5.components/5.dashboard.md",
+    "docs/6.configuration/1.environment.md",
+    "docs/6.configuration/2.auth-rbac.md",
+    "docs/6.configuration/3.auth-deep-dive.md",
+    "docs/7.testing/1.overview.md",
+    "docs/7.testing/2.accessibility.md",
+    "docs/8.deployment/1.vercel-demo.md",
+    "docs/8.deployment/2.real-production.md",
+    "docs/9.readiness.md",
+    "docs/9.recipes/1.add-a-module.md",
+    "docs/9.recipes/2.add-a-page.md",
+    "docs/9.recipes/3.add-a-theme.md",
+    "docs/9.recipes/4.add-a-component.md",
+    "docs/9.recipes/5.add-an-icon-set.md",
+    "docs/9.recipes/6.add-a-locale.md",
+    "docs/9.recipes/7.add-a-permission.md",
+    "docs/9.recipes/8.add-a-nav-group.md",
+    "docs/9.recipes/index.md",
+    "docs/index.md"
+  ]
 }
