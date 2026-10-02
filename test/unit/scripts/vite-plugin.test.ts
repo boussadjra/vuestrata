@@ -854,6 +854,89 @@ describe('the Content Security Policy of a served app', () => {
     })
   })
 
+  describe('in a build', () => {
+    /** Build-time `transformIndexHtml`, with the warnings it raised. */
+    async function builtPage(vars: Record<string, string>, html = indexHtml) {
+      const root = project({ '.env': { ...production, ...vars } })
+      const { plugin } = await runConfig(root, build())
+      const warn = vi.fn()
+      const hook = plugin.transformIndexHtml
+      const handler = typeof hook === 'function' ? hook : hook?.handler
+      const result = await handler!.call(
+        { warn } as unknown as MinimalPluginContextWithoutEnvironment,
+        html,
+        { path: '/index.html', filename: 'index.html' },
+      )
+      return { html: result as string, warn }
+    }
+
+    const withConnectSrc = (sources: string) =>
+      indexHtml.replace("connect-src 'self';", `connect-src ${sources};`)
+
+    it('leaves the tag as the generator wrote it', async () => {
+      const { html } = await builtPage({ VUESTRATA_API_URL: 'https://api.acme.test/v1' })
+
+      expect(metaPolicy(html)).toBe(metaPolicy(indexHtml))
+    })
+
+    it('warns when that tag will block the API the build was given', async () => {
+      // The committed tag says 'self'. Nothing else would mention it until a
+      // browser blocked every call of the deployed app.
+      const { warn } = await builtPage({ VUESTRATA_API_URL: 'https://api.acme.test/v1' })
+
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /VUESTRATA_API_URL is on https:\/\/api\.acme\.test, which the CSP <meta>/,
+        ),
+      )
+      // Both ways out, by name.
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('--from-env'))
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('--runtime-config'))
+    })
+
+    it.each([
+      ['a same-origin API', '/api', indexHtml],
+      [
+        'a tag rendered for that origin',
+        'https://api.acme.test/v1',
+        withConnectSrc("'self' https://api.acme.test"),
+      ],
+      [
+        'a tag left to the header (--runtime-config)',
+        'https://api.acme.test/v1',
+        withConnectSrc('*'),
+      ],
+      [
+        'a tag whose wildcard covers the origin',
+        'https://api.acme.test/v1',
+        withConnectSrc("'self' https://*.acme.test"),
+      ],
+      [
+        'a page with no CSP tag',
+        'https://api.acme.test/v1',
+        '<html><head><meta charset="UTF-8" /></head><body></body></html>',
+      ],
+    ])('says nothing for %s', async (_, apiUrl, html) => {
+      const { warn } = await builtPage({ VUESTRATA_API_URL: apiUrl }, html)
+
+      expect(warn).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['a wildcard for another domain', "'self' https://*.other.test"],
+      ['the same host on another port', "'self' https://api.acme.test:8443"],
+      ['the same host over another scheme', "'self' wss://api.acme.test"],
+    ])('still warns for %s', async (_, sources) => {
+      const { warn } = await builtPage(
+        { VUESTRATA_API_URL: 'https://api.acme.test/v1' },
+        withConnectSrc(sources),
+      )
+
+      expect(warn).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('is not sent with the MSW worker script, whose own fetches it would block', async () => {
     // A service worker is governed by the policy its script was served with.
     // The demo's worker re-fetches what it has no handler for, web fonts

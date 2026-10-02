@@ -21,6 +21,7 @@ import { ENV_KEYS, parseRuntimeEnv } from '../../src/modules/core/lib/config/env
 import { loadDeployConfig } from '../security/deploy-config.mjs'
 import {
   buildCsp,
+  connectSrcFor,
   replaceMetaCsp,
   resolveDeployHeaders,
   resolveRuntimeKeys,
@@ -82,6 +83,8 @@ export function vuestrataEnv(options = {}) {
    * sources, the variables they name — or null when nothing is being served.
    */
   let served = null
+  /** The origin of a cross-origin API URL a BUILD was given, or null. */
+  let builtApiOrigin = null
 
   /** The policy for what is being served: the header, or the `<meta>` variant. */
   const servedCsp = ({ forMeta = false, extraOrigins = [] } = {}) =>
@@ -225,6 +228,8 @@ export function vuestrataEnv(options = {}) {
             ]),
           }
           servedCsp()
+        } else {
+          builtApiOrigin = crossOriginOf(env.apiUrl)
         }
       }
 
@@ -276,6 +281,8 @@ export function vuestrataEnv(options = {}) {
      * `VUESTRATA_API_URL` at another origin would otherwise have every call
      * blocked by the page itself. A build is left as written: its tag is the
      * generator's (`sync-headers.mjs`), which is also what a deployment gets.
+     * When that tag does not allow the API origin the build was given, the
+     * build says so: nothing else would until a browser blocked the calls.
      */
     transformIndexHtml(html, ctx) {
       const page =
@@ -286,6 +293,16 @@ export function vuestrataEnv(options = {}) {
             ) ?? html)
           : html
       const src = `${base}${RUNTIME_CONFIG_FILE}`
+
+      if (!ctx.server && builtApiOrigin && metaBlocksConnectionTo(page, builtApiOrigin)) {
+        this.warn?.(
+          `[vuestrata:env] ${ENV_KEYS.apiUrl} is on ${builtApiOrigin}, which the CSP <meta> in ` +
+            'index.html does not allow: a browser will block the API calls of this build. ' +
+            'Render the headers for this environment before building ' +
+            '(`node scripts/security/sync-headers.mjs --from-env`), or with `--runtime-config` ' +
+            'when the API URL is set at start through runtime-config.js.',
+        )
+      }
 
       return (
         withRuntimeConfigScript(page, src) ?? {
@@ -317,6 +334,44 @@ function withRuntimeConfigScript(html, src) {
   const indent = /[ \t]*$/.exec(html.slice(0, anchor.index))[0]
   const escaped = src.replaceAll('&', '&amp;').replaceAll('"', '&quot;')
   return `${html.slice(0, end)}\n${indent}<script src="${escaped}"></script>${html.slice(end)}`
+}
+
+/**
+ * The origin of an absolute API URL as a CSP source, or null for a same-origin
+ * path and for a URL no source can name. Never throws: it only decides whether
+ * a build has something to warn about.
+ */
+function crossOriginOf(apiUrl) {
+  try {
+    return connectSrcFor(apiUrl)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Whether the page's CSP `<meta>` would block a connection to `origin`: it
+ * states a `connect-src` that neither names the origin nor is left open. A
+ * page with no such tag, or no such directive to read, blocks nothing here.
+ */
+function metaBlocksConnectionTo(html, origin) {
+  const policy = /\scontent="([^"]*)"/.exec(CSP_META_TAG.exec(html)?.[0] ?? '')?.[1]
+  const sources = /(?:^|;)\s*connect-src\s+([^;]*)/
+    .exec(policy ?? '')?.[1]
+    ?.trim()
+    .split(/\s+/)
+  if (sources === undefined) return false
+
+  // `https://*.acme.com` names `https://api.acme.com`: same scheme and port,
+  // and a host that ends with the part after the star.
+  const [scheme, authority] = origin.split('://')
+  const names = (source) =>
+    source === '*' ||
+    source === origin ||
+    (source.startsWith(`${scheme}://*.`) &&
+      authority.endsWith(source.slice(`${scheme}://*`.length)) &&
+      authority.includes(':') === source.slice(`${scheme}://`.length).includes(':'))
+  return !sources.some(names)
 }
 
 /**
