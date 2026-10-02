@@ -23,6 +23,9 @@ import { hashContents } from './plan.mjs'
  *       merged   path → hash with the `app:` region bodies blanked
  *       regions  slot → region → the lines inside this release's
  *                `vuestrata:` region of each project registry
+ *       docs     the `docs/` pages the release ships, which no upgrade installs.
+ *                `eject` removes those and no other, and reads this list when
+ *                the project's lockfile predates its own. Optional.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -47,6 +50,7 @@ export function createPayloadSource(root = payloadRoot()) {
   const seeded = index.seeded ?? {}
   const merged = index.merged ?? {}
   const regions = index.regions ?? {}
+  const docs = index.docs
   const full = (rel) => path.join(root, 'files', rel)
 
   return {
@@ -56,6 +60,8 @@ export function createPayloadSource(root = payloadRoot()) {
     seeded,
     merged,
     regions,
+    /** The `docs/` pages the template ships, or `undefined` when this payload predates the list. */
+    docs: Array.isArray(docs) ? docs : undefined,
     /** @returns {'managed' | 'merged' | 'seeded' | undefined} */
     classOf: (rel) => {
       if (Object.hasOwn(merged, rel)) return 'merged'

@@ -16,8 +16,9 @@ import {
 } from '../lib/eject/project.mjs'
 import { filesUnder, importSpecifiers, isAt, resolveSpecifier } from '../lib/eject/source.mjs'
 import { driftedFiles, LOCKFILE_NAME, readLock, writeLock } from '../lib/lockfile.mjs'
-import { collectManaged } from '../lib/managed.mjs'
+import { collectManaged, DOCS_DIR } from '../lib/managed.mjs'
 import { inSlot, loadManifest, slot, slotPath } from '../lib/manifest.mjs'
+import { createPayloadSource } from '../lib/payload.mjs'
 import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
 
 /**
@@ -83,13 +84,11 @@ const MAINTAINER_PATHS = [
   { path: '.github/workflows/release.yml', reason: 'publishes the template' },
 ]
 
-/** Removed only when `--keep-docs` is absent. */
-const DOCS_PATHS = [{ path: 'docs', reason: 'markdown documentation' }]
-
 /** Kept unless `--no-keep-customers` is passed: the reference implementation. */
 const REFERENCE_MODULE = 'customers'
 
 const HOME_PAGE = 'src/modules/app/pages/index.vue'
+const HOME_SECTIONS = 'src/modules/app/components/layout/home'
 const ROUTER_FILE = 'src/modules/app/plugins/router.ts'
 const NOT_FOUND_PAGE = 'src/modules/app/pages/[...notfound].vue'
 const CI_WORKFLOW = '.github/workflows/ci.yml'
@@ -120,7 +119,13 @@ router.replace('/dashboard')
 </template>
 `
 
-export function runEject({ root, flags }) {
+/**
+ * @param {object} options
+ * @param {{ docs?: string[] }} [options.source] This CLI's payload, read for the
+ *   `docs/` pages its release ships when the project's lockfile does not list
+ *   its own. Taken as an argument so a test can supply one.
+ */
+export function runEject({ root, flags, source = createPayloadSource() }) {
   if (!flags['dry-run'] && !flags['allow-dirty'] && !isGitClean(root)) {
     logger.error(
       'The working tree has uncommitted changes. Eject deletes a lot at once, and `git checkout .` ' +
@@ -133,10 +138,17 @@ export function runEject({ root, flags }) {
 
   let plan
   try {
-    plan = planEject({ root, manifest, flags })
+    plan = planEject({ root, manifest, flags, source })
   } catch (error) {
     logger.error(error.message)
     process.exit(1)
+  }
+
+  // A second run finds nothing left to remove or rewrite. Say so, rather than
+  // repeat the reminders of the first.
+  if (plan.removals.length === 0 && plan.edits.length === 0) {
+    logger.info('Nothing to eject: the demo modules and the files eject rewrites are already gone.')
+    return
   }
 
   if (flags['dry-run']) {
@@ -161,7 +173,7 @@ export function runEject({ root, flags }) {
  * `rbac.overrides.ts`, a registry that lost its markers — stops the run with the
  * tree untouched.
  */
-export function planEject({ root, manifest, flags }) {
+export function planEject({ root, manifest, flags, source }) {
   const modules = readModuleOrigins(root, manifest)
   if (modules.length === 0) {
     throw new Error(
@@ -183,16 +195,21 @@ export function planEject({ root, manifest, flags }) {
   for (const entry of demoModules) {
     removals.push({ path: inSlot(manifest, 'modulesDir', entry.id), reason: `${entry.id} module` })
   }
-  for (const entry of [
-    ...DEMO_PATHS,
-    ...(flags['keep-docs'] ? [] : DOCS_PATHS),
-    ...MAINTAINER_PATHS,
-  ]) {
+  for (const entry of [...DEMO_PATHS, ...MAINTAINER_PATHS]) {
     if (fs.existsSync(path.join(root, entry.path))) removals.push(entry)
   }
 
+  // The docs go only when `--keep-docs` is absent, and then only the pages the
+  // template shipped. The lockfile lists the ones this project received; one
+  // written before they were recorded leaves the list this CLI's release ships.
+  if (!flags['keep-docs']) {
+    const docs = planDocs(root, readLock(root).docs ?? source?.docs)
+    removals.push(...docs.removals)
+    notes.push(...docs.notes)
+  }
+
   const isRemoved = (rel) => removals.some((entry) => isAt(rel, entry.path))
-  const docsRemoved = removals.some((entry) => entry.path === 'docs')
+  const docsRemoved = removals.some((entry) => isAt(entry.path, DOCS_DIR))
 
   // ── Tests and specs tied to what is going ────────────────────────────────
   const targets = removals.map((entry) => entry.path.replace(/\.(?:ts|vue)$/, ''))
@@ -204,6 +221,14 @@ export function planEject({ root, manifest, flags }) {
       ...(isRemoved('src/modules/app/pages/components') ? ['/components'] : []),
     ],
   })
+
+  // The marketing page is replaced only while it still imports what is going: a
+  // project that already wrote its own landing page, or that ran eject before,
+  // keeps the page, and with it the specs that test it.
+  const homeReplaced = importsRemoved(root, HOME_PAGE, manifest, [
+    HOME_SECTIONS,
+    ...removals.map((entry) => entry.path),
+  ])
 
   const orphans = []
   const pruned = []
@@ -222,9 +247,9 @@ export function planEject({ root, manifest, flags }) {
         continue
       }
 
-      if (!file.startsWith('e2e/') || prefixes.length === 0) continue
+      if (!file.startsWith('e2e/') || (prefixes.length === 0 && !homeReplaced)) continue
 
-      const result = pruneSpec(source, prefixes)
+      const result = pruneSpec(source, prefixes, { home: homeReplaced })
       if (result.contents === null) {
         orphans.push({ path: file, reason: 'visits only routes that are removed' })
       } else if (result.changed) {
@@ -237,6 +262,19 @@ export function planEject({ root, manifest, flags }) {
           contents: result.contents,
         })
         pruned.push(file)
+      }
+
+      // Kept because this could not cut them, not because they are fine.
+      if (result.leftovers.length > 0) {
+        const titles = result.leftovers.map((title) => `"${title}"`).join(', ')
+        notes.push(
+          `${file} still visits removed routes in ${titles}. Eject could not tell how those ` +
+            'tests are declared, so it left them; fix or delete them.',
+        )
+      } else if (result.stray) {
+        notes.push(
+          `${file} still names a removed route outside any test eject could read. Check it.`,
+        )
       }
     }
   }
@@ -267,11 +305,13 @@ export function planEject({ root, manifest, flags }) {
     }
   }
 
-  edits.set(HOME_PAGE, {
-    path: HOME_PAGE,
-    reason: 'placeholder redirect to /dashboard',
-    contents: HOME_PLACEHOLDER,
-  })
+  if (homeReplaced) {
+    edits.set(HOME_PAGE, {
+      path: HOME_PAGE,
+      reason: 'placeholder redirect to /dashboard',
+      contents: HOME_PLACEHOLDER,
+    })
+  }
 
   if (isRemoved('src/modules/app/pages/docs') && fs.existsSync(path.join(root, NOT_FOUND_PAGE))) {
     const contents = dropNotFoundDocsLink(readOf(root, NOT_FOUND_PAGE))
@@ -334,7 +374,9 @@ export function planEject({ root, manifest, flags }) {
     for (const file of DOC_LINK_FILES) {
       if (!fs.existsSync(path.join(root, file))) continue
       const before = readOf(root, file)
-      const contents = rewriteDocLinks(before, ref)
+      const contents = rewriteDocLinks(before, ref, (target) =>
+        docLinkIsGone(root, target, isRemoved),
+      )
       if (contents !== before) {
         edits.set(file, { path: file, reason: `point docs/ links at upstream ${ref}`, contents })
       }
@@ -362,6 +404,26 @@ export function planEject({ root, manifest, flags }) {
         path: 'vendor',
         reason: 'the vendored comark tarball, used only by the docs',
       })
+
+      // Prose and config that describe the tarball are the project's to edit,
+      // and eject does not guess where one section ends.
+      const stale = [
+        ['SECURITY.md', /^#{2,4}\s+`comark` is a vendored/m, 'the comark section of SECURITY.md'],
+        [
+          '.github/dependabot.yml',
+          /dependency-name:\s*comark\b/,
+          'the comark ignore entry in .github/dependabot.yml',
+        ],
+      ].filter(
+        ([file, pattern]) =>
+          fs.existsSync(path.join(root, file)) && pattern.test(readOf(root, file)),
+      )
+      if (stale.length > 0) {
+        notes.push(
+          `vendor/ is gone, so ${stale.map(([, , what]) => what).join(' and ')} no longer ` +
+            'describe anything in this project; delete or rewrite them.',
+        )
+      }
     }
   }
   if (pkg.vendorUnused && fs.existsSync(path.join(root, 'Dockerfile'))) {
@@ -617,7 +679,9 @@ function findDanglingReferences(root, manifest, removals) {
 
   for (const dir of ['src', 'test', 'e2e']) {
     for (const file of filesUnder(root, dir)) {
-      if (!/\.(?:ts|vue|mts)$/.test(file)) continue
+      // Generated declarations (`components.d.ts`, `typed-router.d.ts`) are
+      // gitignored and rebuilt on the next build; they still name what went.
+      if (!/\.(?:ts|vue|mts)$/.test(file) || file.endsWith('.d.ts')) continue
 
       const source = fs.readFileSync(path.join(root, file), 'utf8')
 
@@ -633,6 +697,77 @@ function findDanglingReferences(root, manifest, removals) {
   }
 
   return found
+}
+
+/**
+ * The `docs/` files this eject removes: the pages the template shipped, as the
+ * smallest set of paths that names them — a directory when everything in it is
+ * the template's, else its files one by one. Anything else in `docs/` is the
+ * project's own writing and stays, with a note saying so.
+ *
+ * With no list to go by, nothing is removed. Telling a template page from a
+ * runbook by its name would be a guess, and a wrong guess deletes work.
+ */
+function planDocs(root, templateDocs) {
+  const files = filesUnder(root, DOCS_DIR)
+  if (files.length === 0) return { removals: [], notes: [] }
+
+  if (!templateDocs) {
+    return {
+      removals: [],
+      notes: [
+        `${DOCS_DIR}/ was kept: neither ${LOCKFILE_NAME} nor this CLI lists the pages the ` +
+          'template shipped, so eject cannot tell them from yours. Delete the ones you do not want.',
+      ],
+    }
+  }
+
+  const listed = new Set(templateDocs)
+  const removals = []
+  const reason = 'template documentation'
+
+  const collect = (dir) => {
+    if (filesUnder(root, dir).every((file) => listed.has(file))) {
+      removals.push({ path: dir, reason })
+      return
+    }
+    for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      const child = `${dir}/${entry.name}`
+      if (entry.isDirectory()) collect(child)
+      else if (listed.has(child)) removals.push({ path: child, reason })
+    }
+  }
+  collect(DOCS_DIR)
+
+  const mine = files.filter((file) => !listed.has(file))
+  const notes =
+    mine.length === 0
+      ? []
+      : [
+          `${DOCS_DIR}/ was kept: it holds ${mine.length} file(s) that are not the template's ` +
+            `(${mine.slice(0, 5).join(', ')}${mine.length > 5 ? ', …' : ''}).`,
+        ]
+  return { removals, notes }
+}
+
+/**
+ * Whether a link into `docs/` points at something eject removed. A directory is
+ * gone only when none of its files remain.
+ */
+function docLinkIsGone(root, target, isRemoved) {
+  if (isRemoved(target)) return true
+  const inside = filesUnder(root, target)
+  return inside.length > 0 && inside.every((file) => isRemoved(file))
+}
+
+/** Whether `rel` imports anything at or beneath one of `targets`. */
+function importsRemoved(root, rel, manifest, targets) {
+  if (!fs.existsSync(path.join(root, rel))) return false
+
+  const keys = targets.map((target) => target.replace(/\.(?:ts|vue)$/, ''))
+  return importSpecifiers(readOf(root, rel))
+    .map((specifier) => resolveSpecifier(rel, specifier, manifest))
+    .some((resolved) => resolved && keys.some((key) => isAt(resolved, key)))
 }
 
 /** Directories a removal leaves empty are not worth keeping, or committing. */

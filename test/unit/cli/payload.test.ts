@@ -170,6 +170,15 @@ describe.skipIf(!CLI_PRESENT || !MAINTAINER)('build-payload', () => {
     }
   })
 
+  it('lists the docs pages it ships, so eject removes those and no other', () => {
+    buildPayload({ repoRoot: process.cwd(), payloadRoot: out })
+    const { docs, files } = createPayloadSource(out)
+
+    expect(docs).toContain('docs/index.md')
+    // A list for eject to read, not files an upgrade installs.
+    expect(Object.keys(files).some((rel) => rel.startsWith('docs/'))).toBe(false)
+  })
+
   it("carries each project registry's vuestrata: region, and no merged file's", () => {
     buildPayload({ repoRoot: process.cwd(), payloadRoot: out })
     const { regions } = createPayloadSource(out)

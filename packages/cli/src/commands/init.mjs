@@ -11,7 +11,13 @@ import {
   regionHash,
   writeLock,
 } from '../lib/lockfile.mjs'
-import { classify, collectManaged, collectSeeded, PROJECT_REGISTRIES } from '../lib/managed.mjs'
+import {
+  classify,
+  collectDocs,
+  collectManaged,
+  collectSeeded,
+  PROJECT_REGISTRIES,
+} from '../lib/managed.mjs'
 import {
   describeMissingSlot,
   loadManifest,
@@ -61,6 +67,12 @@ export function runInit({ root, version, flags }) {
     const previous = fs.existsSync(lockPath(root)) ? readLock(root, { version }) : undefined
     const lock = emptyLock(version)
     const exists = (rel) => fs.existsSync(path.join(root, rel))
+
+    // Which `docs/` pages are the template's can only be read from a tree that
+    // is the template: anywhere else the folder may hold the project's own
+    // pages, and listing those would have `eject` delete them. So the list is
+    // taken with --pristine, and otherwise kept as it was.
+    lock.docs = flags.pristine ? collectDocs(root) : previous?.docs
 
     if (previous) {
       lock.ejected = [...previous.ejected]

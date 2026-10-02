@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { hashFor, readLock, regionHash } from '../../packages/cli/src/lib/lockfile.mjs'
 import {
   classify,
+  collectDocs,
   collectManaged,
   PROJECT_REGISTRIES,
   SEEDED_FILES,
@@ -134,6 +135,22 @@ for (const registry of PROJECT_REGISTRIES) {
   const actual = regionHash(regionEntries(lines, { keyedBy: registry.keyedBy }))
   if (recorded === undefined) problems.push(`${name} in ${rel} is not recorded`)
   else if (recorded !== actual) problems.push(`${name} in ${rel} has changed since it was recorded`)
+}
+
+// The `docs/` pages are listed, not hashed: `eject` removes the listed ones and
+// keeps the rest as the project's own. A page missing from the list would be
+// left behind in every project built from this release, under a note calling
+// it theirs.
+const docs = collectDocs(repoRoot)
+if (!lock.docs) {
+  problems.push('the docs/ pages are not listed')
+} else {
+  for (const rel of docs) {
+    if (!lock.docs.includes(rel)) problems.push(`${rel} is a docs page but not listed`)
+  }
+  for (const rel of lock.docs) {
+    if (!docs.includes(rel)) problems.push(`${rel} is listed as a docs page but does not exist`)
+  }
 }
 
 if (problems.length > 0) fail(problems)
