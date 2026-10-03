@@ -5,7 +5,7 @@ import { normalizeError, reportError, type AppError } from '~/lib/errors'
 import { logger } from '~/lib/logger'
 import type { FormProps } from '~/types/forms'
 
-import { useServerErrors } from './useServerErrors'
+import { toDotPath, useServerErrors } from './useServerErrors'
 import { useUnsavedChangesGuard } from './useUnsavedChangesGuard'
 
 /**
@@ -81,6 +81,14 @@ function changedPaths(current: unknown, baseline: unknown, prefix = ''): string[
   return prefix && !isSameValue(current, baseline) ? [prefix] : []
 }
 
+/**
+ * A field may be named `lines[0].sku` or `lines.0.sku`; Formwerk reads both as
+ * the same place. The server's messages are kept under the dotted spelling.
+ */
+function dotted(path: string): string {
+  return path.includes('[') ? toDotPath(path) : path
+}
+
 /** What a field holds before anyone has chosen anything: `''`, or no items. */
 function isEmptyDefault(value: unknown): boolean {
   return value === '' || (Array.isArray(value) && value.length === 0)
@@ -145,12 +153,13 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
   const fieldCounts = new Map<string, number>()
 
   function countField(path: string, change: 1 | -1): void {
-    const next = (fieldCounts.get(path) ?? 0) + change
-    if (next === 0) fieldCounts.delete(path)
-    else fieldCounts.set(path, next)
+    const key = dotted(path)
+    const next = (fieldCounts.get(key) ?? 0) + change
+    if (next === 0) fieldCounts.delete(key)
+    else fieldCounts.set(key, next)
   }
 
-  const hasField = (path: string) => (fieldCounts.get(path) ?? 0) > 0
+  const hasField = (path: string) => (fieldCounts.get(dotted(path)) ?? 0) > 0
 
   const transaction: typeof context.transaction = (run) => {
     context.transaction((inner, kinds) => {
@@ -233,15 +242,16 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
   const getErrors = ((path?: string) => {
     const own: string[] = context.getErrors(path)
     const shown = isRevealed(path) ? own : []
-    const fromServer = server.errorsFor(path)
+    const fromServer = server.errorsFor(path === undefined ? path : dotted(path))
     return fromServer.length > 0 ? [...fromServer, ...shown] : shown
   }) as typeof context.getErrors
 
   /** A field the user edits has answered what the server said about it. */
   const setValue = ((path: string, value: unknown) => {
     context.setValue(path, value)
-    if (server.errorsFor(path).length === 0) return
-    server.clear(path)
+    const key = dotted(path)
+    if (server.errorsFor(key).length === 0) return
+    server.clear(key)
     if (summaryOnly.value && server.errorsFor().length === 0) clearErrors()
   }) as typeof context.setValue
 

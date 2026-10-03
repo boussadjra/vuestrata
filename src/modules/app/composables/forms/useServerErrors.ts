@@ -212,8 +212,10 @@ export function useServerErrors(options: ServerErrorOptions | (() => ServerError
     for (const [path, value] of Object.entries(errors)) {
       const messages = messagesOf(value)
       if (messages.length === 0) continue
+      // Stored under the dotted spelling, whichever the caller used.
+      const key = path.includes('[') ? toDotPath(path) : path
       if (path === '') addUnique(form, messages)
-      else if (hasField(path)) addUnique((fields[path] ??= []), messages)
+      else if (hasField(key)) addUnique((fields[key] ??= []), messages)
       else
         addUnique(
           form,

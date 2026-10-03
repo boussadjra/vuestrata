@@ -4,7 +4,7 @@ import { defineComponent, h, ref, type PropType } from 'vue'
 import { z } from 'zod'
 
 import { installValidationMessages } from '@/bootstrap/validation-messages'
-import { UiForm, UiSelect, UiTextField } from '@/components/ui'
+import { UiForm, UiFormGroup, UiFormRepeater, UiSelect, UiTextField } from '@/components/ui'
 import { getI18n } from '@/plugins/i18n'
 import { AppError, httpError, installErrorReporter, resetErrorReporter } from '~/lib/errors'
 import type { FormProps } from '~/types/forms'
@@ -699,6 +699,132 @@ describe('the server’s messages for fields', () => {
     expect(action).toHaveBeenCalledTimes(2)
     expect(events.success).toHaveLength(1)
     expect(fieldError('email')).toBeUndefined()
+  })
+})
+
+describe('fields inside a group and a repeater', () => {
+  it('are found by their full path, which is where the server’s message goes', async () => {
+    const action = vi.fn((_values: Values) =>
+      Promise.reject(
+        validationError({
+          'Address.City': ['City is not served.'],
+          'contacts[1].email': ['Already registered.'],
+        }),
+      ),
+    )
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            UiForm,
+            {
+              initialValues: {
+                address: { city: 'Paris' },
+                contacts: [{ email: 'a@acme.test' }, { email: 'b@acme.test' }],
+              },
+              action,
+            },
+            {
+              default: (slot: Record<string, unknown>) => [
+                h(
+                  'output',
+                  { 'data-test': 'form-errors' },
+                  (slot.formErrors as string[]).join('|'),
+                ),
+                h(UiFormGroup, { name: 'address', label: 'Address' }, () => [
+                  h(UiTextField, { name: 'city', label: 'City' }),
+                ]),
+                h(UiFormRepeater, { name: 'contacts' }, () => [
+                  h(UiTextField, { name: 'email', label: 'Email' }),
+                ]),
+              ],
+            },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    await settle()
+
+    const inputs = wrapper.findAll<HTMLInputElement>('input')
+    const errorUnder = (index: number) =>
+      inputs[index]!.element.parentElement?.querySelector('[role="alert"]')?.textContent?.trim()
+    expect(inputs.map((field) => field.element.value)).toEqual([
+      'Paris',
+      'a@acme.test',
+      'b@acme.test',
+    ])
+
+    await wrapper.find('form').trigger('submit')
+    await settle()
+
+    // Named relative to the group and the repeater, held at the full path.
+    expect(action.mock.calls[0]![0]).toEqual({
+      address: { city: 'Paris' },
+      contacts: [{ email: 'a@acme.test' }, { email: 'b@acme.test' }],
+    })
+    expect(errorUnder(0)).toBe('City is not served.')
+    expect(errorUnder(1)).toBeUndefined()
+    expect(errorUnder(2)).toBe('Already registered.')
+    expect(wrapper.find('[data-test="form-errors"]').text()).toBe(
+      i18n.global.t('errors.status_422'),
+    )
+
+    await inputs[2]!.setValue('c@acme.test')
+    await settle()
+    expect(errorUnder(2)).toBeUndefined()
+    expect(errorUnder(0)).toBe('City is not served.')
+  })
+})
+
+describe('a field named with brackets', () => {
+  it('gets the server’s message whichever way the two sides spell the index', async () => {
+    const formRef = ref<unknown>(null)
+    const action = vi.fn(() =>
+      Promise.reject(validationError({ 'Lines[0].Sku': ['Unknown SKU.'] })),
+    )
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            UiForm,
+            { ref: formRef, initialValues: { lines: [{ sku: 'A-1' }] }, action },
+            {
+              default: (slot: Record<string, unknown>) => [
+                h(
+                  'output',
+                  { 'data-test': 'form-errors' },
+                  (slot.formErrors as string[]).join('|'),
+                ),
+                h(UiTextField, { name: 'lines[0].sku', label: 'SKU' }),
+              ],
+            },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    await settle()
+    const sku = wrapper.find<HTMLInputElement>('input')
+    const skuError = () =>
+      sku.element.parentElement?.querySelector('[role="alert"]')?.textContent?.trim()
+
+    await wrapper.find('form').trigger('submit')
+    await settle()
+
+    expect(action).toHaveBeenCalledTimes(1)
+    expect(skuError()).toBe('Unknown SKU.')
+    expect(wrapper.find('[data-test="form-errors"]').text()).toBe(
+      i18n.global.t('errors.status_422'),
+    )
+
+    await sku.setValue('B-2')
+    await settle()
+    expect(skuError()).toBeUndefined()
+
+    ;(formRef.value as FormExposed).setErrors({ 'lines[0].sku': 'Discontinued.' })
+    await settle()
+    expect(skuError()).toBe('Discontinued.')
   })
 })
 

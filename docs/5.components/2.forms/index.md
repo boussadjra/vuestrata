@@ -383,10 +383,10 @@ Groups related fields under a `<fieldset>` with a shared legend, optional group-
 <UiForm :initial-values="{ address: { street: '', city: '', zip: '' } }">
   <UiFormGroup name="address" label="Shipping address">
     <template #default="{ errors }">
-      <UiTextField name="address.street" label="Street" placeholder="123 Main St" required />
+      <UiTextField name="street" label="Street" placeholder="123 Main St" required />
       <div class="grid grid-cols-2 gap-4">
-        <UiTextField name="address.city" label="City" placeholder="New York" required />
-        <UiTextField name="address.zip" label="ZIP code" placeholder="10001" />
+        <UiTextField name="city" label="City" placeholder="New York" required />
+        <UiTextField name="zip" label="ZIP code" placeholder="10001" />
       </div>
       <p v-if="errors.length" class="text-sm text-red-500">{{ errors[0] }}</p>
     </template>
@@ -403,6 +403,8 @@ Groups related fields under a `<fieldset>` with a shared legend, optional group-
 | `schema`   | `StandardSchemaV1` | —            | Group-level cross-field validation           |
 | `disabled` | `boolean`          | `false`      | Disables all fields within this group        |
 
+Fields inside a group are named relative to it: `name="street"` above is `address.street` in the form's values. The same holds inside `UiFormRepeater`, where `name="email"` in the second row is `contacts.1.email`. That full path is also where a server error for the field is looked up.
+
 ---
 
 ### UiFormRepeater
@@ -414,13 +416,8 @@ Renders a dynamic list of repeated field groups with add, remove, and reorder co
   <UiFormRepeater name="contacts" add-button-label="Add contact" :min="1" :max="5">
     <template #default="{ index, removeButtonProps, moveUpButtonProps, moveDownButtonProps }">
       <div class="flex gap-2 items-end">
-        <UiTextField :name="`contacts[${index}].name`" label="Name" placeholder="Contact name" />
-        <UiTextField
-          :name="`contacts[${index}].email`"
-          label="Email"
-          type="email"
-          placeholder="contact@example.com"
-        />
+        <UiTextField name="name" label="Name" placeholder="Contact name" />
+        <UiTextField name="email" label="Email" type="email" placeholder="contact@example.com" />
         <button v-bind="removeButtonProps" class="btn-icon">✕</button>
       </div>
     </template>
