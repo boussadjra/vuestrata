@@ -2,6 +2,7 @@ import { slot } from '../../src/lib/manifest.mjs'
 import { ANCHORED_REGISTRIES } from '../../src/lib/registry.mjs'
 import { splitRegion } from '../split-regions.mjs'
 import deployment from './deployment.mjs'
+import hybridMocks from './hybrid-mocks.mjs'
 import notes from './notes.mjs'
 import projectFiles from './project-files.mjs'
 import promotions from './promotions.mjs'
@@ -43,6 +44,15 @@ const regionSplit = {
 //   promotions      files the project owned that Vuestrata maintains from now on
 //   rbacEject       core/lib/rbac/ as the 1.0 eject left it, taken back before it is judged
 //   projectFiles    changes this release needs in files that stay the project's
+//   hybridMocks     the same, for what VUESTRATA_MOCK_ONLY reads in two of them
 //   deployment      the container and CI files, replaced when nobody edited them
 //   notes           what only a person can act on
-export default [regionSplit, ...promotions, rbacEject, ...projectFiles, deployment, notes]
+export default [
+  regionSplit,
+  ...promotions,
+  rbacEject,
+  ...projectFiles,
+  ...hybridMocks,
+  deployment,
+  notes,
+]

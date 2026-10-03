@@ -5,6 +5,7 @@ import Logo from '@/components/Logo.vue'
 import { UiButton, UiTextField, UiToggleGroup } from '@/components/ui'
 import { useNotificationStore } from '@/stores/notification'
 import { resolveIcon } from '~/config/icon-provider'
+import { runtimeEnv } from '~/lib/config'
 import { useAuth } from '~/modules/auth'
 import { DEMO_ACCOUNT } from '~/state/demo/account'
 
@@ -36,8 +37,12 @@ const sessionExpired = computed(() => reason.value === 'expired')
  * never render it. Because the constant is a literal, a production build
  * evaluates this to `null` and rolldown drops the DEMO_ACCOUNT import with it —
  * the address does not appear in the bundle at all.
+ *
+ * And only where the mock adapter signs in. A demo build can also mock a few
+ * modules beside a real backend (`VUESTRATA_MOCK_ONLY`), with a real adapter:
+ * the demo account does not exist there, and the hint would be a lie.
  */
-const demoAccount = __VUESTRATA_DEMO__ ? DEMO_ACCOUNT : null
+const demoAccount = __VUESTRATA_DEMO__ && runtimeEnv.authAdapter === 'mock' ? DEMO_ACCOUNT : null
 
 type LoginMode = 'credentials' | 'magic-link'
 const mode = ref<LoginMode>('credentials')
