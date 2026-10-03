@@ -840,7 +840,7 @@
     },
     "src/modules/core/lib/api/collection-queries.ts": {
       "class": "managed",
-      "hash": "sha256-9c60cff806954ef35419e1be4716b0d0eba7bf17a2a93300e622908a4b74597d",
+      "hash": "sha256-ee92a63fa2bf8fd0d162a3ba1460d5f44a163b50ce69b69b6cdedb5b343e5175",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/csrf.ts": {
@@ -850,7 +850,7 @@
     },
     "src/modules/core/lib/api/dialects.ts": {
       "class": "managed",
-      "hash": "sha256-fb2ab13637e136658debda61f40a33140cf08e9d5e8c6b00675bfbc62dff4363",
+      "hash": "sha256-3414f0021331359e9c87c41e12935587fb76d3358f7e10e23d5a239cf5b3278c",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/error-mappers.ts": {
