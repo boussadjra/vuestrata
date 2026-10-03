@@ -89,6 +89,21 @@ describe('what Vuestrata’s own files import from the auth barrel', () => {
     }
   })
 
+  it('is nothing the barrel did not already export: the layout components', () => {
+    // The header asks the adapter whether it can register; the user menu signs
+    // out. Both are replaced by an upgrade, beside a barrel that is not.
+    const layout = 'src/modules/app/components/layout'
+    for (const name of fs.readdirSync(path.join(ROOT, layout))) {
+      if (!name.endsWith('.vue')) continue
+      const unreleased = importedFrom(read(`${layout}/${name}`), AUTH_BARREL).filter(
+        (imported) => !RELEASED_BARREL_EXPORTS.includes(imported),
+      )
+      expect(unreleased, `${name} imports ${unreleased.join(', ')} from the auth barrel`).toEqual(
+        [],
+      )
+    }
+  })
+
   it('is nothing at all: core/lib, which the auth module depends on and not the reverse', () => {
     for (const file of sources('src/modules/core/lib/auth')) {
       expect(read(file), file).not.toMatch(/from '[@~]\/modules\//)

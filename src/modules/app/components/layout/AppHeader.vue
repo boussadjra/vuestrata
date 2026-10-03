@@ -5,6 +5,7 @@ import { UiButton, UiSelect } from '@/components/ui'
 import { useLocales } from '@/composables/useLocales'
 import { useTheme } from '@/composables/useTheme'
 import { resolveIcon } from '@/config/icon-provider'
+import { getAuthAdapter } from '@/modules/auth'
 import { isDocsPath } from '@/plugins/appearance'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -59,8 +60,16 @@ const isDocsRoute = computed(() => isDocsPath(normalizedPath.value))
 
 const docsSidebar = useDocsSidebar()
 
+// What a signed-out visitor is offered: the other auth page while on one, the
+// login page anywhere else. Null when there is nothing to offer.
 const guestAction = computed(() => {
   if (normalizedPath.value === '/auth/login') {
+    // The way to the registration page, for an adapter that can register. One
+    // that cannot (a backend with no sign-up, an SDK that owns it) has a page
+    // there that could do nothing, and the login page drops its own link to it
+    // for the same reason. Asked only here, so a header anywhere else never
+    // builds an adapter to find out.
+    if (!getAuthAdapter().capabilities.register) return null
     return {
       to: '/auth/register',
       label: t('auth_register'),
@@ -233,7 +242,7 @@ const guestAction = computed(() => {
           </UiButton>
           <AppUserMenu />
         </template>
-        <template v-else>
+        <template v-else-if="guestAction">
           <UiButton
             :to="guestAction.to"
             :variant="guestAction.variant"
