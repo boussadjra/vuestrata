@@ -23,12 +23,12 @@
     },
     "scripts/vite/vuestrata-plugin.d.mts": {
       "class": "managed",
-      "hash": "sha256-fb743582f564a99741881590fd86ccb6510012946283ea574296e7a513a01e0e",
+      "hash": "sha256-14c66f1242f26884bb726136199f416b8b768c97a544474589c3c7bfcb9be964",
       "since": "1.0.1-alpha.6"
     },
     "scripts/vite/vuestrata-plugin.mjs": {
       "class": "managed",
-      "hash": "sha256-3b2ce11f0f0bd404e51087b33d60b2854c5f4c33e4c23d5d917b6a10e975e5b9",
+      "hash": "sha256-d790b266b7926dbcccdda2217133880424aa4c5c6a602bbf42fd3ebc442a444a",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/app-loader.ts": {
@@ -38,7 +38,7 @@
     },
     "src/modules/app/bootstrap/auth-wiring.ts": {
       "class": "managed",
-      "hash": "sha256-6140831cdeedeeb4796aeec1cec72fcc68bea848e70840952ff25bfb03f645ae",
+      "hash": "sha256-16402d968c41c71b558683142e37a618b24a251f634185dc19298d863526c130",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/bootstrap/boot-error.ts": {
@@ -93,7 +93,7 @@
     },
     "src/modules/app/components/layout/AppHeader.vue": {
       "class": "managed",
-      "hash": "sha256-08ff3958496cda8a4d2a7b913d35af5fb61cf72e58bd97dade22f7d599e429d4",
+      "hash": "sha256-53b4f606437d1e57beadd325a3cd62337b7b38b0ef4d86664096e6de10e0899c",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/app/components/layout/AppRoot.vue": {
@@ -800,7 +800,7 @@
     },
     "src/modules/auth/adapters/registry.ts": {
       "class": "managed",
-      "hash": "sha256-3801edd7daec0bbcaee2b6a2c196bafe9bd7c456be64296ca91d6e72a4f7f11b",
+      "hash": "sha256-60a68e40029792860126d3c96bec630cd54eda054c964d14592f86a1f08ed742",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/auth/adapters/types.ts": {
@@ -855,27 +855,27 @@
     },
     "src/modules/core/lib/auth/adapter.ts": {
       "class": "managed",
-      "hash": "sha256-8e9b7f20ccfff07609cbc1ceda386f6b34b4d6d29742f6326831235a38716458",
+      "hash": "sha256-fb42629d09653c7cc72c1bcfa63db99391601b6e6a3d429d98a21d9f927d53fe",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/auth/config.ts": {
       "class": "managed",
-      "hash": "sha256-69c1829374ae7795c5782dfce94bd719f5fdd027e9e4ddbdf23d3a9d121ed153",
+      "hash": "sha256-cef7238013ab6144b63b258cef0e445185633a5e2a7fa10ac3cb5e78abd197af",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/auth/endpoints.ts": {
       "class": "managed",
-      "hash": "sha256-a8a4e734574b451be9cae99af9193f8ade87f0258cd657c29356e7bbb6166d3c",
+      "hash": "sha256-05bd8bbaace8392705a33c27639f81541eed3f5dfbd95bfcca09d86ec711836b",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/auth/index.ts": {
       "class": "managed",
-      "hash": "sha256-3af92045e7e9694e3aaf85ea0a563eb18ad9903e927f1e099bdf6c8e138d4df8",
+      "hash": "sha256-9c4eef965da94cc009057c1fd2ba3d0ec7c4fb54a810baf482d778880ca19a8b",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/auth/registry.ts": {
       "class": "managed",
-      "hash": "sha256-8fd925d8aa4fbd3c660f10ac14ee211f8e150ae3f9b5a8657484a530a653dcec",
+      "hash": "sha256-370595351a3b0d8cc8f38dbdda495c89f7588037da735df53c4c925c42ff9875",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/auth/session-persistence.ts": {
@@ -885,7 +885,7 @@
     },
     "src/modules/core/lib/auth/user.ts": {
       "class": "managed",
-      "hash": "sha256-e775c435cf1454828ee1a25386e7da2004143266156dff83de6a7300e3b92219",
+      "hash": "sha256-efdd08d4af076a672581c2f3c7b6d2a584345e68507708425d2a286ae90fa718",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/cn.ts": {
@@ -895,12 +895,12 @@
     },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
-      "hash": "sha256-30096305fd0cccee6a5f39fa979d7b57ed1fb292e140406bf690858bfffc8820",
+      "hash": "sha256-804747f73dbb603700ef3760792fe7397e6c3c59c3ef393b96fde5d396e68266",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/config/index.ts": {
       "class": "managed",
-      "hash": "sha256-fde1528b96ac2bdd193a768a3a0f625b026ed86f6229f118fbbec8899b74e2db",
+      "hash": "sha256-a164c738e670bec00a45c6045c2b5f2645b420333c2f725e5e093cc25172511c",
       "since": "1.0.1-alpha.6"
     },
     "src/modules/core/lib/echarts-setup.ts": {
