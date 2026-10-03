@@ -873,12 +873,17 @@
     },
     "src/modules/core/lib/api/collection-queries.ts": {
       "class": "managed",
-      "hash": "sha256-5b922234c8706b8410b69b412353bda24f126ad998c44451a3059f9064660f2d",
+      "hash": "sha256-ee92a63fa2bf8fd0d162a3ba1460d5f44a163b50ce69b69b6cdedb5b343e5175",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/csrf.ts": {
       "class": "managed",
       "hash": "sha256-57142d6985f53bdbba82c73e26d10a7648169eafba475060b99dbb59bc42587d",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/core/lib/api/dialects.ts": {
+      "class": "managed",
+      "hash": "sha256-3414f0021331359e9c87c41e12935587fb76d3358f7e10e23d5a239cf5b3278c",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/error-mappers.ts": {
@@ -893,37 +898,37 @@
     },
     "src/modules/core/lib/api/integration.ts": {
       "class": "managed",
-      "hash": "sha256-90324fbf7bd9eca7ea41e6c74595d908ff89e618f9aff8768aa31c66659162d8",
+      "hash": "sha256-fed8da62651602702b9b84517758cf2fe52b93ffbe22952247e2db44605a33e7",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/presets/aspnet.ts": {
       "class": "managed",
-      "hash": "sha256-4bde36254dd3906f173f3b6686d959397706c744c7c3f4907f4a5209abf121a5",
+      "hash": "sha256-a5dae531c02714b080172f5a6367cdd93b4713839be2e3019caf4c661bc99251",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/presets/django.ts": {
       "class": "managed",
-      "hash": "sha256-9fbbc0445f992bd2a7dab14166020606b02bceabbcc1e1d79424f88c33fd3c79",
+      "hash": "sha256-7fc08e512335d08a805166a6c7a591093ac122f76af913b0dcb429984f4a3e71",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/presets/index.ts": {
       "class": "managed",
-      "hash": "sha256-66ca56ee91b2c5b45f007487e1d41b2e30538e1b2ca2c9678f03804f053dd195",
+      "hash": "sha256-9046578579befcbdea493a725a512f0393bc6ea66668d449ac11fa7107049ac2",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/presets/laravel.ts": {
       "class": "managed",
-      "hash": "sha256-3f72df14bed505ff57c21c9864162f2a5b6fa8a5584f3aec7bfa87307310bbd1",
+      "hash": "sha256-33c0beb2c217932a913f5b5209797455c3145d4d84cc3d5bd7d15c35d75b8f3d",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/presets/nest.ts": {
       "class": "managed",
-      "hash": "sha256-75ce4af0c9b1fe949b1d1ab549bbd2f10d20babacdbb69c4ce43a581486d0928",
+      "hash": "sha256-879739a475b7fb80d8cf75b4b5b77fd63f31bcc2e8823703d3fef4141ffeec99",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/presets/spring.ts": {
       "class": "managed",
-      "hash": "sha256-f2c1d5dcac56c0c359fb46660c965acaa2311fd4bd471e223681bde00a9918ae",
+      "hash": "sha256-6009cb3af45960c00fbb4fe24836b922786d5c5bda0b861506283f0fcd849816",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/presets/vuestrata.ts": {

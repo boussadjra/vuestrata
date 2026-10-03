@@ -9,8 +9,10 @@
  * `ApiOverrides` for the order). Each preset's file says what it covers and
  * what it leaves to you.
  *
- * Collection dialects (pagination envelopes, sort and filter parameters) are
- * not part of a preset yet.
+ * The Laravel, Django and Spring presets carry a collection dialect too (the
+ * paginator, `PageNumberPagination`, `Page`), so `createCollectionApi` speaks
+ * that backend's lists without another line. ASP.NET Core and NestJS have no
+ * pagination convention of their own: name one under `collection`.
  */
 import { aspnet } from './aspnet'
 import { django } from './django'

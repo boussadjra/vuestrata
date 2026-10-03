@@ -16,7 +16,9 @@
  *   error mappers   how a failed response's body becomes an `AppError`
  *   csrf            where the token is read from and which header returns it
  *
- * plus two settings, the timeout and the correlation headers.
+ * plus two settings, the timeout and the correlation headers, and one thing
+ * the client itself never reads: the collection dialect, which is how
+ * `createCollectionApi` asks this backend for a list (see `dialects.ts`).
  *
  * With nothing installed the client uses `DEFAULT_API_INTEGRATION`, so
  * `core/lib` and its tests need no setup.
@@ -34,6 +36,11 @@ import {
   type CsrfPrimeState,
   type CsrfStrategy,
 } from './csrf'
+import {
+  resolveCollectionDialect,
+  type CollectionDialect,
+  type ResolvedCollectionDialect,
+} from './dialects'
 import { vuestrataErrorMapper } from './error-mappers'
 import { DEFAULT_TRACING, resolveTracing, type ApiTracing, type ApiTracingOptions } from './tracing'
 
@@ -155,10 +162,10 @@ export type ApiHeaders = Record<
 >
 
 /**
- * Reserved for collection dialects (pagination envelopes, sort and filter
- * parameters). Accepted and ignored in this release.
+ * The project's collection dialect: how this backend paginates, sorts and
+ * filters a list, and what it wraps a record in. See `dialects.ts`.
  */
-export type ApiCollectionOptions = Readonly<Record<string, unknown>>
+export type ApiCollectionOptions = CollectionDialect
 
 /** The options a preset and the overrides file share. */
 export interface ApiConventions {
@@ -189,7 +196,11 @@ export interface ApiConventions {
    * `loginRedirect()`, which reads the page a redirect ended on.
    */
   redirect?: 'follow' | 'error'
-  /** Reserved for collection dialects. Accepted and ignored in this release. */
+  /**
+   * The dialect every `createCollectionApi` call uses unless it names its
+   * own: one of `dialects` (`core/lib/api/dialects`), or the project's.
+   * Without one, collections speak Vuestrata's own contract.
+   */
   collection?: ApiCollectionOptions
 }
 
@@ -213,6 +224,8 @@ export interface ApiBackendPreset extends ApiConventions {
  *   csrf, timeoutMs,   yours replaces the preset's whole value; to change one
  *   tracing, redirect  field, spread the preset's:
  *                      `csrf: { ...csrfPresets.laravel, prime: '/csrf' }`
+ *   collection         yours replaces the preset's; to change part of one:
+ *                      `collection: extendDialect(dialects.laravel, { keys: 'camel' })`
  */
 export interface ApiOverrides extends ApiConventions {
   /** A preset to start from: `presets.laravel`, `presets.django`, … */
@@ -234,6 +247,13 @@ export interface ApiIntegration {
    * whose strategy has no prime step.
    */
   readonly csrfPrime?: CsrfPrimeState
+  /**
+   * The project's collection dialect, with its defaults filled in. Absent
+   * when neither the overrides nor the preset names one: collections then
+   * speak Vuestrata's own contract. Read by `createCollectionApi`, never by
+   * the client.
+   */
+  readonly collection?: ResolvedCollectionDialect
 }
 
 /**
@@ -312,6 +332,7 @@ export function resolveApiIntegration(
 ): ApiIntegration {
   const preset = overrides.backend
   const csrf = overrides.csrf ?? preset?.csrf ?? DEFAULT_API_INTEGRATION.csrf
+  const collection = overrides.collection ?? preset?.collection
 
   return {
     requestHooks: [
@@ -341,6 +362,9 @@ export function resolveApiIntegration(
     // Only a strategy that can prime has anything to remember, which keeps an
     // empty overrides file resolving to exactly the defaults.
     ...(csrf.source !== 'none' && csrf.prime ? { csrfPrime: createCsrfPrimeState() } : {}),
+    // Resolved here, at boot, so a value that is not a dialect fails the boot
+    // with its name instead of failing every list with a schema error.
+    ...(collection === undefined ? {} : { collection: resolveCollectionDialect(collection) }),
   }
 }
 

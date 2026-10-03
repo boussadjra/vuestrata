@@ -9,7 +9,9 @@ import type { ApiBackendPreset } from '../integration'
  *   its entries arrive as form errors.
  *
  * Nest's guards answer 401 for an unauthenticated request, which the client
- * handles already, and Nest ships no CSRF convention of its own.
+ * handles already, and Nest ships no CSRF convention of its own. Nor a
+ * pagination one: a backend on `nestjs-paginate` sets
+ * `collection: dialects.nestPaginate` beside this preset.
  */
 export const nest: ApiBackendPreset = {
   name: 'nest',

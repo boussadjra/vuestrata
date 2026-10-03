@@ -25,7 +25,11 @@
  *               them. Worth setting when `headers` holds a secret and the API
  *               never redirects: a redirect to another origin takes every
  *               header but `Authorization` with it
- *   collection  reserved for pagination and sorting dialects; ignored for now
+ *   collection  how your backend paginates, sorts and filters a list and what
+ *               it wraps a record in: one of the `dialects` in
+ *               `~/lib/api/dialects`, or your own. Every `createCollectionApi`
+ *               call uses it unless it names another. The Laravel, Django and
+ *               Spring presets bring theirs
  *
  * Left empty, as shipped, the client behaves as it always has, with two
  * additions: every request sends `Accept: application/json` (unless the caller
@@ -43,7 +47,8 @@
  *   classify, errors   yours first, then the preset's, then the built-ins:
  *                      the first to answer wins
  *   csrf, timeoutMs,   yours replaces the preset's
- *   tracing, redirect
+ *   tracing, redirect,
+ *   collection
  *
  * ── Examples ───────────────────────────────────────────────────────────────
  *
@@ -80,6 +85,16 @@
  *
  *   export default defineApiOverrides({
  *     classify: [statusMeans(440, 'unauthenticated')],
+ *   })
+ *
+ * A Laravel backend whose JSON is snake_case, read and written as camelCase:
+ *
+ *   import { dialects, extendDialect } from '~/lib/api/dialects'
+ *   import { presets } from '~/lib/api/presets'
+ *
+ *   export default defineApiOverrides({
+ *     backend: presets.laravel,
+ *     collection: extendDialect(dialects.laravel, { keys: 'camel' }),
  *   })
  *
  * The full recipe is docs/9.recipes/9.connect-your-backend-api.md.
