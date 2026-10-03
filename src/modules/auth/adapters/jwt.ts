@@ -1,5 +1,6 @@
 import { jwtDecode } from 'jwt-decode'
 
+import { getAuthConfig } from '~/lib/auth/config'
 import {
   persistRefreshToken,
   readPersistedRefreshToken,
@@ -46,7 +47,7 @@ export function isJwtExpired(token: string): boolean {
  * code path, so the documented "checks expiry per call" behaviour did not
  * happen. `getUser` now actually uses it.
  *
- * Backend contract:
+ * Backend contract, as shipped:
  *   POST /auth/login            → { user, token, refreshToken?, expiresIn }
  *   POST /auth/register         → same
  *   POST /auth/logout           → 204
@@ -55,11 +56,26 @@ export function isJwtExpired(token: string): boolean {
  *   POST /auth/magic-link       → { message }
  *   POST /auth/magic-link/verify→ { user, token, … }
  *   POST /auth/mfa/{setup,verify,disable}
+ *
+ * A backend that differs is described in `app/config/auth.config.ts`: other
+ * paths, other response shapes, a differently shaped user. An endpoint it
+ * switches off takes its capability with it, and so does a capability it
+ * disclaims; the method behind a capability this adapter does not have is left
+ * off, so nothing can call it by mistake.
  */
 export function createJwtAdapter(
   getToken: () => string | null = () => null,
   getRefreshToken: () => string | null = () => null,
 ): AuthAdapter {
+  const { endpoints, capabilities: disclaimed } = getAuthConfig()
+  const has = (...names: (keyof typeof endpoints.spec)[]) =>
+    names.every((name) => endpoints.spec[name] !== null)
+
+  const canRegister = has('register') && disclaimed.register !== false
+  const canMagicLink = has('magicLink', 'magicLinkVerify') && disclaimed.magicLink !== false
+  const canMfa = has('mfaSetup', 'mfaVerify', 'mfaDisable') && disclaimed.mfa !== false
+  const canRefresh = has('refresh') && disclaimed.refresh !== false
+
   /**
    * The refresh token this deployment can present as a body, or null. Memory
    * first (it is the freshest, and the only source under `none`), then the
@@ -76,6 +92,10 @@ export function createJwtAdapter(
    * on an HTTP failure; resolves to null only when there is nothing to present.
    */
   async function requestRefresh(): Promise<RefreshedSession | null> {
+    // A backend with no refresh endpoint: the session lasts as long as its
+    // access token, and a reload ends it.
+    if (!canRefresh) return null
+
     if (usesRefreshCookie()) {
       // The cookie is the credential, and a backend built for this mode never
       // puts a refresh token in a body. One that did is a body-token backend
@@ -97,24 +117,32 @@ export function createJwtAdapter(
     name: 'jwt',
     transport: 'bearer',
     capabilities: {
-      register: true,
+      register: canRegister,
       // Social sign-in is a redirect flow; use the `oauth` adapter for it.
       social: false,
-      magicLink: true,
-      mfa: true,
-      refresh: true,
+      magicLink: canMagicLink,
+      mfa: canMfa,
+      refresh: canRefresh,
       codeExchange: false,
     },
 
     login: authEndpoints.login,
-    register: authEndpoints.register,
     logout: authEndpoints.logout,
-    refreshToken: authEndpoints.refreshToken,
-    sendMagicLink: authEndpoints.sendMagicLink,
-    verifyMagicLink: authEndpoints.verifyMagicLink,
-    setupMfa: authEndpoints.setupMfa,
-    verifyMfa: authEndpoints.verifyMfa,
-    disableMfa: authEndpoints.disableMfa,
+    ...(canRegister ? { register: authEndpoints.register } : {}),
+    ...(canRefresh ? { refreshToken: authEndpoints.refreshToken } : {}),
+    ...(canMagicLink
+      ? {
+          sendMagicLink: authEndpoints.sendMagicLink,
+          verifyMagicLink: authEndpoints.verifyMagicLink,
+        }
+      : {}),
+    ...(canMfa
+      ? {
+          setupMfa: authEndpoints.setupMfa,
+          verifyMfa: authEndpoints.verifyMfa,
+          disableMfa: authEndpoints.disableMfa,
+        }
+      : {}),
 
     /**
      * Recover a session after a reload dropped the in-memory access token.
@@ -130,6 +158,8 @@ export function createJwtAdapter(
      * the app; the user simply lands on the login page.
      */
     async resumeSession(): Promise<ResumedSession | null> {
+      if (!canRefresh) return null
+
       let strategy: string
       if (usesRefreshCookie()) {
         strategy = 'refresh cookie'
@@ -152,7 +182,9 @@ export function createJwtAdapter(
 
     refreshSession: requestRefresh,
 
-    canRefreshSession: () => usesRefreshCookie() || heldRefreshToken() !== null,
+    // Kept even without a refresh endpoint, answering "no": with it absent the
+    // API client would fall back to its own refresh request, at a fixed path.
+    canRefreshSession: () => canRefresh && (usesRefreshCookie() || heldRefreshToken() !== null),
 
     async getUser() {
       // Skip a request that is guaranteed to 401. Returning null lets the

@@ -52,6 +52,8 @@ export const DEFAULT_SLOTS = {
   envSchema: 'src/modules/core/lib/config/env.schema.ts',
   /** Where a project declares its own variables, runtime keys and header sources. */
   deployConfig: 'src/modules/app/config/deploy.config.ts',
+  /** Where a project describes its auth backend and registers its own adapters. */
+  authConfig: 'src/modules/app/config/auth.config.ts',
 
   // ── Project root ─────────────────────────────────────────────────────────
   envExample: '.env.example',
@@ -64,7 +66,7 @@ export const DEFAULT_SLOTS = {
  * broken layout: `upgrade` writes it. Kept in step with `SEEDED_FILES` in
  * managed.mjs, which a test asserts.
  */
-export const SEEDED_SLOTS = ['rbacOverrides', 'apiOverrides', 'deployConfig']
+export const SEEDED_SLOTS = ['rbacOverrides', 'apiOverrides', 'deployConfig', 'authConfig']
 
 export const DEFAULT_CONVENTIONS = {
   /** Locale codes every module must provide. Order is not significant. */

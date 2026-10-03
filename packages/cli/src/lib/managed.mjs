@@ -135,6 +135,7 @@ export const SEEDED_FILES = [
   'src/modules/app/config/rbac.overrides.ts',
   'src/modules/app/config/api.overrides.ts',
   'src/modules/app/config/deploy.config.ts',
+  'src/modules/app/config/auth.config.ts',
   'src/modules/app/components/Logo.vue',
   'src/modules/app/locales/en.overrides.json',
   'src/modules/app/locales/fr.overrides.json',

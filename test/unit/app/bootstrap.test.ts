@@ -111,6 +111,7 @@ function harness(overrides: Partial<BootDeps> = {}): Harness {
       return authStore as unknown as ReturnType<BootDeps['useAuthStore']>
     },
     createAuthAdapter: (() => adapter) as unknown as typeof createAuthAdapter,
+    loadAuthAdapter: async () => void calls.push('loadAuthAdapter'),
     installQuery: track('installQuery'),
     installI18n: track('installI18n'),
     setupModules: async () => void calls.push('setupModules'),
@@ -164,6 +165,7 @@ describe('boot order', () => {
       'app.use(pinia)',
       'installRuntimeBackends',
       'installSeams',
+      'loadAuthAdapter',
       'useAuthStore',
       'auth.setRefreshHandler',
       'installQuery',
@@ -205,6 +207,18 @@ describe('boot order', () => {
     const at = (name: string) => calls.indexOf(name)
     expect(at('installSeams')).toBe(at('installRuntimeBackends') + 1)
     expect(at('installSeams')).toBeLessThan(at('useAuthStore'))
+  })
+
+  it('resolves the adapter after the seams registered it and before auth is wired', async () => {
+    const { calls, deps } = harness()
+
+    await boot(root, { deps })
+
+    // The project's own adapters are registered by the seams, and one of them
+    // may be a chunk that has to be fetched before anything can build it.
+    const at = (name: string) => calls.indexOf(name)
+    expect(at('loadAuthAdapter')).toBe(at('installSeams') + 1)
+    expect(at('loadAuthAdapter')).toBeLessThan(at('useAuthStore'))
   })
 
   it('registers modules before seeding the demo admin and before restoring the session', async () => {

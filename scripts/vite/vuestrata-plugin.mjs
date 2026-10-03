@@ -6,18 +6,22 @@
  * Vuestrata, which keeps improving it, while the config that calls it stays the
  * project's own. `vuestrata-plugin.d.mts` beside it keeps that config typed.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
-import { loadEnv } from 'vite-plus'
+import { loadEnv, parseAst } from 'vite-plus'
 
 // Relative imports, not aliases: this file runs in Node before `resolve.alias`
 // exists. `env.schema.ts` and `deploy.ts` are dependency-free for exactly this
 // reason. Explicit .ts extension: the config may be loaded as native ESM,
 // which does not do extensionless resolution.
 import { parseAppEnv } from '../../src/modules/core/lib/config/deploy.ts'
-import { ENV_KEYS, parseRuntimeEnv } from '../../src/modules/core/lib/config/env.schema.ts'
+import {
+  AUTH_ADAPTERS,
+  ENV_KEYS,
+  parseRuntimeEnv,
+} from '../../src/modules/core/lib/config/env.schema.ts'
 import { loadDeployConfig } from '../security/deploy-config.mjs'
 // A namespace, not named imports: see `policyGenerators`.
 import * as shippedHeaderGenerators from '../security/headers.mjs'
@@ -43,6 +47,16 @@ function policyGenerators(headerGenerators) {
     ? headerGenerators
     : null
 }
+
+/**
+ * The seeded file a project registers its own auth adapters in, relative to
+ * the Vite root. Not configurable: Vuestrata's bootstrap imports it from this
+ * path.
+ */
+const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
+
+/** The same rule `core/lib/auth/config.ts` applies when the app starts. */
+const AUTH_ADAPTER_NAME = /^[a-z][a-z0-9-]*$/
 
 /**
  * Where `vp dev` forwards API requests. Deliberately NOT `VUESTRATA_`-prefixed:
@@ -214,11 +228,21 @@ export function vuestrataEnv(options = {}) {
       const isDev = serving || mode !== 'production'
       const envDir = resolveEnvDir(config)
 
+      // The adapters the project registered, so its own adapter name is a
+      // valid VUESTRATA_AUTH_ADAPTER and an unregistered one is not.
+      const { adapters: authAdapters, declared } = readAuthConfig(
+        resolve(config.root ?? process.cwd()),
+      )
+      // The same names, as the project declared them to the type checker. A
+      // difference breaks nothing at runtime, which is why it is said here:
+      // nothing else would.
+      for (const message of describeUndeclaredAdapters(authAdapters, declared)) this.warn(message)
+
       // Strict parse: an invalid or self-contradictory configuration fails the
       // BUILD here rather than reaching a browser. The app-side counterpart in
       // core/lib/config runs the same schema leniently.
       const rawEnv = loadEnv(mode, envDir, 'VUESTRATA_')
-      const env = parseRuntimeEnv(rawEnv, { isDev, serving })
+      const env = parseRuntimeEnv(rawEnv, { isDev, serving, authAdapters })
       isDemoBuild = env.runtimeMode === 'demo'
 
       // The project's own half of the configuration, held to the same standard:
@@ -280,6 +304,10 @@ export function vuestrataEnv(options = {}) {
           // production bundle. `appConfig` cannot do this — it is a runtime
           // value. Forced on under test so demo-state suites keep working.
           __VUESTRATA_DEMO__: JSON.stringify(mode === 'test' ? true : isDemoBuild),
+          // The registrations just validated against, for the browser's own
+          // (lenient) parse in core/lib/config: it must accept the adapter
+          // names this build accepted, and it cannot import the app's file.
+          __VUESTRATA_AUTH_ADAPTERS__: JSON.stringify(authAdapters),
         },
         build: {
           // 'hidden' emits .map files without the `//# sourceMappingURL=`
@@ -457,6 +485,288 @@ function devSocketOrigins(server) {
  */
 function readNamedEnv(mode, envDir, names) {
   return Object.fromEntries(names.map((name) => [name, loadEnv(mode, envDir, name)[name]]))
+}
+
+/**
+ * What the build reads from the project's `auth.config.ts` under `root`:
+ * the adapters it registers, as `{ name: transport }`, and the adapter names
+ * it declares to the type checker. Both empty when the file is not there.
+ *
+ * @param {string} root The Vite root.
+ * @returns {{ adapters: Record<string, 'bearer' | 'cookie'>, declared: string[] }}
+ */
+export function readAuthConfig(root) {
+  let source
+  try {
+    source = readFileSync(resolve(root, AUTH_CONFIG_FILE), 'utf8')
+  } catch {
+    // A project that has not taken the release that seeds the file: nothing
+    // is registered, and only the built-in adapters are valid.
+    return { adapters: {}, declared: [] }
+  }
+  return scanAuthConfig(source)
+}
+
+/**
+ * The auth adapters a project registered in `auth.config.ts`, as
+ * `{ name: transport }`. Empty when the file is not there.
+ *
+ * @param {string} root The Vite root.
+ * @returns {Record<string, 'bearer' | 'cookie'>}
+ */
+export function readAuthAdapters(root) {
+  return readAuthConfig(root).adapters
+}
+
+/**
+ * The `adapters` registered in the SOURCE of an `auth.config.ts`, as
+ * `{ name: transport }`. See `scanAuthConfig`.
+ *
+ * @param {string} source
+ * @returns {Record<string, 'bearer' | 'cookie'>}
+ */
+export function scanAuthAdapters(source) {
+  return scanAuthConfig(source).adapters
+}
+
+/**
+ * Read the `adapters` a project registered from the SOURCE of its
+ * `auth.config.ts`, without running it.
+ *
+ * The build needs two facts from that file before it bundles anything: which
+ * adapter names exist, so `VUESTRATA_AUTH_ADAPTER` can be checked against
+ * them, and which transport each one uses, so the session-persistence rule
+ * applies to a project's adapter as it does to the built-in ones. Importing
+ * the file would get them, and would also run it — along with whatever it
+ * imports, which for an auth adapter is typically an SDK that expects a
+ * browser. So the file is parsed (by the parser the bundler already uses) and
+ * the two facts are read off the syntax tree.
+ *
+ * The price is that the registrations have to be written where a reader can
+ * see them, and the rule is strict in one direction on purpose: whatever this
+ * cannot read for certain FAILS, with a message that says how to write it. The
+ * alternative is reading a file that registers an adapter as registering none
+ * — and then telling the project to register what it did register — or
+ * reading a cookie-transport adapter as a bearer one and validating the wrong
+ * rule. What is accepted:
+ *
+ *   - the default export is an object literal, or `defineAuthConfig(…)` called
+ *     with exactly one, with no spread and no computed key in it;
+ *   - `adapters` is an object literal with plain names;
+ *   - each adapter is written inline: a function (a factory, whose adapter
+ *     uses bearer transport), or an object literal with no spread and no
+ *     computed key, whose `transport` is absent or the literal `'bearer'` or
+ *     `'cookie'`.
+ *
+ * `boot()` checks the other half at runtime: that each adapter really uses the
+ * transport read here.
+ *
+ * It also reads the names the file declares in `RegisteredAuthAdapterNames`,
+ * the interface a project augments so that the TYPE of the configured adapter
+ * includes its own. Those are returned as `declared`, for the build to say
+ * when they and the registered names have drifted apart.
+ *
+ * @param {string} source
+ * @returns {{ adapters: Record<string, 'bearer' | 'cookie'>, declared: string[] }}
+ */
+export function scanAuthConfig(source) {
+  const fail = (problem) => {
+    throw new Error(
+      `[vuestrata:env] ${AUTH_CONFIG_FILE}: ${problem} The build reads the adapter names, and ` +
+        "each adapter's `transport`, from this file without running it. Write `adapters` " +
+        'inline in the object passed to defineAuthConfig(), as an object literal with plain ' +
+        'names, and write each adapter inline too: a function, or an object whose `transport` ' +
+        "is the literal 'bearer' or 'cookie'.",
+    )
+  }
+
+  let program
+  try {
+    program = parseAst(source, { lang: 'ts' })
+  } catch (error) {
+    throw new Error(`[vuestrata:env] ${AUTH_CONFIG_FILE} could not be parsed: ${error.message}`, {
+      cause: error,
+    })
+  }
+
+  // Type-level wrappers say nothing about the value inside them.
+  const WRAPPERS = new Set([
+    'TSAsExpression',
+    'TSSatisfiesExpression',
+    'TSNonNullExpression',
+    'TSTypeAssertion',
+    'ParenthesizedExpression',
+  ])
+  const unwrap = (node) => {
+    let current = node
+    while (current && WRAPPERS.has(current.type)) current = current.expression
+    return current
+  }
+  /** The name a property is written under, or undefined when it is computed. */
+  const keyOf = (property) => {
+    if (property.type !== 'Property' || property.computed) return undefined
+    if (property.key.type === 'Identifier') return property.key.name
+    return typeof property.key.value === 'string' ? property.key.value : undefined
+  }
+  /**
+   * The property called `name`, or undefined. A spread or a computed key
+   * anywhere in the object could be that property under another spelling, so
+   * either one fails rather than being read as "not there".
+   */
+  const find = (object, name, where) => {
+    let found
+    for (const property of object.properties) {
+      if (property.type === 'SpreadElement') fail(`${where} uses a spread (\`...\`).`)
+      const key = keyOf(property)
+      if (key === undefined) fail(`${where} has a computed key (\`[…]: …\`).`)
+      if (key === name) found = property
+    }
+    return found
+  }
+  /** A property written `name: value`, and not as a getter. */
+  const isPlainValue = (property) => property.kind === undefined || property.kind === 'init'
+
+  const exported = program.body.find((node) => node.type === 'ExportDefaultDeclaration')
+  if (!exported) fail('it has no default export.')
+
+  // `export default defineAuthConfig({ … })`, or the object itself. Any other
+  // call could build the configuration from anything: `merge(a, { adapters })`
+  // holds the adapters in its second argument, and reading its first would
+  // find none.
+  let config = unwrap(exported.declaration)
+  if (config?.type === 'CallExpression') {
+    if (config.callee.type !== 'Identifier' || config.callee.name !== 'defineAuthConfig') {
+      fail('its default export is a call to something other than defineAuthConfig().')
+    }
+    if (config.arguments.length !== 1 || config.arguments[0].type === 'SpreadElement') {
+      fail('defineAuthConfig() is not called with exactly one argument.')
+    }
+    config = unwrap(config.arguments[0])
+  }
+  if (config?.type !== 'ObjectExpression') {
+    fail('its default export is not an object literal passed to defineAuthConfig().')
+  }
+
+  const declared = scanDeclaredAdapterNames(program)
+
+  const property = find(config, 'adapters', 'the configuration')
+  if (!property) return { adapters: {}, declared }
+
+  const adapters = isPlainValue(property) ? unwrap(property.value) : undefined
+  if (adapters?.type !== 'ObjectExpression') fail('`adapters` is not an object literal.')
+
+  const registered = {}
+  for (const entry of adapters.properties) {
+    if (entry.type === 'SpreadElement') fail('`adapters` uses a spread (`...`).')
+    const name = keyOf(entry)
+    if (name === undefined) fail('`adapters` has a computed name.')
+    if (!AUTH_ADAPTER_NAME.test(name)) {
+      fail(
+        `"${name}" is not a usable adapter name: use lowercase letters, digits and dashes, ` +
+          'starting with a letter.',
+      )
+    }
+    if (AUTH_ADAPTERS.includes(name)) {
+      fail(
+        `"${name}" is a built-in adapter and cannot be replaced; register yours under another name.`,
+      )
+    }
+
+    const value = isPlainValue(entry) ? unwrap(entry.value) : undefined
+    if (value?.type === 'ArrowFunctionExpression' || value?.type === 'FunctionExpression') {
+      // A function is a factory, and its adapter uses bearer transport.
+      registered[name] = 'bearer'
+    } else if (value?.type === 'ObjectExpression') {
+      const transport = find(value, 'transport', `adapter "${name}"`)
+      const literal = transport && isPlainValue(transport) ? unwrap(transport.value) : undefined
+      const stated = literal?.type === 'Literal' ? literal.value : undefined
+      if (transport && stated !== 'bearer' && stated !== 'cookie') {
+        fail(`adapter "${name}" does not declare its transport as a literal.`)
+      }
+      registered[name] = stated ?? 'bearer'
+    } else {
+      // A variable, a call, a member: whatever it evaluates to, it could be a
+      // registration that says `transport: 'cookie'`, and reading it as a
+      // bearer factory would validate the wrong session-persistence rule.
+      fail(
+        `adapter "${name}" is not written inline, so its transport cannot be read. Declare it ` +
+          `inline with a literal transport: \`${name}: { transport: 'bearer', create: … }\`.`,
+      )
+    }
+  }
+  return { adapters: registered, declared }
+}
+
+/**
+ * The names a file declares in `RegisteredAuthAdapterNames`:
+ *
+ *   declare module '~/lib/auth' {
+ *     interface RegisteredAuthAdapterNames {
+ *       acme: true
+ *     }
+ *   }
+ */
+function scanDeclaredAdapterNames(program) {
+  const names = []
+  for (const node of program.body) {
+    if (node.type !== 'TSModuleDeclaration' || node.body?.type !== 'TSModuleBlock') continue
+    for (const statement of node.body.body) {
+      // `interface …` and `export interface …` merge alike.
+      const declaration =
+        statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement
+      if (
+        declaration?.type !== 'TSInterfaceDeclaration' ||
+        declaration.id.name !== 'RegisteredAuthAdapterNames'
+      ) {
+        continue
+      }
+      for (const member of declaration.body.body) {
+        if (member.type !== 'TSPropertySignature' || member.computed) continue
+        const name = member.key.type === 'Identifier' ? member.key.name : member.key.value
+        if (typeof name === 'string') names.push(name)
+      }
+    }
+  }
+  return names
+}
+
+/**
+ * What to tell a project whose registered adapters and declared adapter names
+ * differ. One message per name; none when they agree.
+ *
+ * Registering an adapter is what makes it work, and declaring its name is what
+ * makes `appConfig.authProvider` (and everything else typed `AuthAdapterName`)
+ * include it. An adapter registered and not declared runs correctly under a
+ * type that says it cannot be selected, and no type error points at the cause:
+ * so the build says it. These are warnings, not failures, because nothing is
+ * wrong with the bundle.
+ *
+ * @param {Record<string, 'bearer' | 'cookie'>} adapters
+ * @param {readonly string[]} declared
+ * @returns {string[]}
+ */
+export function describeUndeclaredAdapters(adapters, declared) {
+  const messages = []
+  for (const name of Object.keys(adapters)) {
+    if (declared.includes(name)) continue
+    const key = /^[a-z][a-z0-9]*$/.test(name) ? name : `'${name}'`
+    messages.push(
+      `[vuestrata:env] ${AUTH_CONFIG_FILE} registers the adapter "${name}" without declaring ` +
+        'its name, so the type of `appConfig.authProvider` does not include it. Add to that ' +
+        `file:\n\n  declare module '~/lib/auth' {\n    interface RegisteredAuthAdapterNames {\n` +
+        `      ${key}: true\n    }\n  }\n`,
+    )
+  }
+  for (const name of declared) {
+    if (Object.hasOwn(adapters, name)) continue
+    messages.push(
+      `[vuestrata:env] ${AUTH_CONFIG_FILE} declares "${name}" in RegisteredAuthAdapterNames, ` +
+        'but registers no adapter by that name under `adapters`: ' +
+        `${ENV_KEYS.authAdapter}=${name} would type-check and then fail the build. Register ` +
+        'the adapter, or remove the declaration.',
+    )
+  }
+  return messages
 }
 
 /**

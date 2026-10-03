@@ -96,6 +96,12 @@ own, a variable a deployment may set at start. Change it there, never in
 `scripts/security/headers.mjs`, then run `vpr security:headers` and commit what
 it regenerates.
 
+Authentication has the same kind of seam, also `seeded`:
+`src/modules/app/config/auth.config.ts`. Endpoint paths, response and user
+shapes, the social providers and an auth adapter of the project's own go there,
+never in `src/modules/auth/adapters/`. Recipe:
+`docs/9.recipes/10.write-your-own-auth-adapter.md`.
+
 Breaking any of the contracts in `RELEASE.md` requires a migration under
 `packages/cli/migrations/<version>/`. That is a release rule, not a preference.
 

@@ -13,16 +13,12 @@ describe('auth env contract', () => {
     expect(authAdapter).toBeTruthy()
   })
 
-  it('should warn and fall back to mock for unknown adapter values', async () => {
-    vi.resetModules()
-    const warnMock = vi.fn()
-    vi.doMock('~/lib/logger', () => ({
-      logger: { withTag: () => ({ warn: warnMock }) },
-      createScopedLogger: () => ({ warn: warnMock }),
-    }))
-    const { resolveAuthAdapterName: resolve } = await import('@/modules/auth')
-    expect(resolve('custom')).toBe('mock')
-    expect(warnMock).toHaveBeenCalledTimes(1)
+  it('should refuse an unknown adapter value rather than fall back to mock', () => {
+    // The fallback sent a real deployment with a mistyped name to endpoints
+    // that only exist inside the demo's service worker.
+    expect(() => resolveAuthAdapterName('custom')).toThrow(
+      /Unknown VUESTRATA_AUTH_ADAPTER value "custom".*auth\.config\.ts/,
+    )
   })
 })
 

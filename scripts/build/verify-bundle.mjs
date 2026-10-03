@@ -201,6 +201,10 @@ function main(argv) {
         ['the demo IndexedDB store', 'vuestrata-demo-auth'],
         ['the demo integrity salt', 'vuestrata-demo-v1'],
         ['the demo account address', 'demo@vuestrata.dev'],
+        // `auth/adapters/mock.ts`. The registry references it only behind
+        // `__VUESTRATA_DEMO__`, so the bundler drops the module; a second,
+        // unguarded reference anywhere would bring it back without a sound.
+        ['the mock auth adapter', 'mock-code-verifier'],
       ]
 
       for (const [label, marker] of demoMarkers) {

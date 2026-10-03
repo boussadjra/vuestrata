@@ -1,4 +1,4 @@
-import type { SessionPersistence } from '~/lib/config/env.schema'
+import type { AuthAdapterName, SessionPersistence } from '~/lib/config/env.schema'
 import type { Role, Permission, BuiltinPermission, RoleDefinition } from '~/lib/rbac/types'
 
 // ─── Icon System ─────────────────────────────────────────
@@ -196,7 +196,11 @@ export interface AppConfig {
   title: string
   apiUrl: string
   useMocks: boolean
-  authProvider: 'jwt' | 'oauth' | 'mock'
+  /**
+   * A built-in adapter, or one registered in `config/auth.config.ts` and
+   * declared there in `RegisteredAuthAdapterNames`.
+   */
+  authProvider: AuthAdapterName
   /**
    * How a bearer session survives a page reload. See
    * `SESSION_PERSISTENCE_MODES` in core/lib/config/env.schema.ts for the
@@ -222,7 +226,9 @@ export interface AppConfig {
 export type { Role, Permission, BuiltinPermission, RoleDefinition }
 
 // ─── Auth ────────────────────────────────────────────────
-export type AuthProvider = 'credentials' | 'google' | 'github' | 'microsoft'
+// The `string & {}` arm admits a provider listed under `providers` in
+// `config/auth.config.ts` without costing these names their autocomplete.
+export type AuthProvider = 'credentials' | 'google' | 'github' | 'microsoft' | (string & {})
 export type AuthStrategy = 'jwt' | 'oauth' | 'magic-link' | 'mock'
 
 export interface User {
