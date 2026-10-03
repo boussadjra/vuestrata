@@ -265,20 +265,24 @@ Switch adapters by changing `VUESTRATA_AUTH_ADAPTER` in `.env`:
   only inside MSW, so the build rejects it in production mode.
 - `jwt` — credentials + bearer token, refreshed via `/auth/refresh`
 - `oauth` — OAuth/PKCE authorization-code flow
+- `session` — your backend's own session cookie and CSRF token (Laravel Sanctum,
+  Django, Rails); no token in JavaScript
 
 Each adapter declares a `transport` and a set of `capabilities`, so the UI hides
 controls for features the configured adapter does not support rather than
 discovering it at click time.
 
-| Adapter | Transport | Register | Social | Magic link | MFA | Refresh | Code exchange |
-| ------- | --------- | -------- | ------ | ---------- | --- | ------- | ------------- |
-| `mock`  | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | ✅            |
-| `jwt`   | bearer    | ✅       | —      | ✅         | ✅  | ✅      | —             |
-| `oauth` | cookie    | —        | ✅     | —          | —   | —       | ✅            |
+| Adapter   | Transport | Register | Social | Magic link | MFA | Refresh | Code exchange |
+| --------- | --------- | -------- | ------ | ---------- | --- | ------- | ------------- |
+| `mock`    | bearer    | ✅       | ✅     | ✅         | ✅  | ✅      | ✅            |
+| `jwt`     | bearer    | ✅       | —      | ✅         | ✅  | ✅      | —             |
+| `oauth`   | cookie    | —        | ✅     | —          | —   | —       | ✅            |
+| `session` | cookie    | ✅       | —      | ✅         | ✅  | —       | —             |
 
-`jwt` and `oauth` implement the documented endpoint contract, and unit tests pin
-the requests each one sends. Nothing in this repository runs them against a
-server, so they need a backend that implements the contract — see
+`jwt`, `oauth` and `session` implement the documented endpoint contract, and
+tests pin the requests each one sends. `session` is also run in a browser
+against a stub backend shaped like Laravel Sanctum (`e2e/integration/`); nothing
+here runs the other two against a server, so they need a backend that implements the contract — see
 [Real production deployment](docs/8.deployment/2.real-production.md).
 
 ## Environment Variables
