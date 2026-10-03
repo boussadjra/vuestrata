@@ -304,7 +304,9 @@ node ../vuestrata/packages/cli/src/index.mjs upgrade     # and doctor, diff, ado
    block of `vercel.json` and the CSP `<meta>` in `index.html`. `vpr lint`
    reports drift until you do. A deployment your project does not have is left
    out, and the command says so: without a `docker/` directory nothing is
-   written there, and the same goes for `vercel.json` and `public/`.
+   written there, and the same goes for `vercel.json` and `public/`. The
+   upgrade follows the same rule: a project with neither a `Dockerfile` nor a
+   `docker/` directory does not receive the container's entrypoint script.
 
 4. **`vp install`**, only when `package.json` changed its dependencies. 1.1.0
    changes none, so there is nothing to install.

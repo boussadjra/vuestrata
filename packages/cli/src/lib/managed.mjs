@@ -36,6 +36,29 @@ export const MANAGED_DIRS = [
   'docker/entrypoint.d',
 ]
 
+/**
+ * Managed paths that exist for one way of deploying, with what says a project
+ * deploys that way.
+ *
+ * A project that ships no container deletes its Dockerfile and `docker/`, and
+ * nothing in the lock says so: those were the project's files. A release that
+ * adds a managed file under `docker/` would then write it, and bring the
+ * directory back. So an upgrade installs a NEW file under `prefix` only when
+ * one of `evidence` is there. Nothing is recorded: a project that adds a
+ * Dockerfile later gets the file from its next upgrade. A file the project
+ * already has is updated as any other.
+ */
+export const OPTIONAL_DEPLOYMENTS = [
+  { prefix: 'docker/', evidence: ['Dockerfile', 'docker'], name: 'container' },
+]
+
+/** The deployment `rel` belongs to that this project does not have, or `undefined`. */
+export function missingDeployment(rel, exists) {
+  return OPTIONAL_DEPLOYMENTS.find(
+    (deployment) => rel.startsWith(deployment.prefix) && !deployment.evidence.some(exists),
+  )
+}
+
 /** Managed files that do not sit under a managed directory. */
 export const MANAGED_FILES = [
   'src/modules/app/styles/semantic.css',
