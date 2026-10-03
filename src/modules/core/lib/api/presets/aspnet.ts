@@ -15,6 +15,9 @@ import type { ApiBackendPreset } from '../integration'
  *
  * No CSRF strategy: antiforgery in ASP.NET Core has no single convention for a
  * single-page app. If yours sets a readable cookie, describe it under `csrf`.
+ * No collection dialect either: ASP.NET Core has no pagination envelope of its
+ * own. Describe yours under `collection` (`defineCollectionDialect`), with
+ * `keys: { wire: 'pascal' }` if the API answers in PascalCase.
  */
 export const aspnet: ApiBackendPreset = {
   name: 'aspnet',

@@ -1,5 +1,6 @@
 import { loginRedirect, statusMeans } from '../classifiers'
 import { csrfPresets } from '../csrf'
+import { laravelDialect } from '../dialects'
 import { laravelErrorMapper } from '../error-mappers'
 import type { ApiBackendPreset } from '../integration'
 
@@ -15,6 +16,10 @@ import type { ApiBackendPreset } from '../integration'
  *   their own `Accept`.
  * - **Errors**: `{ message, errors: { field: [...] } }`.
  * - **CSRF**: the `XSRF-TOKEN` cookie, decoded, as `X-XSRF-TOKEN`.
+ * - **Collections**: the paginator (`laravelDialect`): `page` and `per_page`,
+ *   `{ data, meta: { current_page, per_page, last_page, total } }`, a record
+ *   under `data`. Keys stay as the backend sends them; for camelCase in the
+ *   app, set `collection: extendDialect(dialects.laravel, { keys: 'camel' })`.
  *
  * The CSRF part applies under the cookie transport. A token-based Laravel API
  * (Sanctum API tokens, Passport) needs only the error mapper.
@@ -24,4 +29,5 @@ export const laravel: ApiBackendPreset = {
   classify: [statusMeans(419, 'csrf'), loginRedirect()],
   errors: [laravelErrorMapper],
   csrf: csrfPresets.laravel,
+  collection: laravelDialect,
 }
