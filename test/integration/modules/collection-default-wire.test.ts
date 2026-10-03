@@ -363,16 +363,37 @@ describe('the detail request of the default dialect', () => {
     expect(detail.isError.value).toBe(false)
   })
 
-  it('puts the id in the path as it was given', async () => {
+  it('puts the id in the path as one encoded segment', async () => {
     server.use(http.get('*/api/widgets/:id', () => HttpResponse.json(bolt)))
     recordWire()
     const detail = withQueryClient(() => widgets.useDetail('W 1'))
 
     await vi.waitFor(() => expect(detail.item.value).toBeDefined(), { timeout: 5_000 })
 
-    // Recorded, not endorsed: the id is interpolated, and only what `fetch`
-    // itself escapes is escaped.
+    // Unchanged on the wire: a space was `%20` when only `fetch` escaped it.
     expect(wire).toEqual([read('GET /api/widgets/W%201')])
+  })
+
+  // The one deliberate change to this file. The id used to be interpolated as
+  // it came, which this test recorded as "not endorsed": `../../outside` left
+  // the API prefix with the session's token, and `W-1#x` or `W-1?x` addressed
+  // another record than the one named. That was a path traversal, and it is
+  // closed: an id is data, and goes on the wire percent-encoded as a single
+  // segment. An id that needs no encoding is sent byte for byte as before
+  // (every other assertion in this file).
+  it.each([
+    ['../../outside', 'GET /api/widgets/..%2F..%2Foutside'],
+    ['W-1/secret', 'GET /api/widgets/W-1%2Fsecret'],
+    ['W-1#x', 'GET /api/widgets/W-1%23x'],
+    ['W-1?x=1', 'GET /api/widgets/W-1%3Fx%3D1'],
+  ])('keeps the hostile id %j inside its segment', async (id, request) => {
+    server.use(http.get('*/api/widgets/:id', () => HttpResponse.json(bolt)))
+    recordWire()
+    const detail = withQueryClient(() => widgets.useDetail(id))
+
+    await vi.waitFor(() => expect(detail.item.value).toBeDefined(), { timeout: 5_000 })
+
+    expect(wire).toEqual([read(request)])
   })
 
   it('caches under the id', async () => {

@@ -35,10 +35,12 @@ import { createScopedLogger } from '~/lib/logger'
 
 import { apiFetch, apiGet } from './client'
 import {
+  apiPath,
   keysToApp,
   keysToWire,
   listContext,
   pageMetaOf,
+  pathSegment,
   resolveCollectionDialect,
   schemaKeyPlan,
   vuestrataDialect,
@@ -188,8 +190,14 @@ export interface CollectionActionConfig<
    * one record, and `id` a required part of what the mutation is called with.
    *
    * On a collection, a path that does not start with `/` continues the
-   * collection's own: `(id) => \`${id}/cancel\`` is `/orders/{id}/cancel`. One
-   * that starts with `/` is taken from the API root.
+   * collection's own: `(id) => \`${id}/cancel\`` is `/orders/{id}/cancel`, with
+   * the trailing slash of a dialect that writes one. One that starts with `/`
+   * is taken from the API root, and sent as written.
+   *
+   * The function is given the id already encoded as one path segment: write
+   * it into the path as it is. An id no path can hold (`''`, `.`, `..`) fails
+   * the call as `INVALID_ID`, and a path that leaves the API (a `..` segment,
+   * a backslash, a leading `//`) as `INVALID_PATH`, before anything is sent.
    */
   path: TPath
   /**
@@ -296,6 +304,9 @@ export interface CollectionConfig<T, TParent = Record<string, string>> {
    * a nested resource, a function of the parent's ids, read with `within()`:
    *
    *     path: ({ customerId }) => `/customers/${customerId}/contacts`
+   *
+   * The function is given the parent's ids already encoded, each as one path
+   * segment: write them into the path as they are.
    */
   path?: string | ((parent: TParent) => string)
 }
@@ -538,9 +549,30 @@ function presentFilters(filters: object): Record<string, unknown> {
   return Object.fromEntries(Object.entries(filters).filter(([, value]) => !isCleared(value)))
 }
 
-/** Whether every id a nested path needs is there. */
+/**
+ * Whether every id a nested path needs is there. "Not there yet" is nothing
+ * at all (`null`, `undefined`, `''`), which is what a route parameter is
+ * before its page has it. Not the cleared-filter test: `all` is a filter's
+ * word for "no filter", and a perfectly good id.
+ */
 function isCompleteParent(parent: unknown): parent is Record<string, unknown> {
-  return isRecord(parent) && Object.values(parent).every((value) => !isCleared(value))
+  return (
+    isRecord(parent) &&
+    Object.values(parent).every((value) => value !== undefined && value !== null && value !== '')
+  )
+}
+
+/**
+ * A parent as a nested path's template is given it: every id encoded as one
+ * path segment, and an id no path can hold refused (see `pathSegment`).
+ */
+function encodedParent(parent: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(parent).map(([name, value]) => [
+      name,
+      pathSegment(value, `parent id "${name}"`),
+    ]),
+  )
 }
 
 /** Validate a value against a schema, or fail as a contract mismatch. */
@@ -620,8 +652,22 @@ interface ActionRuntime {
   resource: string
   dialect: () => ResolvedCollectionDialect
   /** The full path for what the action's `path` named. */
-  resolvePath: (target: string) => string
+  resolvePath: (target: string, dialect: ResolvedCollectionDialect) => string
   defaultInvalidates: readonly (readonly unknown[])[]
+}
+
+/**
+ * What an action's `path` names, for one call.
+ *
+ * A path function is handed the id already encoded as one path segment, and
+ * never an id no path can hold (`pathSegment` refuses it), so nothing a record
+ * is called can reach outside the segment the template gave it. That is also
+ * why a leading `/` in the result is the template's own: an encoded id holds
+ * no slash, so it cannot turn a path that continues the collection's into one
+ * from the API root. What the template itself wrote is checked by `apiPath`.
+ */
+function actionTarget(path: string | ((id: string) => string), id: unknown): string {
+  return apiPath(typeof path === 'function' ? path(pathSegment(id)) : path)
 }
 
 function defineAction<TInput, TOutput, TPath extends string | ((id: string) => string)>(
@@ -646,9 +692,8 @@ function defineAction<TInput, TOutput, TPath extends string | ((id: string) => s
           body.value = keyCase(dialect, inputPlan).toWire(checked.data)
         }
 
-        const path = config.path as string | ((id: string) => string)
-        const target = typeof path === 'function' ? path(given?.id ?? '') : path
-        const response = await apiFetch.raw<unknown>(runtime.resolvePath(target), {
+        const target = actionTarget(config.path, given?.id)
+        const response = await apiFetch.raw<unknown>(runtime.resolvePath(target, dialect), {
           method: config.method ?? 'POST',
           ...(body.value === undefined ? {} : { body: body.value as Record<string, unknown> }),
         })
@@ -673,8 +718,11 @@ function defineAction<TInput, TOutput, TPath extends string | ((id: string) => s
  * `PATCH /users/{id}/role` in a module whose list is not a collection.
  *
  * The same as a collection's `action()`, with two differences: `path` is
- * always from the API root, and nothing is invalidated unless `invalidates`
- * says so. The project's dialect still applies to the record that comes back
+ * always from the API root, so it starts with `/` (one that does not is
+ * refused as `INVALID_PATH`: there is no collection path for it to continue),
+ * and nothing is invalidated unless `invalidates` says so. For a call to
+ * another origin, use `apiFetch` itself, which makes that an explicit choice
+ * (`trusted`). The project's dialect still applies to the record that comes back
  * (its envelope, its key case), unless `dialect` names another.
  *
  *     const useCancelInvitation = createApiAction({
@@ -698,7 +746,20 @@ export function createApiAction<
   return defineAction(config, {
     resource: config.resource ?? 'action',
     dialect: () => own ?? currentApiIntegration().collection ?? DEFAULT_DIALECT,
-    resolvePath: (target) => target,
+    resolvePath: (target) => {
+      // Belonging to no collection, the path has nothing to continue: one
+      // that does not start at the API root is a template that put an id, or
+      // a whole URL, where the root belongs.
+      if (target.startsWith('/')) return target
+      throw new AppError({
+        message: 'A standalone action path starts with "/": it is taken from the API root.',
+        code: 'INVALID_PATH',
+        status: 400,
+        kind: 'unknown',
+        retryable: false,
+        messageKey: 'errors.status_400',
+      })
+    },
     defaultInvalidates: [],
   })
 }
@@ -1158,7 +1219,8 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
         defineAction(actionConfig, {
           resource,
           dialect,
-          resolvePath: (target) => (target.startsWith('/') ? target : `${base()}/${target}`),
+          resolvePath: (target, spoken) =>
+            target.startsWith('/') ? target : spoken.paths.action(`${base()}/${target}`),
           defaultInvalidates: [keys.all],
         }),
     }
@@ -1185,7 +1247,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
       if (value === undefined) {
         throw new Error(`The "${resource}" collection was used before its parent was known.`)
       }
-      return typeof path === 'function' ? path(value) : `${rootBase()}`
+      return typeof path === 'function' ? path(encodedParent(value)) : `${rootBase()}`
     }
     // Cached per parent, and still under `keys.all`, so a write anywhere in
     // the collection invalidates every parent's lists.

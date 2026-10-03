@@ -33,12 +33,106 @@
  * Framework-agnostic: no Vue, no TanStack. The factory that uses it is
  * `collection-queries.ts`.
  */
+import { AppError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 
 const dialectLogger = createScopedLogger('collection')
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+// ─── Ids and paths ──────────────────────────────────────────────────────────
+
+/** A request the collection layer refused to build. Nothing was sent. */
+function refusedRequest(code: 'INVALID_ID' | 'INVALID_PATH', message: string): AppError {
+  return new AppError({
+    message,
+    code,
+    status: 400,
+    kind: 'unknown',
+    retryable: false,
+    messageKey: 'errors.status_400',
+  })
+}
+
+/**
+ * An id as one path segment: `a/b` as `a%2Fb`, `x#1` as `x%231`.
+ *
+ * An id is data. It comes from a route parameter, a row, a response, and what
+ * it holds is not the template's to interpret: written into a path as it is,
+ * `../admin` climbs out of the collection, `x#f` cuts the path short (a
+ * delete of a contact becomes a delete of its customer) and `x?y` moves the
+ * rest of it into the query string. Encoded, it is one segment whatever it
+ * holds, and an id that needs no encoding is sent exactly as before.
+ *
+ * Three values are refused, with an `AppError` (`INVALID_ID`) and before any
+ * request: the empty string, which would address the collection itself, and
+ * `.` and `..`, which encoding leaves alone and a URL parser resolves as
+ * directories. Anything that is not text or a finite number is refused too.
+ *
+ * `what` names the value in the message (`id`, `parent id "customerId"`). The
+ * value itself is never put in it.
+ */
+export function pathSegment(id: unknown, what = 'id'): string {
+  const text =
+    typeof id === 'string'
+      ? id
+      : typeof id === 'number' && Number.isFinite(id)
+        ? String(id)
+        : undefined
+  if (text === undefined) {
+    throw refusedRequest('INVALID_ID', `The ${what} is not usable: it must be text or a number.`)
+  }
+  if (text === '' || text === '.' || text === '..') {
+    throw refusedRequest(
+      'INVALID_ID',
+      `The ${what} is not usable: it is ${text === '' ? 'empty' : 'a directory name, not a record'}.`,
+    )
+  }
+  try {
+    return encodeURIComponent(text)
+  } catch {
+    // A lone surrogate: half of a character, which no URL can carry.
+    throw refusedRequest('INVALID_ID', `The ${what} is not usable: it is not valid text.`)
+  }
+}
+
+/** A tab, a line break or another control character: a URL parser drops some of them. */
+function hasControlCharacter(text: string): boolean {
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index)
+    if (code < 0x20 || code === 0x7f) return true
+  }
+  return false
+}
+
+/**
+ * An action's path, checked to be a path on the API and nothing else.
+ *
+ * The ids in it are already encoded (`pathSegment`), so what is refused here
+ * is what a template wrote, or let through from something that was not an id:
+ * a backslash (a browser reads it as a slash), a leading `//` (another host),
+ * a `.` or `..` segment, spelled out or percent-encoded (out of the
+ * collection, or out of the API prefix), and control characters (a URL parser
+ * removes a tab or a line break, which can put two slashes side by side).
+ * Refused with an `AppError` (`INVALID_PATH`), before any request.
+ */
+export function apiPath(path: string): string {
+  const end = path.search(/[?#]/)
+  const segments = (end === -1 ? path : path.slice(0, end)).split('/')
+  const climbs = segments.some((segment) => {
+    const plain = segment.replace(/%2e/gi, '.')
+    return plain === '.' || plain === '..'
+  })
+  if (path.includes('\\') || path.startsWith('//') || climbs || hasControlCharacter(path)) {
+    throw refusedRequest(
+      'INVALID_PATH',
+      'An action path must stay on the API: no "." or ".." segment, no backslash, ' +
+        'no leading "//" and no control character.',
+    )
+  }
+  return path
 }
 
 // ─── The list request ───────────────────────────────────────────────────────
@@ -192,10 +286,23 @@ export interface RecordWriteContext {
   readonly id?: string
 }
 
-/** The list and record paths, from the collection's base path (`/orders`). */
+/**
+ * The list and record paths, from the collection's base path (`/orders`).
+ *
+ * `detail` is given the id already encoded as one path segment (see
+ * `pathSegment`): a template writes it where it belongs and cannot get the
+ * escaping wrong.
+ */
 export interface CollectionPaths {
   list: (base: string) => string
   detail: (base: string, id: string) => string
+  /**
+   * The last word on the path of an action that continues the collection's
+   * own (`/orders/7/cancel`): DRF adds its trailing slash here. Given the
+   * whole path, query string included if the action wrote one. An action
+   * whose path starts from the API root is sent as it was written.
+   */
+  action?: (path: string) => string
 }
 
 // ─── Keys ───────────────────────────────────────────────────────────────────
@@ -307,7 +414,11 @@ export interface ResolvedCollectionDialect {
   /** `null` for `'preserve'`. */
   readonly keys: KeyTransform | null
   readonly updateMethod: 'PATCH' | 'PUT'
-  readonly paths: CollectionPaths
+  /**
+   * `detail` takes the id as the app has it and encodes it (`pathSegment`),
+   * whatever the dialect: it throws an `AppError` for an id no path can hold.
+   */
+  readonly paths: Required<CollectionPaths>
 }
 
 /**
@@ -336,13 +447,23 @@ export function extendDialect(
   }
 }
 
-const DEFAULT_PATHS: CollectionPaths = {
-  list: (base) => base,
-  detail: (base, id) => `${base}/${id}`,
-}
-
 function identity<T>(value: T): T {
   return value
+}
+
+const DEFAULT_PATHS: Required<CollectionPaths> = {
+  list: (base) => base,
+  detail: (base, id) => `${base}/${id}`,
+  action: identity,
+}
+
+/**
+ * A dialect's paths, with the id encoded before its template sees it. Done
+ * here, once, for every dialect: the shipped ones and a project's own.
+ */
+function resolvePaths(paths: Partial<CollectionPaths> | undefined): Required<CollectionPaths> {
+  const { list, detail, action } = { ...DEFAULT_PATHS, ...paths }
+  return { list, detail: (base, id) => detail(base, pathSegment(id)), action }
 }
 
 function resolveKeys(keys: CollectionKeys | undefined): KeyTransform | null {
@@ -384,7 +505,7 @@ export function resolveCollectionDialect(
     wrapRecord: given.wrapRecord ?? identity,
     keys,
     updateMethod: given.updateMethod === 'PUT' ? 'PUT' : 'PATCH',
-    paths: { ...DEFAULT_PATHS, ...given.paths },
+    paths: resolvePaths(given.paths),
   }
 }
 
@@ -897,10 +1018,18 @@ export const laravelCursorDialect: CollectionDialect = {
 // The three DRF paginations share their search, ordering and list parameters.
 // Each writes them out: see the note in `laravelCursorDialect`.
 
-/** DRF's trailing slash. */
+/**
+ * DRF's trailing slash. On an action too: Django's `APPEND_SLASH` answers a
+ * path without it with a redirect, which a POST cannot follow with its body.
+ */
 const DRF_PATHS: CollectionPaths = {
   list: (base) => `${base}/`,
   detail: (base, id) => `${base}/${id}/`,
+  action(path) {
+    const end = path.search(/[?#]/)
+    const route = end === -1 ? path : path.slice(0, end)
+    return route.endsWith('/') ? path : `${route}/${path.slice(route.length)}`
+  },
 }
 
 function parseDrfPage(raw: unknown, context: ListContext): ParsedList | null {
