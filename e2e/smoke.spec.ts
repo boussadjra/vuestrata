@@ -97,6 +97,43 @@ test.describe('Built artifact smoke tests', () => {
     await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible()
   })
 
+  test('the login page loads none of the engines a page fetches on demand', async ({ page }) => {
+    test.skip(!isPreviewTarget, 'Chunks only exist in a real build')
+
+    // By chunk name, not by file: the hash changes with every build.
+    // `/assets/charts-vendor-CZBo_7NZ.js` is the chunk `charts-vendor`.
+    const requested = new Set<string>()
+    page.on('request', (request: Request) => {
+      const chunk = /\/assets\/(.+)-[\w-]{8}\.js$/.exec(new URL(request.url()).pathname)
+      if (chunk) requested.add(chunk[1])
+    })
+
+    await page.goto('/auth/login')
+    await waitForAppReady(page)
+    await expect(page.locator('#email')).toBeVisible()
+    // A modulepreload is requested with the page, and a chunk imported on a
+    // timer or after mount soon after it: wait until nothing is being fetched.
+    await page.waitForLoadState('networkidle')
+
+    // The charting engine was preloaded here for a long time (264 KB gzipped
+    // in front of a form with two fields), because a vendor chunk group had
+    // taken the Vue runtime with it. `verify-bundle` reads the same thing from
+    // the files; this asks the browser.
+    const engines = ['charts-vendor', 'echarts-setup', 'docs-vendor', 'comark', 'axe']
+    expect(
+      engines.filter((name) => requested.has(name)),
+      `The login page requested: ${[...requested].sort().join(', ')}`,
+    ).toEqual([])
+    // The page did load its chunks, and they are named the way this test reads.
+    expect(requested.has('vue-vendor'), 'vue-vendor was not requested').toBe(true)
+
+    // And the name is the right one to look for: a page with charts asks for it.
+    await logInAsDemoAdmin(page)
+    await page.goto('/dashboard/charts')
+    await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 30_000 })
+    expect(requested.has('charts-vendor'), 'a chart was drawn without charts-vendor').toBe(true)
+  })
+
   test('the dashboard is reachable after signing in', async ({ page }) => {
     await logInAsDemoAdmin(page)
 
