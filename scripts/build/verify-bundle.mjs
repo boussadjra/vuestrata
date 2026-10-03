@@ -378,9 +378,9 @@ function main(argv) {
    * Measured at 504 KB in a production build and 508 KB in the demo build, once
    * the charting engine stopped loading with every page (it was 728 and 732,
    * against a budget of 750). The 52 KB above the demo build is room, not a
-   * target: the integration seams have cost 2 to 4 KB each and more are coming,
-   * and a project's own modules add their messages and composables to this
-   * number. It is a quarter of what the charting engine weighs (264 KB), so
+   * target: each integration seam so far has cost about 4 KB and more are
+   * coming, and a project's own modules add their messages and composables to
+   * this number. It is a fifth of what the charting engine weighs (264 KB), so
    * nothing of that size fits in it.
    */
   const INITIAL_PAYLOAD_BUDGET_GZIP = 560 * 1024
