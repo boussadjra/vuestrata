@@ -165,8 +165,8 @@ function createMembers(sdk = createFakeSdk(seed)) {
         })
         return { items: data.map(toMember), total: count }
       },
-      get: async (id: string, { signal }: CollectionSourceContext) =>
-        toMember(await sdk.members.byId(Number(id), signal)),
+      // The context needs no annotation: it is typed by the source's own shape.
+      get: async (id: string, { signal }) => toMember(await sdk.members.byId(Number(id), signal)),
       create: async (draft: MemberDraft) =>
         toMember(await sdk.members.insert({ full_name: draft.name, team_role: draft.role })),
       update: (id: string, patch: Partial<MemberDraft>) =>
