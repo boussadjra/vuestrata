@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { test, expect, type Page } from '@playwright/test'
 
 import { logInAsDemoAdmin } from './helpers/auth'
@@ -109,4 +110,206 @@ test.describe('detail pages resolve a record', () => {
     // than offering a retry that can never succeed.
     await expect(page.getByText(/not found/i).first()).toBeVisible({ timeout: 15_000 })
   })
+})
+
+/**
+ * The customer form's submit lifecycle, in the demo build.
+ *
+ * The mock backend refuses a customer whose email another customer already
+ * has: the one rule a schema cannot check, so the one place a save the form
+ * believed valid comes back refused. What matters is where the refusal ends
+ * up: under the field it is about, in the reader's language and direction,
+ * and in a state a screen reader and axe can make sense of.
+ */
+test.describe('customer form: validation, server errors and unsaved changes', () => {
+  const BLOCKING_IMPACTS = new Set(['critical', 'serious'])
+
+  async function audit(page: Page): Promise<void> {
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    const blocking = results.violations.filter((violation) =>
+      BLOCKING_IMPACTS.has(violation.impact ?? ''),
+    )
+    expect(
+      blocking.map((violation) => `[${violation.impact}] ${violation.id}: ${violation.help}`),
+      'Blocking accessibility violations',
+    ).toEqual([])
+  }
+
+  /** Entrance animations sample half-faded colours; audit the settled page. */
+  async function animationsSettled(page: Page): Promise<void> {
+    await page.waitForFunction(() =>
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .every((a) => a.playState === 'finished' || a.playState === 'idle'),
+    )
+  }
+
+  async function setLocale(page: Page, locale: 'en' | 'ar'): Promise<void> {
+    // Written pre-boot and as a raw string: `bootstrapTheme()` reads it before
+    // mount to set html[dir].
+    await page.addInitScript((value) => localStorage.setItem('vuestrata-locale', value), locale)
+  }
+
+  /** The email of a customer that exists, read from its own edit form. */
+  async function takenEmail(page: Page): Promise<string> {
+    await page.goto('/dashboard/customers/CUS-1000/edit')
+    const email = page.locator('input[name="email"]')
+    await expect(email).not.toHaveValue('', { timeout: 15_000 })
+    return email.inputValue()
+  }
+
+  async function fillNewCustomer(page: Page, email: string): Promise<void> {
+    await page.goto('/dashboard/customers/new')
+    await expect(page.locator('form')).toBeVisible({ timeout: 15_000 })
+    await page.locator('input[name="company"]').fill('Hopper Systems')
+    await page.locator('input[name="contactName"]').fill('Grace Hopper')
+    await page.locator('input[name="email"]').fill(email)
+    await page.locator('input[name="phone"]').fill('+1 555 0100')
+    await page.locator('input[name="city"]').fill('Arlington')
+  }
+
+  /** The message rendered under a field. */
+  function errorOf(page: Page, name: string) {
+    return page.locator(`input[name="${name}"] ~ [role="alert"]`)
+  }
+
+  for (const { locale, dir, message } of [
+    { locale: 'en', dir: 'ltr', message: 'A customer with this email already exists.' },
+    { locale: 'ar', dir: 'rtl', message: 'يوجد عميل بهذا البريد الإلكتروني بالفعل.' },
+  ] as const) {
+    test(`a server refusal is shown under its field (${locale})`, async ({ page }) => {
+      await logInAsDemoAdmin(page)
+      await setLocale(page, locale)
+      const email = await takenEmail(page)
+
+      await fillNewCustomer(page, email)
+      await expect(page.locator('html')).toHaveAttribute('dir', dir)
+      await page.locator('form button[type="submit"]').click()
+
+      const fieldMessage = errorOf(page, 'email')
+      await expect(fieldMessage).toHaveText(message, { timeout: 15_000 })
+
+      // The input is marked invalid and names the message as its error.
+      const input = page.locator('input[name="email"]')
+      await expect(input).toHaveAttribute('aria-invalid', 'true')
+      const errorId = await input.getAttribute('aria-errormessage')
+      expect(errorId).toBeTruthy()
+      await expect(page.locator(`[id="${errorId}"]`)).toHaveText(message)
+
+      // The backend's own summary, above the buttons. Nothing was saved.
+      await expect(page.locator('form [data-ui="alert"]')).toBeVisible()
+      await expect(page).toHaveURL(/\/dashboard\/customers\/new$/)
+
+      // The message starts where the field starts: the right edge in Arabic.
+      const inputBox = (await input.boundingBox())!
+      const messageBox = (await fieldMessage.boundingBox())!
+      if (dir === 'rtl') {
+        expect(
+          Math.abs(messageBox.x + messageBox.width - (inputBox.x + inputBox.width)),
+        ).toBeLessThan(2)
+      } else {
+        expect(Math.abs(messageBox.x - inputBox.x)).toBeLessThan(2)
+      }
+
+      await animationsSettled(page)
+      await audit(page)
+
+      // Editing the field answers the message, and the corrected save goes through.
+      await input.fill(`grace.${locale}@hopper.example`)
+      await expect(fieldMessage).toHaveCount(0)
+      await page.locator('form button[type="submit"]').click()
+      await expect(page).toHaveURL(/\/dashboard\/customers\/CUS-\d+$/, { timeout: 15_000 })
+    })
+  }
+
+  test('an empty form opens clean and names what is missing on submit', async ({ page }) => {
+    await open(page, '/dashboard/customers/new')
+    await expect(page.locator('form')).toBeVisible({ timeout: 15_000 })
+
+    await expect(page.locator('form [role="alert"]')).toHaveCount(0)
+
+    await page.locator('form button[type="submit"]').click()
+
+    await expect(errorOf(page, 'company')).toHaveText('This field is required')
+    await expect(errorOf(page, 'email')).toHaveText('This field is required')
+    await expect(page).toHaveURL(/\/dashboard\/customers\/new$/)
+    await animationsSettled(page)
+    await audit(page)
+  })
+
+  test('an edit form opens on the record and saves a change', async ({ page }) => {
+    await open(page, '/dashboard/customers/CUS-1000/edit')
+    await expect(page.locator('input[name="company"]')).not.toHaveValue('', { timeout: 15_000 })
+
+    // Both selects show the record's values, and nothing is marked wrong.
+    const selects = page.locator('form [data-ui="select"]')
+    await expect(selects).toHaveCount(2)
+    await expect(selects.nth(0)).toHaveText(/Prospect|Trial|Active|Churned/)
+    await expect(selects.nth(1)).toHaveText(/Starter|Growth|Scale|Enterprise/)
+    await expect(page.locator('form [role="alert"]')).toHaveCount(0)
+
+    await page.locator('input[name="city"]').fill('Reykjavik')
+    await page.locator('form button[type="submit"]').click()
+
+    await expect(page).toHaveURL(/\/dashboard\/customers\/CUS-1000$/, { timeout: 15_000 })
+    await expect(page.getByText('Reykjavik').first()).toBeVisible()
+  })
+
+  for (const { locale, dir, title } of [
+    { locale: 'en', dir: 'ltr', title: 'Discard unsaved changes?' },
+    { locale: 'ar', dir: 'rtl', title: 'هل تريد تجاهل التغييرات غير المحفوظة؟' },
+  ] as const) {
+    test(`leaving with unsaved changes asks first (${locale})`, async ({ page }) => {
+      await logInAsDemoAdmin(page)
+      await setLocale(page, locale)
+      await page.goto('/dashboard/customers/new')
+      await expect(page.locator('form')).toBeVisible({ timeout: 15_000 })
+      await expect(page.locator('html')).toHaveAttribute('dir', dir)
+
+      await page.locator('input[name="company"]').fill('Hopper Systems')
+      // The Cancel link in the page header. The one at the foot of the form
+      // sits on the fold at this viewport: focusing it scrolls the page between
+      // mouse-down and mouse-up, and the click never lands.
+      const cancel = page.locator('main a[href="/dashboard/customers"]').first()
+      await cancel.click()
+
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await expect(dialog).toContainText(title)
+      await expect(page).toHaveURL(/\/dashboard\/customers\/new$/)
+
+      // Focus starts on the answer that loses nothing, and stays in the dialog.
+      const stay = page.getByTestId('unsaved-changes-stay')
+      const leave = page.getByTestId('unsaved-changes-leave')
+      await expect(stay).toBeFocused()
+      await page.keyboard.press('Tab')
+      await expect(leave).toBeFocused()
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('Tab')
+      await expect(dialog.locator(':focus')).toHaveCount(1)
+
+      // The buttons run in reading order: "keep editing" first.
+      const stayBox = (await stay.boundingBox())!
+      const leaveBox = (await leave.boundingBox())!
+      if (dir === 'rtl') expect(stayBox.x).toBeGreaterThan(leaveBox.x)
+      else expect(stayBox.x).toBeLessThan(leaveBox.x)
+
+      await animationsSettled(page)
+      await audit(page)
+
+      // Escape keeps editing: the dialog closes and what was typed is intact.
+      await page.keyboard.press('Escape')
+      await expect(dialog).toBeHidden()
+      await expect(page.locator('input[name="company"]')).toHaveValue('Hopper Systems')
+      await expect(page).toHaveURL(/\/dashboard\/customers\/new$/)
+
+      // Asked again, and this time the changes are discarded.
+      await cancel.click()
+      await leave.click()
+      await expect(page).toHaveURL(/\/dashboard\/customers$/)
+    })
+  }
 })
