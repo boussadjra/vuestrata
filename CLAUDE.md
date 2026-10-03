@@ -56,9 +56,12 @@ node scripts/lint/check-toolchain-pins.mjs      # Node/pnpm/Vite+ pins agree
 node scripts/security/sync-headers.mjs --check  # security headers in sync
 ```
 
-The security headers are **generated**. Edit `scripts/security/headers.mjs`, then
-run `vpr security:headers` — never hand-edit `public/_headers`, `docker/*.conf`,
-the `headers` block in `vercel.json`, or the CSP `<meta>` in `index.html`.
+The security headers are **generated**. To allow another origin, or change COOP,
+edit `headers` in `src/modules/app/config/deploy.config.ts`, then run
+`vpr security:headers` — never hand-edit `public/_headers`, `docker/nginx.conf`,
+`docker/runtime/*`, the `headers` block in `vercel.json`, or the CSP `<meta>` in
+`index.html`. `scripts/security/headers.mjs` holds the defaults and is managed:
+change it only when changing the template itself.
 
 Add `vpr build` when routing, layouts, config, providers or runtime wiring
 changed; `vpr test:e2e` when a user-visible flow changed.

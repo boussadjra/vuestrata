@@ -60,6 +60,7 @@ to open one has somewhere else to go:
 | The logo                       | `src/modules/app/components/Logo.vue`             |
 | Your permissions and grants    | `src/modules/app/config/rbac.overrides.ts`        |
 | Your backend's API conventions | `src/modules/app/config/api.overrides.ts`         |
+| Header origins, your variables | `src/modules/app/config/deploy.config.ts`         |
 
 Those files are yours from the moment you clone; nothing upstream writes to them.
 

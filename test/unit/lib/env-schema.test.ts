@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import {
+  describeEnvValueIssue,
   ENV_KEYS,
   isDemoRuntime,
   parseRuntimeEnv,
@@ -100,6 +101,28 @@ describe('parseRuntimeEnv (strict, build time)', () => {
     )
   })
 
+  it.each([
+    ['a protocol-relative URL', '//evil.test/api'],
+    ['a backslash a browser reads as a second slash', '/\\evil.test/api'],
+    ['three slashes', '///evil.test'],
+  ])('does not take %s for a same-origin path', (_, apiUrl) => {
+    // It starts with "/", and a browser sends every request to that host.
+    for (const serving of [false, true]) {
+      expect(() =>
+        parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: apiUrl }, { serving }),
+      ).toThrow(/names another host/)
+    }
+
+    const onWarn = vi.fn()
+    const lenient = resolveRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: apiUrl }, { onWarn })
+    expect(lenient.apiUrl).toBe('/api')
+    expect(onWarn).toHaveBeenCalledWith(expect.stringContaining('names another host'))
+  })
+
+  it.each(['/api', '/api/v1/', '/', '/a\\b'])('still takes %s for one', (apiUrl) => {
+    expect(parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: apiUrl }).apiUrl).toBe(apiUrl)
+  })
+
   it('rejects values outside an allowlist', () => {
     expect(() => parseRuntimeEnv({ [ENV_KEYS.authAdapter]: 'saml' })).toThrow(
       /Invalid environment/i,
@@ -178,6 +201,34 @@ describe('resolveRuntimeEnv (lenient, browser)', () => {
  * same is the mistake the placeholder rule exists to catch — so that one rule,
  * and only that one, depends on it.
  */
+describe('describeEnvValueIssue (one value, on its own)', () => {
+  it.each([
+    [ENV_KEYS.sessionPersistence, 'session'],
+    [ENV_KEYS.title, 'Acme Console'],
+    [ENV_KEYS.apiUrl, '/backend'],
+    [ENV_KEYS.apiUrl, 'https://api.acme.test/v1'],
+    // A placeholder host is a rule about a build nobody configured, not about
+    // the value.
+    [ENV_KEYS.apiUrl, 'http://localhost:8000'],
+    [ENV_KEYS.errorReportingDsn, 'https://key@errors.acme.test/1'],
+    // Not a key the schema knows: nothing to say about it.
+    ['VUESTRATA_FEATURE_X', 'anything'],
+  ])('finds nothing wrong with %s=%s', (key, value) => {
+    expect(describeEnvValueIssue(key, value)).toBeNull()
+  })
+
+  it.each([
+    [ENV_KEYS.sessionPersistence, 'Session'],
+    [ENV_KEYS.errorReportingDsn, 'not a url'],
+    [ENV_KEYS.apiUrl, 'ftp://files.acme.test'],
+    [ENV_KEYS.apiUrl, '//evil.test/api'],
+    [ENV_KEYS.apiUrl, 'api.acme.test'],
+    [ENV_KEYS.authAdapter, 'saml'],
+  ])('says what is wrong with %s=%s', (key, value) => {
+    expect(describeEnvValueIssue(key, value)).toEqual(expect.any(String))
+  })
+})
+
 describe('serving (vp dev) versus building', () => {
   const localBackend = { ...productionEnv, [ENV_KEYS.apiUrl]: 'http://localhost:8000/api' }
 

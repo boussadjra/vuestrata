@@ -4,6 +4,12 @@ import process from 'node:process'
 
 import { API_WIRING_STEPS, isApiWired } from '../lib/api-wiring.mjs'
 import { logger } from '../lib/cli.mjs'
+import {
+  DEPLOY_CONFIG_READERS,
+  deployWiringSteps,
+  dockerfileWithoutRuntimeConfig,
+  readsDeployConfig,
+} from '../lib/deploy-wiring.mjs'
 import { driftedFiles, LOCKFILE_NAME, readLock, regionHash } from '../lib/lockfile.mjs'
 import { PROJECT_REGISTRIES, SEEDED_FILES } from '../lib/managed.mjs'
 import {
@@ -126,6 +132,8 @@ export function diagnose({ root, version, source, migrations }) {
     ]) {
       if (unwired) findings.warnings.push(unwired)
     }
+    findings.warnings.push(...unreadDeployConfig({ root, manifest }))
+    findings.warnings.push(...dockerfileWarnings(root))
     return findings
   }
 
@@ -245,6 +253,15 @@ export function diagnose({ root, version, source, migrations }) {
     : unwiredApiOverrides({ root, manifest })
   if (unwiredApi) findings.warnings.push(unwiredApi)
 
+  // ── 6b. Is deploy.config.ts read by the tooling that acts on it? ─────────
+  // The same reasoning: a script the upgrade replaces is about to read it.
+  const drifted = new Set(driftedFiles(root, lock).map((entry) => entry.rel))
+  const willBeCurrent = (rel) =>
+    (plan?.adopted ?? []).some((entry) => entry.rel === rel) ||
+    (lock.files[rel]?.class === 'managed' && !drifted.has(rel))
+  findings.warnings.push(...unreadDeployConfig({ root, manifest, skip: willBeCurrent }))
+  findings.warnings.push(...dockerfileWarnings(root))
+
   // ── 7. Which vuestrata: regions were edited? ─────────────────────────────
   for (const registry of PROJECT_REGISTRIES) {
     const rel = slot(manifest, registry.slot)
@@ -316,6 +333,38 @@ function unwiredApiOverrides({ root, manifest }) {
     'describe there (a preset, headers, error mappers, a CSRF strategy) have no effect. ' +
     API_WIRING_STEPS
   )
+}
+
+/**
+ * A warning for each script that should read the project's `deploy.config.ts`
+ * and is a copy that does not.
+ *
+ * The Vite plugin and the header generator are what give the file its effect.
+ * A copy from before it existed ignores it, so the variables, runtime keys and
+ * header sources declared there do nothing — and nothing fails to say so.
+ * `skip` names the copies an upgrade is about to replace.
+ */
+function unreadDeployConfig({ root, manifest, skip = () => false }) {
+  const config = slot(manifest, 'deployConfig')
+  if (!fs.existsSync(path.join(root, config))) return []
+
+  return DEPLOY_CONFIG_READERS.filter(({ file }) => {
+    const full = path.join(root, file)
+    if (!fs.existsSync(full) || skip(file)) return false
+    return !readsDeployConfig(fs.readFileSync(full, 'utf8'))
+  }).map(
+    ({ file, consequence }) =>
+      `${config} exists, but ${file} does not read it, so ${consequence}. ` +
+      deployWiringSteps(file, incomingPath(file)),
+  )
+}
+
+/** What is wrong with the project's Dockerfile, when it has one. It is the project's file. */
+function dockerfileWarnings(root) {
+  const full = path.join(root, 'Dockerfile')
+  if (!fs.existsSync(full)) return []
+  const warning = dockerfileWithoutRuntimeConfig(fs.readFileSync(full, 'utf8'))
+  return warning ? [warning] : []
 }
 
 /** The upgrade report, or `undefined` (and an error finding) if it cannot be planned. */
