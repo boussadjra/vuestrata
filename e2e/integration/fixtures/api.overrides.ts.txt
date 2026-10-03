@@ -1,0 +1,10 @@
+/**
+ * What a Laravel project writes in `src/modules/app/config/api.overrides.ts`:
+ * the preset brings the CSRF cookie (and where to fetch one), the 419 that
+ * means "stale token", Laravel's error format and its paginator.
+ * `e2e/integration/build.mjs` builds the app with this file in that place.
+ */
+import { defineApiOverrides } from '~/lib/api/integration'
+import { presets } from '~/lib/api/presets'
+
+export default defineApiOverrides({ backend: presets.laravel })
