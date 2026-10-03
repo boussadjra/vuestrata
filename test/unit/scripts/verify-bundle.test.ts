@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -8,8 +9,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 // Importing the script must not run it: `isEntryPoint()` keeps the checks, the
 // dist walk and their `process.exit()` behind a direct invocation.
-// @ts-expect-error - the build scripts are plain ESM JavaScript with no type declarations.
-import { chunkName, chunksNamed } from '../../../scripts/build/verify-bundle.mjs'
+import {
+  chunkName,
+  chunksNamed,
+  eagerFiles,
+  staticImports,
+  // @ts-expect-error - the build scripts are plain ESM JavaScript with no type declarations.
+} from '../../../scripts/build/verify-bundle.mjs'
 
 /**
  * `verify-bundle.mjs` is the only gate that can see what a build shipped, so a
@@ -73,6 +79,107 @@ describe('chunksNamed', () => {
       'assets/useMswWorker-Ab12Cd34.js',
       'assets/MSWSetup-Ab12Cd34.js',
     ])
+  })
+})
+
+describe('staticImports', () => {
+  // Each form is how rolldown writes an import between two chunks, minified.
+  it('reads every form of a static import between chunks', () => {
+    const source =
+      'import{n as e}from"./rolldown-runtime-Dd_uD5pT.js";' +
+      'import"./side-effect-Ab12Cd34.js";' +
+      'import t,{a as n}from"./vue-vendor-BndbH7cv.js";' +
+      'import*as r from"./ns-Ab12Cd34.js";' +
+      'export{i}from"./again-Ab12Cd34.js";' +
+      'export*from"../up-Ab12Cd34.js";'
+
+    expect(staticImports(source)).toEqual([
+      './rolldown-runtime-Dd_uD5pT.js',
+      './side-effect-Ab12Cd34.js',
+      './vue-vendor-BndbH7cv.js',
+      './ns-Ab12Cd34.js',
+      './again-Ab12Cd34.js',
+      '../up-Ab12Cd34.js',
+    ])
+  })
+
+  // The difference this whole check rests on: `import()` is fetched when the
+  // code reaches it, and Vite's preload helper names its files as plain strings.
+  it('leaves out what is imported on demand', () => {
+    const source =
+      'import{t as e}from"./vue-vendor-BndbH7cv.js";' +
+      'const a=()=>import("./charts-vendor-CZBo_7NZ.js");' +
+      'const b=()=>e(()=>import("./echarts-setup-c60YD2B7.js"),__vite__mapDeps([0,1]));' +
+      'const m=["assets/charts-vendor-CZBo_7NZ.js"];'
+
+    expect(staticImports(source)).toEqual(['./vue-vendor-BndbH7cv.js'])
+  })
+})
+
+describe('eagerFiles', () => {
+  const html = (...tags: string[]) => `<html><head>${tags.join('')}</head></html>`
+  const ENTRY = '<script type="module" crossorigin src="/assets/index-D5TFPTY5.js"></script>'
+
+  it('holds what index.html references and everything those chunks import statically', () => {
+    const sources = new Map([
+      ['assets/index-D5TFPTY5.js', 'import"./vue-vendor-BndbH7cv.js";import("./page-Ab12Cd34.js")'],
+      ['assets/vue-vendor-BndbH7cv.js', 'import"./rolldown-runtime-Dd_uD5pT.js";'],
+      ['assets/rolldown-runtime-Dd_uD5pT.js', 'export{}'],
+      ['assets/page-Ab12Cd34.js', 'import"./charts-vendor-CZBo_7NZ.js";'],
+      ['assets/charts-vendor-CZBo_7NZ.js', 'export{}'],
+    ])
+
+    const loaded = eagerFiles(
+      html(ENTRY, '<link rel="stylesheet" crossorigin href="/assets/index-Bmppji-U.css">'),
+      sources,
+    )
+
+    // No modulepreload link names them, and they are loaded all the same.
+    expect([...loaded.keys()]).toEqual([
+      'assets/index-D5TFPTY5.js',
+      'assets/index-Bmppji-U.css',
+      'assets/vue-vendor-BndbH7cv.js',
+      'assets/rolldown-runtime-Dd_uD5pT.js',
+    ])
+    expect(loaded.get('assets/index-D5TFPTY5.js')).toEqual(['index.html'])
+    expect(loaded.get('assets/vue-vendor-BndbH7cv.js')).toEqual(['assets/index-D5TFPTY5.js'])
+  })
+
+  it('names every chunk that asks for a file', () => {
+    const sources = new Map([
+      ['assets/index-D5TFPTY5.js', 'import"./a-Ab12Cd34.js";import"./shared-Ab12Cd34.js";'],
+      ['assets/a-Ab12Cd34.js', 'import"./shared-Ab12Cd34.js";'],
+      ['assets/shared-Ab12Cd34.js', 'export{}'],
+    ])
+
+    const loaded = eagerFiles(
+      html(ENTRY, '<link rel="modulepreload" crossorigin href="/assets/shared-Ab12Cd34.js">'),
+      sources,
+    )
+
+    expect(loaded.get('assets/shared-Ab12Cd34.js')).toEqual([
+      'index.html',
+      'assets/index-D5TFPTY5.js',
+      'assets/a-Ab12Cd34.js',
+    ])
+  })
+
+  it('finds the assets of a build with a subpath base', () => {
+    const loaded = eagerFiles(
+      html(ENTRY.replace('/assets/', '/console/assets/')),
+      new Map([['assets/index-D5TFPTY5.js', 'export{}']]),
+    )
+
+    expect([...loaded.keys()]).toEqual(['assets/index-D5TFPTY5.js'])
+  })
+
+  // A docs page is a string in a chunk, and its code samples import things.
+  it('follows only imports of files the build emitted', () => {
+    const sources = new Map([
+      ['assets/index-D5TFPTY5.js', 'const doc="import { x } from \'./not-emitted.js\'";'],
+    ])
+
+    expect([...eagerFiles(html(ENTRY), sources).keys()]).toEqual(['assets/index-D5TFPTY5.js'])
   })
 })
 
@@ -168,6 +275,167 @@ describe('verify-bundle.mjs', () => {
     const { status, output } = run('--mode=production', `--dist=${dist}`)
     expect(status).toBe(1)
     expect(output).toContain('"demo@vuestrata.dev" found in assets/2.auth-rbac-BWc85eAj.js')
+  })
+
+  // The charting engine was preloaded on every page for as long as the size
+  // budget had room for it. This check names it, so the next one cannot hide.
+  describe('chunks loaded on demand', () => {
+    const CHECK = 'chunks loaded on demand are not loaded with the page'
+    const preload = (file: string) =>
+      PAGE.replace(
+        '</head>',
+        `<link rel="modulepreload" crossorigin href="/assets/${file}"></head>`,
+      )
+
+    it('passes a build that reaches the charting engine through import() alone', () => {
+      emit({
+        'index-D5TFPTY5.js':
+          'import"./vue-vendor-BndbH7cv.js";const chart=()=>import("./BaseChart-BVvfkCNw.js")\n',
+        'vue-vendor-BndbH7cv.js': 'export {}\n',
+        'BaseChart-BVvfkCNw.js': 'import"./charts-vendor-CZBo_7NZ.js"\n',
+        'charts-vendor-CZBo_7NZ.js': 'import"./vue-vendor-BndbH7cv.js"\n',
+      })
+
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(output).toContain(CHECK)
+      expect(status).toBe(0)
+    })
+
+    it('fails a build whose index.html preloads the charting chunk', () => {
+      emit(
+        {
+          'index-D5TFPTY5.js': 'export {}\n',
+          'charts-vendor-B4UI2yDj.js': 'export {}\n',
+        },
+        { 'index.html': preload('charts-vendor-B4UI2yDj.js') },
+      )
+
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(status).toBe(1)
+      expect(output).toContain(CHECK)
+      expect(output).toContain(
+        'assets/charts-vendor-B4UI2yDj.js (the charting engine) is in index.html',
+      )
+    })
+
+    // The shape of the real defect: the Vue runtime was grouped into the chart
+    // chunk, so the framework chunk imported it. No preload link is needed for
+    // the browser to fetch it before the page renders.
+    it('fails a build whose entry reaches it through static imports', () => {
+      emit({
+        'index-D5TFPTY5.js': 'import"./vue-vendor-YRn28q9F.js"\n',
+        'vue-vendor-YRn28q9F.js': 'import"./charts-vendor-B4UI2yDj.js"\n',
+        'charts-vendor-B4UI2yDj.js': 'export {}\n',
+      })
+
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(status).toBe(1)
+      expect(output).toContain(
+        'assets/charts-vendor-B4UI2yDj.js (the charting engine) is imported by ' +
+          'assets/vue-vendor-YRn28q9F.js',
+      )
+      expect(output).toContain('see the codeSplitting comment in vite.config.ts')
+    })
+
+    it.each([
+      ['docs-vendor-4rlSyRlv.js', 'the markdown and syntax-highlighting engine'],
+      ['comark-Coo580kt.js', 'the docs renderer and its diagram engine'],
+      ['axe-D-dgo05B.js', 'the accessibility checker'],
+    ])('fails a build that preloads %s', (file, what) => {
+      emit(
+        { 'index-D5TFPTY5.js': 'export {}\n', [file]: 'export {}\n' },
+        { 'index.html': preload(file) },
+      )
+
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(status).toBe(1)
+      expect(output).toContain(`assets/${file} (${what}) is in index.html`)
+    })
+
+    it('fails a demo build that loads the mock backend with the page', () => {
+      emit(
+        {
+          'index-D5TFPTY5.js': 'import"./msw-vendor-e1wNtvZD.js"\n',
+          'msw-vendor-e1wNtvZD.js': 'export {}\n',
+        },
+        { 'mockServiceWorker.js': '' },
+      )
+
+      const { status, output } = run('--mode=demo', `--dist=${dist}`)
+      expect(status).toBe(1)
+      expect(output).toContain('assets/msw-vendor-e1wNtvZD.js (the mock backend) is imported by')
+    })
+
+    // Matched by the whole chunk name: these two are small, eager, and merely
+    // have "docs" in their names.
+    it('does not mistake a chunk that only shares a word with one', () => {
+      emit(
+        {
+          'index-D5TFPTY5.js': 'import"./useDocsSidebar-Bvmb-p7n.js"\n',
+          'useDocsSidebar-Bvmb-p7n.js': 'export {}\n',
+          'component-docs-BbqUMHK0.js': 'export {}\n',
+        },
+        { 'index.html': preload('component-docs-BbqUMHK0.js') },
+      )
+
+      expect(run('--mode=production', `--dist=${dist}`).status).toBe(0)
+    })
+  })
+
+  describe('the size budgets', () => {
+    /** `kb` kilobytes that gzip cannot shrink much, as a chunk. */
+    const noise = (kb: number) =>
+      `export default "${crypto.randomBytes(Math.ceil((kb * 1024 * 3) / 4)).toString('base64')}"\n`
+
+    // The sizes are far past the budgets on purpose: these tests are about what
+    // is measured, and should not need editing when a budget moves.
+    it('counts what the entry imports statically, preloaded or not', () => {
+      emit({
+        'index-D5TFPTY5.js': 'import"./a-Ab12Cd34.js";import"./b-Ab12Cd34.js"\n',
+        'a-Ab12Cd34.js': noise(1024),
+        'b-Ab12Cd34.js': noise(1024),
+      })
+
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(status).toBe(1)
+      expect(output).toMatch(/KB gzipped \(2048\.\d KB raw\) across 3 files — over budget by/)
+    })
+
+    it('holds the largest chunk the page loads to its budget, and no lazy one', () => {
+      emit({
+        'index-D5TFPTY5.js': 'import"./ui-vendor-Cwx1-IbK.js";import("./lazy-Coo580kt.js")\n',
+        'ui-vendor-Cwx1-IbK.js': `export default "${'a'.repeat(2048 * 1024)}"\n`,
+        'lazy-Coo580kt.js': `export default "${'a'.repeat(4096 * 1024)}"\n`,
+      })
+
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(status).toBe(1)
+      expect(output).toMatch(
+        /assets\/ui-vendor-Cwx1-IbK\.js is 2048\.\d KB and is loaded on every page/,
+      )
+      expect(output).not.toMatch(/lazy-Coo580kt\.js is/)
+    })
+
+    // The stylesheet is larger raw than any chunk the page loads. It counts
+    // towards the payload, gzipped, and is not a chunk.
+    it('does not hold the stylesheet to the chunk budget', () => {
+      emit(
+        {
+          'index-D5TFPTY5.js': 'export {}\n',
+          'index-Bmppji-U.css': `.a{color:red}`.repeat(50_000),
+        },
+        {
+          'index.html': PAGE.replace(
+            '</head>',
+            '<link rel="stylesheet" crossorigin href="/assets/index-Bmppji-U.css"></head>',
+          ),
+        },
+      )
+
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(output).toContain('2 files (largest chunk: assets/index-D5TFPTY5.js')
+      expect(status).toBe(0)
+    })
   })
 
   // One build serves every environment only while runtime-config.js stays a
