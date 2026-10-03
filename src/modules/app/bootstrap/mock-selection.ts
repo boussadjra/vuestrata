@@ -130,12 +130,16 @@ export async function selectMockHandlers(
  * unremarked (`bypass`), because in this mode nearly every request is one.
  */
 export async function startSelectedMocks(mockOnly: readonly string[]): Promise<void> {
-  // The file is the project's, and one kept from before 1.1.0 has no
-  // `handlerSets`: read through the namespace, a missing export is `undefined`
-  // rather than a build that fails.
-  const staticMocks = (await import('@/mocks/handlers')) as unknown as {
-    handlerSets?: StaticHandlerSets
-  }
+  // The file is the project's. One kept from before 1.1.0 has no `handlerSets`,
+  // and a project that removed the demo's handlers may have no such file at
+  // all. A glob takes what is there: read as a module of this shape, a missing
+  // export is `undefined`, and a missing file is an empty object, where an
+  // `import()` of it would fail the build of every project without one,
+  // whether or not it ever sets the variable.
+  const [loadStaticMocks] = Object.values(
+    import.meta.glob<{ handlerSets?: StaticHandlerSets }>('../mocks/handlers/index.ts'),
+  )
+  const staticMocks = (await loadStaticMocks?.()) ?? {}
   const selection = await selectMockHandlers(
     mockOnly,
     useModuleStore().allModules.values(),
