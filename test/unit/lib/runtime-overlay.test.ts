@@ -183,6 +183,9 @@ describe('compile-time keys', () => {
   const COMPILE_TIME = [
     [ENV_KEYS.runtimeMode, 'demo'],
     [ENV_KEYS.useMocks, 'true'],
+    // Which handlers start is decided with the bundle: a container cannot be
+    // started into mocking a module its build served from the backend.
+    [ENV_KEYS.mockOnly, 'orders'],
     [ENV_KEYS.authAdapter, 'mock'],
     [ENV_KEYS.iconProvider, 'lucide'],
     [ENV_KEYS.theme, 'analog'],
