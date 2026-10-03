@@ -36,6 +36,7 @@ import { startDemoMocks } from './mocks'
 import { VueQueryPlugin, vueQueryOptions } from './query-client'
 import { installSeams } from './seams'
 import { noteStaleChunkReloadBaseline, pendingStaleChunkReloadMs } from './stale-chunk-reload'
+import { installValidationMessages } from './validation-messages'
 
 /**
  * Everything `boot()` calls that touches the outside world.
@@ -62,6 +63,8 @@ export interface BootDeps {
   createAuthAdapter: typeof createAuthAdapter
   installQuery: (app: App) => void
   installI18n: (app: App) => void
+  /** Zod's messages, translated. Returns its own undo, which boot ignores. */
+  installValidationMessages: () => unknown
   setupModules: (
     router: Router,
     modules: typeof appModules,
@@ -126,6 +129,7 @@ function defaultDeps(options: BootOptions): BootDeps {
     createAuthAdapter,
     installQuery: (app) => app.use(VueQueryPlugin, options.queryOptions ?? vueQueryOptions),
     installI18n,
+    installValidationMessages,
     setupModules,
     appModules,
     router,
@@ -314,6 +318,10 @@ async function runBoot(
   // Register plugins that module setup depends on.
   deps.installQuery(app)
   deps.installI18n(app)
+  // Zod's messages come from the locale catalog from here on. After i18n,
+  // which it translates through, and before module setup, so nothing a module
+  // validates while it registers is described in zod's English.
+  deps.installValidationMessages()
 
   // Initialize feature modules and register their routes before installing
   // the router, so the first navigation sees the final route table.
