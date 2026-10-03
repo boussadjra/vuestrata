@@ -13,50 +13,76 @@ import { resolveAuthAdapterName } from '@/modules/auth'
 import type { RuntimeEnv } from '~/lib/config'
 import type { AppConfig } from '~/types'
 
+import { readAuthConfig } from '../../../scripts/vite/vuestrata-plugin.mjs'
+
 /**
- * The TYPE of the configured adapter, for a project that registers none.
+ * The TYPE of the configured adapter.
  *
- * Opening the adapter registry must not change it. `AppConfig` is in
- * `app/types/index.ts`, which is the project's file: an upgraded project still
- * declares `authProvider: 'jwt' | 'oauth' | 'mock'` there, and Vuestrata's
- * `app.config.ts` assigns `runtimeEnv.authAdapter` to it. When that type was
- * widened to admit any string, every upgraded project stopped compiling until
- * it edited a file an upgrade cannot touch.
+ * Opening the adapter registry must not change it for a project that registers
+ * nothing. `AppConfig` is in `app/types/index.ts`, which is the project's file:
+ * an upgraded project still declares `authProvider: 'jwt' | 'oauth' | 'mock'`
+ * there, and Vuestrata's `app.config.ts` assigns `runtimeEnv.authAdapter` to
+ * it. When that type was widened to admit any string, every upgraded project
+ * stopped compiling until it edited a file an upgrade cannot touch.
  *
  * It is now the built-in union plus the keys of an interface the project
  * extends itself, so it widens only for a project that asks. These are checked
  * by `vue-tsc` (`vp check`), which is where an upgraded project would fail.
  *
- * Nothing in the test suite may augment `RegisteredAuthAdapterNames`: the
- * declaration would hold for the whole program, and hide exactly this.
+ * Every assertion is written against `Declared`, what THIS checkout declares,
+ * and not against "nothing": a project that follows the recipe and declares
+ * its own adapter still carries this file, and a type test that demanded an
+ * empty interface would fail its `vp check` and its build the moment it did.
+ * In the template `Declared` is `never`, and each line then says exactly "the
+ * union it always was" — a widening to `string` fails it in either checkout.
  */
 type ReleasedUnion = 'mock' | 'jwt' | 'oauth'
 
+/** The adapter names this checkout declares from `auth.config.ts`. */
+type Declared = keyof RegisteredAuthAdapterNames
+
+/** A maintainer's run reads this repository as the template, as it ships. */
+const MAINTAINER = process.env.VUESTRATA_MAINTAINER === '1'
+
 describe('the type of the configured auth adapter', () => {
-  it('is the union it always was while the project registers nothing', () => {
-    expectTypeOf<keyof RegisteredAuthAdapterNames>().toBeNever()
+  it('is the union it always was, plus exactly what the project declared', () => {
     expectTypeOf<BuiltinAuthAdapterName>().toEqualTypeOf<ReleasedUnion>()
-    expectTypeOf<AuthAdapterName>().toEqualTypeOf<ReleasedUnion>()
-    expectTypeOf<RuntimeEnv['authAdapter']>().toEqualTypeOf<ReleasedUnion>()
+    expectTypeOf<AuthAdapterName>().toEqualTypeOf<ReleasedUnion | Declared>()
+    expectTypeOf<RuntimeEnv['authAdapter']>().toEqualTypeOf<ReleasedUnion | Declared>()
   })
 
   it('still fits what a project’s own AppConfig declares', () => {
-    // What `app/types/index.ts` says in a project created before this.
-    expectTypeOf(authAdapter).toExtend<ReleasedUnion>()
+    // `ReleasedUnion` is what `app/types/index.ts` says in a project created
+    // before this, and all there is to fit while nothing is declared.
+    expectTypeOf(authAdapter).toExtend<ReleasedUnion | Declared>()
     expectTypeOf<RuntimeEnv['authAdapter']>().toExtend<AppConfig['authProvider']>()
     expectTypeOf(appConfig.authProvider).toExtend<AuthAdapterName>()
   })
 
   it('is what resolveAuthAdapterName answers, as it always did', () => {
-    expectTypeOf(resolveAuthAdapterName).returns.toEqualTypeOf<ReleasedUnion>()
+    expectTypeOf(resolveAuthAdapterName).returns.toEqualTypeOf<ReleasedUnion | Declared>()
   })
 
-  it('is widened from auth.config.ts, where the seeded file shows how', () => {
+  it('is declared for every adapter auth.config.ts registers, and for no other', () => {
+    // What the build reads, and warns about when the two lists differ. True
+    // of the file as it ships (both empty) and of a project that follows the
+    // recipe.
+    const { adapters, declared } = readAuthConfig(process.cwd())
+
+    expect([...declared].sort()).toEqual(Object.keys(adapters).sort())
+  })
+
+  it.runIf(MAINTAINER)('ships declaring nothing, with the seeded file showing how', () => {
+    const { adapters, declared } = readAuthConfig(process.cwd())
+    // With nothing declared, `Declared` above is `never`, and the type
+    // assertions pin the released union itself.
+    expect(declared).toEqual([])
+    expect(adapters).toEqual({})
+
     const seeded = fs.readFileSync(
       path.join(process.cwd(), 'src/modules/app/config/auth.config.ts'),
       'utf8',
     )
-
     // As a comment: the shipped file registers nothing and declares nothing.
     expect(seeded).toMatch(
       /\* {3}declare module '~\/lib\/auth' \{\n \* {5}interface RegisteredAuthAdapterNames \{/,
