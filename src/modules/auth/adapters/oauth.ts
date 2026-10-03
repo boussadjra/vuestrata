@@ -185,7 +185,9 @@ export function createOAuthAdapter(): AuthAdapter {
     ...(providerPath !== undefined
       ? {
           async socialLogin(provider: AuthProviderId) {
-            assertOAuthProvider(provider)
+            // Cast to what base.ts takes: a base.ts the project kept from 1.0
+            // takes the closed list, and checks the value all the same.
+            assertOAuthProvider(provider as Parameters<typeof assertOAuthProvider>[0])
             await beginAuthorizationCodeFlow(
               providerPath.replace(':provider', encodeURIComponent(provider)),
             )

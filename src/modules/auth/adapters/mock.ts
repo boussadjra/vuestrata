@@ -66,7 +66,9 @@ export function createMockAdapter(): AuthAdapter {
     },
 
     async socialLogin(provider: AuthProviderId) {
-      assertOAuthProvider(provider)
+      // Cast to what base.ts takes: a base.ts the project kept from 1.0 takes the
+      // closed list, and checks the value all the same.
+      assertOAuthProvider(provider as Parameters<typeof assertOAuthProvider>[0])
       // No real provider to redirect to: jump straight to our own callback
       // with a recognisable code, so the demo still exercises the callback
       // route and the code-exchange path.

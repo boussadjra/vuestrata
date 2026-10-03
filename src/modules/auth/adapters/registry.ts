@@ -25,12 +25,14 @@ export { loadAuthAdapter } from '~/lib/auth/registry'
  * so an upgrade always installs it. It can therefore sit beside a `jwt.ts` the
  * project kept from 1.0, whose factory takes the access-token getter alone.
  * Called with two arguments that does not compile; a function of one parameter
- * does fit this type, and ignores the second.
+ * ignores the second. What that factory returns is typed by the 1.0 types.ts,
+ * which is not the AuthAdapter of core/lib, hence the cast: the bootstrap asks
+ * for every member the seam added before it uses it.
  */
-const createJwt: (
+const createJwt = createJwtAdapter as unknown as (
   getToken?: () => string | null,
   getRefreshToken?: () => string | null,
-) => AuthAdapter = createJwtAdapter
+) => AuthAdapter
 
 /**
  * The adapters Vuestrata ships, as factories.
