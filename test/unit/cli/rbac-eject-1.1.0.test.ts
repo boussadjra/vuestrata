@@ -407,6 +407,60 @@ describe.skipIf(!CLI_PRESENT)('upgrading a project that ran eject on 1.0', () =>
       expect(notes[0]!.text).not.toContain('under `withdrawn`')
     })
 
+    // What the 1.0 deep-dive told a project to do under "Adding a new role":
+    // add it to the Role union, to ROLE_HIERARCHY and to the deltas.
+    it('says where a role the project added to the Role union goes now', async () => {
+      const before = {
+        union: released10('rbac-types.ts').replace("| 'guest'\n", "| 'guest' | 'auditor'\n"),
+        grants: released10('rbac-inheritance.ts').replace(
+          "  'viewer',\n  'guest',\n]",
+          "  'auditor',\n  'viewer',\n  'guest',\n]",
+        ),
+      }
+      expect(before.union).toContain("| 'guest' | 'auditor'\n")
+      expect(before.grants).toContain("  'auditor',\n")
+      seed(before)
+
+      const report = await upgrade()
+
+      expect(fixture.read(UNION)).toBe(before.union)
+      const notes = report.notes.filter((note) => note.rel === UNION)
+      expect(notes).toHaveLength(1)
+      expect(notes[0]!.text).toMatch(/WILL NOT TYPE-CHECK/)
+      expect(notes[0]!.text).toMatch(/in `AppRoles`[^;]*under `roles`[^;]*'auditor'/)
+      expect(notes[0]!.text).toContain('No built-in role inherits from a role of yours')
+      // It is a role, not a permission, and nothing was removed.
+      expect(notes[0]!.text).not.toContain('under `permissions`')
+      expect(notes[0]!.text).not.toContain('under `withdrawn`')
+      expect(notes[0]!.text).not.toContain("'super_admin'")
+    })
+
+    it('reads a Role union the formatter wrapped, and takes none of it for a permission', async () => {
+      const wrapped =
+        'export type Role =\n' +
+        ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest', 'regional_billing_admin']
+          .map((name) => `  | '${name}'\n`)
+          .join('')
+      const before = {
+        union: released10('rbac-types.ts')
+          .replace(/^export type Role = .*\n/, wrapped)
+          .replace("  | 'audit:read'\n", "  | 'audit:read'\n  | 'invoices:read'\n"),
+        grants: released10('rbac-inheritance.ts'),
+      }
+      expect(before.union.startsWith(wrapped)).toBe(true)
+      seed(before)
+
+      const report = await upgrade()
+
+      const note = report.notes.find((entry) => entry.rel === UNION)!.text
+      expect(note).toMatch(/under `roles`[^;]*'regional_billing_admin'/)
+      expect(note).toMatch(/under `permissions`[^;]*'invoices:read'/)
+      // The built-in role names sit on lines of their own now, like permissions.
+      expect(note).not.toContain("'super_admin'")
+      expect(note).not.toContain("'guest'")
+      expect(note).not.toContain('under `withdrawn`')
+    })
+
     it('is silent about grants edited alone: the release compiles beside them', async () => {
       const before = {
         union: released10('rbac-types.ts'),

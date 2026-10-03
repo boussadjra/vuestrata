@@ -6,6 +6,7 @@ import notes from './notes.mjs'
 import projectFiles from './project-files.mjs'
 import promotions from './promotions.mjs'
 import rbacEject from './rbac-eject.mjs'
+import roles from './roles.mjs'
 
 /**
  * Give every registry two sentinel regions instead of one.
@@ -44,5 +45,6 @@ const regionSplit = {
 //   rbacEject       core/lib/rbac/ as the 1.0 eject left it, taken back before it is judged
 //   projectFiles    changes this release needs in files that stay the project's
 //   deployment      the container and CI files, replaced when nobody edited them
+//   roles           the router and the User type learn that a user may hold several roles
 //   notes           what only a person can act on
-export default [regionSplit, ...promotions, rbacEject, ...projectFiles, deployment, notes]
+export default [regionSplit, ...promotions, rbacEject, ...projectFiles, deployment, roles, notes]

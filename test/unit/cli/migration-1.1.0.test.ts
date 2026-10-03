@@ -1637,3 +1637,237 @@ describe.skipIf(!CLI_PRESENT)('the Node that vp runs locally', () => {
     expect(report.notes).toEqual([])
   })
 })
+
+describe.skipIf(!CLI_PRESENT || !hasTags)('a user may hold several roles', () => {
+  const AUTH_STORE = 'src/modules/app/stores/auth.ts'
+  const APP_TYPES = 'src/modules/app/types/index.ts'
+  const ROLES_LINE = '    roles: authStore.userRoles,\n'
+  const SUBJECT =
+    '    role: authStore.userRole,\n' +
+    ROLES_LINE +
+    '    permissions: authStore.userPermissions as Permission[] | undefined,\n'
+
+  /** This release's auth store, which replaces an unedited 1.0 one. */
+  const shipped = () => ({ [AUTH_STORE]: inRepo(AUTH_STORE) })
+  /** The notes of this group: a store that was held back has one of its own. */
+  const guardNotes = (report: Report) =>
+    texts(report).filter((text) => text.includes('resolveRouteAccess()'))
+
+  describe('plugins/router.ts', () => {
+    it('hands the guard the roles, beside a store this upgrade replaces', async () => {
+      seed([ROUTER, AUTH_STORE])
+
+      const report = await upgrade(shipped())
+
+      const result = fixture.read(ROUTER)
+      expect(result).toContain(SUBJECT)
+      // The store it now reads `userRoles` from is the one that has it.
+      expect(fixture.read(AUTH_STORE)).toContain('userRoles')
+      expect(guardNotes(report)).toEqual([])
+      // And it is the call this repository's own router makes.
+      expect(lf(inRepo(ROUTER))).toContain(SUBJECT)
+    })
+
+    it('makes the same change in a file the project added a layout to', async () => {
+      seed([ROUTER, AUTH_STORE])
+      fixture.write(
+        ROUTER,
+        released(ROUTER).replace(
+          'export const layoutMap',
+          '// our own layouts are registered below\nexport const layoutMap',
+        ),
+      )
+
+      const report = await upgrade(shipped())
+
+      expect(fixture.read(ROUTER)).toContain('// our own layouts are registered below')
+      expect(fixture.read(ROUTER)).toContain(SUBJECT)
+      expect(guardNotes(report)).toEqual([])
+    })
+
+    it('keeps the line endings the file had', async () => {
+      seed([ROUTER, AUTH_STORE])
+      fixture.write(ROUTER, released(ROUTER).replaceAll('\n', '\r\n'))
+
+      await upgrade(shipped())
+
+      const result = fixture.read(ROUTER)
+      expect(result).not.toMatch(/[^\r]\n/)
+      expect(result).toContain(SUBJECT.replaceAll('\n', '\r\n'))
+    })
+
+    it('does nothing the second time', async () => {
+      seed([ROUTER, AUTH_STORE])
+      await upgrade(shipped())
+      const once = fixture.read(ROUTER)
+
+      const again = await upgrade(shipped(), { version: '1.1.0-alpha.1' })
+
+      expect(fixture.read(ROUTER)).toBe(once)
+      expect(once.split(ROLES_LINE)).toHaveLength(2)
+      expect(guardNotes(again)).toEqual([])
+      expect(changed(again)).not.toContain(ROUTER)
+    })
+
+    it('waits for an auth store the project edited and keeps, and says why', async () => {
+      seed([ROUTER, AUTH_STORE])
+      fixture.write(AUTH_STORE, `${released(AUTH_STORE)}\n// ours\n`)
+
+      const report = await upgrade(shipped())
+
+      // `authStore.userRoles` does not exist on the 1.0 store that stays.
+      expect(fixture.read(ROUTER)).not.toContain('userRoles')
+      expect(guardNotes(report)).toHaveLength(1)
+      expect(guardNotes(report)[0]).toContain('a copy you edited and keep')
+      expect(guardNotes(report)[0]).toContain('`roles: authStore.userRoles,`')
+      expect(guardNotes(report)[0]).toContain('never looser')
+    })
+
+    it('follows on the upgrade after the project merged the new store', async () => {
+      seed([ROUTER, AUTH_STORE])
+      fixture.write(AUTH_STORE, `${released(AUTH_STORE)}\n// ours\n`)
+      await upgrade(shipped())
+      fixture.write(AUTH_STORE, `${inRepo(AUTH_STORE)}\n// ours\n`)
+
+      const again = await upgrade(shipped(), { version: '1.1.0-alpha.1' })
+
+      expect(fixture.read(ROUTER)).toContain(SUBJECT)
+      expect(guardNotes(again)).toEqual([])
+    })
+
+    it('leaves a call the project rewrote, with the line to add', async () => {
+      seed([ROUTER, AUTH_STORE])
+      const edited = released(ROUTER).replace(
+        '    role: authStore.userRole,\n',
+        '    role: impersonated.value ?? authStore.userRole,\n',
+      )
+      expect(edited).not.toBe(released(ROUTER))
+      fixture.write(ROUTER, edited)
+
+      const report = await upgrade(shipped())
+
+      expect(fixture.read(ROUTER)).not.toContain('userRoles')
+      expect(guardNotes(report)).toEqual([
+        expect.stringContaining('its call to resolveRouteAccess() is not the one'),
+      ])
+      expect(guardNotes(report)[0]).toContain('Add `roles: authStore.userRoles,`')
+      expect(report.notes.find((note) => note.text === guardNotes(report)[0])?.rel).toBe(ROUTER)
+    })
+
+    it('is quiet for a router that passes roles its own way', async () => {
+      seed([ROUTER, AUTH_STORE])
+      const own = released(ROUTER).replace(
+        '    role: authStore.userRole,\n',
+        '    role: authStore.userRole,\n    roles: rolesOf(authStore.user),\n',
+      )
+      fixture.write(ROUTER, own)
+
+      const report = await upgrade(shipped())
+
+      expect(fixture.read(ROUTER)).toContain('roles: rolesOf(authStore.user),')
+      expect(fixture.read(ROUTER)).not.toContain('userRoles')
+      expect(guardNotes(report)).toEqual([])
+    })
+
+    it('says nothing in a project with no auth store where the template has one', async () => {
+      seed([ROUTER])
+
+      const report = await upgrade()
+
+      expect(fixture.read(ROUTER)).not.toContain('userRoles')
+      expect(report.notes).toEqual([])
+    })
+  })
+
+  describe('app/types/index.ts', () => {
+    const MEMBER = '  roles?: Role[]\n  permissions?: Permission[]\n'
+    const DECLARED = /  role: Role\n[\s\S]*?  permissions\?: Permission\[\]\n/
+
+    it('gives User the roles member, as this release declares it', async () => {
+      seed([APP_TYPES])
+
+      const report = await upgrade()
+
+      const result = fixture.read(APP_TYPES)
+      expect(result).toContain(MEMBER)
+      expect(result.split('roles?: Role[]')).toHaveLength(2)
+      expect(report.notes).toEqual([])
+      // The member and its comment are the ones this repository's file has.
+      expect(DECLARED.exec(result)?.[0]).toBe(DECLARED.exec(lf(inRepo(APP_TYPES)))?.[0])
+    })
+
+    it('keeps the line endings the file had, and does nothing the second time', async () => {
+      seed([APP_TYPES])
+      fixture.write(APP_TYPES, released(APP_TYPES).replaceAll('\n', '\r\n'))
+
+      await upgrade()
+      const once = fixture.read(APP_TYPES)
+      const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+      expect(once).not.toMatch(/[^\r]\n/)
+      expect(once).toContain(MEMBER.replaceAll('\n', '\r\n'))
+      expect(fixture.read(APP_TYPES)).toBe(once)
+      expect(again.notes).toEqual([])
+    })
+
+    it('leaves a User the project already gave a roles member, of whatever type', async () => {
+      seed([APP_TYPES])
+      const own = released(APP_TYPES).replace(
+        '  role: Role\n',
+        '  role: Role\n  roles: Array<{ id: number; name: string }>\n',
+      )
+      fixture.write(APP_TYPES, own)
+
+      const report = await upgrade()
+
+      expect(fixture.read(APP_TYPES)).toBe(own)
+      expect(report.notes).toEqual([])
+    })
+
+    it('is not fooled by a comment that mentions roles', async () => {
+      seed([APP_TYPES])
+      fixture.write(
+        APP_TYPES,
+        released(APP_TYPES).replace(
+          '  role: Role\n',
+          '  // roles: see the IAM service\n  role: Role\n',
+        ),
+      )
+
+      const report = await upgrade()
+
+      // The member is still missing, and the comment does not stand in for it.
+      expect(fixture.read(APP_TYPES)).toContain(MEMBER)
+      expect(fixture.read(APP_TYPES)).toContain('  // roles: see the IAM service\n')
+      expect(report.notes).toEqual([])
+    })
+
+    it('leaves a User the project reshaped, with the member to add', async () => {
+      seed([APP_TYPES])
+      const reshaped = released(APP_TYPES).replace(
+        '  permissions?: Permission[]\n  emailVerified?: boolean\n',
+        '  permissions?: Permission[]\n  tenantId: string\n  emailVerified?: boolean\n',
+      )
+      expect(reshaped).not.toBe(released(APP_TYPES))
+      fixture.write(APP_TYPES, reshaped)
+
+      const report = await upgrade()
+
+      expect(fixture.read(APP_TYPES)).toBe(reshaped)
+      expect(texts(report)).toEqual([expect.stringContaining('add `roles?: Role[]`')])
+      expect(report.notes[0]?.rel).toBe(APP_TYPES)
+    })
+
+    it('has nothing to say to a project that declares User somewhere else', async () => {
+      seed([APP_TYPES])
+      const moved = released(APP_TYPES).replace(/export interface User \{[\s\S]*?\n\}\n/, '')
+      expect(moved).not.toContain('interface User {')
+      fixture.write(APP_TYPES, moved)
+
+      const report = await upgrade()
+
+      expect(fixture.read(APP_TYPES)).toBe(moved)
+      expect(report.notes).toEqual([])
+    })
+  })
+})
