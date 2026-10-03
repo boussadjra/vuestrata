@@ -1264,15 +1264,12 @@ export default [
     steps: pinnedTests,
   },
   {
-    // Three changes to one file, in one group: the report names a file once
-    // per group, and three groups named this one three times.
+    // Four changes to one file, in one group: the report names a file once
+    // per group, and a group for each change named this one four times.
     description:
       'vite.config.ts imports the Vuestrata env plugin, allows a test 15 s (and, off CI, half ' +
-      'the cores), and keeps the linter and the formatter out of .vuestrata/',
-    steps: [envPlugin, testRoom, incomingIgnored],
-  },
-  {
-    description: 'the vendor chunks claim modules in an order, so the charting engine stays lazy',
-    steps: [chunksInAnOrder],
+      'the cores), keeps the linter and the formatter out of .vuestrata/, and gives the vendor ' +
+      'chunks an order so the charting engine stays lazy',
+    steps: [envPlugin, testRoom, incomingIgnored, chunksInAnOrder],
   },
 ]

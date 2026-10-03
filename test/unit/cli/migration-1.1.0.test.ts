@@ -1073,7 +1073,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(again.notes).toEqual([])
     })
 
-    it('is named once in the report, though three steps change it', async () => {
+    it('is named once in the report, though four steps change it', async () => {
       seed([VITE])
 
       const report = await upgrade()
