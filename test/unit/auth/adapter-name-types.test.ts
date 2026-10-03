@@ -41,26 +41,30 @@ type ReleasedUnion = 'mock' | 'jwt' | 'oauth'
 /** The adapter names this checkout declares from `auth.config.ts`. */
 type Declared = keyof RegisteredAuthAdapterNames
 
+/** What the type has to be here: the released union, and those names. */
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `never` until a project declares one
+type Expected = ReleasedUnion | Declared
+
 /** A maintainer's run reads this repository as the template, as it ships. */
 const MAINTAINER = process.env.VUESTRATA_MAINTAINER === '1'
 
 describe('the type of the configured auth adapter', () => {
   it('is the union it always was, plus exactly what the project declared', () => {
     expectTypeOf<BuiltinAuthAdapterName>().toEqualTypeOf<ReleasedUnion>()
-    expectTypeOf<AuthAdapterName>().toEqualTypeOf<ReleasedUnion | Declared>()
-    expectTypeOf<RuntimeEnv['authAdapter']>().toEqualTypeOf<ReleasedUnion | Declared>()
+    expectTypeOf<AuthAdapterName>().toEqualTypeOf<Expected>()
+    expectTypeOf<RuntimeEnv['authAdapter']>().toEqualTypeOf<Expected>()
   })
 
   it('still fits what a project’s own AppConfig declares', () => {
     // `ReleasedUnion` is what `app/types/index.ts` says in a project created
     // before this, and all there is to fit while nothing is declared.
-    expectTypeOf(authAdapter).toExtend<ReleasedUnion | Declared>()
+    expectTypeOf(authAdapter).toExtend<Expected>()
     expectTypeOf<RuntimeEnv['authAdapter']>().toExtend<AppConfig['authProvider']>()
     expectTypeOf(appConfig.authProvider).toExtend<AuthAdapterName>()
   })
 
   it('is what resolveAuthAdapterName answers, as it always did', () => {
-    expectTypeOf(resolveAuthAdapterName).returns.toEqualTypeOf<ReleasedUnion | Declared>()
+    expectTypeOf(resolveAuthAdapterName).returns.toEqualTypeOf<Expected>()
   })
 
   it('is declared for every adapter auth.config.ts registers, and for no other', () => {
