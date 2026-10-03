@@ -704,12 +704,20 @@ describe('syncTargets', () => {
   const log = { success: vi.fn(), error: vi.fn(), info: vi.fn() }
   const BUILTIN = ['VUESTRATA_API_URL', 'VUESTRATA_RELEASE']
 
-  /** A project with the two targets that are edited in place rather than written whole. */
-  function project(): string {
+  /**
+   * A project with the two targets that are edited in place rather than written
+   * whole, and the two directories that say it deploys as a container and to a
+   * static host. `without` names what this project deleted.
+   */
+  function project({ without = [] }: { without?: string[] } = {}): string {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vuestrata-headers-'))
     roots.push(root)
     for (const file of ['vercel.json', 'index.html']) {
-      fs.copyFileSync(path.join(process.cwd(), file), path.join(root, file))
+      if (!without.includes(file))
+        fs.copyFileSync(path.join(process.cwd(), file), path.join(root, file))
+    }
+    for (const dir of ['docker', 'public']) {
+      if (!without.includes(dir)) fs.mkdirSync(path.join(root, dir))
     }
     return root
   }
@@ -809,6 +817,75 @@ describe('syncTargets', () => {
 
     expect(drifted).toContain('public/_headers')
     expect(fs.existsSync(path.join(root, 'public/_headers'))).toBe(false)
+  })
+
+  describe('a deployment the project does not have', () => {
+    const DOCKER_TARGETS = [
+      'docker/nginx.conf',
+      'docker/runtime/security-headers.conf.template',
+      'docker/runtime/api-location.conf.template',
+      'docker/runtime/keys',
+    ]
+    const said = () => log.info.mock.calls.map(([message]) => String(message))
+
+    it('is not written: a project without docker/ does not get it back', () => {
+      // The defect: the upgrade tells every project to run `vpr security:headers`,
+      // which recreated docker/ in a project that had deleted it.
+      const root = project({ without: ['docker'] })
+
+      const { written, drifted } = run(root)
+
+      expect(written.sort()).toEqual(['public/_headers'])
+      expect(drifted).toEqual([])
+      expect(fs.existsSync(path.join(root, 'docker'))).toBe(false)
+      expect(said()).toEqual([
+        `docker/ is not in this project: skipped ${DOCKER_TARGETS.join(', ')}`,
+      ])
+    })
+
+    it('is not missed by the check, which `vpr lint` runs', () => {
+      const root = project({ without: ['docker'] })
+      run(root)
+      vi.clearAllMocks()
+
+      expect(run(root, { check: true })).toEqual({ drifted: [], written: [] })
+      expect(log.error).not.toHaveBeenCalled()
+      expect(said()).toHaveLength(1)
+    })
+
+    it('covers vercel.json, which is edited in place and cannot be made from nothing', () => {
+      // It used to throw: an absent file was read as '' and parsed as JSON.
+      const root = project({ without: ['vercel.json'] })
+
+      expect(run(root).written).not.toContain('vercel.json')
+      expect(fs.existsSync(path.join(root, 'vercel.json'))).toBe(false)
+      expect(run(root, { check: true })).toEqual({ drifted: [], written: [] })
+      expect(said()).toContain('vercel.json is not in this project: skipped')
+    })
+
+    it('covers public/_headers when there is no public/ at all', () => {
+      const root = project({ without: ['public', 'docker', 'vercel.json'] })
+
+      // What is left is the page, which every project has.
+      expect(run(root)).toEqual({ drifted: [], written: [] })
+      expect(fs.readdirSync(root)).toEqual(['index.html'])
+      expect(run(root, { check: true })).toEqual({ drifted: [], written: [] })
+    })
+
+    it('still reports a target that is missing from a deployment the project has', () => {
+      const root = project()
+      run(root)
+      fs.rmSync(path.join(root, 'docker/nginx.conf'))
+
+      expect(run(root, { check: true }).drifted).toEqual(['docker/nginx.conf'])
+    })
+
+    it('still holds the page to the policy: index.html is never skipped', () => {
+      const root = project({ without: ['public', 'docker', 'vercel.json'] })
+      fs.rmSync(path.join(root, 'index.html'))
+
+      expect(run(root, { check: true }).drifted).toEqual(['index.html'])
+    })
   })
 
   it('renders a static host from its environment, and leaves the image alone', () => {
@@ -969,7 +1046,6 @@ describe('syncTargets', () => {
 
     it('is removed, because nothing reads it any more', () => {
       const root = project()
-      fs.mkdirSync(path.join(root, 'docker'))
       fs.writeFileSync(path.join(root, OLD), generated)
 
       run(root)

@@ -45,7 +45,9 @@ const WHAT_CHANGED = {
     'and the cache lifetimes',
   'scripts/lint/check-toolchain-pins.mjs':
     'scripts/lint/check-toolchain-pins.mjs checks both vite-plus bindings the Dockerfile names, ' +
-    'and skips a workflow that is not there (`vuestrata eject` removes two)',
+    'skips a Dockerfile, a vercel.json or a workflow that is not there (`vuestrata eject` ' +
+    'removes two workflows, and a project deletes what it does not deploy with), and holds ' +
+    '.node-version to .nvmrc',
 }
 
 const family = [

@@ -1570,3 +1570,46 @@ describe.skipIf(!CLI_PRESENT)('the copy of the CLI a project was created with', 
     expect(report.notes).toEqual([])
   })
 })
+
+describe.skipIf(!CLI_PRESENT)('the Node that vp runs locally', () => {
+  const PIN_NOTE = '.nvmrc says Node 22'
+
+  async function upgradeWith(files: Record<string, string>) {
+    for (const [rel, contents] of Object.entries(files)) fixture.write(rel, contents)
+    writeLock(fixture.project, emptyLock(FROM))
+    return upgrade()
+  }
+
+  // What every project from 1.0 has: the range wins over .nvmrc, and vp picks
+  // the newest Node it allows.
+  const FROM_10 = { '.nvmrc': '22\n', 'package.json': '{ "engines": { "node": ">=20.0.0" } }\n' }
+
+  it('is pointed out to a project with an .nvmrc that vp does not read, once', async () => {
+    const report = await upgradeWith(FROM_10)
+
+    expect(texts(report)).toEqual([expect.stringContaining(PIN_NOTE)])
+    expect(texts(report)[0]).toContain('add a .node-version file holding `22`')
+    expect(texts(report)[0]).toContain('`vp env pin 22`')
+    // The file is the project's: nothing was written for it.
+    expect(fixture.exists('.node-version')).toBe(false)
+
+    const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+    expect(again.notes).toEqual([])
+  })
+
+  it.each([
+    ['has a .node-version', { ...FROM_10, '.node-version': '22\n' }],
+    [
+      'pins a runtime in package.json',
+      {
+        ...FROM_10,
+        'package.json': '{ "devEngines": { "runtime": { "name": "node", "version": "22" } } }\n',
+      },
+    ],
+    ['has no .nvmrc to follow', { 'package.json': FROM_10['package.json'] }],
+  ])('is not when the project %s', async (_what, files) => {
+    const report = await upgradeWith(files)
+
+    expect(report.notes).toEqual([])
+  })
+})

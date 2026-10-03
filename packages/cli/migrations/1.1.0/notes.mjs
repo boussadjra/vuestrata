@@ -203,6 +203,46 @@ const inheritedCli = {
     'what only the template needs.',
 }
 
+// ─── The Node that vp runs ───────────────────────────────────────────────────
+
+const NVMRC = '.nvmrc'
+const NODE_VERSION = '.node-version'
+
+/** Whether package.json pins a runtime for `vp`, the other place it looks before `engines`. */
+function pinsRuntime(ws) {
+  try {
+    return JSON.parse(ws.read('package.json')).devEngines?.runtime !== undefined
+  } catch {
+    return false
+  }
+}
+
+/**
+ * `vp` resolves Node from .node-version, then devEngines.runtime, then
+ * engines.node, and only then .nvmrc. A project from 1.0 has an .nvmrc and an
+ * `engines.node` range, so the range wins and every local run is on the newest
+ * Node it allows, while CI and the image run what .nvmrc says. The file is the
+ * project's, and which Node it develops on is its decision: a note.
+ */
+const nodePin = {
+  kind: 'note',
+  file: NVMRC,
+  pending: (source, manifest, ws) =>
+    comingFromBefore110(ws) && !ws.exists(NODE_VERSION) && !pinsRuntime(ws),
+  note: (source) => {
+    const major = source.trim()
+    return (
+      `${NVMRC} says Node ${major}, which is what CI and the Docker image use, but it is not ` +
+      'what `vp` runs on your machine: it resolves Node from .node-version, then ' +
+      '`devEngines.runtime` in package.json, then `engines.node`, and only then .nvmrc. This ' +
+      'project has neither of the first two, so `vp check`, `vpr test` and `vpr build` run ' +
+      'locally on the newest Node its `engines.node` range allows. To develop on the Node you ' +
+      `ship with, add a ${NODE_VERSION} file holding \`${major}\` (\`vp env pin ${major}\` ` +
+      'writes it). scripts/lint/check-toolchain-pins.mjs holds it to .nvmrc from then on.'
+    )
+  },
+}
+
 export default {
   description: 'what this release changes outside the project, for a person to act on',
   steps: [
@@ -213,5 +253,6 @@ export default {
       note: credentialedCorsNote,
     },
     inheritedCli,
+    nodePin,
   ],
 }
