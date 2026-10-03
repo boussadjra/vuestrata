@@ -8,7 +8,7 @@ import {
   type CollectionFilters,
   type CollectionSourceContext,
 } from '@/lib/api/collection-queries'
-import { AppError } from '@/lib/errors'
+import { AppError, isNotFoundError } from '@/lib/errors'
 import { defineQueryKeys } from '@/lib/query-keys'
 
 import { withQueryClient } from '../../utils/query-client'
@@ -237,6 +237,24 @@ describe('a collection over an SDK', () => {
     await settled(detail)
 
     expect(detail.item.value).toEqual({ id: '2', name: 'Grace Hopper', role: 'member' })
+  })
+
+  it('reads a record the source does not have as a 404, as a REST backend answers', async () => {
+    const { api } = createMembers()
+    const detail = withQueryClient(() => api.useDetail('999'))
+
+    await vi.waitFor(() => expect(detail.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    expect(detail.error.value).toBeInstanceOf(AppError)
+    expect(detail.error.value).toMatchObject({
+      status: 404,
+      code: 'NOT_FOUND',
+      kind: 'http',
+      retryable: false,
+      messageKey: 'errors.status_404',
+    })
+    // What every record page asks, to show "not found" instead of "retry".
+    expect(isNotFoundError(detail.error.value)).toBe(true)
   })
 
   it('creates, updates and removes, invalidating the collection each time', async () => {

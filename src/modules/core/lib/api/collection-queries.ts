@@ -325,7 +325,8 @@ export interface CollectionSourceContext {
  *
  * Rows and records are validated against the collection's schema exactly as
  * a REST answer is, so map the SDK's shape to the app's in here. Whatever
- * these functions throw reaches the UI as an `AppError`.
+ * these functions throw reaches the UI as an `AppError`. A `get` that answers
+ * `null` or nothing is a 404: the record page shows "not found".
  *
  * Leave out `create`, `update` or `remove` and the collection has no
  * `useCreate`, `useUpdate` or `useRemove`.
@@ -945,8 +946,27 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
       if (written === undefined || !(isEmptyBody(answer) || idOnlyBody(answer) !== undefined)) {
         throw contractMismatch(resource, parsed.error.issues)
       }
-      const signal = new AbortController().signal
-      return parse(schema, await run(() => source.get(written, { signal })))
+      return readRecord(written, new AbortController().signal)
+    }
+
+    /**
+     * One record. A source that answers `null` or nothing has said there is
+     * none, which is the 404 a REST backend gives: the page shows "not found"
+     * (`isNotFoundError`), where a schema error would offer a pointless retry.
+     */
+    async function readRecord(id: string, signal: AbortSignal): Promise<T> {
+      const answer = await run(() => source.get(id, { signal }))
+      if (answer === null || answer === undefined) {
+        throw new AppError({
+          message: 'The requested resource was not found.',
+          code: 'NOT_FOUND',
+          status: 404,
+          kind: 'http',
+          retryable: false,
+          messageKey: 'errors.status_404',
+        })
+      }
+      return parse(schema, answer)
     }
 
     return {
@@ -968,7 +988,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
           : parse(listSchema, envelope)
       },
 
-      get: async (id, signal) => parse(schema, await run(() => source.get(id, { signal }))),
+      get: readRecord,
 
       // Called on the source each time, so one written as a class keeps its `this`.
       ...(typeof source.create === 'function'
