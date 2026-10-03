@@ -309,8 +309,13 @@ function main(argv) {
    * the develop-against-your-backend page, the corrected auth deep-dive) added
    * about 13 KB of prose. None of it is on the initial payload, which has its
    * own budget above.
+   *
+   * Raised again to 7 MiB with the integration seams: the demo build measured
+   * 6948.7 KB once the collection dialects and their documentation had landed.
+   * What grew is on-demand code (dialects a build names, docs pages), so the
+   * number that guards first paint did not move with it.
    */
-  const TOTAL_JS_BUDGET = 6.75 * 1024 * 1024
+  const TOTAL_JS_BUDGET = 7 * 1024 * 1024
 
   const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`
 
