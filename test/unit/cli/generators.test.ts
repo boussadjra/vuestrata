@@ -25,7 +25,7 @@ import { createFixture, type Fixture } from './fixture'
 
 const { driftedFiles, emptyLock, hashFor, readLock, recordProvenance, writeLock } = lockfile
 const { DEFAULT_SLOTS, loadManifest, missingSlots, SEEDED_SLOTS } = manifests
-const { ANCHORED_REGISTRIES, hasSentinel, readRegion } = registry
+const { ANCHORED_REGISTRIES, blankRegions, hasSentinel, readRegion } = registry
 
 /**
  * What a generator may and may not touch.
@@ -42,7 +42,16 @@ const UI_BARREL = 'src/modules/app/components/ui/index.ts'
 const FORMS_BARREL = 'src/modules/app/composables/forms/index.ts'
 const REGISTRY = 'src/modules/setup.ts'
 
-const real = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
+/**
+ * A file as the template ships it: its `app:` regions empty.
+ *
+ * Read from this checkout, which may be one a generator has already run in:
+ * the CLI round trip in CI runs `add module payments` and then this suite.
+ * Seeding the fixture with what that left behind made "declares exactly these
+ * two permissions" fail on a generator that had done its job.
+ */
+const real = (rel: string): string =>
+  blankRegions(fs.readFileSync(path.join(process.cwd(), rel), 'utf8')) as string
 
 const SETUP = `import customersModule from './customers'
 import usersModule from './users'
