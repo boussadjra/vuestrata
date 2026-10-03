@@ -396,7 +396,7 @@ describe('a build that mocks some modules beside a real backend', () => {
     })
 
     await expect(runConfig(root, build())).rejects.toThrow(
-      /VUESTRATA_MOCK_ONLY is not valid when VUESTRATA_RUNTIME_MODE="production": MSW and the mock handlers are not bundled/,
+      /VUESTRATA_MOCK_ONLY is not valid when VUESTRATA_RUNTIME_MODE="production"\. MSW and the mock handlers are not bundled/,
     )
   })
 

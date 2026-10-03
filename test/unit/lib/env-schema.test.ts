@@ -772,10 +772,30 @@ describe('VUESTRATA_MOCK_ONLY: some modules mocked beside a real backend', () =>
       const attempt = () => parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.mockOnly]: 'orders' })
 
       expect(attempt).toThrow(
-        'VUESTRATA_MOCK_ONLY is not valid when VUESTRATA_RUNTIME_MODE="production": MSW and the ' +
+        'VUESTRATA_MOCK_ONLY is not valid when VUESTRATA_RUNTIME_MODE="production". MSW and the ' +
           'mock handlers are not bundled in a production build. Remove it, or set ' +
           'VUESTRATA_RUNTIME_MODE="demo" to mock those modules beside a real backend.',
       )
+    })
+
+    it('states each rule in the browser without the explanation, which only a build can use', () => {
+      // The lenient parser ships in every bundle, production included: there it
+      // carries one short sentence per rule for a variable it can never use.
+      const warnings = (raw: Record<string, string>) => {
+        const onWarn = vi.fn()
+        resolveRuntimeEnv(raw, { onWarn })
+        return onWarn.mock.calls.map(([message]) => message)
+      }
+
+      expect(warnings({ ...productionEnv, [ENV_KEYS.mockOnly]: 'orders' })).toEqual([
+        'VUESTRATA_MOCK_ONLY is not valid when VUESTRATA_RUNTIME_MODE="production". Auto-correcting.',
+      ])
+      expect(warnings({ ...demoEnv, [ENV_KEYS.mockOnly]: 'orders' })).toEqual([
+        'VUESTRATA_MOCK_ONLY needs a real auth adapter, and VUESTRATA_AUTH_ADAPTER is "mock". Auto-correcting.',
+      ])
+      expect(warnings({ ...hybridEnv, [ENV_KEYS.mockOnly]: 'orders,auth' })).toEqual([
+        'VUESTRATA_MOCK_ONLY cannot name "auth" with VUESTRATA_AUTH_ADAPTER="jwt". Auto-correcting.',
+      ])
     })
 
     it('fails a build that sets the list and leaves the mode to default to production', () => {
@@ -811,8 +831,8 @@ describe('VUESTRATA_MOCK_ONLY: some modules mocked beside a real backend', () =>
         })
 
       expect(attempt).toThrow(
-        'VUESTRATA_MOCK_ONLY needs a real auth adapter, and VUESTRATA_AUTH_ADAPTER is "mock": ' +
-          'the modules it lists are mocked beside a real backend, and the mock adapter signs in ' +
+        'VUESTRATA_MOCK_ONLY needs a real auth adapter, and VUESTRATA_AUTH_ADAPTER is "mock". ' +
+          'The modules it lists are mocked beside a real backend, and the mock adapter signs in ' +
           'against MSW alone. Set VUESTRATA_AUTH_ADAPTER to "jwt", "oauth" or an adapter of your ' +
           'own, or remove VUESTRATA_MOCK_ONLY for the self-contained demo.',
       )
@@ -827,7 +847,7 @@ describe('VUESTRATA_MOCK_ONLY: some modules mocked beside a real backend', () =>
 
     it('refuses "auth" in the list, and says why', () => {
       expect(() => parseRuntimeEnv({ ...hybridEnv, [ENV_KEYS.mockOnly]: 'orders,auth' })).toThrow(
-        'VUESTRATA_MOCK_ONLY cannot name "auth" with VUESTRATA_AUTH_ADAPTER="jwt": the mock ' +
+        'VUESTRATA_MOCK_ONLY cannot name "auth" with VUESTRATA_AUTH_ADAPTER="jwt". The mock ' +
           'sign-in endpoints and a real adapter cannot both own /auth/*. Remove "auth" from the list.',
       )
     })

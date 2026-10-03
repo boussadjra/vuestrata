@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 
-import { selectMockHandlers, type MockableModule } from '@/bootstrap/mocks'
+import { selectMockHandlers, type MockableModule } from '@/bootstrap/mock-selection'
 import { handlers as staticHandlers, handlerSets } from '@/mocks/handlers'
 import { appModules } from '@/modules/setup'
 
