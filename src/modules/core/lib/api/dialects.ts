@@ -863,9 +863,20 @@ export const laravelDialect: CollectionDialect = {
  * `useInfiniteList`.
  */
 export const laravelCursorDialect: CollectionDialect = {
-  ...laravelDialect,
   name: 'laravel-cursor',
-  query: { ...laravelDialect.query, paging: 'cursor', cursor: 'cursor' },
+  // Written out, not spread from `laravelDialect`: a spread at module scope is
+  // a side effect to a bundler, and would keep both in every build.
+  query: {
+    paging: 'cursor',
+    cursor: 'cursor',
+    pageSize: 'per_page',
+    search: 'search',
+    sort: '-field',
+    sortParam: 'sort',
+    arrays: 'brackets',
+    objects: bracketFilter,
+  },
+  unwrapRecord: unwrapData,
   parseList(raw) {
     if (!isRecord(raw)) return null
     const meta = isRecord(raw.meta) && 'next_cursor' in raw.meta ? raw.meta : raw
@@ -883,14 +894,10 @@ export const laravelCursorDialect: CollectionDialect = {
   },
 }
 
-/** What the three DRF paginations share: the parameter names and the trailing slash. */
-const DRF_QUERY: Partial<CollectionQueryConventions> = {
-  search: 'search',
-  sort: '-field',
-  sortParam: 'ordering',
-  arrays: 'repeat',
-}
+// The three DRF paginations share their search, ordering and list parameters.
+// Each writes them out: see the note in `laravelCursorDialect`.
 
+/** DRF's trailing slash. */
 const DRF_PATHS: CollectionPaths = {
   list: (base) => `${base}/`,
   detail: (base, id) => `${base}/${id}/`,
@@ -931,7 +938,14 @@ function parseDrfPage(raw: unknown, context: ListContext): ParsedList | null {
  */
 export const drfDialect: CollectionDialect = {
   name: 'drf',
-  query: { ...DRF_QUERY, page: 'page', pageSize: 'page_size' },
+  query: {
+    page: 'page',
+    pageSize: 'page_size',
+    search: 'search',
+    sort: '-field',
+    sortParam: 'ordering',
+    arrays: 'repeat',
+  },
   parseList: parseDrfPage,
   paths: DRF_PATHS,
 }
@@ -944,7 +958,15 @@ export const drfDialect: CollectionDialect = {
  */
 export const drfLimitOffsetDialect: CollectionDialect = {
   name: 'drf-limit-offset',
-  query: { ...DRF_QUERY, paging: 'offset', page: 'offset', pageSize: 'limit' },
+  query: {
+    paging: 'offset',
+    page: 'offset',
+    pageSize: 'limit',
+    search: 'search',
+    sort: '-field',
+    sortParam: 'ordering',
+    arrays: 'repeat',
+  },
   parseList: parseDrfPage,
   paths: DRF_PATHS,
 }
@@ -953,11 +975,22 @@ export const drfLimitOffsetDialect: CollectionDialect = {
  * Django REST Framework, `CursorPagination`: `{ next, previous, results }`,
  * where the cursor is the `cursor` parameter of the `next` link. Read with
  * `useInfiniteList`.
+ *
+ * The pagination class fixes the ordering unless the view also has an
+ * `OrderingFilter`: without one, leave `sortBy` out of the filters, since DRF
+ * would ignore `ordering` and the list would not be in the order the UI shows.
  */
 export const drfCursorDialect: CollectionDialect = {
   name: 'drf-cursor',
-  // The ordering is fixed by the pagination class; sending one is an error there.
-  query: { ...DRF_QUERY, paging: 'cursor', cursor: 'cursor', pageSize: 'page_size' },
+  query: {
+    paging: 'cursor',
+    cursor: 'cursor',
+    pageSize: 'page_size',
+    search: 'search',
+    sort: '-field',
+    sortParam: 'ordering',
+    arrays: 'repeat',
+  },
   parseList(raw) {
     if (!isRecord(raw)) return null
     const nextCursor = cursorInLink(raw.next, 'cursor')
