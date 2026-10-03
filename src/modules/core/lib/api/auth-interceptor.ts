@@ -4,6 +4,8 @@ import { transportError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import { getApiAuthBackend, tryGetApiAuthBackend, type ApiAuthBackend } from '~/lib/runtime'
 
+import { getCsrfToken } from './csrf'
+import { currentApiIntegration } from './integration'
 import type { ApiAuthProvider, ApiAuthTransport, ApiRefreshResult } from './types'
 
 const authLogger = createScopedLogger('api:auth')
@@ -166,19 +168,26 @@ function refreshRequestFor(
   // simply missing, so the refresh request carried neither cookies nor a CSRF
   // header and failed against any cookie-session backend.
   const credentials: RequestCredentials = transport === 'cookie' ? 'include' : 'omit'
-  const headers = new Headers()
-  if (transport === 'cookie') {
-    const csrfToken = provider.getCsrfToken?.() ?? null
-    if (csrfToken) headers.set('X-CSRF-Token', csrfToken)
-  }
 
-  return () =>
-    ofetch<ApiRefreshResult>(refreshUrl, {
+  return () => {
+    // Read when the refresh is sent, not when it is planned, and through the
+    // same strategy as every other request: a backend that expects its token
+    // from a cookie in `X-XSRF-TOKEN` expects it on this request too. A
+    // provider that supplies its own token is still asked first.
+    const headers = new Headers()
+    const csrf = currentApiIntegration().csrf
+    if (transport === 'cookie' && csrf.source !== 'none') {
+      const csrfToken = provider.getCsrfToken?.() ?? getCsrfToken(csrf)
+      if (csrfToken) headers.set(csrf.header, csrfToken)
+    }
+
+    return ofetch<ApiRefreshResult>(refreshUrl, {
       method: 'POST',
       body: { refreshToken },
       credentials,
       headers,
     })
+  }
 }
 
 /**

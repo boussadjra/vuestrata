@@ -328,6 +328,17 @@ function describeApiUrlIssue(
   apiUrl: string,
   serving: boolean,
 ): { message: string; placeholder?: URL } | null {
+  // A second leading slash is not a deeper path: `//host/path` is
+  // protocol-relative, and a browser reads `/\host/path` the same way. Either
+  // one sends the app's requests, and its credentials, to another host.
+  if (/^\/[/\\]/.test(apiUrl)) {
+    return {
+      message:
+        `"${apiUrl}" names another host: a browser reads a second leading "/" or "\\" as the ` +
+        `start of one. Write an absolute URL, or a same-origin path with a single leading "/".`,
+    }
+  }
+
   // A same-origin path is legitimate — it means "behind a reverse proxy".
   if (apiUrl.startsWith('/')) return null
 
@@ -382,9 +393,28 @@ function describeDevProxyAlternative(apiUrl: URL): string {
   )
 }
 
+/**
+ * What is wrong with ONE value taken on its own, or null when it is fine.
+ *
+ * The rules a value can break without reference to any other: its field's
+ * schema and, for the API URL, its form. A placeholder host is not among them.
+ * That rule is about a BUILD that forgot to set the URL, and whoever calls
+ * this is asking about a value somebody set on purpose (see
+ * `resolveRuntimeEnvWithOverlay`).
+ */
+export function describeEnvValueIssue(key: string, value: string): string | null {
+  const field = (envSchema.shape as Record<string, z.ZodType | undefined>)[key]
+  if (!field) return null
+
+  const parsed = field.safeParse(value)
+  if (!parsed.success) return parsed.error.issues.map((issue) => issue.message).join('; ')
+
+  return key === ENV_KEYS.apiUrl ? (describeApiUrlIssue(value, true)?.message ?? null) : null
+}
+
 // ─── Resolution ───────────────────────────────────────────────────────────────
 
-interface ResolveOptions {
+export interface ResolveOptions {
   /** Drives the `runtimeMode` default. Pass `import.meta.env.DEV` or `mode !== 'production'`. */
   isDev?: boolean
   /**
@@ -397,6 +427,9 @@ interface ResolveOptions {
    * points at `localhost` on purpose; a BUILD that does the same deploys an app
    * that cannot reach its API. Every other rule — including demo mode forcing
    * MSW and the mock adapter — applies either way.
+   *
+   * `resolveRuntimeEnvWithOverlay` sets it for an API URL a deployment gave at
+   * start, which is a deliberate choice in the same way.
    */
   serving?: boolean
   onWarn?: (message: string) => void

@@ -237,6 +237,38 @@ function main(argv) {
     )
   }
 
+  // ─── Runtime configuration ──────────────────────────────────────────────────
+  //
+  // Both targets. `runtime-config.js` is what lets one build serve every
+  // environment: a deployment answers that URL with its own values, and the
+  // page loads it before the app. That only works while it stays a separate
+  // file. Inlined into index.html it could not differ per deployment, and
+  // `script-src 'self'` would refuse to run it. Loaded as a module, or after
+  // the app, the values would arrive once the API client had already read
+  // its base URL.
+  check('the runtime configuration is its own file, loaded before the app', () => {
+    const indexHtml = files.find((file) => relative(file) === 'index.html')
+    if (!indexHtml) return 'dist/index.html is missing'
+    if (!files.some((file) => relative(file) === 'runtime-config.js')) {
+      return 'dist/runtime-config.js is missing — every page asks for it'
+    }
+
+    const html = readFileSync(indexHtml, 'utf8')
+    const tag = /<script\b[^>]*\bsrc="[^"]*runtime-config\.js"[^>]*>\s*<\/script>/.exec(html)
+    if (!tag) return 'index.html does not load runtime-config.js with a <script src>'
+    if (/\btype="module"|\basync\b|\bdefer\b/.test(tag[0])) {
+      return `it must be a plain blocking script, found ${tag[0]}`
+    }
+    const moduleScript = html.search(/<script\b[^>]*\btype="module"/)
+    if (moduleScript !== -1 && tag.index > moduleScript) {
+      return 'it is loaded after the app module script'
+    }
+    if (html.includes('__VUESTRATA_RUNTIME__')) {
+      return 'index.html assigns __VUESTRATA_RUNTIME__ inline — it must come from the file'
+    }
+    return null
+  })
+
   // ─── Size budget ────────────────────────────────────────────────────────────
   //
   // Nothing here limited how big the bundle could get. Chunking was configured

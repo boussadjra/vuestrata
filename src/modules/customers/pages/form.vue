@@ -22,6 +22,7 @@ import {
   UiTextarea,
 } from '@/components/ui'
 import { useBreadcrumbLabel } from '@/composables/useBreadcrumbs'
+import { useErrorMessage } from '@/composables/useErrorMessage'
 import { useRouteParam } from '@/composables/useRouteParam'
 import { useNotificationStore } from '@/stores/notification'
 
@@ -33,6 +34,7 @@ import {
 import { CUSTOMER_PLANS, CUSTOMER_STATUSES, customerDraftSchema } from '../types'
 
 const { t } = useI18n()
+const { errorMessage } = useErrorMessage()
 const router = useRouter()
 const notifications = useNotificationStore()
 
@@ -133,9 +135,13 @@ async function onSubmit(values: Record<string, unknown>) {
           The failure is announced where the user is looking, above the submit
           button, not as a toast that may have vanished by the time they look
           up. `UiAlert` carries role="alert", so it is read immediately.
+
+          `errorMessage` rather than `saveError.message`: the message is the
+          backend's own when it refused the input, and otherwise a translation,
+          where `.message` is English for every reader.
         -->
         <UiAlert v-if="saveError" variant="error" :title="t('common_error_title')">
-          {{ saveError.message }}
+          {{ errorMessage(saveError) }}
         </UiAlert>
 
         <div class="grid gap-4 sm:grid-cols-2">

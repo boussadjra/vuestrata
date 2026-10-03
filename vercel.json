@@ -9,7 +9,7 @@
   },
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|mockServiceWorker\\.js|version\\.json|robots\\.txt|site\\.webmanifest|favicon\\.svg|favicon\\.ico|imgs/).*)",
+      "source": "/((?!api/|assets/|mockServiceWorker\\.js|runtime-config\\.js|version\\.json|robots\\.txt|site\\.webmanifest|favicon\\.svg|favicon\\.ico|imgs/).*)",
       "destination": "/index.html"
     }
   ],
