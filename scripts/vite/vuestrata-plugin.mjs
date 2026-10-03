@@ -19,13 +19,30 @@ import { loadEnv } from 'vite-plus'
 import { parseAppEnv } from '../../src/modules/core/lib/config/deploy.ts'
 import { ENV_KEYS, parseRuntimeEnv } from '../../src/modules/core/lib/config/env.schema.ts'
 import { loadDeployConfig } from '../security/deploy-config.mjs'
-import {
-  buildCsp,
-  connectSrcFor,
-  replaceMetaCsp,
-  resolveDeployHeaders,
-  resolveRuntimeKeys,
-} from '../security/headers.mjs'
+// A namespace, not named imports: see `policyGenerators`.
+import * as shippedHeaderGenerators from '../security/headers.mjs'
+
+/**
+ * The header generators, when they are the ones this plugin was written
+ * against, or null beside a `scripts/security/headers.mjs` from before 1.1.0.
+ *
+ * That file is where a project puts its own policy, so it is the file a project
+ * edits, and an edited copy is kept by the upgrade while this plugin, which is
+ * new in 1.1.0, is installed beside it. The 1.0 file has no
+ * `resolveDeployHeaders`, `resolveRuntimeKeys` or `replaceMetaCsp`, and a named
+ * import of something a module does not export fails when the module is
+ * linked: `vite.config.ts` would not load, and with it every `vp` command.
+ * Read through a namespace, a missing member is `undefined` and can be asked
+ * for. test/unit/cli/held-back-1.1.0.test.ts holds every managed script to this.
+ */
+function policyGenerators(headerGenerators) {
+  const { resolveDeployHeaders, resolveRuntimeKeys, replaceMetaCsp } = headerGenerators
+  return typeof resolveDeployHeaders === 'function' &&
+    typeof resolveRuntimeKeys === 'function' &&
+    typeof replaceMetaCsp === 'function'
+    ? headerGenerators
+    : null
+}
 
 /**
  * Where `vp dev` forwards API requests. Deliberately NOT `VUESTRATA_`-prefixed:
@@ -70,9 +87,12 @@ const CHARSET_META_TAG = /<meta\s+charset=[^>]*>/i
  * @param {object} [options]
  * @param {object} [options.deployConfig] The project's deployment config, in
  *   place of reading `src/modules/app/config/deploy.config.ts`. For tests.
+ * @param {object} [options.headerGenerators] The exports of
+ *   `scripts/security/headers.mjs`, in place of importing it. For tests.
  * @returns {import('vite-plus').Plugin}
  */
 export function vuestrataEnv(options = {}) {
+  const generators = policyGenerators(options.headerGenerators ?? shippedHeaderGenerators)
   let isDemoBuild = true
   let outDir = 'dist'
   let publicDir = 'public'
@@ -88,7 +108,7 @@ export function vuestrataEnv(options = {}) {
 
   /** The policy for what is being served: the header, or the `<meta>` variant. */
   const servedCsp = ({ forMeta = false, extraOrigins = [] } = {}) =>
-    buildCsp({ ...served, forMeta, extraOrigins })
+    generators.buildCsp({ ...served, forMeta, extraOrigins })
 
   return {
     name: 'vuestrata:env',
@@ -211,14 +231,27 @@ export function vuestrataEnv(options = {}) {
         const root = resolve(config.root ?? process.cwd())
         const deployConfig = options.deployConfig ?? (await loadDeployConfig({ root }))
         parseAppEnv(deployConfig, rawEnv, { reservedKeys: Object.values(ENV_KEYS) })
-        const headers = resolveDeployHeaders(deployConfig.headers)
-        resolveRuntimeKeys([], deployConfig.runtime ?? [])
+
+        // Beside the header generators a project kept from 1.0 there is no
+        // policy to build from this file: `served` stays null, so no server
+        // sends one and no page is checked against one, as in 1.0.
+        if (!generators) {
+          this.warn(
+            '[vuestrata:env] scripts/security/headers.mjs is a copy from before 1.1.0, so ' +
+              'the `headers` and `runtime` in deploy.config.ts are not checked, and `vp dev` and ' +
+              '`vp preview` send no Content-Security-Policy. Merge your policy into ' +
+              '.vuestrata/incoming/scripts/security/headers.mjs, take sync-headers.mjs from ' +
+              'beside it, and run `vuestrata adopt` on both.',
+          )
+        }
+        const headers = generators?.resolveDeployHeaders(deployConfig.headers)
+        generators?.resolveRuntimeKeys([], deployConfig.runtime ?? [])
 
         // A server is about to answer requests: `vp dev` or `vp preview`. The
         // policy it sends is built from what a deployment's would be built
         // from, and built once here, so an API URL no policy can name stops
         // the server with the reason instead of blocking every call later.
-        if (serving) {
+        if (generators && serving) {
           served = {
             apiUrl: env.apiUrl,
             headers: deployConfig.headers,
@@ -228,8 +261,8 @@ export function vuestrataEnv(options = {}) {
             ]),
           }
           servedCsp()
-        } else {
-          builtApiOrigin = crossOriginOf(env.apiUrl)
+        } else if (generators) {
+          builtApiOrigin = crossOriginOf(generators, env.apiUrl)
         }
       }
 
@@ -287,7 +320,7 @@ export function vuestrataEnv(options = {}) {
     transformIndexHtml(html, ctx) {
       const page =
         ctx.server && served
-          ? (replaceMetaCsp(
+          ? (generators.replaceMetaCsp(
               html,
               servedCsp({ forMeta: true, extraOrigins: devSocketOrigins(ctx.server) }),
             ) ?? html)
@@ -341,9 +374,9 @@ function withRuntimeConfigScript(html, src) {
  * path and for a URL no source can name. Never throws: it only decides whether
  * a build has something to warn about.
  */
-function crossOriginOf(apiUrl) {
+function crossOriginOf(generators, apiUrl) {
   try {
-    return connectSrcFor(apiUrl)
+    return generators.connectSrcFor(apiUrl)
   } catch {
     return null
   }

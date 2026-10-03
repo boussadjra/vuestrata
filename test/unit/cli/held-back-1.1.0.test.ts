@@ -391,9 +391,31 @@ describe.skipIf(!CLI_PRESENT || !hasTags || !MAINTAINER)(
 )
 
 describe.skipIf(!CLI_PRESENT)('the promoted scripts', () => {
-  // `.mjs` is outside the type checker, so the same rule is checked by name: a
-  // managed script may import a promoted one only from inside its own unit.
-  it('are imported by no managed script outside their unit', async () => {
+  // `.mjs` is outside the type checker, so the same rule is checked by name.
+  //
+  // A managed script outside a promoted script's unit is replaced, or installed
+  // new, beside a copy of that script the project may have kept from 1.0. A
+  // named import of something the 1.0 copy does not export fails when the
+  // module is linked, before any code can ask: for the Vite plugin, that is
+  // `vite.config.ts` failing to load, and every `vp` command with it. So such
+  // a script imports the promoted one as a namespace, where a missing member is
+  // `undefined`, and asks for each member 1.1.0 added before it uses it.
+
+  interface Importer {
+    /** The managed script that imports. */
+    rel: string
+    /** The promoted script it imports, from outside that script's unit. */
+    promoted: string
+    /** The import clause: `* as name`, `{ a, b }`, `name`. */
+    clause: string
+    source: string
+  }
+
+  const IMPORT_FROM = /\bimport\s+([^'"]*?)\s+from\s*['"]([^'"]+)['"]/g
+  const EXPORTED = /^export\s+(?:async\s+)?(?:function\s*\*?|const|let|class)\s+([\w$]+)/gm
+  const exportsOf = (source: string) => [...source.matchAll(EXPORTED)].map((match) => match[1]!)
+
+  async function importers(): Promise<Importer[]> {
     const steps: Step[] = (await collectMigrationsAsync('1.0.1-alpha.6', '1.1.0-alpha.0')).flatMap(
       (migration: { steps: Step[] }) => migration.steps.filter((step) => step.kind === 'promote'),
     )
@@ -405,19 +427,62 @@ describe.skipIf(!CLI_PRESENT)('the promoted scripts', () => {
 
     expect(scripts.length).toBeGreaterThan(0)
 
+    const found: Importer[] = []
     for (const script of scripts) {
       const unit = steps.filter((step) => step.unit && step.unit === script.unit)
-      const allowed = new Set([script.file!, ...unit.map((step) => step.file!)])
+      const inUnit = new Set([script.file!, ...unit.map((step) => step.file!)])
 
-      for (const rel of managedScripts.filter((file) => !allowed.has(file))) {
+      for (const rel of managedScripts.filter((file) => !inUnit.has(file))) {
         const source = fs.readFileSync(path.join(REPO, rel), 'utf8')
-        const imported = [...source.matchAll(IMPORT_SPECIFIER)]
-          .map((match) => match[1]!)
-          .filter((specifier) => specifier.startsWith('.'))
-          .map((specifier) => posix(path.join(path.dirname(rel), specifier)))
-
-        expect(imported, `${rel} imports ${script.file}`).not.toContain(script.file)
+        for (const [, clause, specifier] of source.matchAll(IMPORT_FROM)) {
+          if (!specifier!.startsWith('.')) continue
+          if (posix(path.join(path.dirname(rel), specifier!)) !== script.file) continue
+          found.push({ rel, promoted: script.file!, clause: clause!, source })
+        }
       }
+    }
+    return found
+  }
+
+  it('are imported from outside their unit only as a namespace', async () => {
+    const found = await importers()
+
+    // Not vacuous: the Vite plugin reads the header generators.
+    expect(found.map((entry) => `${entry.rel} <- ${entry.promoted}`)).toContain(
+      'scripts/vite/vuestrata-plugin.mjs <- scripts/security/headers.mjs',
+    )
+    for (const entry of found) {
+      expect(
+        entry.clause,
+        `${entry.rel} imports names from ${entry.promoted}. A project that edited that file ` +
+          'keeps its 1.0 copy, and a name it does not export stops this script from loading. ' +
+          'Import it as a namespace and ask for what 1.1.0 added (`typeof x === "function"`).',
+      ).toMatch(/^\*\s+as\s+[\w$]+$/)
+    }
+  })
+
+  it.skipIf(!hasTags)('have every member 1.1.0 added asked for before it is used', async () => {
+    for (const entry of await importers()) {
+      const before = new Set(exportsOf(released(entry.promoted)))
+      const added = exportsOf(fs.readFileSync(path.join(REPO, entry.promoted), 'utf8')).filter(
+        (name) => !before.has(name),
+      )
+      // The harness has to be able to fail: there is something new to ask for.
+      expect(added.length, `${entry.promoted} gained no export in 1.1.0`).toBeGreaterThan(0)
+
+      const used = added.filter((name) =>
+        new RegExp(String.raw`(?<![\w$])${name}(?![\w$])`).test(entry.source),
+      )
+      const askedFor = (name: string) =>
+        new RegExp(String.raw`typeof\s+(?:[\w$]+\??\.)?${name}\s*===\s*['"]function['"]`).test(
+          entry.source,
+        )
+
+      expect(
+        used.filter((name) => !askedFor(name)),
+        `${entry.rel} uses members ${entry.promoted} did not export at 1.0.1-alpha.6 without ` +
+          'asking whether they are there',
+      ).toEqual([])
     }
   })
 })

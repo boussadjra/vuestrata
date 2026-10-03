@@ -1081,3 +1081,78 @@ describe("the project's deploy.config.ts", () => {
     await expect(runConfig(root, build())).resolves.toBeDefined()
   })
 })
+
+// A project that edited scripts/security/headers.mjs keeps its 1.0 copy, and
+// this plugin, new in 1.1.0, is installed beside it. A named import of what
+// 1.1.0 added would fail when the module is linked, taking `vite.config.ts` and
+// every `vp` command with it. The plugin reads the generators through a
+// namespace and asks for the new members instead.
+describe('beside the header generators a project kept from 1.0', () => {
+  /** What scripts/security/headers.mjs exported at 1.0.1-alpha.6, and nothing more. */
+  const generators10 = {
+    connectSrcFor: (apiUrl: string) => (apiUrl.startsWith('/') ? null : new URL(apiUrl).origin),
+    buildCsp: () => "default-src 'self'",
+    buildSecurityHeaders: () => [],
+    CACHE_RULES: [],
+    GENERATED_BANNER: '# GENERATED',
+  }
+  const kept = { headerGenerators: generators10 }
+  const KEPT_WARNING = 'scripts/security/headers.mjs is a copy from before 1.1.0'
+
+  const env = { '.env': { ...production, VUESTRATA_API_URL: 'https://api.acme.test/v1' } }
+
+  it('still builds, and says once what the kept copy costs', async () => {
+    const { result, warn } = await runConfig(project(env), build(), kept)
+
+    expect(result.define).toEqual({ __VUESTRATA_DEMO__: 'false' })
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warn.mock.calls[0]![0]).toContain(KEPT_WARNING)
+    expect(warn.mock.calls[0]![0]).toContain('.vuestrata/incoming/scripts/security/headers.mjs')
+  })
+
+  it('still serves, sending no policy, as 1.0 did', async () => {
+    const { plugin } = await runConfig(project(env), serve('production'), kept)
+
+    const use = vi.fn<(handler: Connect.NextHandleFunction) => void>()
+    const hook = plugin.configureServer
+    const handler = typeof hook === 'function' ? hook : hook?.handler
+    await handler!.call(
+      {} as MinimalPluginContextWithoutEnvironment,
+      {
+        middlewares: { use },
+        resolvedUrls: { local: ['http://localhost:3449/'], network: [] },
+      } as unknown as ViteDevServer,
+    )
+
+    // Only the runtime-config.js answer: no middleware that sets the header.
+    expect(use).toHaveBeenCalledOnce()
+    const headers = new Map<string, string>()
+    use.mock.calls[0]![0](
+      { url: '/' } as Connect.IncomingMessage,
+      { setHeader: (name: string, value: string) => headers.set(name, value) } as never,
+      vi.fn(),
+    )
+    expect(headers.has('Content-Security-Policy')).toBe(false)
+  })
+
+  it('leaves the page as written, and still loads the runtime configuration', async () => {
+    const { plugin } = await runConfig(project(env), serve('production'), kept)
+    const html = '<head>\n  <meta charset="UTF-8" />\n</head>'
+
+    const result = await transformHtml(plugin, html, { server: {} as ViteDevServer })
+
+    expect(result).toContain('<script src="/runtime-config.js"></script>')
+  })
+
+  it('does not hold a test run to anything either', async () => {
+    const { warn } = await runConfig(project(env), serve('test'), kept)
+
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('is not what a project with this release’s generators gets', async () => {
+    const { warn } = await runConfig(project(env), build())
+
+    expect(warn.mock.calls.flat().join('\n')).not.toContain(KEPT_WARNING)
+  })
+})

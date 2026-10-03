@@ -1292,29 +1292,52 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       }
     })
 
-    it('holds the artifact spec back while the header generators are, and says why', async () => {
+    it('holds the Dockerfile and the spec back while the header generators are, and says why', async () => {
       seedDeployment()
       fixture.write(HEADERS, `${released(HEADERS)}\n// our CSP\n`)
 
       const report = await upgrade(GENERATORS)
 
-      // Unedited, and still not replaced: it asserts what the new nginx config does.
-      expect(fixture.read(SPEC)).toBe(released(SPEC))
-      expect(fixture.read(incoming(SPEC))).toBe(shippedCopy(SPEC))
-      for (const rel of FAMILY.filter((file) => file !== SPEC)) {
+      // Unedited, and still not replaced. The spec asserts what the new nginx
+      // config does, and the Dockerfile copies docker/runtime/ into the image,
+      // which only the new generators write: beside the 1.0 ones it does not
+      // build, where the 1.0 Dockerfile still builds the 1.0 image.
+      const WAITING = ['Dockerfile', SPEC]
+      for (const rel of WAITING) {
+        expect(fixture.read(rel), rel).toBe(released(rel))
+        expect(fixture.read(incoming(rel)), rel).toBe(shippedCopy(rel))
+      }
+      for (const rel of FAMILY.filter((file) => !WAITING.includes(file))) {
         expect(fixture.read(rel), rel).toBe(shippedCopy(rel))
       }
 
       const family = texts(report).filter((text) => text.includes(SPEC))
       expect(family).toHaveLength(1)
-      expect(family[0]).toContain('was not replaced although yours is unedited')
+      expect(family[0]).toContain(
+        `Dockerfile and ${SPEC} were not replaced although yours are unedited`,
+      )
+      expect(family[0]).toContain('docker/runtime/')
+      expect(family[0]).toContain('run `vuestrata upgrade` again')
+      expect(family[0]).toContain('builds the 1.0 image')
       expect(family[0]).toContain('scripts/security/headers.mjs')
       // Nothing was regenerated from, so nothing says to regenerate.
       expect(texts(report).join('\n')).not.toMatch(REMINDER)
       expect(texts(report).filter((text) => /one unit/.test(text))).toHaveLength(1)
     })
 
-    it('replaces the spec on the upgrade after the generators were merged', async () => {
+    it('says it of the spec alone when the Dockerfile was edited', async () => {
+      seedDeployment()
+      fixture.write(HEADERS, `${released(HEADERS)}\n// our CSP\n`)
+      fixture.write('Dockerfile', `${released('Dockerfile')}\n# ours\n`)
+
+      const [note] = texts(await upgrade(GENERATORS)).filter((text) => text.includes(SPEC))
+
+      expect(note).toContain('Dockerfile differs from what 1.0.1-alpha.6 shipped')
+      expect(note).toContain(`${SPEC} was not replaced although yours is unedited`)
+      expect(note).not.toContain('builds the 1.0 image')
+    })
+
+    it('replaces both on the upgrade after the generators were merged', async () => {
       seedDeployment()
       fixture.write(HEADERS, `${released(HEADERS)}\n// our CSP\n`)
       await upgrade(GENERATORS)
@@ -1324,6 +1347,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       fixture.write(SYNC, inRepo(SYNC))
       const again = await upgrade(GENERATORS, { version: '1.1.0-alpha.1' })
 
+      expect(fixture.read('Dockerfile')).toBe(shippedCopy('Dockerfile'))
       expect(fixture.read(SPEC)).toBe(shippedCopy(SPEC))
       expect(texts(again).filter((text) => text.includes(SPEC))).toEqual([])
     })
