@@ -934,6 +934,166 @@ const incomingIgnored = {
     'roots, so their imports resolve to nothing.',
 }
 
+// ─── vite.config.ts: vendor chunks, in an order ──────────────────────────────
+
+const CHUNKS_OLD = `        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          // Core framework
+          if (
+            id.includes('node_modules/vue/') ||
+            id.includes('node_modules/vue-router/') ||
+            id.includes('node_modules/pinia/') ||
+            id.includes('node_modules/@vueuse/')
+          ) {
+            return 'vue-vendor'
+          }
+          // Reka headless UI primitives
+          if (id.includes('node_modules/reka-ui/') || id.includes('node_modules/@floating-ui/')) {
+            return 'ui-vendor'
+          }
+          // Charting — large; almost never needed on the first paint.
+          if (id.includes('node_modules/echarts/') || id.includes('node_modules/vue-echarts/')) {
+            return 'charts-vendor'
+          }
+          // Markdown rendering + syntax highlighting (docs surface only)
+          if (
+            id.includes('node_modules/comark') ||
+            id.includes('node_modules/shiki') ||
+            id.includes('node_modules/@shikijs/')
+          ) {
+            return 'docs-vendor'
+          }
+          // Tables / forms / data
+          if (
+            id.includes('node_modules/@tanstack/vue-table') ||
+            id.includes('node_modules/@tanstack/vue-query') ||
+            id.includes('node_modules/@formwerk/')
+          ) {
+            return 'data-vendor'
+          }
+          // MSW — only loaded when VUESTRATA_USE_MOCKS is true; isolate so
+          // production bundles can drop it cleanly.
+          if (id.includes('node_modules/msw/')) {
+            return 'msw-vendor'
+          }
+        },
+`
+
+const CHUNKS_NEW = `        /**
+         * Named vendor chunks, and the order in which they claim modules.
+         *
+         * A group takes the modules its \`test\` matches AND everything those
+         * modules import. A module two groups reach goes to the group with the
+         * higher \`priority\`, and that is what the numbers are for.
+         *
+         * This used to be a \`manualChunks(id)\` function, where every name has
+         * the same priority. \`charts-vendor\` reached Vue first (vue-echarts
+         * imports it) and kept the whole Vue runtime, so every chunk of the app
+         * imported the charting engine and index.html preloaded all of it, 778 KB,
+         * on the login page. Returning 'vue-vendor' for Vue did not prevent it.
+         *
+         * So what every page needs claims its dependencies first, and what a
+         * page asks for with \`import()\` takes only what is left. Keep it so when
+         * you add a group: a library loaded on demand gets the lowest priority,
+         * and anything it shares with the rest of the app must be matched by a
+         * group above it. \`verify-bundle\` fails a build in which index.html
+         * loads a chunk of an on-demand group.
+         */
+        codeSplitting: {
+          groups: [
+            // ── On every page ──────────────────────────────────────────────
+            // Core framework
+            {
+              name: 'vue-vendor',
+              test: /node_modules[\\\\/](?:vue|@vue|vue-router|pinia|@vueuse)[\\\\/]/,
+              priority: 30,
+            },
+            // Reka headless UI primitives
+            {
+              name: 'ui-vendor',
+              test: /node_modules[\\\\/](?:reka-ui|@floating-ui)[\\\\/]/,
+              priority: 20,
+            },
+            // Tables / forms / data
+            {
+              name: 'data-vendor',
+              test: /node_modules[\\\\/](?:@tanstack[\\\\/]vue-(?:table|query)|@formwerk[\\\\/])/,
+              priority: 20,
+            },
+
+            // ── On demand ──────────────────────────────────────────────────
+            // Charting — large; fetched by the first chart a page renders.
+            {
+              name: 'charts-vendor',
+              test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/,
+              priority: 10,
+            },
+            // Markdown rendering + syntax highlighting (docs surface only)
+            {
+              name: 'docs-vendor',
+              test: /node_modules[\\\\/](?:comark|shiki|@shikijs[\\\\/])/,
+              priority: 10,
+            },
+            // MSW — only loaded when VUESTRATA_USE_MOCKS is true; isolate so
+            // production bundles can drop it cleanly.
+            {
+              name: 'msw-vendor',
+              test: /node_modules[\\\\/]msw[\\\\/]/,
+              priority: 10,
+            },
+          ],
+        },
+`
+
+/**
+ * The config still names its vendor chunks with a `manualChunks` function, one
+ * of them the charting chunk, and declares no groups of its own. A mention of
+ * the function in a comment is not one: the block above has such a comment.
+ */
+const chunksWithoutAnOrder = (source) =>
+  /^[ \t]*manualChunks\s*[(:]/m.test(source) &&
+  /(['"])charts-vendor\1/.test(source) &&
+  !/\b(?:codeSplitting|advancedChunks)\s*:/.test(source)
+
+/**
+ * The shipped config named its vendor chunks with a function. Rolldown gives
+ * every name such a function returns the same priority, and a chunk also takes
+ * what its modules import: the charting chunk took the Vue runtime, every chunk
+ * imported it for the framework, and index.html preloaded ECharts on the login
+ * page. The groups say the same six names with an order between them.
+ *
+ * Only the function as shipped is replaced. One a project added a library to
+ * is the project's chunking, and the note gives the groups to write instead.
+ * It gives them in full: `verify-bundle` is managed and arrives with this
+ * upgrade, and it fails on the old chunking, so a config that is left alone
+ * leaves a project with a red build and this note to fix it from.
+ */
+const chunksInAnOrder = {
+  file: 'vite.config.ts',
+  pending: chunksWithoutAnOrder,
+  apply: (source) => replaceBlocks(source, [{ from: CHUNKS_OLD, to: CHUNKS_NEW }]),
+  note:
+    'vite.config.ts: the vendor chunks are still named by a `manualChunks` function, and it is ' +
+    'not the one 1.0.1-alpha.6 shipped, so it was left alone. Rolldown gives every name that ' +
+    'function returns the same priority, and a chunk also takes what its modules import: ' +
+    'charts-vendor takes the Vue runtime (vue-echarts imports it), every chunk then imports ' +
+    'charts-vendor, and index.html preloads the charting engine, about 264 KB gzipped, on every ' +
+    'page. `node scripts/build/verify-bundle.mjs`, which this upgrade replaces, fails on that ' +
+    'and on its lower size budgets. In build.rolldownOptions.output, replace the function with ' +
+    '`codeSplitting: { groups: [...] }`, one `{ name, test, priority }` for each name it ' +
+    'returns, where a module two groups reach goes to the higher priority. What every page ' +
+    'needs comes first: ' +
+    "`{ name: 'vue-vendor', test: /node_modules[\\\\/](?:vue|@vue|vue-router|pinia|@vueuse)[\\\\/]/, priority: 30 }`, " +
+    "`{ name: 'ui-vendor', test: /node_modules[\\\\/](?:reka-ui|@floating-ui)[\\\\/]/, priority: 20 }`, " +
+    "`{ name: 'data-vendor', test: /node_modules[\\\\/](?:@tanstack[\\\\/]vue-(?:table|query)|@formwerk[\\\\/])/, priority: 20 }`. " +
+    'What a page loads with import() comes last and takes what is left: ' +
+    "`{ name: 'charts-vendor', test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/, priority: 10 }`, " +
+    "`{ name: 'docs-vendor', test: /node_modules[\\\\/](?:comark|shiki|@shikijs[\\\\/])/, priority: 10 }`, " +
+    "`{ name: 'msw-vendor', test: /node_modules[\\\\/]msw[\\\\/]/, priority: 10 }`. " +
+    'Give a group of your own the priority of its kind, and put a library it shares with the ' +
+    'rest of the app in a group above it.',
+}
+
 // ─── The three merged files ──────────────────────────────────────────────────
 
 /**
@@ -1006,5 +1166,9 @@ export default [
   {
     description: 'the linter and the formatter leave .vuestrata/ alone',
     steps: [incomingIgnored],
+  },
+  {
+    description: 'the vendor chunks claim modules in an order, so the charting engine stays lazy',
+    steps: [chunksInAnOrder],
   },
 ]
