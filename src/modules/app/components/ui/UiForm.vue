@@ -1,38 +1,55 @@
 <script setup lang="ts">
-import { useForm } from '@formwerk/core'
-
+import { useUiForm } from '@/composables/forms'
+import type { AppError } from '~/lib/errors'
 import type { FormProps } from '~/types/forms'
+
+import UiUnsavedChangesDialog from './UiUnsavedChangesDialog.vue'
 
 const props = withDefaults(defineProps<FormProps>(), {
   disabled: false,
   disableHtmlValidation: true,
+  showErrors: 'always',
 })
 
 const emit = defineEmits<{
   submit: [values: Record<string, unknown>]
+  success: [result: unknown, values: Record<string, unknown>]
+  error: [error: AppError, values: Record<string, unknown>]
 }>()
 
-const formOptions = props.schema
-  ? {
-      schema: props.schema,
-      initialValues: props.initialValues,
-      disabled: props.disabled,
-      disableHtmlValidation: props.disableHtmlValidation,
-    }
-  : {
-      initialValues: props.initialValues,
-      disabled: props.disabled,
-      disableHtmlValidation: props.disableHtmlValidation,
-    }
+const {
+  values,
+  context,
+  isSubmitting,
+  wasSubmitted,
+  isDirty,
+  isTouched,
+  isValid,
+  formErrors,
+  submitError,
+  leaveGuard,
+  onSubmit,
+  setErrors,
+  clearErrors,
+  setValues,
+  reset,
+} = useUiForm(props, emit)
 
-const { values, handleSubmit, isSubmitting, wasSubmitted, isDirty, isTouched, isValid, context } =
-  useForm(formOptions as Parameters<typeof useForm>[0])
-
-const onSubmit = handleSubmit((data) => {
-  emit('submit', data.toObject())
+defineExpose({
+  values,
+  context,
+  isSubmitting,
+  wasSubmitted,
+  isDirty,
+  isTouched,
+  isValid,
+  formErrors,
+  submitError,
+  setErrors,
+  clearErrors,
+  setValues,
+  reset,
 })
-
-defineExpose({ values, context, isSubmitting, wasSubmitted, isDirty, isTouched, isValid })
 </script>
 
 <template>
@@ -44,6 +61,19 @@ defineExpose({ values, context, isSubmitting, wasSubmitted, isDirty, isTouched, 
       :is-dirty="isDirty()"
       :is-touched="isTouched()"
       :is-valid="isValid()"
+      :form-errors="formErrors"
+      :submit-error="submitError"
+    />
+    <!--
+      Inside the form so the component keeps its single root, which is what
+      lets a `class` on `UiForm` land on the form. The dialog itself is
+      teleported to the body, so it is never the form's content.
+    -->
+    <UiUnsavedChangesDialog
+      v-if="confirmLeave"
+      :open="leaveGuard.isPrompting.value"
+      @stay="leaveGuard.stay"
+      @leave="leaveGuard.leave"
     />
   </form>
 </template>

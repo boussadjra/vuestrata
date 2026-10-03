@@ -150,11 +150,54 @@ export interface FormFieldDefinition extends FieldProps {
 }
 
 // ─── Form Component Props ────────────────────────────────
+
+/**
+ * What a form does with its values once they are valid: usually a mutation.
+ *
+ * `UiForm` awaits it, so `isSubmitting` stays true until the save has
+ * finished. What it resolves with is handed to the `success` event; what it
+ * rejects with is shown on the form and handed to the `error` event, and never
+ * thrown any further.
+ */
+export type FormAction = (values: Record<string, unknown>) => unknown
+
+/**
+ * Turns one of the backend's field keys (`Items[0].Name`, `contact_name`) into
+ * the path of the field it belongs to in this form (`items.0.name`,
+ * `contactName`).
+ */
+export type FormFieldPathStrategy = (key: string) => string
+
+/**
+ * When a field shows what the schema says is wrong with it.
+ *
+ *   always  — as soon as it is wrong, which for an empty required field is
+ *             the moment the form opens
+ *   touched — once the user has left the field, or tried to submit
+ *
+ * What the server said about a field is shown either way.
+ */
+export type FormErrorVisibility = 'always' | 'touched'
+
 export interface FormProps {
   schema?: StandardSchemaV1
   initialValues?: Record<string, unknown>
   disabled?: boolean
   disableHtmlValidation?: boolean
+  /** Awaited on a valid submit, instead of the `submit` event. */
+  action?: FormAction
+  /**
+   * After the action succeeds, put the form back to its initial values. Without
+   * it the saved values become the new baseline, so the form is clean either way.
+   */
+  resetOnSuccess?: boolean
+  /** Ask before a navigation, a reload or a closed tab discards unsaved changes. */
+  confirmLeave?: boolean
+  /** Where a backend field key goes when the default guess is wrong: `{ 'Address.City': 'city' }`. */
+  fieldMap?: Record<string, string>
+  /** Replaces the default way a backend field key becomes a field path. */
+  fieldPath?: FormFieldPathStrategy
+  showErrors?: FormErrorVisibility
 }
 
 export interface FormGroupProps {
