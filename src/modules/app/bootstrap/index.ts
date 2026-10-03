@@ -345,6 +345,11 @@ async function runBoot(
   //
   // It used to run inside installRuntimeBackends() with no guard at all,
   // writing a super-admin into IndexedDB in every environment.
+  //
+  // The adapter is the second half of the condition on purpose. A demo build
+  // that mocks only some modules beside a real backend (`VUESTRATA_MOCK_ONLY`)
+  // has MSW in it and a real adapter: its users are the backend's, and it gets
+  // no seeded admin, no demo session and no tab sync below.
   if (__VUESTRATA_DEMO__ && config.authAdapter === 'mock') {
     const { seedDemoSuperAdmin } = await (deps.loadDemoState ?? loadDemoState)()
     await seedDemoSuperAdmin()
@@ -367,6 +372,11 @@ async function runBoot(
   //
   // Started AFTER setupModules so module-contributed handlers (e.g. the auth
   // module's mocks) are included alongside the static handler set.
+  //
+  // Which handlers start is `startDemoMocks()`'s to decide: all of them in the
+  // demo, or the ones `VUESTRATA_MOCK_ONLY` lists, beside a real backend. The
+  // session was restored above, before any worker existed, so a real adapter's
+  // refresh went to that backend without passing through one.
   if (__VUESTRATA_DEMO__ && config.useMocks) {
     await (deps.startMocks ?? startDemoMocks)()
   }
