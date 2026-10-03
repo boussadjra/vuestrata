@@ -1213,7 +1213,15 @@ function parseDrfPage(raw: unknown, context: ListContext): ParsedList | null {
  *   list      `{ count, next, previous, results }`
  *   record    the body itself
  *   update    `PATCH /{resource}/{id}/`
- *   paths     with DRF's trailing slash: `/{resource}/`, `/{resource}/{id}/`
+ *   paths     with DRF's trailing slash: `/{resource}/`, `/{resource}/{id}/`,
+ *             and on an action that continues the collection's path
+ *             (`/{resource}/{id}/cancel/`)
+ *
+ * A page past the last one is a 404 in DRF ("Invalid page."), which is what a
+ * table asks for once the last row of its last page is deleted. The dialect
+ * says so (`isPastLastPage`), and the collection shows the empty page any
+ * other backend would have answered with, after reading the first page to be
+ * sure: see `CollectionDialect.isPastLastPage`.
  *
  * The answer names neither the page nor its size, so both come from the
  * request, and the size from the answer where it can be seen (a backend with
