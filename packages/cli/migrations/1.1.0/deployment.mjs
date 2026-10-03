@@ -20,6 +20,22 @@ import { listOf } from './text.mjs'
 
 const SPEC = 'e2e/production-artifact.spec.ts'
 const CI = '.github/workflows/ci.yml'
+const DOCKERFILE = 'Dockerfile'
+
+/**
+ * Why a file is only right beside the 1.1.0 header generators, for the note
+ * that says an unedited copy was not replaced. These are the steps that carry
+ * `ready: headersGenerateTheNewConfig`.
+ */
+const NEEDS_THE_GENERATORS = {
+  [DOCKERFILE]:
+    'the new Dockerfile copies docker/runtime/ into the image, which only the 1.1.0 header ' +
+    'generators write, so beside the 1.0 ones the image does not build',
+  [SPEC]:
+    `the new assertions of ${SPEC} (the /healthz probe, the JSON 502 for an unrouted /api, ` +
+    'compression, the cache lifetimes) hold only for an image built from the docker/nginx.conf ' +
+    'those generators write',
+}
 
 /** What each file gained, for the note. Short: the incoming copy has the rest. */
 const WHAT_CHANGED = {
@@ -45,13 +61,19 @@ const WHAT_CHANGED = {
     'and the cache lifetimes',
   'scripts/lint/check-toolchain-pins.mjs':
     'scripts/lint/check-toolchain-pins.mjs checks both vite-plus bindings the Dockerfile names, ' +
-    'and skips a workflow that is not there (`vuestrata eject` removes two)',
+    'skips a Dockerfile, a vercel.json or a workflow that is not there (`vuestrata eject` ' +
+    'removes two workflows, and a project deletes what it does not deploy with), and holds ' +
+    '.node-version to .nvmrc',
 }
 
 const family = [
   replaceWithShipped({
-    file: 'Dockerfile',
+    file: DOCKERFILE,
     carries: (source) => source.includes('/healthz') && source.includes('TARGETARCH'),
+    // It builds the image from what the 1.1.0 generators write (docker/runtime/).
+    // Beside the 1.0 generators a project kept, the build stops at a missing
+    // directory, where the 1.0 Dockerfile still builds the 1.0 image.
+    ready: headersGenerateTheNewConfig,
   }),
   replaceWithShipped({
     file: 'docker-compose.yml',
@@ -95,8 +117,8 @@ function familyNote(source, manifest, ws) {
   const held = deploymentHeldBack(manifest, ws)
   if (held.length === 0) return undefined
 
-  // Held back although it is a release's copy: only the spec, waiting for the
-  // header generators.
+  // Held back although it is a release's copy: the Dockerfile and the spec,
+  // waiting for the header generators.
   const waiting = held.filter((step) => step.wasPristine(ws.read(step.file)))
   const edited = held.filter((step) => !waiting.includes(step))
   const parts = []
@@ -114,13 +136,18 @@ function familyNote(source, manifest, ws) {
   }
 
   if (waiting.length > 0) {
+    const names = waiting.map((step) => step.file)
+    const one = names.length === 1
     parts.push(
-      `${SPEC} was not replaced although yours is unedited: its new assertions (the /healthz ` +
-        'probe, the JSON 502 for an unrouted /api, compression, the cache lifetimes) hold only ' +
-        'for an image built from the docker/nginx.conf the 1.1.0 header generators write, and ' +
-        'yours were held back (see the note on scripts/security/headers.mjs). Once you have ' +
-        'merged them and run `vpr security:headers`, replace the spec with ' +
-        `${incomingPath(SPEC)}.`,
+      `${listOf(names)} ${one ? 'was' : 'were'} not replaced although yours ` +
+        `${one ? 'is' : 'are'} unedited: ` +
+        `${names.map((name) => NEEDS_THE_GENERATORS[name]).join('; ')}. Your header generators ` +
+        'were held back (see the note on scripts/security/headers.mjs). Once you have merged ' +
+        'them and run `vpr security:headers`, run `vuestrata upgrade` again: it replaces ' +
+        `${one ? 'this file' : 'these files'} then.` +
+        (names.includes(DOCKERFILE)
+          ? ' Until then the 1.0 Dockerfile builds the 1.0 image, as before.'
+          : ''),
     )
   }
 

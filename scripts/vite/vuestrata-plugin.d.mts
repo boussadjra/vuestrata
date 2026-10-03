@@ -9,6 +9,11 @@ export interface VuestrataEnvOptions {
    * plugin finds that file itself. It is here for tests.
    */
   deployConfig?: DeployConfig
+  /**
+   * The exports of `scripts/security/headers.mjs`, in place of importing that
+   * file. For tests, like `deployConfig`.
+   */
+  headerGenerators?: Record<string, unknown>
 }
 
 /**

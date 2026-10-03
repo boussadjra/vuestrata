@@ -73,7 +73,7 @@ updates:
       # branch is a deliberate edit.
       - dependency-name: nginxinc/nginx-unprivileged
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
-      # The Node major is pinned together in .nvmrc, the workflows and the
+      # The Node major is pinned together in .nvmrc, .node-version, the workflows and the
       # Dockerfile, and check-toolchain-pins fails when one moves alone.
       - dependency-name: node
         update-types: ['version-update:semver-major']

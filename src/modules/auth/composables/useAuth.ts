@@ -1,17 +1,14 @@
 import { authAdapter as configuredAuthAdapter } from '~/config/app.config'
+// From core/lib, not '../adapters': a project that kept its adapters has the 1.0
+// types.ts behind that barrel, whose AuthAdapter is not the one the registry returns.
+import type { AuthAdapter, AuthProviderId } from '~/lib/auth/adapter'
 import { getAuthProviders } from '~/lib/auth/config'
 import { normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import { useAuthStore } from '~/stores/auth'
 import type { AuthCredentials } from '~/types'
 
-import {
-  createAuthAdapter,
-  OAuthRedirectError,
-  requireCapability,
-  type AuthAdapter,
-  type AuthProviderId,
-} from '../adapters'
+import { createAuthAdapter, OAuthRedirectError, requireCapability } from '../adapters'
 import { safeRedirectPath } from '../lib/safe-redirect'
 import { useAuthChallengeStore } from '../stores/challenge'
 
@@ -41,12 +38,19 @@ const useAuthAdapterState = createGlobalState(() => {
   const cell: { adapter: AuthAdapter | null } = { adapter: null }
   return {
     get(): AuthAdapter {
-      cell.adapter ??= createAuthAdapter(configuredAuthAdapter, {
+      if (cell.adapter) return cell.adapter
+
+      // Named, not written into the call: an adapters/index.ts the project
+      // edited keeps the `createAuthAdapter` of 1.0, whose options have no
+      // `getRefreshToken`, and an object literal with a property the parameter
+      // does not know would not compile against it. That adapter ignores it.
+      const tokens = {
         // Threaded in so the JWT adapter can skip a request it knows will 401.
         getToken: () => useAuthStore().token,
         // ...and can present a refresh token held in memory.
         getRefreshToken: () => useAuthStore().refreshToken,
-      })
+      }
+      cell.adapter = createAuthAdapter(configuredAuthAdapter, tokens)
       return cell.adapter
     },
     reset(): void {

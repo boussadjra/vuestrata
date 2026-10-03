@@ -1,9 +1,10 @@
+// From core/lib, not './types': a project that kept its adapters has the 1.0 one.
+import type { AuthAdapter, AuthProviderId } from '~/lib/auth/adapter'
 import { createAuthEndpoints } from '~/lib/auth/endpoints'
 import type { AuthResponse } from '~/types'
 
 import { assertOAuthProvider } from './base'
 import { clearPkceState, persistPkceState, readPkceState } from './pkce-state'
-import type { AuthAdapter, AuthProviderId } from './types'
 
 /** State value the mock uses in place of a real PKCE handshake. */
 const MOCK_OAUTH_STATE = 'mock'
@@ -65,7 +66,9 @@ export function createMockAdapter(): AuthAdapter {
     },
 
     async socialLogin(provider: AuthProviderId) {
-      assertOAuthProvider(provider)
+      // Cast to what base.ts takes: a base.ts the project kept from 1.0 takes the
+      // closed list, and checks the value all the same.
+      assertOAuthProvider(provider as Parameters<typeof assertOAuthProvider>[0])
       // No real provider to redirect to: jump straight to our own callback
       // with a recognisable code, so the demo still exercises the callback
       // route and the code-exchange path.

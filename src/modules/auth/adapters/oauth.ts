@@ -1,3 +1,6 @@
+// The adapter types come from core/lib, not './types': a project that kept its
+// adapters has the 1.0 types.ts, which declares none of what the auth seam added.
+import type { AuthAdapter, AuthProviderId, ResumedSession } from '~/lib/auth/adapter'
 import { getAuthConfig } from '~/lib/auth/config'
 import { runtimeEnv } from '~/lib/config'
 import { normalizeError } from '~/lib/errors'
@@ -6,12 +9,7 @@ import type { AuthResponse } from '~/types'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '../lib/pkce'
 import { assertOAuthProvider, authEndpoints, authLogger } from './base'
 import { clearPkceState, OAUTH_STATE_TTL_MS, persistPkceState, readPkceState } from './pkce-state'
-import {
-  OAuthRedirectError,
-  type AuthAdapter,
-  type AuthProviderId,
-  type ResumedSession,
-} from './types'
+import { OAuthRedirectError } from './types'
 
 function callbackUrl(): string {
   return `${window.location.origin}/auth/callback`
@@ -187,7 +185,9 @@ export function createOAuthAdapter(): AuthAdapter {
     ...(providerPath !== undefined
       ? {
           async socialLogin(provider: AuthProviderId) {
-            assertOAuthProvider(provider)
+            // Cast to what base.ts takes: a base.ts the project kept from 1.0
+            // takes the closed list, and checks the value all the same.
+            assertOAuthProvider(provider as Parameters<typeof assertOAuthProvider>[0])
             await beginAuthorizationCodeFlow(
               providerPath.replace(':provider', encodeURIComponent(provider)),
             )

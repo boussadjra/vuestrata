@@ -1,4 +1,9 @@
-import { UnsupportedAuthCapabilityError, type AuthAdapter, type AuthCapabilities } from './types'
+// The adapter types come from core/lib, not './types': this file is not part of
+// the unit base.ts, jwt.ts and types.ts are replaced as, so it can sit beside a
+// 1.0 types.ts, whose AuthAdapter is not the one the registry builds.
+import type { AuthAdapter, AuthCapabilities } from '~/lib/auth/adapter'
+
+import { UnsupportedAuthCapabilityError } from './types'
 
 export * from './types'
 export { isJwtExpired } from './jwt'

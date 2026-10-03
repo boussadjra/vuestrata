@@ -1,7 +1,15 @@
 import { hashFor } from '../../src/lib/lockfile.mjs'
 import { inSlot } from '../../src/lib/manifest.mjs'
-import { PRISTINE } from './promotions.mjs'
-import { listOf, replaceBlocks, toLf } from './text.mjs'
+import { adaptersBeingReplaced, envPlugin, PRISTINE } from './promotions.mjs'
+import { PERMISSIONS_PRISTINE } from './rbac-eject.mjs'
+import {
+  declaresBinding,
+  jsonStringSpan,
+  listOf,
+  replaceBlocks,
+  toLf,
+  withoutComments,
+} from './text.mjs'
 
 /**
  * Changes 1.1.0 needs in files the project owns.
@@ -17,6 +25,13 @@ import { listOf, replaceBlocks, toLf } from './text.mjs'
  * anything else alone with a note that gives the change to make by hand. The
  * rest of the file is never read as shipped or edited: a project that added a
  * layout to router.ts still gets the afterEach fix.
+ *
+ * The rest of the file is read for one thing, though. A step that INSERTS
+ * something (a declaration, an import, an option) first asks whether the file
+ * already has it somewhere else, because the shipped lines being intact says
+ * nothing about what a project wrote beside them. A second `const reason` or a
+ * second import of the same name is a file that no longer compiles, written by
+ * the upgrade. Such a file is left alone, and the note gives the change.
  */
 
 const inApp = (rel) => (manifest) => inSlot(manifest, 'appDir', rel)
@@ -30,7 +45,7 @@ const inModules = (rel) => (manifest) => inSlot(manifest, 'modulesDir', rel)
  * not that step any more, and cutting the name out would hand its arguments to
  * the command before it.
  */
-const LOCK_CHECK = / && node scripts\/release\/check-template-lock\.mjs(?= &&|$)/
+const LOCK_CHECK = / && node scripts\/release\/check-template-lock\.mjs(?= &&|$)/g
 
 function lintScript(source) {
   try {
@@ -46,19 +61,29 @@ function lintScript(source) {
  * with a pristine template: it fails on a project's first `add module`, on a
  * version bump, on an edited managed file. It is a maintainer gate now.
  *
- * The script is edited as text, in the one string that holds it, so the rest of
- * package.json keeps its formatting and key order.
+ * The script is edited as text, so the rest of package.json keeps its
+ * formatting and key order, and in the string that IS `scripts.lint`, found by
+ * its place in the document. Looking for the script's text instead would edit
+ * whichever script holds that text first: a `lint:ci` declared above `lint`
+ * with the same command would lose the check, and `lint` would keep it.
+ *
+ * Every occurrence of the step goes in one pass. If the script still names the
+ * check afterwards, in a form of its own, nothing is changed and the note says
+ * so.
  */
 const lintWithoutLockCheck = {
   file: 'package.json',
   pending: (source) => lintScript(source)?.includes('check-template-lock.mjs') ?? false,
   apply: (source) => {
     const lint = lintScript(source)
-    if (!lint || !LOCK_CHECK.test(lint)) return source
+    if (!lint) return source
 
-    const written = JSON.stringify(lint)
-    return source.includes(written)
-      ? source.replace(written, () => JSON.stringify(lint.replace(LOCK_CHECK, '')))
+    const without = lint.replace(LOCK_CHECK, '')
+    if (without === lint || without.includes('check-template-lock.mjs')) return source
+
+    const span = jsonStringSpan(source, ['scripts', 'lint'])
+    return span
+      ? source.slice(0, span.start) + JSON.stringify(without) + source.slice(span.end)
       : source
   },
   note:
@@ -112,7 +137,7 @@ const ON_ERROR_COMMENT_NEW = `  // comes back. See plugins/stale-chunk.ts for th
 `
 
 /** The first value import from vue-router: `import { a, type B } from 'vue-router'`. */
-const VUE_ROUTER_IMPORT = /^import\s*\{([^}]*)\}\s*from\s*(['"])vue-router\2[ \t]*;?/m
+const VUE_ROUTER_IMPORT = /^import\s*\{([^}]*)\}\s*from\s*(['"])vue-router\2[ \t]*(;?)/m
 
 const PRINT_WIDTH = 100
 
@@ -120,38 +145,68 @@ const PRINT_WIDTH = 100
  * `text` with START_LOCATION among what it imports from vue-router, or
  * `undefined` when there is no value import to add it to. Written the way the
  * formatter would: on one line while it fits, else one name to a line, with the
- * value names ahead of the `type` ones as the shipped file has them.
+ * value names ahead of the `type` ones as the shipped file has them. A
+ * semicolon the statement ended on stays.
+ *
+ * A file that already binds the name, in this import or in another, is
+ * returned as it is. And an import with a comment among its names is not
+ * rewritten name by name, which would lose the comment: the name goes in
+ * first, and the rest of the statement is not touched.
  */
 export function importStartLocation(text) {
+  if (declaresBinding(text, 'START_LOCATION')) return text
+
   const found = VUE_ROUTER_IMPORT.exec(text)
   if (!found) return undefined
 
-  const names = found[1]
+  const [statement, clause, quote, semicolon] = found
+  const multiline = clause.includes('\n')
+
+  if (/\/[/*]/.test(clause)) {
+    const first = multiline ? '{\n  START_LOCATION,' : '{ START_LOCATION,'
+    return text.replace(statement, () => statement.replace('{', () => first))
+  }
+
+  const names = clause
     .split(',')
     .map((name) => name.trim())
     .filter(Boolean)
-  if (names.includes('START_LOCATION')) return text
 
   const firstType = names.findIndex((name) => name.startsWith('type '))
   names.splice(firstType === -1 ? names.length : firstType, 0, 'START_LOCATION')
 
-  const quote = found[2]
-  const oneLine = `import { ${names.join(', ')} } from ${quote}vue-router${quote}`
-  const wasOneLine = !found[1].includes('\n')
-  const statement =
-    wasOneLine && oneLine.length <= PRINT_WIDTH
+  const from = `from ${quote}vue-router${quote}${semicolon}`
+  const oneLine = `import { ${names.join(', ')} } ${from}`
+  const rewritten =
+    !multiline && oneLine.length <= PRINT_WIDTH
       ? oneLine
-      : `import {\n${names.map((name) => `  ${name},`).join('\n')}\n} from ${quote}vue-router${quote}`
+      : `import {\n${names.map((name) => `  ${name},`).join('\n')}\n} ${from}`
 
-  return text.replace(found[0], () => statement)
+  return text.replace(statement, () => rewritten)
 }
 
-/** The marker is cleared unconditionally: the 1.0 afterEach, or a variant of it. */
-const clearsMarkerUnguarded = (source) =>
-  /\bclearStaleChunkMarker\(\)/.test(source) &&
-  !/if\s*\(\s*!\s*failure\s*&&\s*from\s*!==\s*START_LOCATION\s*\)\s*\{?\s*clearStaleChunkMarker\(\)/.test(
-    source,
-  )
+/** `if (<the two conditions, in either order>) clearStaleChunkMarker()`, braces or not. */
+const NOT_FAILURE = String.raw`!\s*failure`
+const NOT_FIRST = String.raw`(?:from\s*!==\s*START_LOCATION|START_LOCATION\s*!==\s*from)`
+const GUARDED_CLEAR = new RegExp(
+  String.raw`if\s*\(\s*(?:${NOT_FAILURE}\s*&&\s*${NOT_FIRST}|${NOT_FIRST}\s*&&\s*${NOT_FAILURE})\s*\)` +
+    String.raw`\s*\{?\s*clearStaleChunkMarker\(\)`,
+  'g',
+)
+
+/**
+ * The marker is cleared somewhere without the guard: the 1.0 afterEach, or a
+ * variant of it. Counted, not looked for: a file with the guarded call AND a
+ * second hook that still clears unconditionally has the bug the guard fixes,
+ * and one guarded call must not speak for both. Comments do not count; the
+ * shipped file explains the call in three of them.
+ */
+const clearsMarkerUnguarded = (source) => {
+  const code = withoutComments(source)
+  const calls = code.match(/\bclearStaleChunkMarker\(\)/g)?.length ?? 0
+  const guarded = code.match(GUARDED_CLEAR)?.length ?? 0
+  return calls > guarded
+}
 
 const routerAfterEach = {
   file: inApp('plugins/router.ts'),
@@ -170,13 +225,15 @@ const routerAfterEach = {
     return source.includes('\r\n') ? imported.replaceAll('\n', '\r\n') : imported
   },
   note:
-    'plugins/router.ts is yours, and its router.afterEach is not the one 1.0.1-alpha.6 shipped, ' +
-    'so it was left alone. It still clears the stale-chunk marker after every navigation, ' +
+    'plugins/router.ts is yours, and it calls clearStaleChunkMarker() in a hook that is not the ' +
+    'router.afterEach 1.0.1-alpha.6 shipped, so it was left alone. A call without the guard ' +
+    'clears the stale-chunk marker after every navigation, ' +
     'including the one a page load starts with and the ones that failed, so a route whose ' +
     'chunk is really gone reloads the page on every click and never reaches the error state. ' +
     "Import START_LOCATION from 'vue-router' and make the hook " +
     '`router.afterEach((_to, from, failure) => { NProgress.done(); if (!failure && from !== ' +
-    'START_LOCATION) clearStaleChunkMarker() })`.',
+    'START_LOCATION) clearStaleChunkMarker() })`. Every call to clearStaleChunkMarker() in the ' +
+    'file needs that condition.',
 }
 
 // ─── plugins/stale-chunk.ts ──────────────────────────────────────────────────
@@ -332,14 +389,19 @@ const LOGIN_NOTICE = `      <div
 
 `
 
+/** What the script block declares. A page that has either name already keeps its own. */
+const LOGIN_BINDINGS = ['reason', 'sessionExpired']
+
 const loginExpiredNotice = {
   file: inModules('auth/pages/login.vue'),
   // Decided by the message key, which is new in 1.1.0: a page that shows it, in
   // whatever markup, has the notice.
   pending: (source) => !source.includes('auth_session_expired'),
   apply: (source) =>
-    // The notice calls `t`, which the shipped page takes from useI18n().
-    /\{\s*t\s*[,}]/.test(source)
+    // The notice calls `t`, which the shipped page takes from useI18n(). And
+    // the two constants are new names in the page's script: one that already
+    // reads `?reason=`, for a message of its own, would get them twice.
+    /\{\s*t\s*[,}]/.test(source) && !LOGIN_BINDINGS.some((name) => declaresBinding(source, name))
       ? replaceBlocks(source, [
           { from: LOGIN_SCRIPT_OLD, to: LOGIN_SCRIPT_NEW },
           { from: LOGIN_ERROR_OLD, to: LOGIN_NOTICE + LOGIN_ERROR_OLD },
@@ -366,14 +428,18 @@ const DEMO_LITERALS = ['demo@vuestrata.dev', 'vuestrata-demo-auth', 'vuestrata-d
 
 const holdsDemoLiteral = (source) => DEMO_LITERALS.some((literal) => source.includes(literal))
 
-/** Each block stands alone: a page is fixed line by line, as far as it is still shipped text. */
+/**
+ * Each block stands alone: a page is fixed line by line, as far as it is still
+ * shipped text. And wherever that text is: a page that quotes the line twice
+ * has both fixed by this upgrade, not one now and one by the next.
+ */
 const literalCodemod = (file, blocks) => ({
   file,
   pending: holdsDemoLiteral,
   apply: (source) =>
     replaceBlocks(
       source,
-      blocks.map((block) => ({ ...block, optional: true })),
+      blocks.map((block) => ({ ...block, optional: true, all: true })),
     ),
   // One note for the four files, below.
   note: false,
@@ -504,6 +570,12 @@ wrapped in an envelope carrying an \`integrityHash\`.
  * test would make it fail on the project's own decision. `subject` names that
  * file, and the test is rewritten on the upgrade that replaces it, or on the
  * first one after the project merged the incoming copy.
+ *
+ * The new assertions bring names with them. `declares` lists the ones a rewrite
+ * adds at module scope (a file that has one already is left alone, or it would
+ * declare it twice), `uses` the ones it reads from the rest of the file (a file
+ * that renamed its helper would get a call to nothing), and a block's `unless`
+ * skips an import the file already has.
  */
 
 /**
@@ -526,6 +598,9 @@ const SUBJECTS = {
     key: 'src/modules/auth/adapters/base.ts',
     file: inModules('auth/adapters/base.ts'),
     marker: 'skipAuthRefresh',
+    // base.ts moves with jwt.ts and types.ts: an unedited copy beside an
+    // edited jwt.ts is held back with it, and still does what 1.0 did.
+    replaced: adaptersBeingReplaced,
   },
 }
 
@@ -540,10 +615,11 @@ function subjectIsCurrent(subject, manifest, ws) {
   if (!ws.exists(rel)) return true
 
   const source = ws.read(rel)
-  return (
-    source.includes(subject.marker) ||
-    PRISTINE[subject.key].includes(hashFor(subject.key, source, 'managed'))
-  )
+  if (source.includes(subject.marker)) return true
+
+  return subject.replaced
+    ? subject.replaced(ws)
+    : PRISTINE[subject.key].includes(hashFor(subject.key, source, 'managed'))
 }
 
 const USE_RBAC_OLD = `  it('should default to guest role when no user is authenticated', () => {
@@ -575,6 +651,8 @@ const useRbacTest = (file) => ({
   subject: SUBJECTS.useRbac,
   pins: (source) => source.includes("'should default to guest role when no user is authenticated'"),
   blocks: [{ from: USE_RBAC_OLD, to: USE_RBAC_NEW }],
+  // The second test signs a guest in with the file's own helper.
+  uses: ['setupAuth'],
   change:
     'a visitor who is not signed in holds no permission in useRbac(); what the guest role grants ' +
     'is for a signed-in guest',
@@ -592,6 +670,8 @@ const TESTS = [
         to:
           "import { useNotificationStore } from '@/stores/notification'\n" +
           "import { getRolePermissions } from '~/lib/rbac'\n",
+        // A file that tests the role table too already imports it.
+        unless: (text) => declaresBinding(text, 'getRolePermissions'),
       },
       {
         from: `  it('userPermissions is empty array when user has no permissions field', () => {
@@ -704,6 +784,8 @@ describe.runIf(MAINTAINER)('public surface', () => {
 `,
       },
     ],
+    declares: ['MAINTAINER'],
+    uses: ['it', 'expect', 'describe'],
     change:
       'the snapshots describe the modules and permissions of the template itself, so the suite ' +
       'runs ' +
@@ -750,6 +832,7 @@ import frOverrides from '@/locales/fr.overrides.json'
 `,
       },
     ],
+    declares: ['arOverrides', 'enOverrides', 'frOverrides'],
     change:
       'the locale catalogs are replaced by upgrades, so a nav group of yours is labelled in ' +
       '`<locale>.overrides.json`; read each catalog with its overrides merged on top',
@@ -774,18 +857,24 @@ import frOverrides from '@/locales/fr.overrides.json'
           'const SHELL_KEYS = new Set([...Object.keys(enShell), ...Object.keys(enOverrides)])\n',
       },
     ],
+    declares: ['enOverrides'],
     change:
       'a module title or nav label of yours may live in `en.overrides.json`; count its keys ' +
       'with those of the catalog',
   },
 ]
 
+/** The rewrite would declare a name the file has, or call one it has not. */
+const cannotTake = (test, source) =>
+  (test.declares ?? []).some((name) => declaresBinding(source, name)) ||
+  (test.uses ?? []).some((name) => !declaresBinding(source, name))
+
 const pinnedTests = [
   ...TESTS.map((test) => ({
     file: test.file,
     pending: (source, manifest, ws) =>
       test.pins(source) && subjectIsCurrent(test.subject, manifest, ws),
-    apply: (source) => replaceBlocks(source, test.blocks),
+    apply: (source) => (cannotTake(test, source) ? source : replaceBlocks(source, test.blocks)),
     note: false,
   })),
   {
@@ -872,11 +961,17 @@ const TEST_BLOCK_NEW = `    setupFiles: ['test/setup.ts'],
  * No guard and no note. A project that has shaped its test block has made its
  * own choices here, and a setting it may not want is not worth a line in every
  * upgrade report; `apply` finds the shipped lines or changes nothing.
+ *
+ * "Has made its own choice" means the config sets one of the two options: a
+ * key, in code. A comment that mentions `testTimeout` is not a choice.
  */
+const setsTestRoom = (source) =>
+  /(?:^|[\s,{])(['"]?)(?:testTimeout|maxWorkers)\1\s*:/m.test(withoutComments(source))
+
 const testRoom = {
   file: 'vite.config.ts',
   apply: (source) =>
-    /\b(?:testTimeout|maxWorkers)\b/.test(source)
+    setsTestRoom(source)
       ? source
       : replaceBlocks(source, [{ from: TEST_BLOCK_OLD, to: TEST_BLOCK_NEW }]),
 }
@@ -917,10 +1012,16 @@ const FMT_IGNORE_NEW = `    ignorePatterns: [
  *
  * The linter's list is the one that matters. The formatter's is added where
  * its shipped lines are still there, and is not missed where they are not.
+ *
+ * Done when the config has the entry: a string that names the directory, in
+ * code. A comment about `.vuestrata/` ignores nothing.
  */
+const ignoresIncoming = (source) =>
+  /(['"`])[^'"`\n]*\.vuestrata(?![\w-])[^'"`\n]*\1/.test(withoutComments(source))
+
 const incomingIgnored = {
   file: 'vite.config.ts',
-  pending: (source) => !source.includes('.vuestrata/'),
+  pending: (source) => !ignoresIncoming(source),
   apply: (source) =>
     replaceBlocks(source, [
       { from: LINT_IGNORE_OLD, to: LINT_IGNORE_NEW },
@@ -963,7 +1064,10 @@ const reclassified = [
   },
   {
     slot: 'permissions',
-    pristine: ['sha256-9cea2c7654c28bf669b8c0ff69585c7f7c6f1651f73684dfc325c6500e6cc9ac'],
+    pristine: PERMISSIONS_PRISTINE,
+    // An edited union is not only left behind: nothing compiles beside it. The
+    // note that says so, with the steps, is in rbac-eject.mjs.
+    note: false,
   },
 ].map((step) => ({ kind: 'reclassify', to: 'merged', ...step }))
 
@@ -1000,11 +1104,11 @@ export default [
     steps: pinnedTests,
   },
   {
-    description: 'the test runner allows 15 s a test and, off CI, uses half the cores',
-    steps: [testRoom],
-  },
-  {
-    description: 'the linter and the formatter leave .vuestrata/ alone',
-    steps: [incomingIgnored],
+    // Three changes to one file, in one group: the report names a file once
+    // per group, and three groups named this one three times.
+    description:
+      'vite.config.ts imports the Vuestrata env plugin, allows a test 15 s (and, off CI, half ' +
+      'the cores), and keeps the linter and the formatter out of .vuestrata/',
+    steps: [envPlugin, testRoom, incomingIgnored],
   },
 ]

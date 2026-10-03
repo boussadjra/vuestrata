@@ -5,6 +5,7 @@ import deployment from './deployment.mjs'
 import notes from './notes.mjs'
 import projectFiles from './project-files.mjs'
 import promotions from './promotions.mjs'
+import rbacEject from './rbac-eject.mjs'
 
 /**
  * Give every registry two sentinel regions instead of one.
@@ -40,7 +41,8 @@ const regionSplit = {
 // (promote, reclassify) run after every codemod, whatever their place here.
 //
 //   promotions      files the project owned that Vuestrata maintains from now on
+//   rbacEject       core/lib/rbac/ as the 1.0 eject left it, taken back before it is judged
 //   projectFiles    changes this release needs in files that stay the project's
 //   deployment      the container and CI files, replaced when nobody edited them
 //   notes           what only a person can act on
-export default [regionSplit, ...promotions, ...projectFiles, deployment, notes]
+export default [regionSplit, ...promotions, rbacEject, ...projectFiles, deployment, notes]

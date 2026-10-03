@@ -1,4 +1,6 @@
 import { AUTH_ADAPTER_ENV_KEY, type AuthAdapterName } from '~/config/app.config'
+// From core/lib, not './types': a project that kept its adapters has the 1.0 one.
+import type { AuthAdapter, AuthAdapterFactory, AuthAdapterOptions } from '~/lib/auth/adapter'
 import {
   AUTH_CONFIG_FILE,
   createRegisteredAuthAdapter,
@@ -9,12 +11,28 @@ import {
 import { createJwtAdapter } from './jwt'
 import { createMockAdapter } from './mock'
 import { createOAuthAdapter } from './oauth'
-import type { AuthAdapter, AuthAdapterFactory, AuthAdapterOptions } from './types'
 
 // The other half of this registry: a project's adapter that is loaded on
 // demand. It lives in `core/lib` because `boot()` calls it, and the bootstrap
 // may only import what Vuestrata ships.
 export { loadAuthAdapter } from '~/lib/auth/registry'
+
+/**
+ * `createJwtAdapter`, as this file calls it.
+ *
+ * The second getter is new in 1.1.0. `jwt.ts`, `base.ts` and `types.ts` are
+ * replaced together or not at all, and this file is not one of them: it is new,
+ * so an upgrade always installs it. It can therefore sit beside a `jwt.ts` the
+ * project kept from 1.0, whose factory takes the access-token getter alone.
+ * Called with two arguments that does not compile; a function of one parameter
+ * ignores the second. What that factory returns is typed by the 1.0 types.ts,
+ * which is not the AuthAdapter of core/lib, hence the cast: the bootstrap asks
+ * for every member the seam added before it uses it.
+ */
+const createJwt = createJwtAdapter as unknown as (
+  getToken?: () => string | null,
+  getRefreshToken?: () => string | null,
+) => AuthAdapter
 
 /**
  * The adapters Vuestrata ships, as factories.
@@ -29,7 +47,7 @@ export { loadAuthAdapter } from '~/lib/auth/registry'
  */
 function builtinFactory(name: string): AuthAdapterFactory | undefined {
   if (name === 'jwt') {
-    return ({ getToken, getRefreshToken }) => createJwtAdapter(getToken, getRefreshToken)
+    return ({ getToken, getRefreshToken }) => createJwt(getToken, getRefreshToken)
   }
   if (name === 'oauth') return () => createOAuthAdapter()
   if (name === 'mock') return __VUESTRATA_DEMO__ ? () => createMockAdapter() : undefined

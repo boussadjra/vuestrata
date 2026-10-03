@@ -2,13 +2,14 @@ import { useApiRuntimeStore } from '@/stores/api-runtime'
 import rbacOverrides from '~/config/rbac.overrides'
 import { resolveRolePermissions } from '~/lib/rbac/inheritance'
 import { resolveRbacOverrides } from '~/lib/rbac/overrides'
-import type { AuthorizationHookFn, Permission, PredicateFn } from '~/lib/rbac/types'
+import type { AuthorizationHookFn, Permission, PredicateFn, Role } from '~/lib/rbac/types'
 import {
   installApiAuthBackend,
   installRbacBackend,
   installRbacConfig,
   installValidationCacheBackend,
   type RbacBackend,
+  type RbacConfig,
   type ValidationCacheBackend,
 } from '~/lib/runtime'
 import type { ValidationAdapter } from '~/types'
@@ -32,8 +33,17 @@ const rbacConfig = resolveRbacOverrides(rbacOverrides)
  *
  * Resolved against the project's overrides, so its grants are in the seed and
  * what it withdrew is not.
+ *
+ * Called through a type that states the second parameter. This file is replaced
+ * by an upgrade while a `core/lib/rbac/inheritance.ts` the project edited is
+ * not (granting a permission there is what the 1.0 docs said to do), and its
+ * `resolveRolePermissions` takes the role alone: calling that with two
+ * arguments does not compile. A function of one parameter does fit this type,
+ * so both do, and the old one ignores the overrides until it is merged.
  */
-export const BUILTIN_PERMISSIONS: Permission[] = resolveRolePermissions('super_admin', rbacConfig)
+const resolveSeedPermissions: (role: Role, config: RbacConfig) => Permission[] =
+  resolveRolePermissions
+export const BUILTIN_PERMISSIONS: Permission[] = resolveSeedPermissions('super_admin', rbacConfig)
 
 /**
  * Build a fresh RBAC backend (Set/Map registries) seeded with built-in

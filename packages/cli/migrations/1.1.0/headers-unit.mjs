@@ -51,6 +51,7 @@ export function headersGenerateTheNewConfig(ws) {
 
 /** The reminder that follows a replaced pair, as a sentence other notes can end on. */
 export const REGENERATE_HEADERS =
-  'run `vpr security:headers`: it regenerates public/_headers, docker/*.conf, the headers ' +
-  'block of vercel.json and the CSP meta in index.html from the new generators, and ' +
-  '`vpr lint` reports drift until you do.'
+  'run `vpr security:headers`: it regenerates public/_headers, the nginx config under ' +
+  'docker/, the headers block of vercel.json and the CSP meta in index.html from the new ' +
+  'generators (leaving out a deployment this project does not have), and `vpr lint` reports ' +
+  'drift until you do.'

@@ -63,7 +63,7 @@
  * The renderers are exported for the unit tests. The CLI runs only when this
  * file is the entry point, so importing it writes nothing.
  */
-import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -665,22 +665,32 @@ export function renderIndexHtml(current, { apiUrl, headers, env, runtimeConfig =
 /**
  * Each target reads its current content and returns the desired content.
  * Identical strings mean "in sync".
+ *
+ * `needs` is what makes a target one of this project's: the directory it is
+ * written into, or for `vercel.json`, which is edited in place, the file. A
+ * project that deleted `docker/` because it ships no container has no nginx
+ * config to keep in sync, and must not get one back from `vpr security:headers`
+ * or be failed by `--check` for not having it. Such a target is skipped both
+ * ways, and the run says so.
  */
 function targetsFor(options) {
   return [
-    { path: 'public/_headers', render: () => renderHeadersFile(options) },
-    { path: 'docker/nginx.conf', render: () => renderNginxConf() },
+    { path: 'public/_headers', needs: 'public', render: () => renderHeadersFile(options) },
+    { path: 'docker/nginx.conf', needs: 'docker', render: () => renderNginxConf() },
     {
       path: 'docker/runtime/security-headers.conf.template',
+      needs: 'docker',
       render: () => renderNginxHeadersTemplate(options),
     },
     {
       path: 'docker/runtime/api-location.conf.template',
+      needs: 'docker',
       render: () => renderApiLocationTemplate(),
     },
-    { path: 'docker/runtime/keys', render: () => renderRuntimeKeys(options) },
+    { path: 'docker/runtime/keys', needs: 'docker', render: () => renderRuntimeKeys(options) },
     {
       path: 'vercel.json',
+      needs: 'vercel.json',
       render: (current) => {
         const config = JSON.parse(current)
         config.headers = renderVercelHeaders(options)
@@ -718,6 +728,8 @@ function readIfGenerated(fullPath) {
  * Returns what it found rather than exiting, so the unit tests can drive it
  * against a throwaway project: `drifted` lists the targets that differ or are
  * missing (and, with `check`, leaves them alone), `written` the ones it wrote.
+ * A target for a deployment the project does not have (see `targetsFor`) is in
+ * neither: it is skipped, and reported through `log.info`.
  *
  * @param {object} options
  * @param {string} [options.root] The project root.
@@ -759,9 +771,16 @@ export function syncTargets({
 
   const drifted = []
   const written = []
+  /** What the project has none of → the targets skipped for it. */
+  const skipped = new Map()
 
   for (const target of targetsFor(options)) {
     const fullPath = resolve(root, target.path)
+
+    if (target.needs && !existsSync(resolve(root, target.needs))) {
+      skipped.set(target.needs, [...(skipped.get(target.needs) ?? []), target.path])
+      continue
+    }
 
     let current = ''
     try {
@@ -796,6 +815,14 @@ export function syncTargets({
     writeFileSync(fullPath, desired)
     written.push(target.path)
     log.success(`${target.path} updated`)
+  }
+
+  for (const [needs, paths] of skipped) {
+    log.info(
+      needs === paths[0]
+        ? `${needs} is not in this project: skipped`
+        : `${needs}/ is not in this project: skipped ${paths.join(', ')}`,
+    )
   }
 
   for (const obsolete of OBSOLETE_TARGETS) {

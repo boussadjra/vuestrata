@@ -191,6 +191,63 @@ describe.skipIf(!CLI_PRESENT)('upgrade', () => {
     expect(readLock(project).files['src/ui/Badge.vue'].class).toBe('managed')
   })
 
+  describe('a file the release introduces for a deployment', () => {
+    const ENTRYPOINT = 'docker/entrypoint.d/40-vuestrata-runtime.sh'
+    const SCRIPT = '#!/bin/sh\n'
+
+    async function upgrade() {
+      buildPayload('1.1.0', { [ENTRYPOINT]: SCRIPT })
+      return runUpgrade({
+        root: project,
+        version: '1.1.0',
+        flags: FLAGS,
+        apply: true,
+        source: await source(),
+      })
+    }
+
+    it('is not installed in a project that removed its Dockerfile and docker/', async () => {
+      // Nothing in the lock says the project ships no container: the Dockerfile
+      // and docker/ were its own files. Writing this one would bring docker/ back.
+      seedProject()
+
+      const report = await upgrade()
+
+      expect(exists('docker')).toBe(false)
+      expect(report.written).toEqual([])
+      expect(report.skipped).toContainEqual({
+        rel: ENTRYPOINT,
+        reason: 'no container deployment here',
+      })
+      // Not recorded, so it is not "deleted here" for ever either.
+      expect(readLock(project).files[ENTRYPOINT]).toBeUndefined()
+      expect(readLock(project).ejected).toEqual([])
+    })
+
+    it.each([
+      ['a Dockerfile', 'Dockerfile'],
+      ['a docker/ directory', 'docker/nginx.conf'],
+    ])('is installed in a project that has %s', async (_what, rel) => {
+      seedProject()
+      write(rel, '# ours\n')
+
+      await upgrade()
+
+      expect(read(ENTRYPOINT)).toBe(SCRIPT)
+      expect(readLock(project).files[ENTRYPOINT].class).toBe('managed')
+    })
+
+    it('arrives with the next upgrade once the project deploys that way', async () => {
+      seedProject()
+      await upgrade()
+
+      write('Dockerfile', 'FROM node:22\n')
+      await upgrade()
+
+      expect(read(ENTRYPOINT)).toBe(SCRIPT)
+    })
+  })
+
   it('does not restore a managed file the project deleted', async () => {
     seedProject()
     fs.rmSync(path.join(project, 'src/ui/Card.vue'))
