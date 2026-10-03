@@ -18,7 +18,7 @@ interface ImportMetaEnv {
   readonly VUESTRATA_APP_TITLE: string
   readonly VUESTRATA_API_URL: string
   readonly VUESTRATA_USE_MOCKS: string
-  readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'mock'
+  readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'session' | 'mock' | (string & {})
   readonly VUESTRATA_ICON_PROVIDER:
     | 'solar'
     | 'lucide'

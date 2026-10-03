@@ -1073,6 +1073,96 @@ const reclassified = [
 
 // ─── The migration ───────────────────────────────────────────────────────────
 
+// ─── app/types/index.ts, src/env.d.ts: the built-in adapter names ─────────────
+
+const AUTH_PROVIDER_OLD = `  authProvider: 'jwt' | 'oauth' | 'mock'
+`
+
+const AUTH_PROVIDER_NEW = `  /**
+   * A built-in adapter, or one registered in \`config/auth.config.ts\` and
+   * declared there in \`RegisteredAuthAdapterNames\`.
+   */
+  authProvider: AuthAdapterName
+`
+
+const ENV_SCHEMA_IMPORT_OLD = `import type { SessionPersistence } from '~/lib/config/env.schema'
+`
+
+const ENV_SCHEMA_IMPORT_NEW = `import type { AuthAdapterName, SessionPersistence } from '~/lib/config/env.schema'
+`
+
+const QUOTED_NAME = String.raw`(?:'[^'\n]*'|"[^"\n]*")`
+const CLOSED_ADAPTER_UNION = new RegExp(
+  String.raw`^[ \t]*authProvider\??[ \t]*:[ \t]*(${QUOTED_NAME}(?:[ \t]*\|[ \t]*${QUOTED_NAME})*)[ \t]*;?[ \t]*$`,
+  'm',
+)
+
+/**
+ * `AppConfig.authProvider` is still a list of names written out, and `session`
+ * is not among them.
+ *
+ * 1.1.0 adds a built-in adapter. `config/app.config.ts`, which is the
+ * project's as well, assigns `runtimeEnv.authAdapter` to this property, and
+ * that value's type now includes `'session'`: against a union that stops at
+ * `'mock'` the assignment does not compile. A property typed by anything else
+ * (`AuthAdapterName`, `string`, a type of the project's own) is not this
+ * step's to judge.
+ */
+const closesAdapterUnion = (source) => {
+  const names = CLOSED_ADAPTER_UNION.exec(withoutComments(toLf(source)))?.[1]
+  return names !== undefined && !/['"]session['"]/.test(names)
+}
+
+/**
+ * The property takes the type the configured adapter has, so the next adapter
+ * a release adds, and any the project registers, needs no edit here.
+ *
+ * Both lines have to be the shipped ones: the property, and the import the new
+ * name is added to. And the file must not already bind `AuthAdapterName`: a
+ * type of that name the project declared itself is not the one this line
+ * means, and a second import of it is a file that no longer compiles.
+ */
+const appConfigAdapterName = {
+  file: inApp('types/index.ts'),
+  pending: closesAdapterUnion,
+  apply: (source) => {
+    if (declaresBinding(toLf(source), 'AuthAdapterName')) return source
+    return replaceBlocks(source, [
+      { from: ENV_SCHEMA_IMPORT_OLD, to: ENV_SCHEMA_IMPORT_NEW },
+      { from: AUTH_PROVIDER_OLD, to: AUTH_PROVIDER_NEW },
+    ])
+  },
+  note:
+    'app/types/index.ts is yours, and its `authProvider` line or its import from ' +
+    '~/lib/config/env.schema is not the one 1.0.1-alpha.6 shipped (or the file already declares ' +
+    'something called AuthAdapterName), so it was left alone. 1.1.0 adds a built-in auth ' +
+    'adapter, `session`, and config/app.config.ts assigns the configured adapter to that ' +
+    'property: `vp run typecheck` and `vp run build` fail there until the property accepts ' +
+    'it. Type it `authProvider: AuthAdapterName`, with `import type { AuthAdapterName } from ' +
+    "'~/lib/config/env.schema'` at the top of the file. That type follows every adapter a " +
+    'release adds and every one you register in config/auth.config.ts.',
+}
+
+const ENV_ADAPTER_OLD = `  readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'mock'
+`
+
+const ENV_ADAPTER_NEW = `  readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'session' | 'mock' | (string & {})
+`
+
+/**
+ * The same list in `src/env.d.ts`, which types `import.meta.env` and validates
+ * nothing. Nothing reads the adapter through it, so only the shipped line is
+ * pending: a copy the project changed has nothing to fix, and gets no note.
+ */
+const envAdapterNames = {
+  file: 'src/env.d.ts',
+  pending: (source) => toLf(source).includes(ENV_ADAPTER_OLD),
+  apply: (source) => replaceBlocks(source, [{ from: ENV_ADAPTER_OLD, to: ENV_ADAPTER_NEW }]),
+  note:
+    'src/env.d.ts still types VUESTRATA_AUTH_ADAPTER as `jwt`, `oauth` or `mock`. 1.1.0 adds ' +
+    '`session`, and a project can register adapters of its own: widen the type by hand.',
+}
+
 export default [
   {
     description: 'the Ui* barrel, the forms barrel and the permission union become merged files',
@@ -1094,6 +1184,11 @@ export default [
   {
     description: 'the login page says when a session expired',
     steps: [loginExpiredNotice],
+  },
+  {
+    description:
+      'the configured auth adapter is typed by AuthAdapterName, which now includes `session`',
+    steps: [appConfigAdapterName, envAdapterNames],
   },
   {
     description: 'pages that ship in a production bundle stop quoting the demo account and stores',
