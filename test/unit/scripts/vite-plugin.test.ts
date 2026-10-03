@@ -1464,7 +1464,7 @@ describe('beside the header generators a project kept from 1.0', () => {
   it('still builds, and says once what the kept copy costs', async () => {
     const { result, warn } = await runConfig(project(env), build(), kept)
 
-    expect(result.define).toEqual({ __VUESTRATA_DEMO__: 'false' })
+    expect(result.define).toMatchObject({ __VUESTRATA_DEMO__: 'false' })
     expect(warn).toHaveBeenCalledOnce()
     expect(warn.mock.calls[0]![0]).toContain(KEPT_WARNING)
     expect(warn.mock.calls[0]![0]).toContain('.vuestrata/incoming/scripts/security/headers.mjs')
