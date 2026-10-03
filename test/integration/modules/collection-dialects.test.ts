@@ -763,26 +763,27 @@ describe('dialect resolution', () => {
     expect(list.meta.value).toEqual({ total: 21, page: 2, pageSize: 10, totalPages: 3 })
   })
 
-  it('fails a filter the dialect cannot write where it was asked for, not on the wire', () => {
+  it('fails a filter the dialect cannot write as the list’s error, not on the wire', async () => {
     const strict = createCollectionApi<Part, PartFilters>({
       resource: 'strict',
       schema: partSchema,
       keys: defineQueryKeys('strict'),
       dialect: dialects.drf,
     })
-    const errors = vi.spyOn(console, 'warn').mockImplementation(() => {})
     recordWire()
 
-    expect(() =>
-      withQueryClient(() => {
-        const list = strict.useList(ref<PartFilters>({ made: { from: 'a', to: 'b' } }))
-        // The key is what reads the filters.
-        return list.items.value
-      }),
-    ).toThrow(/"drf" collection dialect cannot send the filter "made"/)
-    expect(wire).toEqual([])
+    // Declaring the list reads the filters for its cache key: that must not
+    // throw out of the component's setup. How it fails, and how it recovers,
+    // is in `collection-dialect-edges.test.ts`.
+    const list = withQueryClient(() =>
+      strict.useList(ref<PartFilters>({ made: { from: 'a', to: 'b' } })),
+    )
+    await vi.waitFor(() => expect(list.isError.value).toBe(true), { timeout: 5_000 })
 
-    errors.mockRestore()
+    expect(list.error.value?.message).toMatch(
+      /"drf" collection dialect cannot send the filter "made"/,
+    )
+    expect(wire).toEqual([])
   })
 
   it('refuses to page a cursor dialect by number', async () => {

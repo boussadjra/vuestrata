@@ -230,16 +230,21 @@ export interface CollectionQueryConventions {
   serialize?: Readonly<Record<string, FilterSerializer>>
   /**
    * The parameter a domain filter is sent as: `status` as `filter.status`.
-   * Defaults to the name itself, in the backend's case when `keys` is set.
+   * Given the name in the backend's case when `keys` is set
+   * (`account_manager`), and defaults to exactly that.
    */
   filterName?: (name: string) => string
-  /** The name a sort column is sent as. Defaults like `filterName`. */
+  /** The name a sort column is sent as. Given and defaulted like `filterName`. */
   sortField?: (field: string) => string
   /**
-   * What to do with a filter nothing can write: an object with no serializer,
-   * a list of objects, an offset without a page size. `error` throws, which
-   * in a list query fails the component that asked; `warn` logs and sends the
-   * request without it; `drop` says nothing.
+   * What to do with a filter that cannot be written: an object with no
+   * serializer, a list of objects, an offset without a page size, or a filter
+   * whose name on the wire is one of the dialect's own parameters (`size`
+   * under Spring, `per_page` under Laravel, `ordering` under DRF: the
+   * dialect's parameter is sent, the filter is not). `error` fails the list
+   * with an `AppError` (`UNSERIALIZABLE_FILTER`) that names the filter, and
+   * sends nothing; `warn` logs once per filter and sends the request without
+   * it; `drop` says nothing.
    *
    * The default is `error` in development and `warn` in a production build. A
    * filter that silently is not sent returns rows the user did not ask for,
@@ -330,13 +335,31 @@ export interface CollectionPaths {
  * The factory fills both from the collection's schema where the schema says
  * so: a `z.record()` is a dictionary (opaque when its values are not objects),
  * a `z.unknown()` or `z.any()` field is opaque. It follows objects, arrays,
- * optional and nullable wrappers and unions, and stops at a recursive schema.
- * List here what it cannot see.
+ * optional and nullable wrappers, `z.preprocess()` and unions, and stops at a
+ * recursive schema. List here what it cannot see.
  *
- * `names` is for a name the case rule gets wrong. Digits are the usual one:
- * `address_line_1` becomes `addressLine1`, which goes back out as
- * `address_line1`; `names: { addressLine1: 'address_line_1' }` fixes both
- * directions.
+ * `names` is for a name the case rule gets wrong, which it does for digits
+ * and for acronyms, because neither case says where a word ends:
+ *
+ *   digits    `address_line_1` is read as `addressLine1`, which goes back out
+ *             as `address_line1`: a write the backend ignores
+ *   acronyms  a schema field `userID` is sent as `user_id`, which is read
+ *             back as `userId`: the schema's `userID` never arrives, and an
+ *             optional field is then missing without an error. The same for
+ *             `homeURL` and `is2FAEnabled`. Under `wire: 'pascal'`, `URL` and
+ *             `HTTPStatus` are read as `url` and `httpStatus` and go back out
+ *             as `Url` and `HttpStatus`
+ *
+ * One entry, app name to backend name, fixes both directions:
+ *
+ *     names: { addressLine1: 'address_line_1', userID: 'user_id', url: 'URL' }
+ *
+ * The collection layer says which entries are needed. In development it warns,
+ * once per key and with the entry to add, about a schema field that does not
+ * come back from the wire as itself, and about a response key that would not
+ * be written back as it was read. It also warns, in any build, when two keys
+ * of one object are read as the same name (`user_id` and `userId` both
+ * present): the last one wins, and the other value is lost.
  */
 export interface KeyTransform {
   /** The backend's case: what a request body's keys are renamed to. */
@@ -353,10 +376,18 @@ export interface KeyTransform {
  */
 export type CollectionKeys = 'preserve' | 'camel' | KeyTransform
 
-/** Where renaming does not apply: see `KeyTransform`. */
+/**
+ * Where renaming does not apply: see `KeyTransform`. The empty path (`''`) is
+ * the payload itself: a schema that is a `z.record()` from the top.
+ */
 export interface KeyPlan {
   readonly opaque: readonly string[]
   readonly dictionaries: readonly string[]
+  /**
+   * Every field name the schema declares, at any depth. What the factory
+   * checks the case rule against, once: see `unstableKey`.
+   */
+  readonly fields?: readonly string[]
 }
 
 // ─── The dialect ────────────────────────────────────────────────────────────
@@ -394,6 +425,17 @@ export interface CollectionDialect {
    */
   readonly updateMethod?: 'PATCH' | 'PUT'
   readonly paths?: Partial<CollectionPaths>
+  /**
+   * Whether a failed list request is this backend's way of saying that the
+   * page asked for is past the last one, where others answer with an empty
+   * page. DRF's `PageNumberPagination` answers 404.
+   *
+   * It is only asked about a page after the first, and its yes is checked:
+   * the collection reads the first page, and shows the empty page only if
+   * that proves the one asked for does not exist. So answering by the status
+   * alone is safe, and the body, which a backend localizes, need not be read.
+   */
+  readonly isPastLastPage?: (error: AppError) => boolean
 }
 
 /**
@@ -408,12 +450,22 @@ export interface ResolvedCollectionDialect {
   readonly name: string
   readonly query: CollectionQueryConventions
   readonly toListQuery: (filters: Readonly<Record<string, unknown>>) => CollectionQuery
+  /**
+   * What a list with these filters is cached under: the parameters
+   * `toListQuery` would send, built without throwing and without logging. A
+   * cache key is computed where the list is declared, in a component's
+   * `setup` and again whenever the filters change, and a throw there takes
+   * the component down. The request is where a filter that cannot be written
+   * is raised, so the list fails with a message instead.
+   */
+  readonly listKey: (filters: Readonly<Record<string, unknown>>) => Record<string, unknown>
   readonly parseList: (raw: unknown, context: ListContext) => ParsedList | null
   readonly unwrapRecord: (raw: unknown) => unknown
   readonly wrapRecord: (body: unknown, context: RecordWriteContext) => unknown
   /** `null` for `'preserve'`. */
   readonly keys: KeyTransform | null
   readonly updateMethod: 'PATCH' | 'PUT'
+  readonly isPastLastPage?: (error: AppError) => boolean
   /**
    * `detail` takes the id as the app has it and encodes it (`pathSegment`),
    * whatever the dialect: it throws an `AppError` for an id no path can hold.
@@ -494,17 +546,70 @@ export function resolveCollectionDialect(
   const name = typeof given.name === 'string' && given.name !== '' ? given.name : 'custom'
   const keys = resolveKeys(given.keys)
   const query = resolveConventions(given.query)
+  const ownQuery = given.toListQuery
+
+  /** The filters already warned about: a table refetches on every keystroke. */
+  const warned = new Set<string>()
+
+  /** What the conventions' `unserializable` says to do about a filter that was not written. */
+  function raise(refused: readonly RefusedFilter[]): void {
+    if (query.unserializable === 'drop') return
+    for (const { name: filter, why } of refused) {
+      const message =
+        `The "${name}" collection dialect cannot send the filter "${filter}": ${why}. ` +
+        'Give the dialect a serializer for it (`query.serialize` or `query.objects`), ' +
+        'or leave it out of the filters.'
+      if (query.unserializable === 'error') {
+        // No `messageKey`: this is for the developer, and the list's error
+        // state should say exactly this.
+        throw new AppError({
+          message,
+          code: 'UNSERIALIZABLE_FILTER',
+          status: 400,
+          kind: 'unknown',
+          retryable: false,
+        })
+      }
+      if (!warned.has(filter)) {
+        warned.add(filter)
+        dialectLogger.warn(message)
+      }
+    }
+  }
 
   return {
     spec: given,
     name,
     query,
-    toListQuery: given.toListQuery ?? ((filters) => buildListQuery(filters, query, keys, name)),
+    toListQuery:
+      ownQuery ??
+      ((filters) => {
+        const built = buildListQuery(filters, query, keys)
+        raise(built.refused)
+        return built.query
+      }),
+    listKey(filters) {
+      if (ownQuery) {
+        try {
+          return ownQuery(filters)
+        } catch {
+          // The request will throw the same, where a query can show it. The
+          // key only has to tell this list from the others.
+          return { unserializable: true, filters }
+        }
+      }
+      const built = buildListQuery(filters, query, keys)
+      return built.refused.length === 0 || query.unserializable === 'drop'
+        ? built.query
+        : // Its own entry: fixing the filter must not find the failure cached.
+          { ...built.query, '!refused': built.refused.map((filter) => filter.name) }
+    },
     parseList: given.parseList,
     unwrapRecord: given.unwrapRecord ?? identity,
     wrapRecord: given.wrapRecord ?? identity,
     keys,
     updateMethod: given.updateMethod === 'PUT' ? 'PUT' : 'PATCH',
+    ...(typeof given.isPastLastPage === 'function' ? { isPastLastPage: given.isPastLastPage } : {}),
     paths: resolvePaths(given.paths),
   }
 }
@@ -580,26 +685,90 @@ function scalar(value: unknown): string {
 /** Marks a filter the conventions have no way to write. */
 const UNSERIALIZABLE = Symbol('unserializable')
 
+/** A filter the conventions did not write, and why. */
+interface RefusedFilter {
+  name: string
+  why: string
+}
+
+/** The sort the filters ask for, in the app's names. */
+function sortTerms(filters: Readonly<Record<string, unknown>>): Required<CollectionSort>[] {
+  if (isSortList(filters.sort)) {
+    return filters.sort.map((term) => ({
+      field: term.field,
+      direction: term.direction === 'desc' ? 'desc' : 'asc',
+    }))
+  }
+  if (isBlank(filters.sortBy) || typeof filters.sortBy === 'object') return []
+  return [
+    { field: scalar(filters.sortBy), direction: filters.sortOrder === 'desc' ? 'desc' : 'asc' },
+  ]
+}
+
+/**
+ * The list request's parameters, and the filters that could not be written.
+ * Never throws and never logs: what to make of a refusal is the caller's
+ * business (`resolveCollectionDialect`), since the cache key is built from the
+ * same parameters and must not fail the component that asked for it.
+ */
 function buildListQuery(
   filters: Readonly<Record<string, unknown>>,
   conventions: CollectionQueryConventions,
   keys: KeyTransform | null,
-  dialectName: string,
-): CollectionQuery {
+): { query: CollectionQuery; refused: RefusedFilter[] } {
   const query: CollectionQuery = {}
+  const refused: RefusedFilter[] = []
   const twoParamSort = conventions.sort === 'sortBy+sortOrder'
   const wireName = (name: string) => (keys ? toWireKey(name, keys) : name)
-  const filterName = conventions.filterName ?? wireName
-  const sortField = conventions.sortField ?? wireName
+  // The backend's case first: a dialect's own naming is given the name as the
+  // backend spells it, so `filter.account_manager` and not `filter.accountManager`.
+  const named = (rename: ((name: string) => string) | undefined) =>
+    rename ? (name: string) => rename(wireName(name)) : wireName
+  const filterName = named(conventions.filterName)
+  const sortField = named(conventions.sortField)
+
+  /** The sort's own parameters: `null` under the two-parameter syntax, or with no sort. */
+  const sortParams = ((): CollectionQuery | null => {
+    if (twoParamSort) return null
+    const terms = sortTerms(filters).map((term) => ({ ...term, field: sortField(term.field) }))
+    if (terms.length === 0) return null
+    if (typeof conventions.sort === 'function') return conventions.sort(terms)
+    return {
+      [conventions.sortParam]:
+        conventions.sort === 'field,dir'
+          ? terms.map((term) => `${term.field},${term.direction}`)
+          : terms
+              .map((term) => (term.direction === 'desc' ? `-${term.field}` : term.field))
+              .join(','),
+    }
+  })()
+
+  /**
+   * The parameters that are the dialect's own. A domain filter that would be
+   * sent under one of these names is not sent: `size` under Spring would
+   * replace the page size, `ordering` under DRF the sort. The dialect's
+   * parameter wins, and the filter is refused like any other it cannot write.
+   */
+  const reserved = new Map<string, string>([
+    conventions.paging === 'cursor'
+      ? [conventions.cursor, 'cursor']
+      : [conventions.page, conventions.paging === 'offset' ? 'offset' : 'page'],
+    [conventions.pageSize, 'page size'],
+    [conventions.search, 'search'],
+  ])
+  if (twoParamSort) reserved.set(conventions.sortOrderParam, 'sort')
+  if (typeof conventions.sort !== 'function') reserved.set(conventions.sortParam, 'sort')
+  for (const param of Object.keys(sortParams ?? {})) reserved.set(param, 'sort')
 
   function refuse(name: string, why: string): void {
-    if (conventions.unserializable === 'drop') return
-    const message =
-      `The "${dialectName}" collection dialect cannot send the filter "${name}": ${why}. ` +
-      'Give the dialect a serializer for it (`query.serialize` or `query.objects`), ' +
-      'or leave it out of the filters.'
-    if (conventions.unserializable === 'error') throw new Error(message)
-    dialectLogger.warn(message)
+    refused.push({ name, why })
+  }
+
+  /** Write one parameter of a domain filter, unless the name is the dialect's own. */
+  function put(name: string, param: string, value: string | string[]): void {
+    const taken = reserved.get(param)
+    if (taken === undefined) query[param] = value
+    else refuse(name, `it would be sent as "${param}", which is this dialect's ${taken} parameter`)
   }
 
   /** One value as text, or `UNSERIALIZABLE`. `null` for a value to leave out. */
@@ -623,13 +792,15 @@ function buildListQuery(
     if (texts.length === 0) return
 
     if (typeof conventions.arrays === 'function') {
-      Object.assign(query, conventions.arrays(texts, param))
+      for (const [key, value] of Object.entries(conventions.arrays(texts, param))) {
+        put(name, key, value)
+      }
     } else if (conventions.arrays === 'comma') {
-      query[param] = texts.join(',')
+      put(name, param, texts.join(','))
     } else if (conventions.arrays === 'brackets') {
-      query[`${param}[]`] = texts
+      put(name, `${param}[]`, texts)
     } else {
-      query[param] = texts
+      put(name, param, texts)
     }
   }
 
@@ -643,7 +814,7 @@ function buildListQuery(
       const written = text(value)
       if (written === UNSERIALIZABLE)
         refuse(name, `its serializer returned an object for "${param}"`)
-      else if (written !== null) query[param] = written
+      else if (written !== null) put(name, param, written)
     }
   }
 
@@ -671,7 +842,7 @@ function buildListQuery(
 
     const written = text(value)
     if (written === UNSERIALIZABLE) refuse(name, 'it is not a valid date')
-    else if (written !== null) query[param] = written
+    else if (written !== null) put(name, param, written)
   }
 
   function writePage(value: unknown): void {
@@ -691,8 +862,11 @@ function buildListQuery(
       }
       return
     }
+    // A page below the first is the first: Spring would be asked for `page=-1`.
     query[conventions.page] =
-      conventions.pageBase === 0 && Number.isFinite(page) ? String(page - 1) : scalar(value)
+      conventions.pageBase === 0 && Number.isFinite(page)
+        ? String(Math.max(0, page - 1))
+        : scalar(value)
   }
 
   /** The sort, once, at the place the first sort key had in the filters. */
@@ -700,42 +874,18 @@ function buildListQuery(
   function writeSort(): void {
     if (sortWritten.done) return
     sortWritten.done = true
-
-    const terms: Required<CollectionSort>[] = isSortList(filters.sort)
-      ? filters.sort.map((term) => ({
-          field: sortField(term.field),
-          direction: term.direction === 'desc' ? 'desc' : 'asc',
-        }))
-      : isBlank(filters.sortBy) || typeof filters.sortBy === 'object'
-        ? []
-        : [
-            {
-              field: sortField(scalar(filters.sortBy)),
-              direction: filters.sortOrder === 'desc' ? 'desc' : 'asc',
-            },
-          ]
-    if (terms.length === 0) return
-
-    if (typeof conventions.sort === 'function') {
-      Object.assign(query, conventions.sort(terms))
-    } else if (conventions.sort === 'field,dir') {
-      query[conventions.sortParam] = terms.map((term) => `${term.field},${term.direction}`)
-    } else {
-      query[conventions.sortParam] = terms
-        .map((term) => (term.direction === 'desc' ? `-${term.field}` : term.field))
-        .join(',')
-    }
+    Object.assign(query, sortParams)
   }
 
   for (const [name, value] of Object.entries(filters)) {
     if (isBlank(value)) continue
 
-    const reserved =
+    const ownName =
       name === 'page' ||
       name === 'pageSize' ||
       name === 'search' ||
       (name === 'cursor' && conventions.paging === 'cursor')
-    if (reserved && typeof value === 'object') {
+    if (ownName && typeof value === 'object') {
       // `String({})` would send `[object Object]`, which no backend can read.
       refuse(name, 'it must be text or a number')
     } else if (name === 'page') writePage(value)
@@ -756,7 +906,7 @@ function buildListQuery(
     }
   }
 
-  return query
+  return { query, refused }
 }
 
 /**
@@ -816,8 +966,16 @@ function isCount(value: unknown): value is number {
  * The app's page meta from what a backend reports.
  *
  * `totalPages` is worked out from the total when the backend does not send
- * it, and is never less than 1: an empty list has one (empty) page, as the
- * default dialect's does, where a pager showing "page 1 of 0" looks broken.
+ * it, and is never less than 1, whether worked out or reported: an empty list
+ * has one (empty) page. Spring reports 0 for it, Laravel 1, DRF nothing, and
+ * a pager showing "page 1 of 0" for one backend and "1 of 1" for another is a
+ * difference no page should have to handle. Every shipped dialect but the
+ * default goes through here, and so does a source that answers `{ items,
+ * total }`. The default dialect does not: `vuestrataDialect` passes `meta` on
+ * exactly as the backend sent it, a `totalPages` of 0 included, because that
+ * is what it has always done. A dialect of your own that should agree with
+ * the others calls this.
+ *
  * A value that is not a number is passed on as it is, to fail validation
  * under its own name instead of being papered over here.
  */
@@ -1077,6 +1235,8 @@ export const drfDialect: CollectionDialect = {
   },
   parseList: parseDrfPage,
   paths: DRF_PATHS,
+  // `{"detail": "Invalid page."}`, in whatever language the request asked for.
+  isPastLastPage: (error) => error.status === 404,
 }
 
 /**
@@ -1322,8 +1482,9 @@ const MAX_KEY_DEPTH = 64
 type CompiledPlan = { opaque: string[][]; dictionaries: string[][] }
 
 function compilePlan(keys: KeyTransform, plan: KeyPlan | undefined): CompiledPlan {
+  // The empty path is the payload itself: no segments, not one empty segment.
   const split = (paths: readonly string[] | undefined) =>
-    (paths ?? []).filter((path) => path !== '').map((path) => path.split('.'))
+    (paths ?? []).map((path) => (path === '' ? [] : path.split('.')))
   return {
     opaque: [...split(keys.opaque), ...split(plan?.opaque)],
     dictionaries: [...split(keys.dictionaries), ...split(plan?.dictionaries)],
@@ -1338,45 +1499,146 @@ function matchesPath(patterns: string[][], path: string[]): boolean {
   )
 }
 
-function renameDeep(
-  value: unknown,
-  rename: (key: string) => string,
+/**
+ * What a renaming reports, to whoever wants to know. Names only: a payload's
+ * values are never passed to either function.
+ */
+export interface KeyRenameReport {
+  /** Every key that was looked at: as it was given, and as it was renamed. */
+  renamed?: (given: string, renamed: string) => void
+  /**
+   * Two keys of one object were renamed to the same name, so one value
+   * replaced the other: `{ user_id, userId }` read into camelCase. `given`
+   * lists the keys that collided, in the order they were met; the last wins.
+   */
+  collision?: (renamed: string, given: readonly string[]) => void
+}
+
+interface RenameRun {
+  rename: (key: string) => string
   /** Paths are in the app's case: the key before renaming on the way out, after it on the way in. */
-  appKeyIs: 'given' | 'renamed',
-  plan: CompiledPlan,
-  path: string[],
-): unknown {
+  appKeyIs: 'given' | 'renamed'
+  plan: CompiledPlan
+  report: KeyRenameReport | undefined
+  /**
+   * The objects being renamed right now, from the root down to here. Meeting
+   * one again is a cycle. The depth cap alone does not end it: an object that
+   * refers to itself twice is walked two to the power of that depth times.
+   */
+  ancestors: Set<object>
+}
+
+function renameDeep(value: unknown, run: RenameRun, path: string[]): unknown {
   if (path.length > MAX_KEY_DEPTH) return value
-  if (path.length > 0 && matchesPath(plan.opaque, path)) return value
+  if (matchesPath(run.plan.opaque, path)) return value
+  if (typeof value !== 'object' || value === null) return value
+  // A cycle is handed back as it is: serializing it then fails as it always
+  // would have, with JSON's own error, instead of never returning.
+  if (run.ancestors.has(value)) return value
 
   if (Array.isArray(value)) {
+    run.ancestors.add(value)
     path.push('*')
-    const renamed: unknown[] = value.map((item) => renameDeep(item, rename, appKeyIs, plan, path))
+    const renamed: unknown[] = value.map((item) => renameDeep(item, run, path))
     path.pop()
+    run.ancestors.delete(value)
     return renamed
   }
   if (!isPlainObject(value)) return value
 
-  const keepKeys = path.length > 0 && matchesPath(plan.dictionaries, path)
+  run.ancestors.add(value)
+  const keepKeys = matchesPath(run.plan.dictionaries, path)
   const entries: [string, unknown][] = []
+  // Only looked for when someone is listening: what was renamed to each name.
+  const sources = run.report?.collision && !keepKeys ? new Map<string, string[]>() : undefined
   for (const [key, child] of Object.entries(value)) {
-    const renamedKey = keepKeys ? key : rename(key)
-    path.push(appKeyIs === 'given' ? key : renamedKey)
-    entries.push([renamedKey, renameDeep(child, rename, appKeyIs, plan, path)])
+    const renamedKey = keepKeys ? key : run.rename(key)
+    if (!keepKeys) run.report?.renamed?.(key, renamedKey)
+    if (sources) {
+      const before = sources.get(renamedKey)
+      if (before) before.push(key)
+      else sources.set(renamedKey, [key])
+    }
+    path.push(run.appKeyIs === 'given' ? key : renamedKey)
+    entries.push([renamedKey, renameDeep(child, run, path)])
     path.pop()
+  }
+  run.ancestors.delete(value)
+  if (sources) {
+    for (const [renamedKey, given] of sources) {
+      if (given.length > 1) run.report?.collision?.(renamedKey, given)
+    }
   }
   // `fromEntries` defines own properties: a key named `__proto__` stays a key.
   return Object.fromEntries(entries)
 }
 
 /** A response's rows or record, with the backend's keys renamed to camelCase. */
-export function keysToApp(value: unknown, keys: KeyTransform, plan?: KeyPlan): unknown {
-  return renameDeep(value, (key) => toAppKey(key, keys), 'renamed', compilePlan(keys, plan), [])
+export function keysToApp(
+  value: unknown,
+  keys: KeyTransform,
+  plan?: KeyPlan,
+  report?: KeyRenameReport,
+): unknown {
+  return renameDeep(
+    value,
+    {
+      rename: (key) => toAppKey(key, keys),
+      appKeyIs: 'renamed',
+      plan: compilePlan(keys, plan),
+      report,
+      ancestors: new Set(),
+    },
+    [],
+  )
 }
 
 /** A request body, with the app's keys renamed to the backend's case. */
-export function keysToWire(value: unknown, keys: KeyTransform, plan?: KeyPlan): unknown {
-  return renameDeep(value, (key) => toWireKey(key, keys), 'given', compilePlan(keys, plan), [])
+export function keysToWire(
+  value: unknown,
+  keys: KeyTransform,
+  plan?: KeyPlan,
+  report?: KeyRenameReport,
+): unknown {
+  return renameDeep(
+    value,
+    {
+      rename: (key) => toWireKey(key, keys),
+      appKeyIs: 'given',
+      plan: compilePlan(keys, plan),
+      report,
+      ancestors: new Set(),
+    },
+    [],
+  )
+}
+
+/**
+ * A key the case rule does not bring back to where it started, or `null` for
+ * one it does. Two ways round, because each catches what the other cannot:
+ *
+ *   from the app   `userID` is sent as `user_id`, which is read back as
+ *                  `userId`: the schema's `userID` never arrives
+ *   from the wire  `address_line_1` is read as `addressLine1`, which is sent
+ *                  back as `address_line1`: a write the backend ignores
+ *
+ * `app` and `wire` are the `names` entry that fixes both directions:
+ * `{ app: 'userID', wire: 'user_id' }` is `names: { userID: 'user_id' }`.
+ * `back` is what the key came back as instead of itself.
+ */
+export function unstableKey(
+  key: string,
+  from: 'app' | 'wire',
+  keys: KeyTransform,
+): { app: string; wire: string; back: string } | null {
+  if (from === 'app') {
+    const wire = toWireKey(key, keys)
+    const back = toAppKey(wire, keys)
+    return back === key ? null : { app: key, wire, back }
+  }
+  const app = toAppKey(key, keys)
+  const back = toWireKey(app, keys)
+  return back === key ? null : { app, wire: key, back }
 }
 
 /** The part of a zod schema this file reads: its definition, structurally. */
@@ -1402,7 +1664,12 @@ function unwrapSchema(schema: unknown, budget = 8): unknown {
   if (WRAPPER_TYPES.includes(String(definition.type))) {
     return unwrapSchema(definition.innerType, budget - 1)
   }
-  if (definition.type === 'pipe') return unwrapSchema(definition.in, budget - 1)
+  if (definition.type === 'pipe') {
+    // `schema.transform(fn)` is a pipe out of the schema; `z.preprocess(fn,
+    // schema)` is a pipe into it. Either way the schema is the other end.
+    const preprocessed = definitionOf(definition.in)?.type === 'transform'
+    return unwrapSchema(preprocessed ? definition.out : definition.in, budget - 1)
+  }
   if (definition.type === 'lazy' && typeof definition.getter === 'function') {
     try {
       return unwrapSchema((definition.getter as () => unknown)(), budget - 1)
@@ -1424,6 +1691,7 @@ function unwrapSchema(schema: unknown, budget = 8): unknown {
 export function schemaKeyPlan(schema: unknown): KeyPlan {
   const opaque: string[] = []
   const dictionaries: string[] = []
+  const fields = new Set<string>()
   // The schemas being walked right now: meeting one again is a recursive
   // schema, and following it would never end.
   const walking = new Set<unknown>()
@@ -1441,7 +1709,10 @@ export function schemaKeyPlan(schema: unknown): KeyPlan {
     switch (definition.type) {
       case 'object':
         if (isRecord(definition.shape)) {
-          for (const [key, child] of Object.entries(definition.shape)) walk(child, [...path, key])
+          for (const [key, child] of Object.entries(definition.shape)) {
+            fields.add(key)
+            walk(child, [...path, key])
+          }
         }
         break
       case 'array':
@@ -1463,7 +1734,8 @@ export function schemaKeyPlan(schema: unknown): KeyPlan {
         break
       case 'record':
       case 'map': {
-        if (path.length === 0) break
+        // At the root too: a schema that is itself a record is a dictionary
+        // from its first key, under the empty path.
         const valueType = definitionOf(unwrapSchema(definition.valueType))?.type
         if (valueType === 'object' || valueType === 'array' || valueType === 'record') {
           dictionaries.push(path.join('.'))
@@ -1484,5 +1756,5 @@ export function schemaKeyPlan(schema: unknown): KeyPlan {
   }
 
   walk(schema, [])
-  return { opaque, dictionaries }
+  return { opaque, dictionaries, fields: [...fields] }
 }

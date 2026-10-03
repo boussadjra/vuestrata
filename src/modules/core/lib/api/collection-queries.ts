@@ -30,7 +30,7 @@ import type { FetchResponse } from 'ofetch'
 import type { MaybeRef, MaybeRefOrGetter, Ref } from 'vue'
 import { z, type ZodType } from 'zod'
 
-import { AppError, ERROR_MESSAGE_KEYS, normalizeError } from '~/lib/errors'
+import { AppError, ERROR_MESSAGE_KEYS, listErrorMessageKeys, normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 
 import { apiFetch, apiGet } from './client'
@@ -43,9 +43,11 @@ import {
   pathSegment,
   resolveCollectionDialect,
   schemaKeyPlan,
+  unstableKey,
   vuestrataDialect,
   type CollectionDialect,
   type KeyPlan,
+  type KeyRenameReport,
   type ListContext,
   type ResolvedCollectionDialect,
 } from './dialects'
@@ -513,30 +515,95 @@ function notAListIssue(dialectName: string): z.core.$ZodIssue {
 /**
  * What a source threw, as the error the rest of the app handles.
  *
- * `normalizeError` knows `Error`s, aborts and HTTP failures. An SDK is as
- * likely to throw (or return for throwing) a plain object: Supabase's
- * `{ message, code, details, hint }`. Its message and code are kept.
+ * `normalizeError` knows aborts and HTTP failures, and reads any other
+ * `Error` as a bug: `RUNTIME_ERROR`, status 500. An SDK's error is neither.
+ * It is an `Error` subclass or a plain object (Supabase's `{ message, code,
+ * details, hint }`) that says what happened in a `code`, and sometimes a
+ * `status`. Both are kept, so a missing record or a refused permission from
+ * an SDK is told apart the way a REST one is: by `status` (`isNotFoundError`)
+ * and by `code`. Where the SDK gives a code and no status, the status is the
+ * code's (see `SOURCE_CODE_STATUSES`).
  */
 function sourceError(thrown: unknown): AppError {
   const normalized = normalizeError(thrown)
-  // An `Error`, or anything `normalizeError` recognised (an abort is one
-  // whatever it inherits from), is already what it should be.
-  if (
-    thrown instanceof Error ||
-    normalized.code !== 'UNKNOWN_ERROR' ||
-    !isRecord(thrown) ||
-    typeof thrown.message !== 'string'
-  ) {
-    return normalized
+  // An `AppError`, or anything `normalizeError` recognised (an HTTP failure,
+  // an abort whatever it inherits from), is already what it should be. What
+  // is left is an SDK's own error: an `Error` subclass (Firebase's, Supabase's
+  // `PostgrestError`) or a plain object, either way with a `code` and maybe a
+  // status of its own, which `normalizeError` does not read.
+  const unrecognised = normalized.code === 'RUNTIME_ERROR' || normalized.code === 'UNKNOWN_ERROR'
+  if (thrown instanceof AppError || !unrecognised) return normalized
+  if (typeof thrown !== 'object' || thrown === null) return normalized
+  const sdk = thrown as {
+    message?: unknown
+    code?: unknown
+    status?: unknown
+    statusCode?: unknown
   }
-  const status = Number(thrown.status ?? thrown.statusCode)
+  if (typeof sdk.message !== 'string') return normalized
+
+  const code = typeof sdk.code === 'string' && sdk.code !== '' ? sdk.code : undefined
+  // Some SDKs put the HTTP status in a numeric `code`.
+  const numericCode = typeof sdk.code === 'number' ? sdk.code : undefined
+  const status = sourceStatus(sdk.status ?? sdk.statusCode ?? numericCode, code)
+  const statusKey = `errors.status_${status}`
   return new AppError({
-    message: thrown.message,
-    code: typeof thrown.code === 'string' && thrown.code !== '' ? thrown.code : 'SOURCE_ERROR',
-    status: Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500,
+    message: sourceMessage(sdk.message),
+    code: code ?? (thrown instanceof Error ? normalized.code : 'SOURCE_ERROR'),
+    status,
     kind: 'unknown',
-    messageKey: ERROR_MESSAGE_KEYS.unknown,
+    messageKey:
+      status !== 500 && listErrorMessageKeys().includes(statusKey)
+        ? statusKey
+        : ERROR_MESSAGE_KEYS.unknown,
   })
+}
+
+/**
+ * The HTTP statuses of the canonical error codes Google's APIs share, which
+ * is what Firebase throws (`permission-denied`, `storage/object-not-found`):
+ * the SDK gives no status, and the app tells a missing record or an expired
+ * session by one (`isNotFoundError`).
+ */
+const SOURCE_CODE_STATUSES: Readonly<Record<string, number>> = {
+  'invalid-argument': 400,
+  'failed-precondition': 400,
+  'out-of-range': 400,
+  unauthenticated: 401,
+  'permission-denied': 403,
+  unauthorized: 403,
+  'not-found': 404,
+  'object-not-found': 404,
+  'already-exists': 409,
+  aborted: 409,
+  'resource-exhausted': 429,
+  unimplemented: 501,
+  unavailable: 503,
+  'deadline-exceeded': 504,
+}
+
+/** The status an SDK's error stands for: its own if it has one, else its code's, else 500. */
+function sourceStatus(reported: unknown, code: string | undefined): number {
+  const status = Number(reported)
+  if (Number.isInteger(status) && status >= 400 && status <= 599) return status
+  // `storage/object-not-found` is `object-not-found` in the `storage` service.
+  const name = code?.slice(code.lastIndexOf('/') + 1).toLowerCase()
+  return (
+    (name !== undefined && Object.hasOwn(SOURCE_CODE_STATUSES, name)
+      ? SOURCE_CODE_STATUSES[name]
+      : undefined) ?? 500
+  )
+}
+
+/**
+ * An SDK's message as the app may show it: its first line, without the URL an
+ * SDK likes to quote (the project's endpoint, with a query string that can
+ * carry a key), and never its stack.
+ */
+function sourceMessage(message: string): string {
+  const line = message.split('\n', 1)[0] ?? ''
+  const text = line.replace(/\b[a-z][a-z\d+.-]*:\/\/\S+/gi, '[url]').trim()
+  return text === '' ? 'An unexpected error occurred' : text.slice(0, 300)
 }
 
 /** A cleared filter: what `toQueryParams` has always dropped. */
@@ -634,18 +701,105 @@ interface Scope {
   ready?: () => boolean
 }
 
-/** The key transform of a dialect, applied with what a schema says to leave alone. */
-function keyCase(dialect: ResolvedCollectionDialect, plan: () => KeyPlan) {
-  return {
-    toApp: (value: unknown) => (dialect.keys ? keysToApp(value, dialect.keys, plan()) : value),
-    toWire: (value: unknown) => (dialect.keys ? keysToWire(value, dialect.keys, plan()) : value),
-  }
+/** Renames a payload's keys the way a dialect says, for one schema. */
+type KeyCase = (dialect: ResolvedCollectionDialect) => {
+  toApp: (value: unknown) => unknown
+  toWire: (value: unknown) => unknown
 }
 
-/** Computes a schema's key plan once, when a dialect first needs it. */
-function lazyKeyPlan(schema: unknown): () => KeyPlan {
+const SAME_KEYS = { toApp: (value: unknown) => value, toWire: (value: unknown) => value }
+
+/** `names: { userID: 'user_id' }`, as it would be typed. */
+function namesEntry(entry: { app: string; wire: string }): string {
+  return `names: { ${JSON.stringify(entry.app)}: ${JSON.stringify(entry.wire)} }`
+}
+
+/**
+ * The key transform of a dialect, applied with what a schema says to leave
+ * alone. A dialect that keeps keys as they are costs nothing here: the schema
+ * is not even read.
+ *
+ * Renaming by case is lossy for some names (see `KeyTransform`), and silently
+ * so: the field is simply absent. So this also says, once per key and never
+ * with a value:
+ *
+ *   - in development, which of the schema's fields do not come back from the
+ *     wire under their own name, and which keys of a response would not be
+ *     written back as they were read, each with the `names` entry that fixes it
+ *   - in any build, that two keys of one object were read as the same name
+ */
+function keyCaseFor(schema: unknown, resource: string): KeyCase {
   const cache: { plan?: KeyPlan } = {}
-  return () => (cache.plan ??= schemaKeyPlan(schema))
+  /** One pair of functions per transform, and the keys already reported. */
+  const cases = new WeakMap<object, ReturnType<KeyCase>>()
+  const reported = new Set<string>()
+
+  function warnOnce(key: string, message: string): void {
+    if (reported.has(key)) return
+    reported.add(key)
+    collectionLogger.warn(message)
+  }
+
+  return (dialect) => {
+    const keys = dialect.keys
+    if (!keys) return SAME_KEYS
+    const made = cases.get(keys)
+    if (made) return made
+
+    const plan = (cache.plan ??= schemaKeyPlan(schema))
+    const fields = new Set(plan.fields)
+    /** Response keys already found to come back as themselves. */
+    const stable = new Set<string>()
+
+    if (import.meta.env.DEV) {
+      for (const field of fields) {
+        const unstable = unstableKey(field, 'app', keys)
+        if (!unstable) continue
+        warnOnce(
+          `app:${field}`,
+          `The field "${field}" of "${resource}" does not survive the "${dialect.name}" dialect's ` +
+            `key renaming: it is sent as "${unstable.wire}", which is read back as ` +
+            `"${unstable.back}", so the field arrives missing. ` +
+            `Add ${namesEntry(unstable)} to the dialect's keys.`,
+        )
+      }
+    }
+
+    const report: KeyRenameReport = {
+      collision: (renamed, given) =>
+        warnOnce(
+          `collision:${renamed}`,
+          `A response for "${resource}" has ${given.length} keys that are all read as ` +
+            `"${renamed}" (${given.map((key) => `"${key}"`).join(', ')}): the last one wins and ` +
+            'the others are lost. Give the ones to keep their own name with `names` in the ' +
+            "dialect's keys.",
+        ),
+      ...(import.meta.env.DEV
+        ? {
+            renamed: (given: string, renamed: string) => {
+              // Only for what the schema keeps: a key it drops is never written back.
+              if (!fields.has(renamed) || stable.has(given)) return
+              const unstable = unstableKey(given, 'wire', keys)
+              if (!unstable) return void stable.add(given)
+              warnOnce(
+                `wire:${given}`,
+                `The key "${given}" in a response for "${resource}" is read as "${renamed}", ` +
+                  `which the "${dialect.name}" dialect writes back as ` +
+                  `"${unstable.back}": a write the backend will not recognise. ` +
+                  `Add ${namesEntry(unstable)} to the dialect's keys.`,
+              )
+            },
+          }
+        : {}),
+    }
+
+    const renaming: ReturnType<KeyCase> = {
+      toApp: (value) => keysToApp(value, keys, plan, report),
+      toWire: (value) => keysToWire(value, keys, plan),
+    }
+    cases.set(keys, renaming)
+    return renaming
+  }
 }
 
 interface ActionRuntime {
@@ -674,8 +828,8 @@ function defineAction<TInput, TOutput, TPath extends string | ((id: string) => s
   config: CollectionActionConfig<TInput, TOutput, TPath>,
   runtime: ActionRuntime,
 ): CollectionAction<TInput, TOutput, TPath> {
-  const inputPlan = lazyKeyPlan(config.input)
-  const outputPlan = lazyKeyPlan(config.output)
+  const inputCase = keyCaseFor(config.input, runtime.resource)
+  const outputCase = keyCaseFor(config.output, runtime.resource)
   const invalidates = config.invalidates ?? runtime.defaultInvalidates
 
   return function useAction() {
@@ -689,7 +843,7 @@ function defineAction<TInput, TOutput, TPath extends string | ((id: string) => s
         if (config.input) {
           const checked = config.input.safeParse(given?.input)
           if (!checked.success) throw invalidInput(runtime.resource, checked.error.issues)
-          body.value = keyCase(dialect, inputPlan).toWire(checked.data)
+          body.value = inputCase(dialect).toWire(checked.data)
         }
 
         const target = actionTarget(config.path, given?.id)
@@ -702,7 +856,7 @@ function defineAction<TInput, TOutput, TPath extends string | ((id: string) => s
         return parseAs(
           runtime.resource,
           config.output,
-          keyCase(dialect, outputPlan).toApp(dialect.unwrapRecord(response._data)),
+          outputCase(dialect).toApp(dialect.unwrapRecord(response._data)),
         )
       },
       // Settled, not succeeded: see `useInvalidate` in `createCollectionApi`.
@@ -784,7 +938,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
   const resource = typeof named === 'string' ? named : 'collection'
   const listSchema = z.object({ data: z.array(schema), meta: pageMetaSchema })
   const cursorListSchema = z.object({ data: z.array(schema), meta: cursorMetaSchema })
-  const keyPlan = lazyKeyPlan(schema)
+  const keyCase = keyCaseFor(schema, resource)
 
   /** Validate a response body, or fail as a contract mismatch. */
   function parse<S>(target: ZodType<S>, body: unknown): S {
@@ -812,7 +966,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
 
     /** A record, out of a detail's or a write's body. */
     function record(raw: unknown, spoken: ResolvedCollectionDialect) {
-      return keyCase(spoken, keyPlan).toApp(spoken.unwrapRecord(raw))
+      return keyCase(spoken).toApp(spoken.unwrapRecord(raw))
     }
 
     /** The rows and the totals out of a list's body, validated as `envelope`. */
@@ -833,7 +987,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
           outcome.success ? [notAListIssue(spoken.name)] : outcome.error.issues,
         )
       }
-      const { toApp } = keyCase(spoken, keyPlan)
+      const { toApp } = keyCase(spoken)
       // Row by row: the schema's paths are those of one record.
       const data = Array.isArray(found.items) ? found.items.map(toApp) : found.items
       return parse(envelope, { data, meta: found.meta })
@@ -850,6 +1004,34 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
         ...READS_JSON,
       })
       return readPage(response._data, listContext(filters, response.headers), spoken, envelope)
+    }
+
+    /**
+     * A page of the list, by its number.
+     *
+     * Some backends refuse a page past the last one instead of answering with
+     * an empty page: DRF says 404. It happens without anyone doing anything
+     * wrong, when the last row of the last page is deleted, and the table
+     * would show an error where it shows an empty page on any other backend.
+     * A dialect that knows the refusal (`isPastLastPage`) gets the empty page
+     * here, but only on proof: the first page is read, and unless it shows
+     * that the page asked for is indeed past the end, the refusal stands. A
+     * 404 because the URL is wrong is still a 404.
+     */
+    async function numberedPage(filters: object, signal: AbortSignal): Promise<ListPage<T>> {
+      try {
+        return await requestPage(filters, listSchema, signal)
+      } catch (refusal) {
+        const asked = listContext(filters).page
+        if (asked <= 1 || !(refusal instanceof AppError) || !dialect().isPastLastPage?.(refusal)) {
+          throw refusal
+        }
+        const first = await requestPage({ ...filters, page: 1 }, listSchema, signal).catch(() => {
+          throw refusal
+        })
+        if (asked <= first.meta.totalPages) throw refusal
+        return { data: [], meta: { ...first.meta, page: asked } }
+      }
     }
 
     /**
@@ -893,7 +1075,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
     /** A write's body: keys in the backend's case, then whatever the dialect wraps it in. */
     function writeBody(payload: unknown, operation: 'create' | 'update', id?: string) {
       const spoken = dialect()
-      return spoken.wrapRecord(keyCase(spoken, keyPlan).toWire(payload), {
+      return spoken.wrapRecord(keyCase(spoken).toWire(payload), {
         operation,
         resource,
         ...(id === undefined ? {} : { id }),
@@ -901,7 +1083,9 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
     }
 
     return {
-      listKey: (filters) => dialect().toListQuery(filters as Record<string, unknown>),
+      // Not `toListQuery`: a key is computed in `setup`, where a filter the
+      // dialect cannot write must not throw. The request raises it instead.
+      listKey: (filters) => dialect().listKey(filters as Record<string, unknown>),
 
       list: async (filters, signal) => {
         if (dialect().query.paging === 'cursor') {
@@ -910,7 +1094,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
               `to show: read "${resource}" with useInfiniteList instead of useList.`,
           )
         }
-        return requestPage(filters, listSchema, signal)
+        return numberedPage(filters, signal)
       },
 
       page: async (filters, param, signal) => {
@@ -921,7 +1105,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
               cursorListSchema,
               signal,
             )
-          : requestPage({ ...filters, cursor: undefined, page: param ?? 1 }, listSchema, signal)
+          : numberedPage({ ...filters, cursor: undefined, page: param ?? 1 }, signal)
       },
 
       get: async (id, signal) => {

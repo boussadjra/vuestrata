@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { z } from 'zod'
 
 import { toQueryParams } from '@/lib/api/collection-queries'
@@ -19,8 +19,18 @@ import {
   snakeCase,
   toCollectionParams,
   unwrapData,
+  unstableKey,
   type CollectionDialect,
 } from '@/lib/api/dialects'
+import { AppError } from '@/lib/errors'
+
+import { captureLogged } from '../../utils/logged'
+
+/** What the collection layer warned about during the test. */
+const logged = { warnings: (): string[] => [], restore: (): void => {} }
+
+beforeEach(() => Object.assign(logged, captureLogged()))
+afterEach(() => logged.restore())
 
 /**
  * Each shipped dialect against the payloads its framework documents: what the
@@ -258,6 +268,21 @@ describe('the drf dialect', () => {
   it('has no convention for an object filter, and says so', () => {
     expect(() => toCollectionParams({ created: { from: 'a' } }, dialects.drf)).toThrow(
       /"drf" collection dialect cannot send the filter "created"/,
+    )
+  })
+
+  it('puts the trailing slash on an action that continues the collection’s path', () => {
+    const { paths } = resolveCollectionDialect(dialects.drf)
+
+    expect(paths.action('/orders/7/cancel')).toBe('/orders/7/cancel/')
+    expect(paths.action('/orders/7/cancel/')).toBe('/orders/7/cancel/')
+    expect(paths.action('/orders/7/export?format=csv')).toBe('/orders/7/export/?format=csv')
+    expect(paths.action('/orders/7/export/?format=csv#top')).toBe(
+      '/orders/7/export/?format=csv#top',
+    )
+    // Every other dialect sends the path as the action wrote it.
+    expect(resolveCollectionDialect(dialects.laravel).paths.action('/orders/7/cancel')).toBe(
+      '/orders/7/cancel',
     )
   })
 
@@ -574,6 +599,21 @@ describe('filters the conventions cannot write', () => {
     expect(() => toCollectionParams({ page: { n: 1 } }, strict)).toThrow(/must be text or a number/)
   })
 
+  it('throws an AppError that says it is the filter, and is not worth retrying', () => {
+    const error = (() => {
+      try {
+        return toCollectionParams({ range: { from: 1 } }, strict)
+      } catch (thrown) {
+        return thrown
+      }
+    })()
+
+    expect(error).toBeInstanceOf(AppError)
+    expect(error).toMatchObject({ code: 'UNSERIALIZABLE_FILTER', retryable: false })
+    // For the developer: the message is shown as it is, not a translation.
+    expect((error as AppError).messageKey).toBeUndefined()
+  })
+
   it('warns and sends the rest when told to', () => {
     const warned = extendDialect(strict, { query: { unserializable: 'warn' } })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -581,6 +621,227 @@ describe('filters the conventions cannot write', () => {
     expect(toCollectionParams({ page: 1, range: { from: 1 } }, warned)).toEqual({ page: '1' })
 
     warn.mockRestore()
+  })
+
+  it('warns once per filter, however often the list is asked for', () => {
+    const resolved = resolveCollectionDialect(
+      extendDialect(strict, { query: { unserializable: 'warn' } }),
+    )
+
+    resolved.toListQuery({ range: { from: 1 } })
+    resolved.toListQuery({ range: { from: 2 } })
+    resolved.toListQuery({ range: { from: 3 }, tags: [{ id: 1 }] })
+    resolved.toListQuery({ tags: [{ id: 2 }] })
+
+    expect(logged.warnings().filter((line) => line.includes('the filter "range"'))).toHaveLength(1)
+    expect(logged.warnings().filter((line) => line.includes('the filter "tags"'))).toHaveLength(1)
+    expect(logged.warnings()).toHaveLength(2)
+  })
+
+  it('builds the cache key without throwing or logging, and apart from the valid one', () => {
+    const resolved = resolveCollectionDialect(strict)
+
+    expect(resolved.listKey({ page: 1, status: 'open' })).toEqual({ page: '1', status: 'open' })
+    // The same parameters the request would have sent, plus what was refused:
+    // a list that failed on a filter is not the entry the fixed one finds.
+    expect(resolved.listKey({ page: 1, range: { from: 1 } })).toEqual({
+      page: '1',
+      '!refused': ['range'],
+    })
+    expect(logged.warnings()).toEqual([])
+  })
+
+  it('keys a list under a dialect that drops or warns by what is sent', () => {
+    const quiet = resolveCollectionDialect(dialects.vuestrata)
+    const warned = resolveCollectionDialect(
+      extendDialect(strict, { query: { unserializable: 'warn' } }),
+    )
+
+    expect(quiet.listKey({ page: 1, range: { from: 1 }, tags: ['a'] })).toEqual({ page: '1' })
+    expect(warned.listKey({ page: 1, range: { from: 1 } })).toEqual({
+      page: '1',
+      '!refused': ['range'],
+    })
+    expect(logged.warnings()).toEqual([])
+  })
+
+  it('keys a list whose own toListQuery throws without throwing', () => {
+    const own = resolveCollectionDialect({
+      name: 'own',
+      toListQuery: (filters) => {
+        if ('bad' in filters) throw new Error('cannot write "bad"')
+        return { q: JSON.stringify(filters) }
+      },
+      parseList: () => null,
+    })
+
+    expect(own.listKey({ page: 2 })).toEqual({ q: '{"page":2}' })
+    expect(own.listKey({ bad: 1 })).toEqual({ unserializable: true, filters: { bad: 1 } })
+    expect(() => own.toListQuery({ bad: 1 })).toThrow('cannot write "bad"')
+  })
+
+  it.each([
+    [
+      'the page size under Spring',
+      dialects.spring,
+      { page: 2, pageSize: 10, size: 'L' },
+      { page: '1', size: '10' },
+      ['size'],
+    ],
+    [
+      'the page size under Laravel',
+      dialects.laravel,
+      { pageSize: 10, per_page: 9 },
+      { per_page: '10' },
+      ['per_page'],
+    ],
+    [
+      'the page under Laravel, when it comes first',
+      dialects.laravel,
+      { page: 'x', pageSize: 10 },
+      { page: 'x', per_page: '10' },
+      [],
+    ],
+    [
+      'the offset and the limit under DRF',
+      dialects.drfLimitOffset,
+      { page: 2, pageSize: 10, offset: 7, limit: 3 },
+      { offset: '10', limit: '10' },
+      ['offset', 'limit'],
+    ],
+    [
+      'the sort under Spring',
+      dialects.spring,
+      { sortBy: 'name', sort: 'price' },
+      { sort: ['name,asc'] },
+      ['sort'],
+    ],
+    [
+      'the sort under Laravel, with no sort asked for',
+      dialects.laravel,
+      { sort: 'price' },
+      {},
+      ['sort'],
+    ],
+    [
+      'the ordering under DRF',
+      dialects.drf,
+      { ordering: '-price', sortBy: 'name' },
+      { ordering: 'name' },
+      ['ordering'],
+    ],
+    ['the search', dialects.drf, { search: 'ada', q: 'x' }, { search: 'ada', q: 'x' }, []],
+    [
+      'the cursor of a cursor dialect',
+      extendDialect(dialects.drfCursor, { query: { cursor: 'after' } }),
+      { after: 'abc', pageSize: 5 },
+      { page_size: '5' },
+      ['after'],
+    ],
+    [
+      'the sort a function writes',
+      dialects.nestPaginate,
+      { sortBy: 'name', status: 'open' },
+      { sortBy: ['name:ASC'], 'filter.status': 'open' },
+      [],
+    ],
+    [
+      'a list filter in brackets',
+      extendDialect(dialects.laravel, { query: { pageSize: 'size[]' } }),
+      { pageSize: 10, size: ['S', 'M'] },
+      { 'size[]': '10' },
+      ['size'],
+    ],
+    [
+      'what a serializer returns',
+      extendDialect(dialects.spring, {
+        query: { serialize: { made: () => ({ page: 9, made_from: 'a' }) } },
+      }),
+      { page: 1, made: { from: 'a' } },
+      { page: '0', made_from: 'a' },
+      ['made'],
+    ],
+  ] as const)(
+    'does not let a filter replace %s: the dialect’s own parameter wins',
+    (_, dialect, filters, sent, refusedNames) => {
+      const resolved = resolveCollectionDialect(
+        extendDialect(dialect, { query: { unserializable: 'warn' } }),
+      )
+
+      expect(resolved.toListQuery(filters)).toEqual(sent)
+
+      expect(logged.warnings()).toHaveLength(refusedNames.length)
+      for (const [index, name] of refusedNames.entries()) {
+        expect(logged.warnings()[index]).toContain(
+          `cannot send the filter "${name}": it would be sent as`,
+        )
+      }
+
+      // In development it fails the list instead of sending something else.
+      if (refusedNames.length > 0) {
+        expect(() => toCollectionParams(filters, dialect)).toThrow(
+          /this dialect's \w[\w ]* parameter/,
+        )
+      }
+    },
+  )
+
+  it('leaves the default dialect exactly as it was: nothing there can collide', () => {
+    const filters = {
+      page: 2,
+      pageSize: 10,
+      size: 'L',
+      per_page: 9,
+      limit: 3,
+      sort: 'x',
+      cursor: 'c',
+    }
+
+    expect(toCollectionParams(filters, dialects.vuestrata)).toEqual(toQueryParams(filters))
+  })
+
+  it('counts a page below the first as the first, under a zero-based dialect', () => {
+    expect(toCollectionParams({ page: 0, pageSize: 10 }, dialects.spring)).toEqual({
+      page: '0',
+      size: '10',
+    })
+    expect(toCollectionParams({ page: -3 }, dialects.spring)).toEqual({ page: '0' })
+    expect(toCollectionParams({ page: 1 }, dialects.spring)).toEqual({ page: '0' })
+  })
+
+  it('gives a dialect’s own filter and sort names the name in the backend’s case', () => {
+    const snakeNest = extendDialect(dialects.nestPaginate, { keys: 'camel' })
+
+    expect(
+      toCollectionParams(
+        {
+          sortBy: 'createdAt',
+          sortOrder: 'asc',
+          accountManager: 'U-1',
+          userID: ['a', 'b'],
+        },
+        snakeNest,
+      ),
+    ).toEqual({
+      sortBy: ['created_at:ASC'],
+      'filter.account_manager': 'U-1',
+      'filter.user_id': '$in:a,b',
+    })
+    expect(
+      toCollectionParams(
+        { sortBy: 'createdAt', accountManager: 'U-1' },
+        defineCollectionDialect({
+          name: 'own',
+          keys: { wire: 'pascal' },
+          query: {
+            sort: '-field',
+            filterName: (name) => `f[${name}]`,
+            sortField: (field) => `s.${field}`,
+          },
+          parseList: () => null,
+        }),
+      ),
+    ).toEqual({ sort: 's.CreatedAt', 'f[AccountManager]': 'U-1' })
   })
 
   it('says nothing when told to drop', () => {
@@ -829,6 +1090,121 @@ describe('key case', () => {
 
     expect(() => keysToApp(deep, { wire: 'snake' })).not.toThrow()
   })
+
+  it('hands a cycle back as it is, at once, for JSON to refuse', () => {
+    // Two references to itself: bounded by depth alone, this is 2^64 visits.
+    const body: Record<string, unknown> = { firstName: 'Ada' }
+    body.selfOne = body
+    body.selfTwo = body
+    const list: unknown[] = [{ line_text: 'x' }]
+    list.push(list, list)
+
+    const started = Date.now()
+    const wire = keysToWire(body, { wire: 'snake' }) as Record<string, unknown>
+    const app = keysToApp({ line_items: list }, { wire: 'snake' }) as { lineItems: unknown[] }
+
+    expect(Date.now() - started).toBeLessThan(1_000)
+    expect(wire.first_name).toBe('Ada')
+    expect(wire.self_one).toBe(body)
+    expect(wire.self_two).toBe(body)
+    expect(() => JSON.stringify(wire)).toThrow(/circular/i)
+    expect(app.lineItems[0]).toEqual({ lineText: 'x' })
+    expect(app.lineItems[1]).toBe(list)
+  })
+
+  it('renames a value that is met twice without being its own ancestor', () => {
+    const shared = { postal_code: 'N1' }
+
+    expect(
+      keysToApp({ billing_address: shared, shipping_address: shared }, { wire: 'snake' }),
+    ).toEqual({ billingAddress: { postalCode: 'N1' }, shippingAddress: { postalCode: 'N1' } })
+  })
+
+  it.each([
+    // From the app: the schema's field does not come back as itself.
+    ['userID', 'app', 'snake', { app: 'userID', wire: 'user_id', back: 'userId' }],
+    ['homeURL', 'app', 'snake', { app: 'homeURL', wire: 'home_url', back: 'homeUrl' }],
+    [
+      'is2FAEnabled',
+      'app',
+      'snake',
+      { app: 'is2FAEnabled', wire: 'is2_fa_enabled', back: 'is2FaEnabled' },
+    ],
+    // From the wire: what was read is not written back as it was.
+    [
+      'address_line_1',
+      'wire',
+      'snake',
+      { app: 'addressLine1', wire: 'address_line_1', back: 'address_line1' },
+    ],
+    ['URL', 'wire', 'pascal', { app: 'url', wire: 'URL', back: 'Url' }],
+    ['HTTPStatus', 'wire', 'pascal', { app: 'httpStatus', wire: 'HTTPStatus', back: 'HttpStatus' }],
+    ['SKU', 'wire', 'pascal', { app: 'sku', wire: 'SKU', back: 'Sku' }],
+    // A backend that mixes cases: the odd one out needs its name too.
+    ['createdAt', 'wire', 'snake', { app: 'createdAt', wire: 'createdAt', back: 'created_at' }],
+    ['contactName', 'app', 'snake', null],
+    ['contact_name', 'wire', 'snake', null],
+    ['ContactName', 'wire', 'pascal', null],
+    ['id', 'app', 'pascal', null],
+    ['@odata.count', 'wire', 'snake', null],
+  ] as const)(
+    'says whether %s survives the round trip from the %s',
+    (key, from, wire, expected) => {
+      expect(unstableKey(key, from, { wire })).toEqual(expected)
+    },
+  )
+
+  it('finds every unstable key stable once its name is given', () => {
+    const keys = {
+      wire: 'snake',
+      names: { userID: 'user_id', addressLine1: 'address_line_1' },
+    } as const
+
+    expect(unstableKey('userID', 'app', keys)).toBeNull()
+    expect(unstableKey('user_id', 'wire', keys)).toBeNull()
+    expect(unstableKey('addressLine1', 'app', keys)).toBeNull()
+    expect(unstableKey('address_line_1', 'wire', keys)).toBeNull()
+    expect(keysToApp({ user_id: 1, address_line_1: 'x' }, keys)).toEqual({
+      userID: 1,
+      addressLine1: 'x',
+    })
+  })
+
+  it('reports keys that are read as the same name, and never their values', () => {
+    const collision = vi.fn()
+    const renamed = vi.fn()
+
+    const app = keysToApp(
+      { user_id: 111, userId: 222, UserId: 333, nested: [{ a_b: 444, aB: 555 }], fine_key: true },
+      { wire: 'snake' },
+      undefined,
+      { collision, renamed },
+    )
+
+    // The last one wins: unchanged, and now said.
+    expect(app).toEqual({ userId: 333, nested: [{ aB: 555 }], fineKey: true })
+    expect(collision.mock.calls).toEqual([
+      ['aB', ['a_b', 'aB']],
+      ['userId', ['user_id', 'userId', 'UserId']],
+    ])
+    expect(renamed.mock.calls).toContainEqual(['fine_key', 'fineKey'])
+    expect(JSON.stringify([collision.mock.calls, renamed.mock.calls])).not.toMatch(
+      /111|222|333|444|555|true/,
+    )
+  })
+
+  it('does not look for collisions among the keys of a dictionary', () => {
+    const collision = vi.fn()
+
+    keysToApp(
+      { labels: { a_b: 1, aB: 2 } },
+      { wire: 'snake', dictionaries: ['labels'] },
+      undefined,
+      { collision },
+    )
+
+    expect(collision).not.toHaveBeenCalled()
+  })
 })
 
 describe('schemaKeyPlan', () => {
@@ -856,7 +1232,56 @@ describe('schemaKeyPlan', () => {
         'address.extra',
       ],
       dictionaries: ['translations'],
+      fields: [
+        'id',
+        'labels',
+        'translations',
+        'shortTitle',
+        'settings',
+        'anything',
+        'lines',
+        'attributes',
+        'choice',
+        'payload',
+        'other',
+        'address',
+        'extra',
+      ],
     })
+  })
+
+  it('sees a record behind z.preprocess, and a transform after a schema', () => {
+    const schema = z.object({
+      prices: z.preprocess((value) => value ?? {}, z.record(z.string(), z.number())),
+      totals: z.record(z.string(), z.number()).transform((value) => Object.entries(value)),
+      owner: z.preprocess((value) => value, z.object({ fullName: z.string() })),
+    })
+
+    expect(schemaKeyPlan(schema)).toEqual({
+      opaque: ['prices', 'totals'],
+      dictionaries: [],
+      fields: ['prices', 'totals', 'owner', 'fullName'],
+    })
+  })
+
+  it('reads a schema that is itself a record as a dictionary from the top', () => {
+    const byLocale = z.record(z.string(), z.object({ shortTitle: z.string() }))
+    const counts = z.record(z.string(), z.number())
+    const wire = { pt_BR: { short_title: 'Parafuso' }, en_GB: { short_title: 'Bolt' } }
+
+    expect(schemaKeyPlan(byLocale)).toEqual({
+      opaque: [],
+      dictionaries: [''],
+      fields: ['shortTitle'],
+    })
+    expect(schemaKeyPlan(counts)).toEqual({ opaque: [''], dictionaries: [], fields: [] })
+
+    const app = keysToApp(wire, { wire: 'snake' }, schemaKeyPlan(byLocale))
+    expect(app).toEqual({ pt_BR: { shortTitle: 'Parafuso' }, en_GB: { shortTitle: 'Bolt' } })
+    expect(keysToWire(app, { wire: 'snake' }, schemaKeyPlan(byLocale))).toEqual(wire)
+    // Data from its first key down: nothing in it is a field name.
+    const tallies = { open_orders: 3, late_orders: 1 }
+    expect(keysToApp(tallies, { wire: 'snake' }, schemaKeyPlan(counts))).toBe(tallies)
   })
 
   it('makes a schema-declared dictionary survive the round trip', () => {
@@ -894,18 +1319,25 @@ describe('schemaKeyPlan', () => {
       },
     })
 
-    expect(schemaKeyPlan(node)).toEqual({ opaque: [], dictionaries: [] })
-    expect(schemaKeyPlan(z.json())).toEqual({ opaque: [], dictionaries: [] })
-    // A JSON column is data from top to bottom.
+    expect(schemaKeyPlan(node)).toEqual({
+      opaque: [],
+      dictionaries: [],
+      fields: ['nodeName', 'children'],
+    })
+    // JSON is data from top to bottom, as a whole payload and as a column.
+    expect(schemaKeyPlan(z.json())).toEqual({ opaque: [''], dictionaries: [], fields: [] })
     expect(schemaKeyPlan(z.object({ payload: z.json() }))).toEqual({
       opaque: ['payload'],
       dictionaries: [],
+      fields: ['payload'],
     })
   })
 
   it('yields an empty plan for what is not a zod schema', () => {
-    expect(schemaKeyPlan(null)).toEqual({ opaque: [], dictionaries: [] })
-    expect(schemaKeyPlan({ parse: () => 1 })).toEqual({ opaque: [], dictionaries: [] })
+    const empty = { opaque: [], dictionaries: [], fields: [] }
+
+    expect(schemaKeyPlan(null)).toEqual(empty)
+    expect(schemaKeyPlan({ parse: () => 1 })).toEqual(empty)
   })
 })
 

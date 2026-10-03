@@ -423,6 +423,61 @@ describe('a collection over an SDK', () => {
       new Error('offline persistence is not enabled'),
       { message: 'offline persistence is not enabled', code: 'RUNTIME_ERROR', kind: 'unknown' },
     ],
+    [
+      // Firebase's errors are `Error`s that say what happened in `code`.
+      'an Error with a code, as Firebase gives one',
+      Object.assign(new Error('Missing or insufficient permissions.'), {
+        name: 'FirebaseError',
+        code: 'permission-denied',
+      }),
+      {
+        message: 'Missing or insufficient permissions.',
+        code: 'permission-denied',
+        status: 403,
+        kind: 'unknown',
+        messageKey: 'errors.status_403',
+      },
+    ],
+    [
+      'an Error with a code under a service, as Firebase Storage gives one',
+      Object.assign(new Error('Object does not exist.'), { code: 'storage/object-not-found' }),
+      { code: 'storage/object-not-found', status: 404, messageKey: 'errors.status_404' },
+    ],
+    [
+      'an Error subclass with a code and no status, as a PostgrestError is',
+      new (class PostgrestError extends Error {
+        code = 'PGRST301'
+        details = null
+        hint = null
+      })('JWT expired'),
+      { message: 'JWT expired', code: 'PGRST301', status: 500, messageKey: 'errors.unknown' },
+    ],
+    [
+      'an Error with a status',
+      Object.assign(new Error('Row not found'), { status: 404 }),
+      { message: 'Row not found', code: 'RUNTIME_ERROR', status: 404 },
+    ],
+    [
+      'an Error whose code is the status',
+      Object.assign(new Error('Document not found'), { code: 404, type: 'document_not_found' }),
+      { message: 'Document not found', code: 'RUNTIME_ERROR', status: 404 },
+    ],
+    [
+      'an error object with a code that names a status',
+      { message: 'Sign in again.', code: 'unauthenticated' },
+      { code: 'unauthenticated', status: 401, messageKey: 'errors.status_401' },
+    ],
+    [
+      'an Error that quotes a URL and carries a stack',
+      Object.assign(
+        new Error(
+          'Request to https://xyz.example.co/rest/v1/members?apikey=secret-key failed\n' +
+            '    at fetchRows (https://app.example/assets/sdk.js:1:2)',
+        ),
+        { code: 'unavailable' },
+      ),
+      { message: 'Request to [url] failed', code: 'unavailable', status: 503 },
+    ],
     ['a string', 'quota exceeded', { message: 'quota exceeded', code: 'STRING_ERROR' }],
     ['nothing useful', 42, { code: 'UNKNOWN_ERROR', kind: 'unknown' }],
   ])('turns %s thrown by the SDK into an AppError', async (_, thrown, expected) => {
@@ -452,7 +507,28 @@ describe('a collection over an SDK', () => {
     for (const error of [...readErrors, writeError]) {
       expect(error).toBeInstanceOf(AppError)
       expect(error).toMatchObject(expected)
+      // Whatever the SDK put in its message, no address and no stack leave it.
+      expect((error as AppError).message).not.toMatch(/https?:|secret-key|\n/)
     }
+  })
+
+  it('lets a record page tell an SDK’s "not found" from a failure', async () => {
+    const sdk = createFakeSdk(seed)
+    sdk.state.failWith = Object.assign(new Error('No document to update'), { code: 'not-found' })
+    const { api } = createMembers(sdk)
+    const detail = withQueryClient(() => api.useDetail('1'))
+
+    await vi.waitFor(() => expect(detail.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    expect(isNotFoundError(detail.error.value)).toBe(true)
+    expect(detail.error.value).toMatchObject({ code: 'not-found', status: 404 })
+
+    sdk.state.failWith = Object.assign(new Error('boom'), { code: 'internal' })
+    const other = withQueryClient(() => api.useDetail('2'))
+    await vi.waitFor(() => expect(other.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    expect(isNotFoundError(other.error.value)).toBe(false)
+    expect(other.error.value).toMatchObject({ code: 'internal', status: 500 })
   })
 
   it('has no mutation the source has no function for', () => {
