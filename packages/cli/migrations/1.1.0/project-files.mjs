@@ -1,6 +1,7 @@
 import { hashFor } from '../../src/lib/lockfile.mjs'
 import { inSlot } from '../../src/lib/manifest.mjs'
 import { adaptersBeingReplaced, envPlugin, PRISTINE } from './promotions.mjs'
+import { PERMISSIONS_PRISTINE } from './rbac-eject.mjs'
 import {
   declaresBinding,
   jsonStringSpan,
@@ -1063,7 +1064,10 @@ const reclassified = [
   },
   {
     slot: 'permissions',
-    pristine: ['sha256-9cea2c7654c28bf669b8c0ff69585c7f7c6f1651f73684dfc325c6500e6cc9ac'],
+    pristine: PERMISSIONS_PRISTINE,
+    // An edited union is not only left behind: nothing compiles beside it. The
+    // note that says so, with the steps, is in rbac-eject.mjs.
+    note: false,
   },
 ].map((step) => ({ kind: 'reclassify', to: 'merged', ...step }))
 

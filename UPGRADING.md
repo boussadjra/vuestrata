@@ -330,6 +330,10 @@ prerelease after the first: every step looks for what is still to do.
 - Records the `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts` as
   merged files, keeping what `vuestrata add` wrote into their `app:` regions.
 - Writes `src/modules/app/config/rbac.overrides.ts`.
+- For a project that ran `eject` on 1.0: installs this release's
+  `core/lib/rbac/types.ts` and `inheritance.ts` over the copies that `eject`
+  edited, and withdraws the permissions it had removed in `rbac.overrides.ts`
+  ([If you ran `eject` on 1.0](#if-you-ran-eject-on-10)).
 - Takes `&& node scripts/release/check-template-lock.mjs` out of the `lint`
   script in `package.json`.
 - In `plugins/router.ts`, `plugins/stale-chunk.ts` and
@@ -390,6 +394,71 @@ anything you want to keep into a seam first (`brand.css`,
 `boot(App, { beforeMount })`). For the two header generators, adopt both, then
 run `vpr security:headers`. Delete `.vuestrata/incoming/` when you are done; it
 is not tracked by the lockfile.
+
+#### If you ran `eject` on 1.0
+
+The 1.0 `eject` retired the permissions of the modules it removed by editing
+two of Vuestrata's own files: it struck them from the union in
+`core/lib/rbac/types.ts` and from the grants in `core/lib/rbac/inheritance.ts`.
+1.1.0 keeps a withdrawal in `src/modules/app/config/rbac.overrides.ts` instead,
+and its `core/lib/rbac/` does not compile beside a 1.0 `types.ts`.
+
+**When the two files differ from 1.0 only by what `eject` removed**, the upgrade
+does the move for you. It installs this release's `types.ts` and
+`inheritance.ts`, and lists the removed permissions under `withdrawn` in
+`rbac.overrides.ts`, so every role holds exactly what it held. The report names
+the three files on the line "permissions the 1.0 eject struck from
+core/lib/rbac/ are withdrawn in rbac.overrides.ts". There is nothing to do.
+Having let the formatter reflow the two files makes no difference.
+
+**When you changed them further** (a permission of your own added to the union,
+a grant moved), they are left alone and the notes open with `THE PROJECT WILL
+NOT TYPE-CHECK UNTIL THIS IS DONE`: `vp check` and `vpr build` fail in
+`core/lib/rbac/index.ts` and `overrides.ts`, which import `AppPermissions` and
+`RbacOverrides` from a `types.ts` that does not declare them. The note lists
+the permissions your union lacks and the ones it adds. To finish:
+
+```bash
+cp .vuestrata/incoming/src/modules/core/lib/rbac/types.ts src/modules/core/lib/rbac/types.ts
+cp .vuestrata/incoming/src/modules/core/lib/rbac/inheritance.ts src/modules/core/lib/rbac/inheritance.ts
+```
+
+Then say in `rbac.overrides.ts` what your copies said by being edited:
+
+```ts
+declare module '~/lib/rbac/types' {
+  interface AppPermissions {
+    // app:permissions-start
+    'invoices:read': true // a permission you had added to the union
+    // app:permissions-end
+  }
+}
+
+export default defineRbacOverrides({
+  grants: {
+    // app:grants-start
+    viewer: ['invoices:read'], // a grant you had added to inheritance.ts
+    // app:grants-end
+  },
+  withdrawn: [
+    // app:withdrawn-start
+    'customers:read', // every permission the note lists as removed
+    'customers:manage',
+    // app:withdrawn-end
+  ],
+})
+```
+
+And tell the CLI both files are clean:
+
+```bash
+vp exec vuestrata adopt src/modules/core/lib/rbac/types.ts src/modules/core/lib/rbac/inheritance.ts
+```
+
+One thing the 1.0 `eject` left behind is not the upgrade's to fix: `vpr lint`
+fails on the raw-palette baseline (`src/modules/showcase/pages/tables.vue: 25 →
+0`), before the upgrade and after it. Delete that entry from
+`scripts/lint/plugins/no-raw-palette.plugin.mjs`, as the message says.
 
 #### What needs you
 

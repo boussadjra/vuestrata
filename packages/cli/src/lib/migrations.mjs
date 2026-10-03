@@ -22,10 +22,14 @@ import { incomingPath } from './workspace.mjs'
  * line of their own in the report. A step names its target by `file` (a path,
  * or a function of the manifest) or by `slot`, and is one of four kinds:
  *
- *   codemod (the default)   { file, apply(source, manifest, ws), pending?, note?, incoming? }
+ *   codemod (the default)   { file, apply(source, manifest, ws, release), pending?, note?, incoming? }
  *     Rewrites the file. `ws` is the workspace, for a change that depends on
  *     another file (`ws.exists(rel)`, `ws.read(rel)`); `pending` and `incoming`
- *     receive it too. Without `pending`, `apply` must be idempotent, and
+ *     receive it too. `release` is what this upgrade installs (`release.has(rel)`,
+ *     `release.read(rel)`), for the rare step that must write into a file the
+ *     release seeds before the sync has written it. Such a step writes the files
+ *     beside its own with `ws.write(rel, contents)`, and the report lists them
+ *     with its own. Without `pending`, `apply` must be idempotent, and
  *     returning the source unchanged means there was nothing to do. With it the
  *     step is guarded: it runs only while `pending(source)` holds, and `apply`
  *     changes all of what it recognises or none of it. If `pending` still holds
@@ -38,7 +42,7 @@ import { incomingPath } from './workspace.mjs'
  *   note                    { note, file?, pending? }
  *     Nothing automatic. Shown on every upgrade that crosses this version — or,
  *     given a `file`, only while `pending(source)` holds for it. `note` is the
- *     text, or a function `(source, manifest, ws)` returning it, for a note that
+ *     text, or a function `(source, manifest, ws, release)` returning it, for a note that
  *     depends on what the steps before it left behind; one that returns nothing
  *     prints nothing. `source` is undefined when the step names no file.
  *
@@ -62,7 +66,8 @@ import { incomingPath } from './workspace.mjs'
  *     as clean this once, and so does any `pristine` hash, computed the merged
  *     way (app: regions blanked): either way the record is rewritten as merged
  *     and never consulted the old way again. An edited file keeps its old record
- *     and gets the note. Merged is the only destination: a merged file judged
+ *     and gets the note (`note: false` says nothing, for a file that a `note`
+ *     step speaks for). Merged is the only destination: a merged file judged
  *     clean may hold the project's app: entries, and a record demoted to
  *     managed would let the sync replace the file without them. A release that
  *     drops a file's app: regions needs no step — the sync offers it in
@@ -244,26 +249,35 @@ export function stepTarget(step, manifest) {
   return typeof step.file === 'function' ? step.file(manifest) : step.file
 }
 
-function runCodemod(step, migration, applied, { ws, manifest, result }) {
+function runCodemod(step, migration, applied, { ws, manifest, source: release, result }) {
   const rel = stepTarget(step, manifest)
   if (!ws.exists(rel)) return
 
   const before = ws.read(rel)
-  if (step.pending && !step.pending(before, manifest, ws)) return
+  if (step.pending && !step.pending(before, manifest, ws, release)) return
 
-  const after = step.apply(before, manifest, ws)
+  // A step may write files beside its own, for a change that spans several.
+  // They are its changes too, and the report names them.
+  const alreadyWritten = new Set(ws.written?.() ?? [])
+
+  const after = step.apply(before, manifest, ws, release)
   if (after !== before) {
     ws.write(rel, after)
     // Once per group: several steps of one group may each change the file.
     if (!applied.changed.includes(rel)) applied.changed.push(rel)
   }
+  for (const other of ws.written?.() ?? []) {
+    if (!alreadyWritten.has(other) && !applied.changed.includes(other)) applied.changed.push(other)
+  }
 
-  if (!step.pending?.(after, manifest, ws)) return
+  if (!step.pending?.(after, manifest, ws, release)) return
 
   // Still pending: the guard did not recognise the file, so it was left alone.
   if (step.incoming !== undefined) {
     const contents =
-      typeof step.incoming === 'function' ? step.incoming(before, manifest, ws) : step.incoming
+      typeof step.incoming === 'function'
+        ? step.incoming(before, manifest, ws, release)
+        : step.incoming
     ws.write(incomingPath(rel), contents)
     result.incoming.push({
       rel,
@@ -285,7 +299,7 @@ function runCodemod(step, migration, applied, { ws, manifest, result }) {
   })
 }
 
-function runNote(step, migration, { ws, manifest, result }) {
+function runNote(step, migration, { ws, manifest, source: release, result }) {
   let rel
   let source
 
@@ -293,11 +307,12 @@ function runNote(step, migration, { ws, manifest, result }) {
     rel = stepTarget(step, manifest)
     if (!ws.exists(rel)) return
     source = ws.read(rel)
-    if (step.pending && !step.pending(source, manifest, ws)) return
+    if (step.pending && !step.pending(source, manifest, ws, release)) return
   }
 
   // A computed note sees the project as the steps before it left it.
-  const text = typeof step.note === 'function' ? step.note(source, manifest, ws) : step.note
+  const text =
+    typeof step.note === 'function' ? step.note(source, manifest, ws, release) : step.note
   if (!text) return
 
   result.notes.push({ version: migration.version, rel, text })
@@ -419,6 +434,9 @@ function runReclassify(step, migration, { ws, lock, manifest, result }) {
     result.adopted.push({ rel, class: 'merged', reason: 'reclassified' })
     return
   }
+
+  // A `note` step speaks for this file.
+  if (step.note === false) return
 
   result.notes.push({
     version: migration.version,
