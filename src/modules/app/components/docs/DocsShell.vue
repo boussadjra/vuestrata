@@ -235,6 +235,12 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description:
       "Teach the API client your backend's headers, session signals, error format and CSRF handshake, without editing the client.",
   },
+  '/docs/9.recipes/10.write-your-own-auth-adapter.md': {
+    navTitle: 'Write an auth adapter',
+    title: 'Write Your Own Auth Adapter',
+    description:
+      'Point the app at your auth backend, or put an SDK behind the adapter contract, from one file that is yours.',
+  },
 }
 
 const markdownModules = import.meta.glob('/docs/**/*.md', {

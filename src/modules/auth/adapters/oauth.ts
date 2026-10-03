@@ -1,11 +1,17 @@
+import { getAuthConfig } from '~/lib/auth/config'
 import { runtimeEnv } from '~/lib/config'
 import { normalizeError } from '~/lib/errors'
-import type { AuthProvider, AuthResponse } from '~/types'
+import type { AuthResponse } from '~/types'
 
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '../lib/pkce'
 import { assertOAuthProvider, authEndpoints, authLogger } from './base'
 import { clearPkceState, OAUTH_STATE_TTL_MS, persistPkceState, readPkceState } from './pkce-state'
-import { OAuthRedirectError, type AuthAdapter, type ResumedSession } from './types'
+import {
+  OAuthRedirectError,
+  type AuthAdapter,
+  type AuthProviderId,
+  type ResumedSession,
+} from './types'
 
 function callbackUrl(): string {
   return `${window.location.origin}/auth/callback`
@@ -24,7 +30,9 @@ function authorizeUrl(path: string, params: Record<string, string>): string {
     ? `${window.location.origin}${runtimeEnv.apiUrl.replace(/\/+$/, '')}`
     : runtimeEnv.apiUrl.replace(/\/+$/, '')
 
-  const url = new URL(`${base}${path}`)
+  // An endpoint configured as an absolute URL is the identity provider's own
+  // address, and is used as it is.
+  const url = new URL(/^https?:\/\//i.test(path) ? path : `${base}${path}`)
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
   return url.toString()
 }
@@ -59,28 +67,75 @@ async function beginAuthorizationCodeFlow(path: string): Promise<never> {
  * an HttpOnly session cookie, so no token is ever exposed to JavaScript. That
  * choice is what turns on CSRF headers in the API client.
  *
- * Backend contract:
+ * Backend contract, as shipped:
  *   GET  {apiUrl}/auth/authorize        → 302 to the provider (PKCE params forwarded)
  *   GET  {apiUrl}/auth/:provider        → 302 to a specific provider
  *   POST {apiUrl}/auth/token            → { user, token, refreshToken, expiresIn }
  *                                         body: grant_type, code, code_verifier, redirect_uri
  *   GET  {apiUrl}/auth/me               → User (session cookie)
  *   POST {apiUrl}/auth/logout           → 204, clears the session cookie
+ *
+ * The paths, the response shapes and the provider list are configured in
+ * `app/config/auth.config.ts`. An endpoint switched off there takes its
+ * capability, and the method behind it, with it.
  */
 export function createOAuthAdapter(): AuthAdapter {
+  const { endpoints, capabilities: disclaimed, providers } = getAuthConfig()
+  const authorizePath = endpoints.spec.authorize?.path
+  // A provider button needs a provider to name and somewhere to send it.
+  const providerPath =
+    providers.length > 0 && disclaimed.social !== false
+      ? endpoints.spec.providerAuthorize?.path
+      : undefined
+  const canExchange = endpoints.spec.token !== null && disclaimed.codeExchange !== false
+
+  async function exchangeCode(code: string, state: string): Promise<AuthResponse> {
+    const { state: savedState, verifier, issuedAt } = readPkceState()
+
+    if (!savedState || savedState !== state) {
+      // Deliberately NOT clearing state here: leaving the entries intact lets
+      // a reload of the same callback URL succeed after a transient mismatch
+      // (browser back-button replay). State is consumed only on success.
+      throw new Error('OAuth state mismatch — possible CSRF attack. Please try logging in again.')
+    }
+
+    if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > OAUTH_STATE_TTL_MS) {
+      // Expiry IS unrecoverable, so clear it and make the next attempt start clean.
+      clearPkceState()
+      throw new Error('OAuth state expired. Please try logging in again.')
+    }
+
+    if (!verifier) {
+      throw new Error('Missing PKCE code verifier. Please try logging in again.')
+    }
+
+    const response = await authEndpoints.exchangeCode({
+      code,
+      code_verifier: verifier,
+      redirect_uri: callbackUrl(),
+    })
+
+    // Only consume the one-shot state once the exchange has actually
+    // succeeded — a transient backend failure must not strand the user with
+    // no way to retry.
+    clearPkceState()
+
+    return response
+  }
+
   return {
     name: 'oauth',
     transport: 'cookie',
     capabilities: {
       // Registration happens at the identity provider, not in this app.
       register: false,
-      social: true,
+      social: providerPath !== undefined,
       magicLink: false,
       mfa: false,
       // The session cookie is renewed by the backend; there is no refresh
       // token in the client to rotate.
       refresh: false,
-      codeExchange: true,
+      codeExchange: canExchange,
     },
 
     logout: authEndpoints.logout,
@@ -120,46 +175,26 @@ export function createOAuthAdapter(): AuthAdapter {
     },
 
     async login() {
-      return beginAuthorizationCodeFlow('/auth/authorize')
+      if (!authorizePath) {
+        throw new Error(
+          'The "oauth" adapter starts a sign-in at the `authorize` endpoint, which is switched ' +
+            'off in auth.config.ts.',
+        )
+      }
+      return beginAuthorizationCodeFlow(authorizePath)
     },
 
-    async socialLogin(provider: AuthProvider) {
-      assertOAuthProvider(provider)
-      await beginAuthorizationCodeFlow(`/auth/${provider}`)
-    },
+    ...(providerPath !== undefined
+      ? {
+          async socialLogin(provider: AuthProviderId) {
+            assertOAuthProvider(provider)
+            await beginAuthorizationCodeFlow(
+              providerPath.replace(':provider', encodeURIComponent(provider)),
+            )
+          },
+        }
+      : {}),
 
-    async exchangeCode(code: string, state: string): Promise<AuthResponse> {
-      const { state: savedState, verifier, issuedAt } = readPkceState()
-
-      if (!savedState || savedState !== state) {
-        // Deliberately NOT clearing state here: leaving the entries intact lets
-        // a reload of the same callback URL succeed after a transient mismatch
-        // (browser back-button replay). State is consumed only on success.
-        throw new Error('OAuth state mismatch — possible CSRF attack. Please try logging in again.')
-      }
-
-      if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > OAUTH_STATE_TTL_MS) {
-        // Expiry IS unrecoverable, so clear it and make the next attempt start clean.
-        clearPkceState()
-        throw new Error('OAuth state expired. Please try logging in again.')
-      }
-
-      if (!verifier) {
-        throw new Error('Missing PKCE code verifier. Please try logging in again.')
-      }
-
-      const response = await authEndpoints.exchangeCode({
-        code,
-        code_verifier: verifier,
-        redirect_uri: callbackUrl(),
-      })
-
-      // Only consume the one-shot state once the exchange has actually
-      // succeeded — a transient backend failure must not strand the user with
-      // no way to retry.
-      clearPkceState()
-
-      return response
-    },
+    ...(canExchange ? { exchangeCode } : {}),
   }
 }

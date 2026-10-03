@@ -25,6 +25,11 @@ produce an app that builds, passes types, and quietly does the wrong thing.
 | [Add a permission](/docs/recipes/add-a-permission) | — by hand                      |
 | [Add a nav group](/docs/recipes/add-a-nav-group)   | — by hand                      |
 
+One more is about the backend rather than the app:
+[Write your own auth adapter](/docs/recipes/write-your-own-auth-adapter) covers
+pointing the app at your auth endpoints and response shapes, and putting an SDK
+behind the adapter contract. Both happen in `config/auth.config.ts`.
+
 Every generator supports:
 
 | Flag        | Effect                                             |
@@ -45,7 +50,7 @@ file that is yours.
 Adding a locale is mostly translating; a tool that emitted 1,100 placeholder
 strings would manufacture the appearance of a finished translation. Adding a
 permission is an access-control decision. Adding a nav group is three lines in
-one file.
+one file. An auth integration is a description of somebody else's backend.
 
 A generator earns its place when the work is _mechanical and spread across files
 you would forget_. Where it is neither, the recipe is the deliverable.

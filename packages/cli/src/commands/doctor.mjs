@@ -3,6 +3,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { API_WIRING_STEPS, isApiWired } from '../lib/api-wiring.mjs'
+import { AUTH_WIRING_STEPS, isAuthConfigWired } from '../lib/auth-wiring.mjs'
 import { logger } from '../lib/cli.mjs'
 import {
   DEPLOY_CONFIG_READERS,
@@ -129,6 +130,7 @@ export function diagnose({ root, version, source, migrations }) {
     for (const unwired of [
       unwiredRbacOverrides({ root, manifest }),
       unwiredApiOverrides({ root, manifest }),
+      unwiredAuthConfig({ root, manifest }),
     ]) {
       if (unwired) findings.warnings.push(unwired)
     }
@@ -262,6 +264,13 @@ export function diagnose({ root, version, source, migrations }) {
   findings.warnings.push(...unreadDeployConfig({ root, manifest, skip: willBeCurrent }))
   findings.warnings.push(...dockerfileWarnings(root))
 
+  // ── 6b. Is auth.config.ts wired in? ──────────────────────────────────────
+  // The same question for the auth seam, which bootstrap/seams.ts installs.
+  const unwiredAuth = willBeReplaced(seamsFile(manifest))
+    ? undefined
+    : unwiredAuthConfig({ root, manifest })
+  if (unwiredAuth) findings.warnings.push(unwiredAuth)
+
   // ── 7. Which vuestrata: regions were edited? ─────────────────────────────
   for (const registry of PROJECT_REGISTRIES) {
     const rel = slot(manifest, registry.slot)
@@ -365,6 +374,30 @@ function dockerfileWarnings(root) {
   if (!fs.existsSync(full)) return []
   const warning = dockerfileWithoutRuntimeConfig(fs.readFileSync(full, 'utf8'))
   return warning ? [warning] : []
+}
+
+/**
+ * A warning when the project has an `auth.config.ts` that nothing installs.
+ *
+ * `bootstrap/seams.ts` is what hands the seam to the auth module. A copy from
+ * before the seam existed does not, so the endpoints, mappers, providers and
+ * adapters the project configures there have no effect — and nothing fails to
+ * say so.
+ */
+function unwiredAuthConfig({ root, manifest }) {
+  const config = slot(manifest, 'authConfig')
+  const seams = seamsFile(manifest)
+  if (!fs.existsSync(path.join(root, config)) || !fs.existsSync(path.join(root, seams))) {
+    return undefined
+  }
+
+  if (isAuthConfigWired(fs.readFileSync(path.join(root, seams), 'utf8'))) return undefined
+
+  return (
+    `${config} exists, but ${seams} does not install it, so the endpoints, response mappers, ` +
+    'providers and adapters you configure there have no effect. ' +
+    AUTH_WIRING_STEPS
+  )
 }
 
 /** The upgrade report, or `undefined` (and an error finding) if it cannot be planned. */

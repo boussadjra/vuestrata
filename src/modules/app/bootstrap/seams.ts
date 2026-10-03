@@ -1,3 +1,6 @@
+import authConfig from '@/config/auth.config'
+import { resolveAuthConfig } from '@/lib/auth/config'
+import { installAuthConfig } from '@/lib/runtime'
 import { getI18n } from '@/plugins/i18n'
 import apiOverrides from '~/config/api.overrides'
 import { resolveApiIntegration, type ApiRequestHook } from '~/lib/api/integration'
@@ -16,11 +19,12 @@ import './app-env'
  * project never has to edit it. The way a project changes behaviour instead is
  * a small file it owns — brand colours, API conventions, RBAC roles — which
  * Vuestrata's own code reads. This function is the one place those files are
- * read and handed to the framework-agnostic `core/lib` runtime slots.
+ * read and handed to the code that uses them.
  *
  * `boot()` calls it right after `installRuntimeBackends()` and before anything
- * reads an API client, a role definition or a permission, so a release adds a
- * seam here and every project picks it up without editing `main.ts`.
+ * reads an API client, an auth adapter, a role definition or a permission, so a
+ * release adds a seam here and every project picks it up without editing
+ * `main.ts`.
  *
  * The seeded files are imported statically on purpose: a deleted seam fails
  * the build instead of quietly restoring the defaults.
@@ -30,6 +34,10 @@ import './app-env'
  * like any other.
  */
 export function installSeams(): void {
+  // `app/config/auth.config.ts`: endpoints, response shapes, providers and the
+  // project's own adapters. Resolving it checks it, so a mistake in that file
+  // fails the boot with a message that names it.
+  installAuthConfig(resolveAuthConfig(authConfig))
   installApiSeam()
 }
 

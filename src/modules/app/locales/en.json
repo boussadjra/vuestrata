@@ -96,6 +96,7 @@
   "auth_register_fail": "Registration failed",
   "auth_register_subtitle": "Create your account to get started",
   "auth_register_success": "Registered successfully",
+  "auth_register_unavailable": "Accounts are not created here. Ask your administrator for access.",
   "auth_remember": "Remember me",
   "auth_reset": "Reset password",
   "auth_reset_fail": "Password reset failed",

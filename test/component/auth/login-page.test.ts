@@ -15,7 +15,22 @@ const ALL_CAPABILITIES = {
   codeExchange: true,
 }
 
+/** The buttons the page has always had: what an untouched `auth.config.ts` yields. */
+const DEFAULT_PROVIDERS = [
+  { id: 'google', labelKey: 'auth_provider_google', icon: 'i-logos-google-icon' },
+  { id: 'github', labelKey: 'auth_provider_github', icon: 'i-logos-github-icon' },
+  { id: 'microsoft', labelKey: 'auth_provider_microsoft', icon: 'i-logos-microsoft-icon' },
+]
+
+interface ProviderOption {
+  id: string
+  labelKey?: string
+  label?: string
+  icon?: string
+}
+
 const authRefs = vi.hoisted(() => ({
+  providers: { __v_isRef: true, value: [] as ProviderOption[] },
   mfaRequired: { __v_isRef: true, value: false },
   isLoading: { __v_isRef: true, value: false },
   error: { __v_isRef: true, value: null as string | null },
@@ -53,6 +68,8 @@ vi.mock('~/modules/auth', () => {
       // the configured adapter supports them. Defaults to every capability on;
       // the "adapter capabilities" block below varies it.
       capabilities: authRefs.capabilities,
+      // Which providers there are is configuration; the block below varies it.
+      providers: authRefs.providers,
     }),
   }
 })
@@ -100,6 +117,7 @@ beforeEach(() => {
   authRefs.isLoading.value = false
   authRefs.error.value = null
   authRefs.capabilities.value = { ...ALL_CAPABILITIES }
+  authRefs.providers.value = [...DEFAULT_PROVIDERS]
   authMocks.login.mockReset()
   authMocks.socialLogin.mockReset()
   authMocks.sendMagicLink.mockReset()
@@ -243,5 +261,61 @@ describe('login page — adapter capabilities', () => {
 
     expect(wrapper.find('#google').exists()).toBe(true)
     expect(wrapper.text()).toContain('Magic Link')
+  })
+
+  it('offers the way to register only to an adapter that can register', () => {
+    expect(mountLoginPage().find('a[href="/auth/register"]').exists()).toBe(true)
+
+    // A link to a form that fails on submit is a dead end.
+    authRefs.capabilities.value = { ...ALL_CAPABILITIES, register: false }
+    expect(mountLoginPage().find('a[href="/auth/register"]').exists()).toBe(false)
+  })
+})
+
+describe('login page — configured providers', () => {
+  /**
+   * The provider list is `providers` in `app/config/auth.config.ts`, not
+   * markup: a project adds GitLab or drops Microsoft without editing this page.
+   */
+  it('renders the built-in three, in order, when nothing is configured', () => {
+    const wrapper = mountLoginPage()
+
+    expect(
+      wrapper.findAll('#google, #github, #microsoft').map((button) => button.attributes('id')),
+    ).toEqual(['google', 'github', 'microsoft'])
+  })
+
+  it('renders the configured providers instead, and signs in with their ids', async () => {
+    authRefs.providers.value = [
+      { id: 'gitlab', label: 'GitLab', icon: 'i-logos-gitlab' },
+      { id: 'github', labelKey: 'auth_provider_github', icon: 'i-logos-github-icon' },
+    ]
+    const wrapper = mountLoginPage()
+
+    expect(wrapper.find('#google').exists()).toBe(false)
+    expect(wrapper.find('#microsoft').exists()).toBe(false)
+    expect(wrapper.find('#gitlab .i-logos-gitlab').exists()).toBe(true)
+
+    await buttonByText(wrapper, 'Continue with GitLab').trigger('click')
+    await buttonByText(wrapper, 'Continue with GitHub').trigger('click')
+
+    expect(authMocks.socialLogin).toHaveBeenNthCalledWith(1, 'gitlab')
+    expect(authMocks.socialLogin).toHaveBeenNthCalledWith(2, 'github')
+  })
+
+  it('names a provider by its id when it has no label, and renders no icon it was not given', () => {
+    authRefs.providers.value = [{ id: 'okta' }]
+    const wrapper = mountLoginPage()
+
+    const button = buttonByText(wrapper, 'Continue with okta')
+    expect(button.attributes('id')).toBe('okta')
+    expect(button.find('span').exists()).toBe(false)
+  })
+
+  it('renders none of them for an adapter with no social sign-in, whatever is configured', () => {
+    authRefs.capabilities.value = { ...ALL_CAPABILITIES, social: false }
+    authRefs.providers.value = [{ id: 'gitlab', label: 'GitLab' }]
+
+    expect(mountLoginPage().find('#gitlab').exists()).toBe(false)
   })
 })

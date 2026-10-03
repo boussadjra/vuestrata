@@ -1,14 +1,16 @@
 import { authAdapter as configuredAuthAdapter } from '~/config/app.config'
+import { getAuthProviders } from '~/lib/auth/config'
 import { normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import { useAuthStore } from '~/stores/auth'
-import type { AuthCredentials, AuthProvider } from '~/types'
+import type { AuthCredentials } from '~/types'
 
 import {
   createAuthAdapter,
   OAuthRedirectError,
   requireCapability,
   type AuthAdapter,
+  type AuthProviderId,
 } from '../adapters'
 import { safeRedirectPath } from '../lib/safe-redirect'
 import { useAuthChallengeStore } from '../stores/challenge'
@@ -106,6 +108,13 @@ export function useAuth() {
    */
   const capabilities = computed(() => getAuthAdapter().capabilities)
 
+  /**
+   * The social sign-in providers to offer, in order: the built-in three, or
+   * the list in `app/config/auth.config.ts`. Whether to offer any is
+   * `capabilities.social`.
+   */
+  const providers = computed(() => getAuthProviders())
+
   async function login(credentials: AuthCredentials) {
     if (challenge.isLockedOut()) {
       error.value = `Too many failed attempts. Please try again in ${Math.ceil(challenge.remainingLockoutMs / 1000)}s.`
@@ -200,7 +209,7 @@ export function useAuth() {
     }
   }
 
-  async function socialLogin(provider: AuthProvider) {
+  async function socialLogin(provider: AuthProviderId) {
     isLoading.value = true
     error.value = null
     try {
@@ -308,6 +317,7 @@ export function useAuth() {
     isLoading,
     error,
     capabilities,
+    providers,
     mfaRequired: computed(() => challenge.mfaRequired),
     mfaToken: computed(() => challenge.mfaToken),
     loginAttempts: computed(() => challenge.loginAttempts),

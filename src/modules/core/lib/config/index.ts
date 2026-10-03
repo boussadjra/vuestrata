@@ -1,4 +1,5 @@
 import { createScopedLogger } from '../logger'
+import { type RegisteredAuthAdapters } from './env.schema'
 import { readRuntimeOverlay, resolveRuntimeEnvWithOverlay } from './runtime-overlay'
 
 export * from './env.schema'
@@ -6,6 +7,33 @@ export * from './runtime-overlay'
 export * from './deploy'
 
 const configLogger = createScopedLogger('app-config')
+
+/**
+ * Build-time constant injected by the `vuestrata:env` plugin: the adapters the
+ * project registered in `app/config/auth.config.ts`, by name, with the
+ * transport each declares. The plugin reads them from that file as text, and
+ * validates `VUESTRATA_AUTH_ADAPTER` against them before anything is bundled.
+ *
+ * Declared here rather than in `src/env.d.ts` because that file is the
+ * project's: an upgrade cannot add a declaration to it, and this module has to
+ * type-check in a project that has not touched it.
+ */
+declare const __VUESTRATA_AUTH_ADAPTERS__: RegisteredAuthAdapters | undefined
+
+/**
+ * The same registrations the build validated against, so the browser accepts
+ * the names the build accepted. `core/lib` cannot import the app's config
+ * file, and `runtimeEnv` is resolved before any seam is installed, which is
+ * why they arrive as a constant. Absent — a Vite config without the plugin —
+ * only the built-in adapters are known.
+ *
+ * Exported for the adapter registry (`core/lib/auth/registry.ts`): the build
+ * validated `VUESTRATA_SESSION_PERSISTENCE` against the transport written
+ * here, so an adapter that turns out to use the other one was validated
+ * against the wrong rule, and the registry refuses to build it.
+ */
+export const scannedAuthAdapters: RegisteredAuthAdapters =
+  typeof __VUESTRATA_AUTH_ADAPTERS__ === 'undefined' ? {} : (__VUESTRATA_AUTH_ADAPTERS__ ?? {})
 
 /**
  * The validated runtime environment, resolved once at module load.
@@ -47,6 +75,7 @@ export const runtimeEnv = resolveRuntimeEnvWithOverlay(
     // An API URL set at start is accepted on a placeholder host as well: see
     // `resolveRuntimeEnvWithOverlay`.
     serving: import.meta.env.DEV,
+    authAdapters: scannedAuthAdapters,
     onWarn: (message) => configLogger.warn(message),
   },
 )
