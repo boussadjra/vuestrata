@@ -1,16 +1,31 @@
+import { QueryClient } from '@tanstack/vue-query'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test'
 
 import { restoreSessionForBoot, setupAuthInterceptor } from '@/bootstrap/auth-wiring'
+import { clearQueryCacheOnSessionEnd } from '@/bootstrap/query-client'
 import { apiFetch } from '@/lib/api/client'
-import { installAuthConfig, loadAuthAdapter, resolveAuthConfig, type AuthConfig } from '@/lib/auth'
+import {
+  installAuthConfig,
+  loadAuthAdapter,
+  resolveAuthConfig,
+  type AuthConfig,
+  type AuthStateChange,
+} from '@/lib/auth'
+import { appEvents } from '@/lib/events'
 import { createAuthAdapter } from '@/modules/auth'
 import { useAuthStore } from '@/stores/auth'
 import { runtimeEnv, type SessionPersistence } from '~/lib/config'
 
 import { resetRuntimeState } from '../../utils/reset-runtime-state'
-import { createFakeSdk, createSdkAdapterFactory, SDK_STORAGE_KEY, type FakeSdk } from './fake-sdk'
+import {
+  createFakeSdk,
+  createSdkAdapterFactory,
+  SDK_STORAGE_KEY,
+  type FakeSdk,
+  type SdkSession,
+} from './fake-sdk'
 
 /**
  * An adapter whose session belongs to an SDK.
@@ -78,9 +93,13 @@ function api(sdk: FakeSdk) {
  * `load` is the project's `() => import('~/auth/sdk-adapter')`. It is a spy so
  * a test can see that the module is fetched exactly when it is needed.
  */
-async function boot(sdk: FakeSdk, mode: SessionPersistence = 'refresh-cookie') {
+async function boot(
+  sdk: FakeSdk,
+  mode: SessionPersistence = 'refresh-cookie',
+  adapterOptions: Parameters<typeof createSdkAdapterFactory>[1] = {},
+) {
   runtimeEnv.sessionPersistence = mode
-  const load = vi.fn(async () => ({ default: createSdkAdapterFactory(sdk) }))
+  const load = vi.fn(async () => ({ default: createSdkAdapterFactory(sdk, adapterOptions) }))
   configure({ adapters: { 'fake-sdk': { transport: 'bearer', load } } })
   await loadAuthAdapter('fake-sdk')
 
@@ -243,6 +262,143 @@ describe('what the SDK announces drives the store', () => {
 
     expect(store.isAuthenticated).toBe(false)
     expect(router.replace).not.toHaveBeenCalled()
+  })
+})
+
+describe('the order of what the SDK announces', () => {
+  const grace = {
+    id: 'sdk-user-2',
+    email: 'grace@example.test',
+    name: 'Grace Hopper',
+    role: 'admin',
+  }
+
+  /** Every session end the app announces, with who the store held at that moment. */
+  function sessionEnds(store: ReturnType<typeof useAuthStore>) {
+    const ends: Array<{ reason?: string; user: unknown }> = []
+    const stop = appEvents.on('auth.logout', ({ reason }) => {
+      ends.push({ reason, user: store.user })
+    })
+    return { ends, stop }
+  }
+
+  it('numbers every change, in the order the SDK made them', async () => {
+    const sdk = createFakeSdk()
+    await boot(sdk)
+    const changes: AuthStateChange[] = []
+    const stop = createAuthAdapter('fake-sdk').subscribe!((change) => changes.push(change))
+
+    await sdk.auth.signInWithPassword({ email: user.email, password: 'pw' })
+    await sdk.rotateInBackground()
+    sdk.signOutElsewhere()
+    stop()
+
+    expect(changes.map((change) => change.sequence)).toEqual([1, 2, 3])
+    expect(changes.map((change) => change.session?.token ?? null)).toEqual([
+      'sdk-access-1',
+      'sdk-access-2',
+      null,
+    ])
+    useAuthStore().clearRefreshTimer()
+  })
+
+  it('ends one user’s session before another’s begins, when somebody else signed in elsewhere', async () => {
+    const sdk = createFakeSdk()
+    const seen = api(sdk)
+    const { store } = await boot(sdk)
+    await signIn(store)
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(['orders'], [{ id: 'adas-order' }])
+    const stopClearing = clearQueryCacheOnSessionEnd(queryClient)
+    const { ends, stop } = sessionEnds(store)
+
+    // The SDK shares its storage between tabs: Grace signed in in another one.
+    sdk.signInElsewhere(grace.email)
+    stop()
+    stopClearing()
+
+    // Exactly one session end, and nobody in the store while it was announced.
+    expect(ends).toEqual([{ reason: 'logout', user: null }])
+    expect(store.user).toEqual(grace)
+    expect(store.token).toBe('sdk-access-2')
+    // Grace is not shown what was fetched for Ada.
+    expect(queryClient.getQueryData(['orders'])).toBeUndefined()
+    await expect(apiFetch('/orders')).resolves.toEqual({ ok: true })
+    expect(seen).toEqual(['Bearer sdk-access-2'])
+    store.clearRefreshTimer()
+  })
+
+  it('still signs the user in when they sign in elsewhere after signing out here', async () => {
+    const sdk = createFakeSdk()
+    const { store } = await boot(sdk)
+    await signIn(store)
+    // `useAuth().logout()`: the adapter tells the SDK, then the store is cleared.
+    await createAuthAdapter('fake-sdk').logout()
+    store.clearAuth('logout')
+    expect(store.isAuthenticated).toBe(false)
+
+    // The SDK reported the sign-out itself, so what it announces next is new.
+    sdk.signInElsewhere(user.email)
+
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.user).toEqual(user)
+    expect(store.token).toBe('sdk-access-2')
+    store.clearRefreshTimer()
+  })
+
+  it('does not sign the user back in when the app ended the session and the SDK was not told', async () => {
+    const sdk = createFakeSdk()
+    const { store } = await boot(sdk)
+    await signIn(store)
+
+    // The store was cleared (an expiry, a `/me` that answered 401) and the
+    // SDK still believes in its session: it goes on rotating the token.
+    store.clearAuth('expired')
+    await sdk.rotateInBackground()
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.user).toBeNull()
+    expect(store.token).toBeNull()
+  })
+
+  it('never announces a result that a later event has superseded', async () => {
+    // The adapter looks something up before it tells the app, and the lookup
+    // for a rotation is still out when the user signs out.
+    const sdk = createFakeSdk()
+    const lookups: Array<() => void> = []
+    const lookup = (_session: SdkSession) =>
+      new Promise<void>((resolve) => {
+        lookups.push(resolve)
+      })
+    const { store } = await boot(sdk, 'refresh-cookie', { lookup })
+    await signIn(store)
+    const changes: AuthStateChange[] = []
+    createAuthAdapter('fake-sdk').subscribe!((change) => changes.push(change))
+
+    await sdk.rotateInBackground()
+    sdk.signOutElsewhere()
+    for (const answer of lookups) answer()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    // The sign-out was announced, and the rotation it overtook never was.
+    expect(changes.some((change) => change.session === null)).toBe(true)
+    expect(changes.some((change) => change.session?.token === 'sdk-access-2')).toBe(false)
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.token).toBeNull()
+  })
+
+  it('keeps the session, and the SDK’s emitter, intact when the SDK’s user stops fitting', async () => {
+    const sdk = createFakeSdk()
+    const { store } = await boot(sdk)
+    await signIn(store)
+
+    // Thrown into the SDK's emitter, this would break every other listener.
+    expect(() => sdk.announceMalformedUser()).not.toThrow()
+
+    expect(store.user).toEqual(user)
+    expect(store.token).toBe('sdk-access-1')
+    store.clearRefreshTimer()
   })
 })
 

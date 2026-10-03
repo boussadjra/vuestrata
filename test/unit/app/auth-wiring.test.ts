@@ -6,12 +6,29 @@ import {
   setupAuthInterceptor,
 } from '@/bootstrap/auth-wiring'
 import type { AuthWiringStore } from '@/bootstrap/auth-wiring'
+import { clearQueryCacheOnSessionEnd } from '@/bootstrap/query-client'
+import type { AuthStateChange } from '@/lib/auth'
 import type { createAuthAdapter } from '@/modules/auth'
 import type { restoreSession as restoreSessionDefault } from '@/plugins/session-restore'
 import { useAuthStore } from '@/stores/auth'
 import { appEvents } from '~/lib/events'
 import { getApiAuthBackend } from '~/lib/runtime'
 import type { User } from '~/types'
+
+/** What the code under test logs, so a test can say what was and was not. */
+const logged = vi.hoisted(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }))
+
+vi.mock(import('~/lib/logger'), async (importOriginal) => {
+  const facade = {
+    ...logged,
+    fatal: vi.fn(),
+    debug: vi.fn(),
+    trace: vi.fn(),
+    log: vi.fn(),
+    withTag: () => facade,
+  }
+  return { ...(await importOriginal()), logger: facade, createScopedLogger: () => facade }
+})
 
 /**
  * What `boot()` hands the API client, and what it hands `restoreSession`.
@@ -680,6 +697,337 @@ describe('setupAuthInterceptor', () => {
 
       await expect(handler()).resolves.toBeUndefined()
       expect(store.setAuth).not.toHaveBeenCalled()
+    })
+  })
+
+  /**
+   * An adapter whose session an SDK keeps reports changes through
+   * `subscribe`, and they are not written as they come: an announcement can
+   * be late, and it can be for somebody else. The contract is on
+   * `AuthAdapter.subscribe`. These run against the real store, because the
+   * session ending is something the store announces.
+   */
+  describe('what an adapter announces through subscribe', () => {
+    const ada = { id: 'a', email: 'ada@example.com', name: 'Ada', role: 'admin' } as User
+    const grace = { id: 'b', email: 'grace@example.com', name: 'Grace', role: 'manager' } as User
+
+    function wireAnnouncing(adapter: Partial<Adapter> = {}, router = fakeRouter()) {
+      const heard: { listener?: (change: AuthStateChange) => void } = {}
+      const store = useAuthStore()
+      const wired = wire(
+        store,
+        fakeAdapter({
+          subscribe: (listener: (change: AuthStateChange) => void) => {
+            heard.listener = listener
+            return () => {}
+          },
+          ...adapter,
+        } as Partial<Adapter>),
+        router,
+      )
+      // Every session end, with who the store held when it was announced.
+      const logouts: Array<{ reason?: string; user: User | null }> = []
+      appEvents.on('auth.logout', ({ reason }) => {
+        logouts.push({ reason, user: store.user })
+      })
+      const announce = (change: AuthStateChange) => heard.listener!(change)
+      return { store, ...wired, announce, logouts }
+    }
+
+    const session = (user: User, token: string) => ({ user, token })
+
+    it('signs in whoever the SDK says signed in, when nobody was', () => {
+      const { store, announce, logouts } = wireAnnouncing()
+
+      // The SDK finished a redirect sign-in, or picked a session up from
+      // another tab.
+      announce({ session: session(ada, 'A1') })
+
+      expect(store.user).toEqual(ada)
+      expect(store.token).toBe('A1')
+      expect(logouts).toEqual([])
+    })
+
+    it('follows a token rotated for the same user without ending anything', () => {
+      const { store, announce, logouts } = wireAnnouncing()
+      announce({ session: session(ada, 'A1') })
+
+      announce({ session: session(ada, 'A2') })
+
+      expect(store.token).toBe('A2')
+      expect(logouts).toEqual([])
+    })
+
+    describe('for another user', () => {
+      it('ends the session in progress first: one auth.logout, before the new user is visible', () => {
+        const { store, announce, logouts } = wireAnnouncing()
+        store.setAuth(ada, 'A1')
+
+        announce({ session: session(grace, 'G1') })
+
+        // Announced once, and the store held nobody at that moment: whatever
+        // drops the previous user's data did so before the next one arrived.
+        expect(logouts).toEqual([{ reason: 'logout', user: null }])
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('G1')
+      })
+
+      it('drops the previous user’s query cache and the interceptor’s state', () => {
+        const queries = { clear: vi.fn() }
+        const stop = clearQueryCacheOnSessionEnd(queries as never)
+        const { store, announce } = wireAnnouncing()
+        store.setAuth(ada, 'A1')
+        const backend = getApiAuthBackend()
+        backend.setRefreshPromise(Promise.resolve('A2'))
+        backend.setLastRefreshedAt(Date.now())
+
+        announce({ session: session(grace, 'G1') })
+        stop()
+
+        // Grace must not be shown Ada's lists, nor join Ada's refresh.
+        expect(queries.clear).toHaveBeenCalledOnce()
+        expect(backend.getRefreshPromise()).toBeNull()
+        expect(backend.getLastRefreshedAt()).toBe(0)
+      })
+
+      it('discards a refresh still in flight for the previous user', async () => {
+        const answers: Array<(value: { token: string }) => void> = []
+        const refreshSession = vi.fn(
+          () => new Promise<{ token: string }>((resolve) => answers.push(resolve)),
+        )
+        const { store, provider, announce } = wireAnnouncing({
+          refreshSession,
+        } as Partial<Adapter>)
+        store.setAuth(ada, 'A1')
+
+        const forAda = provider.refresh!()
+        announce({ session: session(grace, 'G1') })
+        answers[0]!({ token: 'A2' })
+
+        await expect(forAda).resolves.toBeNull()
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('G1')
+      })
+
+      it('compares ids as the store holds them, so 7 and "7" are one user', () => {
+        const { store, announce, logouts } = wireAnnouncing()
+        store.setAuth({ ...ada, id: '7' }, 'A1')
+
+        announce({ session: session({ ...ada, id: 7 } as unknown as User, 'A2') })
+
+        expect(logouts).toEqual([])
+        expect(store.token).toBe('A2')
+      })
+    })
+
+    describe('after this tab ended the session itself', () => {
+      it('ignores a session announced late, and stays signed out', () => {
+        const { store, announce, logouts } = wireAnnouncing()
+        announce({ session: session(ada, 'A1') })
+
+        // What `useAuth().logout()` does to the store.
+        store.clearAuth('logout')
+        // A rotation the SDK had under way, or one an adapter announced late.
+        announce({ session: session(ada, 'A2') })
+
+        expect(store.user).toBeNull()
+        expect(store.token).toBeNull()
+        expect(store.isAuthenticated).toBe(false)
+        expect(logouts).toHaveLength(1)
+      })
+
+      it('does the same after an expiry', () => {
+        const { store, provider, announce } = wireAnnouncing()
+        announce({ session: session(ada, 'A1') })
+
+        provider.clearAuth()
+        announce({ session: session(ada, 'A2') })
+
+        expect(store.user).toBeNull()
+      })
+
+      it('listens again once the app has signed somebody in', () => {
+        const { store, announce } = wireAnnouncing()
+        announce({ session: session(ada, 'A1') })
+        store.clearAuth('logout')
+        announce({ session: session(ada, 'A2') })
+
+        // `useAuth().login()`: the adapter's answer, written by the app.
+        store.setAuth(grace, 'G1')
+        announce({ session: session(grace, 'G2') })
+
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('G2')
+      })
+
+      it('without a sequence, is not reopened by the SDK reporting the sign-out', () => {
+        const { store, announce } = wireAnnouncing()
+        announce({ session: session(ada, 'A1') })
+        store.clearAuth('logout')
+
+        // Nothing says whether what follows was made before or after it.
+        announce({ session: null })
+        announce({ session: session(ada, 'A2') })
+
+        expect(store.user).toBeNull()
+      })
+
+      it('with a sequence, takes what follows the SDK’s own sign-out as a new sign-in', () => {
+        const { store, announce } = wireAnnouncing()
+        announce({ session: session(ada, 'A1'), sequence: 1 })
+        store.clearAuth('logout')
+
+        // Still the session that just ended: the SDK has not said it is over.
+        announce({ session: session(ada, 'A2'), sequence: 2 })
+        expect(store.user).toBeNull()
+
+        // It has now. Somebody then signed in, in another tab.
+        announce({ session: null, sequence: 3 })
+        announce({ session: session(grace, 'G1'), sequence: 4 })
+
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('G1')
+      })
+    })
+
+    describe('out of order', () => {
+      it('drops a change older than one already received', () => {
+        const { store, announce } = wireAnnouncing()
+        announce({ session: session(ada, 'A1'), sequence: 1 })
+        announce({ session: null, sequence: 3 })
+
+        // Made before the sign-out, delivered after it.
+        announce({ session: session(ada, 'A2'), sequence: 2 })
+
+        expect(store.user).toBeNull()
+        expect(logged.info).toHaveBeenCalledWith(expect.stringMatching(/older than one already/))
+      })
+
+      it('never replaces a session established later with one announced earlier', () => {
+        const { store, announce, logouts } = wireAnnouncing()
+        announce({ session: session(ada, 'A1'), sequence: 1 })
+        store.clearAuth('logout')
+
+        // Grace signs in through the app; the SDK reports it as it does every
+        // change. Then Ada's rotation, made before all of it, arrives.
+        store.setAuth(grace, 'G1')
+        announce({ session: session(grace, 'G1'), sequence: 3 })
+        announce({ session: session(ada, 'A2'), sequence: 2 })
+
+        expect(store.user).toEqual(grace)
+        expect(store.token).toBe('G1')
+        // Only Ada's own sign-out: Grace's session was never ended.
+        expect(logouts).toHaveLength(1)
+      })
+
+      it('counts a change it ignored, so an older one is still older', () => {
+        const { store, announce } = wireAnnouncing()
+        announce({ session: session(ada, 'A1'), sequence: 1 })
+        store.clearAuth('logout')
+        // Grace's sign-in, announced before the app had written it: ignored,
+        // because the tab had just signed out.
+        announce({ session: session(grace, 'G1'), sequence: 3 })
+        store.setAuth(grace, 'G1')
+
+        announce({ session: session(ada, 'A2'), sequence: 2 })
+
+        expect(store.user).toEqual(grace)
+      })
+
+      it('takes changes with the same sequence in the order they come', () => {
+        const { store, announce } = wireAnnouncing()
+
+        announce({ session: session(ada, 'A1'), sequence: 5 })
+        announce({ session: session(ada, 'A2'), sequence: 5 })
+
+        expect(store.token).toBe('A2')
+      })
+    })
+
+    describe('a session the SDK reports as over', () => {
+      it('does not stop a sign-in the SDK reports afterwards', () => {
+        const { store, announce, logouts } = wireAnnouncing()
+        announce({ session: session(ada, 'A1') })
+
+        // Signed out in another tab, then somebody signed in there.
+        announce({ session: null })
+        announce({ session: session(grace, 'G1') })
+
+        expect(logouts).toEqual([{ reason: 'logout', user: null }])
+        expect(store.user).toEqual(grace)
+      })
+
+      it('is announced as an expiry when the SDK says so, and still not as the app’s doing', () => {
+        const { store, announce, logouts } = wireAnnouncing()
+        announce({ session: session(ada, 'A1') })
+
+        announce({ session: null, reason: 'expired' })
+        announce({ session: session(ada, 'A2') })
+
+        expect(logouts).toEqual([{ reason: 'expired', user: null }])
+        expect(store.token).toBe('A2')
+      })
+    })
+
+    describe('a session that is not one', () => {
+      it('ignores a user without a token under bearer transport', () => {
+        const { store, announce } = wireAnnouncing()
+
+        announce({ session: { user: ada } })
+
+        // A user in the store with no token is signed in to nothing.
+        expect(store.user).toBeNull()
+        expect(logged.warn).toHaveBeenCalledWith(expect.stringMatching(/without a token/))
+      })
+
+      it('takes a user without a token under cookie transport, where there never is one', () => {
+        const { store, announce } = wireAnnouncing({ transport: 'cookie' })
+
+        announce({ session: { user: ada } })
+
+        expect(store.user).toEqual(ada)
+        expect(store.token).toBeNull()
+      })
+
+      it.each([
+        ['no id', { email: 'secret@example.test' }],
+        ['an array for a role', { ...ada, role: ['super_admin'] }],
+        ['permissions that are not an array', { ...ada, permissions: 'users:delete' }],
+      ])('ignores a user with %s, and adds no log line of its own', (_case, drifted) => {
+        const { store, announce } = wireAnnouncing()
+
+        announce({ session: { user: drifted as unknown as User, token: 'A1' } })
+
+        expect(store.user).toBeNull()
+        expect(store.isAuthenticated).toBe(false)
+        // `parseUser` logs the mismatch, once, with field paths and no payload
+        // (test/unit/auth/auth-mapping.test.ts holds it to that). The wiring
+        // says nothing more: a second line is where a payload would leak.
+        expect(logged.error).not.toHaveBeenCalled()
+        expect(logged.warn).not.toHaveBeenCalled()
+        expect(logged.info).not.toHaveBeenCalled()
+      })
+
+      it('leaves the session in progress alone when the announced user does not fit', () => {
+        const { store, announce, logouts } = wireAnnouncing()
+        store.setAuth(ada, 'A1')
+
+        announce({ session: { user: { email: 'x' } as unknown as User, token: 'A2' } })
+
+        expect(store.user).toEqual(ada)
+        expect(store.token).toBe('A1')
+        expect(logouts).toEqual([])
+      })
+
+      it('stores the user as the contract shapes it', () => {
+        const { store, announce } = wireAnnouncing()
+
+        announce({
+          session: { user: { id: 7, email: 'ada@example.com' } as unknown as User, token: 'A1' },
+        })
+
+        expect(store.user).toEqual({ id: '7', email: 'ada@example.com', name: 'ada@example.com' })
+      })
     })
   })
 })

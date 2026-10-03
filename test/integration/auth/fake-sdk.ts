@@ -40,6 +40,22 @@ type SdkListener = (event: SdkEvent, session: SdkSession | null) => void
 /** Where the SDK keeps its session. Its own key, not one of the app's. */
 export const SDK_STORAGE_KEY = 'fake-sdk.session'
 
+/** The accounts the SDK's backend knows, by email. Anybody else is Ada. */
+const ACCOUNTS: Record<string, Omit<SdkSession['user'], 'email'>> = {
+  'grace@example.test': {
+    id: 'sdk-user-2',
+    user_metadata: { full_name: 'Grace Hopper' },
+    app_metadata: { role: 'admin' },
+  },
+}
+const accountFor = (email: string): SdkSession['user'] => ({
+  id: 'sdk-user-1',
+  user_metadata: { full_name: 'Ada Lovelace' },
+  app_metadata: { role: 'manager' },
+  ...ACCOUNTS[email],
+  email,
+})
+
 export function createFakeSdk() {
   const listeners = new Set<SdkListener>()
   const counters = { issued: 0 }
@@ -73,12 +89,7 @@ export function createFakeSdk() {
     auth: {
       async signInWithPassword(credentials: { email: string; password: string }) {
         if (credentials.password !== 'pw') throw new Error('Invalid login credentials')
-        const session = issue({
-          id: 'sdk-user-1',
-          email: credentials.email,
-          user_metadata: { full_name: 'Ada Lovelace' },
-          app_metadata: { role: 'manager' },
-        })
+        const session = issue(accountFor(credentials.email))
         emit('SIGNED_IN', session)
         return session
       },
@@ -109,6 +120,16 @@ export function createFakeSdk() {
       const current = read()
       if (current) emit('TOKEN_REFRESHED', issue(current.user))
     },
+    /** Somebody signed in in another tab: the SDK shares its storage, and says so. */
+    signInElsewhere: (email: string) => emit('SIGNED_IN', issue(accountFor(email))),
+    /**
+     * Announce a session with a user record the adapter cannot map: what an
+     * SDK upgrade, or a change to the project's user metadata, looks like.
+     */
+    announceMalformedUser() {
+      const current = read()
+      if (current) emit('TOKEN_REFRESHED', { ...current, user: { id: current.user.id } as never })
+    },
     /** The user signed out in another tab. */
     signOutElsewhere: () => end('SIGNED_OUT'),
     /** The session was revoked, or its refresh token ran out. */
@@ -126,8 +147,19 @@ export type FakeSdk = ReturnType<typeof createFakeSdk>
  * `sloppy` leaves the SDK's refresh token on the sessions it returns, which an
  * adapter author might well do. The registry is what guarantees the app never
  * keeps it, so the tests run with it on.
+ *
+ * `lookup` stands for work the adapter does between the SDK's event and
+ * telling the app, such as fetching the user's profile from the project's own
+ * API. It is what makes an announcement late, and the test controls when it
+ * answers.
  */
-export function createSdkAdapterFactory(sdk: FakeSdk, { sloppy = true } = {}): AuthAdapterFactory {
+export function createSdkAdapterFactory(
+  sdk: FakeSdk,
+  {
+    sloppy = true,
+    lookup,
+  }: { sloppy?: boolean; lookup?: (session: SdkSession) => Promise<void> } = {},
+): AuthAdapterFactory {
   // A bearer session always has a token, which is what lets one shape serve
   // as a login answer, a resumed session and a refreshed one.
   const toSession = (session: SdkSession): ResumedSession & { token: string } => ({
@@ -189,16 +221,43 @@ export function createSdkAdapterFactory(sdk: FakeSdk, { sloppy = true } = {}): A
       },
 
       subscribe(listener) {
+        // The order the SDK made its changes in. One counter for all of them,
+        // read as each event arrives and before anything asynchronous: it is
+        // what lets a late result be recognised as late, here and by the app.
+        let events = 0
+
         return sdk.auth.onAuthStateChange((event, session) => {
+          const sequence = ++events
+
           if (event === 'SESSION_EXPIRED') {
-            listener({ session: null, reason: 'expired' })
-          } else if (event === 'SIGNED_OUT') {
+            listener({ session: null, reason: 'expired', sequence })
+            return
+          }
+          if (event === 'SIGNED_OUT') {
             // This tab's own sign-out arrives here too, and so does another
             // tab's. Neither is an expiry, and the app treats them alike.
-            listener({ session: null })
-          } else if (session) {
-            listener({ session: toSession(session) })
+            listener({ session: null, sequence })
+            return
           }
+          if (!session) return
+
+          const announce = () => {
+            // Something happened while this one was being looked up: it is
+            // no longer the state of the session, and must not be announced.
+            if (sequence !== events) return
+            let announced: ReturnType<typeof toSession>
+            try {
+              announced = toSession(session)
+            } catch {
+              // The SDK's user stopped fitting `User`. `parseUser` has logged
+              // it; throwing here would land in the SDK's own event emitter.
+              return
+            }
+            listener({ session: announced, sequence })
+          }
+
+          if (lookup) void lookup(session).then(announce, () => {})
+          else announce()
         })
       },
     }

@@ -74,7 +74,7 @@ export type AuthProviderId = Exclude<AuthProvider, 'credentials'> | (string & {}
 
 /**
  * What an adapter reports through `subscribe`: a change to the session that
- * the app did not ask for, because an SDK made it.
+ * an SDK made, whether or not the app asked for it.
  */
 export interface AuthStateChange {
   /** The session now in force, or null when there is none. */
@@ -85,6 +85,19 @@ export interface AuthStateChange {
    * and they are sent there without it.
    */
   reason?: 'logout' | 'expired'
+  /**
+   * Where this change falls in the order the SDK made them: a number that
+   * never goes down from one change to the next. In practice a counter the
+   * adapter keeps, incremented when the SDK reports a change and read BEFORE
+   * any `await`; an SDK's own event time serves too, if it never goes back.
+   * One counter covers every change the adapter reports, sign-outs included.
+   *
+   * Optional, and worth supplying. With it the bootstrap drops a change that
+   * arrives after a later one, and can tell a new sign-in from a stale
+   * announcement once this tab has signed out. Without it, it has to take
+   * changes in the order they are delivered. See `AuthAdapter.subscribe`.
+   */
+  sequence?: number
 }
 
 /**
@@ -170,6 +183,42 @@ export interface AuthAdapter {
    * Optional and feature-detected, like `refreshSession`. The built-in
    * adapters have nothing to announce: every change to their session is the
    * answer to a request the app made.
+   *
+   * **What the adapter owes the listener**
+   *
+   * 1. Changes in the SDK's order. Call the listener for each change in the
+   *    order the SDK made them. An adapter that does asynchronous work between
+   *    the SDK's event and the call (fetching a profile, say) must drop its
+   *    result when a later event has arrived meanwhile: note a counter before
+   *    the `await`, compare it after, and pass it on as `sequence`.
+   * 2. `logout()` ends the SDK's session. The app clears its own state when
+   *    the user signs out; an SDK that was not told would keep rotating a token
+   *    for somebody who has left.
+   * 3. A user that fits `User`. It is validated either way; one that does not
+   *    fit is logged and the change ignored.
+   *
+   * **What the bootstrap does with a change** (`bootstrap/auth-wiring.ts`)
+   *
+   * - *Out of order.* A change whose `sequence` is lower than one already
+   *   received is dropped. A session established later is never replaced by
+   *   one announced earlier, provided the adapter supplies `sequence`; one
+   *   that does not is taken at its word on order.
+   * - *Another user.* When the store holds a user and the session announced
+   *   is somebody else's, the current session is ended first — one
+   *   `auth.logout`, so the query cache is dropped and a refresh in flight
+   *   discarded — and only then is the new user set.
+   * - *After a sign-out in this tab.* Once the app has ended a session itself
+   *   (`useAuth().logout()`, an expiry), a session the adapter announces is
+   *   ignored: it cannot be told from a late announcement of the session that
+   *   just ended, and honouring it would sign the user back in. That lasts
+   *   until the app signs somebody in itself, or until the adapter reports the
+   *   end of the session (`session: null`) with a `sequence`: whatever it
+   *   announces after that is, by its own order, a new sign-in. Without
+   *   `sequence` only the app's own sign-in ends it.
+   * - *A session that ended elsewhere* (`session: null`) clears the store and
+   *   sends a visitor on a protected page to the login page. That is the SDK's
+   *   own report, so a session it announces afterwards is honoured.
+   * - Under bearer transport a session with no `token` is ignored.
    */
   subscribe?: (listener: (change: AuthStateChange) => void) => () => void
 
