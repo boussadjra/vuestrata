@@ -14,6 +14,10 @@ API client, the route guard, what the visitor sees when something fails, and the
 Docker image. The rest is what lets those fixes reach an existing project.
 [`UPGRADING.md`](UPGRADING.md#110) has the steps, in order.
 
+> **Before you deploy: does the app use the `jwt` adapter against an API on
+> another origin?** Then the backend has to change first, or its login is
+> refused by the browser. It is the first item under [Needs you](#fork-impact).
+
 ### Added
 
 **Upgrade tooling**
@@ -281,6 +285,10 @@ for you, and leaves the release's version of any file it held back in
 - the three merged files are reclassified, so a barrel that already holds
   generated entries is not offered back to you as an edit
 - `rbac.overrides.ts` is written
+- a project that ran `eject` on 1.0 gets this release's `core/lib/rbac/types.ts`
+  and `inheritance.ts` over the two copies that command edited, and the
+  permissions it removed are withdrawn in `rbac.overrides.ts` instead, so every
+  role holds what it held
 - the template-lock check leaves the `lint` script in `package.json`
 - `plugins/router.ts`, `plugins/stale-chunk.ts` and the login page get this
   release's changes where the shipped lines are still there
@@ -292,7 +300,10 @@ for you, and leaves the release's version of any file it held back in
   `'.vuestrata/**'`
 - `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.github/dependabot.yml`,
   `.github/workflows/ci.yml`, `e2e/production-artifact.spec.ts` and
-  `scripts/lint/check-toolchain-pins.mjs` are replaced when unedited
+  `scripts/lint/check-toolchain-pins.mjs` are replaced when unedited. The
+  `Dockerfile` and the spec wait for the header generators: beside a pair you
+  kept they stay as they are, and the next upgrade after you merge replaces
+  them
 - the two header generators are replaced together when both are unedited
 - new upstream entries are appended to your registries' `vuestrata:` regions
 
@@ -301,13 +312,24 @@ for you, and leaves the release's version of any file it held back in
 - **A cross-origin API must allow credentials.** `jwt` under the default
   `VUESTRATA_SESSION_PERSISTENCE` (`refresh-cookie`) now sends cookies on its
   `/auth/*` requests. An API on another origin must answer those with
-  `Access-Control-Allow-Origin: <the app's exact origin>` and
-  `Access-Control-Allow-Credentials: true`. One that answers `*` has its login
-  refused by the browser. If your backend sets no refresh cookie, set
-  `VUESTRATA_SESSION_PERSISTENCE` to `none`, `session` or `local`, and nothing
-  changes. A same-origin API (`VUESTRATA_API_URL=/api`) needs neither
+  `Access-Control-Allow-Origin: <the app's exact origin>`,
+  `Access-Control-Allow-Credentials: true` and an explicit
+  `Access-Control-Allow-Headers: Authorization, Content-Type`. A `*` in any of
+  them is read literally on a credentialed request, so a backend that answers
+  `*`, for the origin or for the headers, has its login refused by the
+  browser. Change the backend before you deploy the upgraded app. If it sets no
+  refresh cookie, set `VUESTRATA_SESSION_PERSISTENCE` to `none`, `session` or
+  `local`, and nothing changes. A same-origin API (`VUESTRATA_API_URL=/api`)
+  needs none of this.
+  [`docs/6.configuration/1.environment.md`](docs/6.configuration/1.environment.md)
+  lists what the backend must do. The upgrade prints this as a note unless a
+  `.env` or `.env.production` file shows it cannot apply; a project that kept
+  its own `auth/adapters/base.ts`, `jwt.ts` or `types.ts` keeps the 1.0
+  behaviour until it merges them
 - **Run `vpr security:headers` after the upgrade** when the header generators
-  were replaced. `vpr lint` reports drift until you do
+  were replaced. `vpr lint` reports drift until you do. It skips a deployment
+  the project does not have (no `docker/`, no `vercel.json`, no `public/`), and
+  so do the drift check and `check-toolchain-pins`
 - **The production bundle check is stricter.** It fails when any chunk, your
   docs pages included, contains `demo@vuestrata.dev`, `vuestrata-demo-auth` or
   `vuestrata-demo-v1`. The upgrade rewords the shipped lines; a line you
@@ -327,7 +349,24 @@ for you, and leaves the release's version of any file it held back in
   arrives in `.vuestrata/incoming/`: move your grants into
   `rbac.overrides.ts`. If you edited `state/runtime-backends.ts`, add the two
   lines the note gives, or `rbac.overrides.ts` has no effect. Entries in the
-  `app:permissions` region of `rbac/types.ts` keep working
+  `app:permissions` region of `rbac/types.ts` keep working. **If you edited
+  the union in `core/lib/rbac/types.ts` itself** (beyond what the 1.0 `eject`
+  removed, which the upgrade handles), the project does not type-check until
+  you merge it: the upgrade says so first, with the steps
+- **A file you kept costs more than its own fixes** in two places. An edited
+  `stores/auth.ts` announces no `auth.logout`, so signing out does not clear
+  the query cache. An edited `scripts/security/headers.mjs` leaves `vp dev`
+  without a CSP and `deploy.config.ts` headers without effect. Neither breaks
+  the build, and the upgrade's note for each says what to merge
+- **`.node-version`.** `vp` resolves Node from `.node-version`,
+  `devEngines.runtime` and `engines.node` before `.nvmrc`, so local runs were
+  on a newer major than CI and the image. The template now pins `22` there and
+  `check-toolchain-pins` holds it to `.nvmrc`. In your project the file is
+  yours: `vp env pin 22`
+- **The docs site.** The one-heading fix is in
+  `src/modules/app/components/docs/`, which is yours: copy `DocsContent.vue`,
+  `DocsShell.vue` and `docsNavigation.ts` from the release if you kept the
+  docs site
 - **Guard and UI now agree.** A user whose `/auth/me` carries a role and no
   `permissions` can open the routes that role grants (the guard used to answer
   `/403`). A signed-out visitor holds nothing in `useRbac()`. Code that read

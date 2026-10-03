@@ -1,57 +1,18 @@
-import { AUTH_ADAPTER_ENV_KEY } from '~/config/app.config'
-import { createScopedLogger } from '~/lib/logger'
+// The adapter types come from core/lib, not './types': this file is not part of
+// the unit base.ts, jwt.ts and types.ts are replaced as, so it can sit beside a
+// 1.0 types.ts, whose AuthAdapter is not the one the registry builds.
+import type { AuthAdapter, AuthCapabilities } from '~/lib/auth/adapter'
 
-import { createJwtAdapter } from './jwt'
-import { createMockAdapter } from './mock'
-import { createOAuthAdapter } from './oauth'
-import {
-  SUPPORTED_AUTH_ADAPTERS,
-  UnsupportedAuthCapabilityError,
-  type AuthAdapter,
-  type AuthCapabilities,
-  type SupportedAuthAdapter,
-} from './types'
-
-const adapterLogger = createScopedLogger('auth:adapter')
+import { UnsupportedAuthCapabilityError } from './types'
 
 export * from './types'
 export { isJwtExpired } from './jwt'
-
-export function resolveAuthAdapterName(adapterName: string | undefined): SupportedAuthAdapter {
-  if (!adapterName) return 'mock'
-  if ((SUPPORTED_AUTH_ADAPTERS as readonly string[]).includes(adapterName)) {
-    return adapterName as SupportedAuthAdapter
-  }
-  adapterLogger.warn(
-    `Unknown ${AUTH_ADAPTER_ENV_KEY} value "${adapterName}", falling back to "mock".`,
-  )
-  return 'mock'
-}
-
-/**
- * Build the configured adapter.
- *
- * `getToken` is threaded through for the JWT adapter's expiry check, and
- * `getRefreshToken` for the refresh token it presents when one is held in
- * memory. Both are callbacks rather than values because the adapter is
- * constructed once and the tokens change on every refresh.
- */
-export function createAuthAdapter(
-  adapterName: string | undefined,
-  options: { getToken?: () => string | null; getRefreshToken?: () => string | null } = {},
-): AuthAdapter {
-  const name = resolveAuthAdapterName(adapterName)
-
-  switch (name) {
-    case 'jwt':
-      return createJwtAdapter(options.getToken, options.getRefreshToken)
-    case 'oauth':
-      return createOAuthAdapter()
-    case 'mock':
-    default:
-      return createMockAdapter()
-  }
-}
+export {
+  createAuthAdapter,
+  loadAuthAdapter,
+  registeredAuthAdapters,
+  resolveAuthAdapterName,
+} from './registry'
 
 /**
  * Narrow an optional adapter method to a callable one, or throw a message that

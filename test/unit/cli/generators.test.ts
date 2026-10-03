@@ -357,3 +357,39 @@ describe('the rbac.overrides.ts seam', () => {
     ).toBe(false)
   })
 })
+
+describe('the auth.config.ts seam', () => {
+  const AUTH_CONFIG = 'src/modules/app/config/auth.config.ts'
+
+  it('is a seeded file, and a slot a project may lack until it upgrades', () => {
+    expect(DEFAULT_SLOTS.authConfig).toBe(AUTH_CONFIG)
+    expect(SEEDED_FILES).toContain(AUTH_CONFIG)
+    expect(SEEDED_SLOTS).toContain('authConfig')
+
+    // The fixture never had the file: that is a project from before the seam,
+    // and it must not read as a broken layout to a generator or to doctor.
+    expect(fixture.exists(AUTH_CONFIG)).toBe(false)
+    const missing = missingSlots(loadManifest(fixture.project)).map(
+      (entry: { slot: string }) => entry.slot,
+    )
+    expect(missing).not.toContain('authConfig')
+  })
+
+  it('has no regions: no generator and no upgrade ever appends to it', () => {
+    const slots = ANCHORED_REGISTRIES.map((registry: { slot: string }) => registry.slot)
+    expect(slots).not.toContain('authConfig')
+    expect(real(AUTH_CONFIG)).not.toMatch(/(?:vuestrata|app):[a-z-]+-(?:start|end)/)
+  })
+
+  it('ships empty, and takes everything it uses from core/lib', () => {
+    const source = real(AUTH_CONFIG)
+
+    // Data only: its types and helpers are Vuestrata's, so a release can add
+    // an optional member without this file having to change. And from
+    // `core/lib` specifically: a module barrel is the project's file, so a
+    // helper exported only there would be missing in a project that upgrades.
+    const imports = [...source.matchAll(/^import .* from '([^']+)'$/gm)].map((match) => match[1])
+    expect(imports).toEqual(['~/lib/auth'])
+    expect(source).toMatch(/export default defineAuthConfig\(\{\}\)\n$/)
+  })
+})

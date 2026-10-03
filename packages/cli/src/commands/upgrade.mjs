@@ -12,7 +12,7 @@ import {
   regionHash,
   writeLock,
 } from '../lib/lockfile.mjs'
-import { PROJECT_REGISTRIES } from '../lib/managed.mjs'
+import { missingDeployment, PROJECT_REGISTRIES } from '../lib/managed.mjs'
 import { loadManifest, slot } from '../lib/manifest.mjs'
 import {
   applyMigrations,
@@ -50,7 +50,8 @@ import { createWorkspace, incomingPath } from '../lib/workspace.mjs'
  *      one that was ejected; adopted when already on disk; written when missing.
  *   3. Managed and merged files: replaced when untouched — a merged file with
  *      the project's `app:` regions carried across — and offered beside the
- *      project's copy in .vuestrata/incoming/ when edited.
+ *      project's copy in .vuestrata/incoming/ when edited. A new file for a
+ *      deployment the project removed (no Dockerfile, no docker/) is left out.
  *   4. The `vuestrata:` region of each project registry, append-only.
  *   5. Notes: whatever needs a person.
  */
@@ -247,6 +248,14 @@ function syncFiles({ source, ws, lock, report, target, handled }) {
     // work the tool has no record of.
     if (!record) {
       if (current === undefined) {
+        // For a deployment this project removed: writing it would bring the
+        // directory back. Not recorded, so it arrives once the project has one.
+        const missing = missingDeployment(rel, ws.exists)
+        if (missing) {
+          report.skipped.push({ rel, reason: `no ${missing.name} deployment here` })
+          continue
+        }
+
         ws.write(rel, incoming)
         lock.files[rel] = createRecord(rel, incoming, cls, target)
         report.written.push({ rel, reason: 'new' })

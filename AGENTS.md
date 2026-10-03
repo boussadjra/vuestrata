@@ -90,6 +90,18 @@ name and footer links in `app.overrides.ts`, a request header, an error format o
 CSRF convention of your backend in `api.overrides.ts`. Editing the underlying file
 works, and costs that file its updates forever.
 
+Deployment has a seam of its own, `src/modules/app/config/deploy.config.ts`
+(seeded): an origin the security headers must allow, a variable of the project's
+own, a variable a deployment may set at start. Change it there, never in
+`scripts/security/headers.mjs`, then run `vpr security:headers` and commit what
+it regenerates.
+
+Authentication has the same kind of seam, also `seeded`:
+`src/modules/app/config/auth.config.ts`. Endpoint paths, response and user
+shapes, the social providers and an auth adapter of the project's own go there,
+never in `src/modules/auth/adapters/`. Recipe:
+`docs/9.recipes/10.write-your-own-auth-adapter.md`.
+
 Breaking any of the contracts in `RELEASE.md` requires a migration under
 `packages/cli/migrations/<version>/`. That is a release rule, not a preference.
 
@@ -256,11 +268,11 @@ modules and permissions, so it is skipped unless `VUESTRATA_MAINTAINER=1`.
 | `theme-registry`                             | a theme wired in 3 of 4 files, or imported after `semantic.css`                                                                                                                                                               |
 | `module-contract` test                       | bad layout, nav group, icon or i18n key; dynamic route shadowing a static one; unconditional `mockHandlers`                                                                                                                   |
 | `registry-drift` test                        | a module never added to `setup.ts`                                                                                                                                                                                            |
-| `verify-bundle.mjs`                          | MSW or the demo account and state reaching a production bundle, in-app docs included; the size budgets                                                                                                                        |
+| `verify-bundle.mjs`                          | MSW or the demo account and state reaching a production bundle, in-app docs included; a chunk a page fetches on demand (charts, docs, MSW) loaded with every page; the size budgets                                           |
 | `check-toolchain-pins`                       | Node/pnpm/Vite+ pinned differently in the Dockerfile, `vercel.json` and CI                                                                                                                                                    |
 | `check-template-lock`, `public-surface` test | maintainer-only (`vpr lint:maintainer`, `VUESTRATA_MAINTAINER=1`): a stale shipped lockfile or CLI payload; a migration's copy of a project file that fell behind the repository; a changed public name. Not run in a project |
 | `module-contract` test                       | (also) a module that declares no `origin`, which `eject` cannot classify                                                                                                                                                      |
-| `sync-headers --check`                       | the security headers drifting between their four generated targets                                                                                                                                                            |
+| `sync-headers --check`                       | the security headers drifting between their generated targets, or from `deploy.config.ts`                                                                                                                                     |
 
 If a rule blocks you, fix the cause. Reach for an escape hatch only with a
 written justification — every one of these exists because the failure it

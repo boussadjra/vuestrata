@@ -1,5 +1,6 @@
 import { anonymousForbidden, drfCsrfFailed, loginRedirect } from '../classifiers'
 import { csrfPresets } from '../csrf'
+import { drfDialect } from '../dialects'
 import { drfErrorMapper } from '../error-mappers'
 import type { ApiBackendPreset } from '../integration'
 
@@ -26,6 +27,10 @@ import type { ApiBackendPreset } from '../integration'
  *   expired session; one that ended on another page is an unexpected response.
  * - **Errors**: `{ detail }`, and `{ field: [...] }` with `non_field_errors`.
  * - **CSRF**: the `csrftoken` cookie as `X-CSRFToken`.
+ * - **Collections**: `PageNumberPagination` (`drfDialect`): `page`,
+ *   `page_size`, `ordering=-field`, `{ count, next, previous, results }`, paths
+ *   with a trailing slash. For `LimitOffsetPagination` or `CursorPagination`,
+ *   set `collection: dialects.drfLimitOffset` or `dialects.drfCursor`.
  *
  * A token-based DRF API (simplejwt, knox) answers 401 like any other and needs
  * only the error mapper.
@@ -35,4 +40,5 @@ export const django: ApiBackendPreset = {
   classify: [drfCsrfFailed, anonymousForbidden(), loginRedirect()],
   errors: [drfErrorMapper],
   csrf: csrfPresets.django,
+  collection: drfDialect,
 }

@@ -243,9 +243,87 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:8080
         run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
 
+      # Build once, deploy many: the SAME image, started for another
+      # environment. Its API URL, its CSP and its unrouted-API answer are all
+      # decided at start, on a read-only root filesystem with a writable /tmp.
+      - name: Start the same image for another environment
+        run: |
+          docker run -d --name vuestrata-ci-staging -p 8081:8080 \
+            --read-only --tmpfs /tmp \
+            -e VUESTRATA_API_URL=https://api.staging.example.test \
+            -e VUESTRATA_APP_TITLE="Acme Staging" \
+            vuestrata:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8081/healthz >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs vuestrata-ci-staging
+          exit 1
+
+      - name: Smoke-test that environment
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8081
+          E2E_API_URL: https://api.staging.example.test
+          E2E_APP_TITLE: Acme Staging
+        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+
+      # An API URL on a placeholder host. A BUILD pointing at localhost is
+      # refused; a container started with one was told so on purpose, and the
+      # app must then call that URL rather than fall back to /api on its own
+      # origin while the headers allow localhost.
+      - name: Start the same image against a local backend
+        run: |
+          docker run -d --name vuestrata-ci-local -p 8082:8080 \
+            --read-only --tmpfs /tmp \
+            -e VUESTRATA_API_URL=http://localhost:8000 \
+            vuestrata:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8082/healthz >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs vuestrata-ci-local
+          exit 1
+
+      - name: Smoke-test that one
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8082
+          E2E_API_URL: http://localhost:8000
+        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+
+      # A value that could change the meaning of the nginx configuration or of
+      # runtime-config.js must stop the container, not be written out. The
+      # second is a typo the app would only warn about.
+      - name: A hostile or mistyped value stops the container
+        run: |
+          if docker run --rm --read-only --tmpfs /tmp \
+            -e 'VUESTRATA_API_URL=https://a.example"; add_header X-Injected 1' \
+            vuestrata:ci nginx -t; then
+            echo "The container accepted a value it must refuse."
+            exit 1
+          fi
+          if docker run --rm --read-only --tmpfs /tmp \
+            -e VUESTRATA_SESSION_PERSISTENCE=Session \
+            vuestrata:ci nginx -t; then
+            echo "The container accepted a session persistence mode that does not exist."
+            exit 1
+          fi
+
       - name: Container logs
         if: always()
-        run: docker logs vuestrata-ci || true
+        run: |
+          docker logs vuestrata-ci || true
+          docker logs vuestrata-ci-staging || true
+          docker logs vuestrata-ci-local || true
 
       - uses: actions/upload-artifact@v4
         if: always()

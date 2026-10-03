@@ -16,11 +16,11 @@
  *   node scripts/build/verify-bundle.mjs --mode=production [--dist=dist]
  *   node scripts/build/verify-bundle.mjs --mode=demo
  *
- * The chunk-name helpers are exported for the unit tests; importing this file
- * runs no checks (see `isEntryPoint`).
+ * The chunk-name helpers and `eagerFiles` are exported for the unit tests;
+ * importing this file runs no checks (see `isEntryPoint`).
  */
 import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
-import { basename, join, resolve } from 'node:path'
+import { basename, join, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 
@@ -77,6 +77,91 @@ function nameWords(name) {
  */
 export function chunksNamed(files, word) {
   return files.filter((file) => nameWords(chunkName(file)).includes(word))
+}
+
+// ─── What the page loads ──────────────────────────────────────────────────────
+
+/**
+ * Chunks a page asks for with `import()`, by name. None of them may be loaded
+ * with the page.
+ *
+ * The first three are the on-demand groups of `codeSplitting` in
+ * vite.config.ts, so their names are ours. `comark` and `axe` are names rolldown
+ * derives from a module inside the chunk: should a later version name them
+ * differently, those two entries match nothing, and the size budgets are what
+ * is left to notice either on the critical path.
+ *
+ * Why by name, when the budgets would notice 264 KB gzipped of charting engine
+ * too: a budget says "too big", and this says what is wrong. The charting chunk
+ * was preloaded on every page for as long as the budget had room for it.
+ */
+export const ON_DEMAND_CHUNKS = [
+  ['charts-vendor', 'the charting engine'],
+  ['docs-vendor', 'the markdown and syntax-highlighting engine'],
+  ['msw-vendor', 'the mock backend'],
+  ['comark', 'the docs renderer and its diagram engine'],
+  ['axe', 'the accessibility checker'],
+]
+
+/**
+ * `import … from "./x.js"`, `import "./x.js"` and `export … from "./x.js"`, as
+ * rolldown writes them between chunks. Not `import("./x.js")`: that one is
+ * fetched when the code reaches it, which is the whole difference.
+ */
+const STATIC_IMPORT =
+  /(?<![.\w$])(?:import|export)\s*(?:[\w$*{},\s]+?\bfrom\s*)?["'](\.{1,2}\/[^"']*)["']/g
+
+/** The specifiers a chunk imports statically: what a browser fetches before running it. */
+export function staticImports(source) {
+  return [...new Set([...source.matchAll(STATIC_IMPORT)].map((match) => match[1]))]
+}
+
+/** What index.html itself references under assets/, whatever `base` the build has. */
+const PAGE_ASSET = /(?:src|href)="[^"]*?\/(assets\/[^"]+)"/g
+
+/**
+ * Every file the browser downloads before the page can render, each with what
+ * asks for it: `index.html`, or the chunks that import it statically.
+ *
+ * Read from index.html first: its `<script>`, stylesheets and every
+ * `<link rel="modulepreload">` are real downloads, not hints a browser may
+ * skip. Then followed through the static imports of those chunks, because the
+ * preload links are only Vite's copy of that graph. A build with
+ * `build.modulePreload: false` has no links and loads exactly the same files,
+ * one round trip at a time.
+ *
+ * @param {string} html      dist/index.html
+ * @param {Map<string, string>} sources  each emitted .js file, relative to dist → its code
+ * @returns {Map<string, string[]>}  file, relative to dist → what loads it
+ */
+export function eagerFiles(html, sources) {
+  const loadedBy = new Map()
+  const queue = []
+
+  const load = (file, by) => {
+    if (!loadedBy.has(file)) {
+      loadedBy.set(file, [])
+      queue.push(file)
+    }
+    if (!loadedBy.get(file).includes(by)) loadedBy.get(file).push(by)
+  }
+
+  for (const match of html.matchAll(PAGE_ASSET)) load(match[1], 'index.html')
+
+  while (queue.length > 0) {
+    const file = queue.shift()
+    const source = sources.get(file)
+    if (source === undefined) continue
+
+    for (const specifier of staticImports(source)) {
+      const target = posix.join(posix.dirname(file), specifier)
+      // Only what the build emitted. A docs page quoting an `import` in a code
+      // sample is a string in a chunk, and names no file of this build.
+      if (sources.has(target)) load(target, file)
+    }
+  }
+
+  return loadedBy
 }
 
 // ─── Checks ───────────────────────────────────────────────────────────────────
@@ -201,6 +286,10 @@ function main(argv) {
         ['the demo IndexedDB store', 'vuestrata-demo-auth'],
         ['the demo integrity salt', 'vuestrata-demo-v1'],
         ['the demo account address', 'demo@vuestrata.dev'],
+        // `auth/adapters/mock.ts`. The registry references it only behind
+        // `__VUESTRATA_DEMO__`, so the bundler drops the module; a second,
+        // unguarded reference anywhere would bring it back without a sound.
+        ['the mock auth adapter', 'mock-code-verifier'],
       ]
 
       for (const [label, marker] of demoMarkers) {
@@ -237,6 +326,38 @@ function main(argv) {
     )
   }
 
+  // ─── Runtime configuration ──────────────────────────────────────────────────
+  //
+  // Both targets. `runtime-config.js` is what lets one build serve every
+  // environment: a deployment answers that URL with its own values, and the
+  // page loads it before the app. That only works while it stays a separate
+  // file. Inlined into index.html it could not differ per deployment, and
+  // `script-src 'self'` would refuse to run it. Loaded as a module, or after
+  // the app, the values would arrive once the API client had already read
+  // its base URL.
+  check('the runtime configuration is its own file, loaded before the app', () => {
+    const indexHtml = files.find((file) => relative(file) === 'index.html')
+    if (!indexHtml) return 'dist/index.html is missing'
+    if (!files.some((file) => relative(file) === 'runtime-config.js')) {
+      return 'dist/runtime-config.js is missing — every page asks for it'
+    }
+
+    const html = readFileSync(indexHtml, 'utf8')
+    const tag = /<script\b[^>]*\bsrc="[^"]*runtime-config\.js"[^>]*>\s*<\/script>/.exec(html)
+    if (!tag) return 'index.html does not load runtime-config.js with a <script src>'
+    if (/\btype="module"|\basync\b|\bdefer\b/.test(tag[0])) {
+      return `it must be a plain blocking script, found ${tag[0]}`
+    }
+    const moduleScript = html.search(/<script\b[^>]*\btype="module"/)
+    if (moduleScript !== -1 && tag.index > moduleScript) {
+      return 'it is loaded after the app module script'
+    }
+    if (html.includes('__VUESTRATA_RUNTIME__')) {
+      return 'index.html assigns __VUESTRATA_RUNTIME__ inline — it must come from the file'
+    }
+    return null
+  })
+
   // ─── Size budget ────────────────────────────────────────────────────────────
   //
   // Nothing here limited how big the bundle could get. Chunking was configured
@@ -251,19 +372,34 @@ function main(argv) {
   //
   // Raising a budget is a legitimate decision. Doing it without noticing is not.
 
-  /** Bytes, gzipped, of everything index.html pulls in before first paint. */
-  const INITIAL_PAYLOAD_BUDGET_GZIP = 750 * 1024
+  /**
+   * Bytes, gzipped, of everything the page loads before first paint.
+   *
+   * Measured at 504 KB in a production build and 508 KB in the demo build, once
+   * the charting engine stopped loading with every page (it was 728 and 732,
+   * against a budget of 750). The 52 KB above the demo build is room, not a
+   * target: each integration seam so far has cost about 4 KB and more are
+   * coming, and a project's own modules add their messages and composables to
+   * this number. It is a fifth of what the charting engine weighs (264 KB), so
+   * nothing of that size fits in it.
+   */
+  const INITIAL_PAYLOAD_BUDGET_GZIP = 560 * 1024
 
   /**
-   * Bytes, raw, of the largest chunk that is loaded EAGERLY.
+   * Bytes, raw, of the largest JavaScript chunk that is loaded EAGERLY.
    *
    * Deliberately not "the largest chunk emitted". The biggest files in the build
    * are the markdown engine (~1.6 MB) and the docs vendor bundle (~1.1 MB), and
    * both are lazy — they load only when someone opens /docs. A ceiling that had
    * to clear those would be set so high it could never fail, which is how a
-   * budget becomes decoration. This one only looks at what index.html preloads.
+   * budget becomes decoration. This one only looks at what the page loads.
+   *
+   * Today that is `ui-vendor`, the Reka primitives, at 346 KB. Chunks only: the
+   * stylesheet is larger raw (639 KB, every theme in one file) but 85 KB
+   * gzipped, and the budget above counts it. Measured here, it would put this
+   * ceiling above every chunk the page loads.
    */
-  const LARGEST_EAGER_CHUNK_BUDGET = 850 * 1024
+  const LARGEST_EAGER_CHUNK_BUDGET = 400 * 1024
 
   /**
    * Bytes, raw, of every emitted .js file combined.
@@ -273,49 +409,71 @@ function main(argv) {
    * the develop-against-your-backend page, the corrected auth deep-dive) added
    * about 13 KB of prose. None of it is on the initial payload, which has its
    * own budget above.
+   *
+   * Raised again to 7 MiB with the integration seams: the demo build measured
+   * 6948.7 KB once the collection dialects and their documentation had landed.
+   * What grew is on-demand code (dialects a build names, docs pages), so the
+   * number that guards first paint did not move with it.
    */
-  const TOTAL_JS_BUDGET = 6.75 * 1024 * 1024
+  const TOTAL_JS_BUDGET = 7 * 1024 * 1024
 
   const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`
 
-  /**
-   * What the browser must download before it can render.
-   *
-   * Read from index.html rather than inferred from the import graph: the
-   * `<script>` plus every `<link rel="modulepreload">` IS the critical path, and
-   * a modulepreload is a real download, not a hint that the browser might skip.
-   */
+  /** What the browser must download before it can render: see `eagerFiles`. */
   function initialPayload() {
     const indexHtml = files.find((file) => relative(file) === 'index.html')
     if (!indexHtml) return null
 
-    const html = readFileSync(indexHtml, 'utf8')
-    const refs = new Set(
-      [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]),
-    )
+    const loadedBy = eagerFiles(readFileSync(indexHtml, 'utf8'), jsSources)
 
     let raw = 0
     let gzip = 0
     let largest = { name: '', size: 0 }
-    for (const ref of refs) {
+    for (const file of loadedBy.keys()) {
       try {
-        const contents = readFileSync(join(distDir, ref.replace(/^\//, '')))
+        const contents = readFileSync(join(distDir, file))
         raw += contents.length
         gzip += gzipSync(contents).length
-        if (contents.length > largest.size) {
-          largest = { name: ref.replace(/^\//, ''), size: contents.length }
+        if (file.endsWith('.js') && contents.length > largest.size) {
+          largest = { name: file, size: contents.length }
         }
       } catch {
         // Referenced but not emitted; the build would be broken in a way the
         // other checks catch more clearly than a size check would.
       }
     }
-    return { raw, gzip, count: refs.size, largest }
+    return { raw, gzip, count: loadedBy.size, largest, loadedBy }
   }
 
   const payload = initialPayload()
 
   if (payload) {
+    // The invariant the budgets only imply. A vendor group in vite.config.ts
+    // takes what its `test` matches and everything those modules import, so a
+    // group for a library loaded on demand can end up holding something every
+    // page needs. Then every chunk imports it, and the library is on the
+    // critical path with nothing in the source to show for it.
+    check('chunks loaded on demand are not loaded with the page', () => {
+      const found = ON_DEMAND_CHUNKS.flatMap(([name, what]) =>
+        [...payload.loadedBy.keys()]
+          .filter((file) => file.endsWith('.js') && chunkName(file) === name)
+          .map((file) => {
+            const importers = payload.loadedBy.get(file).filter((by) => by !== 'index.html')
+            const shown = importers.slice(0, 3).join(', ')
+            const more = importers.length > 3 ? ` and ${importers.length - 3} more` : ''
+            const by = importers.length > 0 ? `imported by ${shown}${more}` : 'in index.html'
+            return `${file} (${what}) is ${by}`
+          }),
+      )
+      return found.length
+        ? [
+            ...found,
+            'Something every page needs was grouped into it, or it is imported without',
+            'import(): see the codeSplitting comment in vite.config.ts',
+          ].join('\n      ')
+        : null
+    })
+
     check(`initial payload within ${kb(INITIAL_PAYLOAD_BUDGET_GZIP)} gzipped`, () =>
       payload.gzip > INITIAL_PAYLOAD_BUDGET_GZIP
         ? `${kb(payload.gzip)} gzipped (${kb(payload.raw)} raw) across ${payload.count} files — over budget by ${kb(payload.gzip - INITIAL_PAYLOAD_BUDGET_GZIP)}`
@@ -323,13 +481,13 @@ function main(argv) {
     )
     check(`largest eagerly-loaded chunk within ${kb(LARGEST_EAGER_CHUNK_BUDGET)}`, () =>
       payload.largest.size > LARGEST_EAGER_CHUNK_BUDGET
-        ? `${payload.largest.name} is ${kb(payload.largest.size)} and is preloaded on every page`
+        ? `${payload.largest.name} is ${kb(payload.largest.size)} and is loaded on every page`
         : null,
     )
 
     logger.info(
       `Initial payload: ${kb(payload.gzip)} gzipped, ${kb(payload.raw)} raw, ${payload.count} files ` +
-        `(largest: ${payload.largest.name} ${kb(payload.largest.size)})`,
+        `(largest chunk: ${payload.largest.name} ${kb(payload.largest.size)})`,
     )
   }
 

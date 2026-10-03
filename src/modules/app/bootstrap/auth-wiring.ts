@@ -1,6 +1,8 @@
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
+import type { AuthStateChange } from '@/lib/auth/adapter'
+import { parseUser } from '@/lib/auth/user'
 import { appEvents } from '@/lib/events'
 import { logger } from '@/lib/logger'
 import type { createAuthAdapter as createAdapter } from '@/modules/auth'
@@ -35,6 +37,35 @@ export interface AuthWiringStore {
   setUser: (user: User) => void
   clearAuth: (reason?: 'logout' | 'expired') => void
   setRefreshHandler: (fn: (() => void | Promise<void>) | null) => void
+}
+
+/** What a refresh through the adapter answers, as far as the wiring reads it. */
+interface RefreshedTokens {
+  token: string
+  refreshToken?: string
+  expiresIn?: number
+}
+
+/**
+ * The adapter members 1.1.0 added, as this file reads them.
+ *
+ * The same rule as `AuthWiringStore`, for the adapters. `auth/adapters/` is
+ * managed, but a project that edited one of those files keeps all of them as
+ * they were, and their `AuthAdapter` type declares neither member: reading
+ * `adapter.refreshSession` off that type does not compile, whatever `typeof`
+ * check surrounds it. Read through this type, a 1.0 adapter is one that has
+ * neither, which is what the checks below already handle. `name` is here only
+ * so that such an adapter has a member in common with the type.
+ *
+ * `subscribe` and `persistence` came with the auth seam and are read the same
+ * way, for the same reason.
+ */
+interface RefreshingAdapter {
+  readonly name: string
+  refreshSession?: () => Promise<RefreshedTokens | null>
+  canRefreshSession?: () => boolean
+  subscribe?: (listener: (change: AuthStateChange) => void) => unknown
+  persistence?: string
 }
 
 export interface AuthWiringDeps {
@@ -74,10 +105,17 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
   // One adapter for the whole session: the refresh callbacks below and the
   // proactive handler share it. The token getters are what let it present a
   // refresh token held in memory; an adapter that predates them ignores them.
-  const adapter = createAuthAdapter(adapterName, {
+  //
+  // Named, not written into the call: the `createAuthAdapter` of an
+  // adapters/index.ts from before 1.1.0 declares no `getRefreshToken`, and an
+  // object literal with a property its parameter does not know is a type error
+  // there. A variable is only checked for what the two have in common.
+  const tokens = {
     getToken: () => authStore.token,
     getRefreshToken: () => authStore.refreshToken,
-  })
+  }
+  const adapter = createAuthAdapter(adapterName, tokens)
+  const refreshing: RefreshingAdapter = adapter
 
   // One refresh at a time, whoever asks. The 401 path and the proactive timer
   // can fire within the same second, and a backend that rotates the refresh
@@ -86,8 +124,10 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
   // joins the request already in flight. Feature-detected: an adapter a project
   // wrote (or edited) before `refreshSession` existed does not have it.
   const refreshSession =
-    typeof adapter.refreshSession === 'function' ? adapter.refreshSession.bind(adapter) : null
-  type Refreshed = Awaited<ReturnType<NonNullable<typeof refreshSession>>>
+    typeof refreshing.refreshSession === 'function'
+      ? refreshing.refreshSession.bind(refreshing)
+      : null
+  type Refreshed = RefreshedTokens | null
   let refreshInFlight: Promise<Refreshed> | null = null
 
   // Which session is in progress. A refresh takes a round trip, and the person
@@ -102,11 +142,19 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
   // separates an expiry (worth a redirect and a notice) from a request that
   // came back 401 after a sign-out, or for a visitor who never signed in.
   let unreportedExpiry = false
+  // The app ended a session in this tab itself, and an SDK-backed adapter has
+  // not been heard to agree. Only the `subscribe` wiring at the bottom reads
+  // it; it is recorded here because this is where every session end arrives.
+  let endedHere = false
+  // True while that wiring is the one ending a session: the SDK's doing, not
+  // the app's.
+  let endingForSdk = false
 
   function sessionEnded(reason?: 'logout' | 'expired') {
     sessionEpoch++
     refreshInFlight = null
     unreportedExpiry = reason === 'expired'
+    if (!endingForSdk) endedHere = true
   }
 
   const hasSession = () => authStore.user !== null || authStore.token !== null
@@ -160,7 +208,7 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
     return flight
   }
   const canRefresh = (): boolean =>
-    typeof adapter.canRefreshSession !== 'function' || adapter.canRefreshSession()
+    typeof refreshing.canRefreshSession !== 'function' || refreshing.canRefreshSession()
 
   installApiAuth({
     // The adapter decides whether the app sends a bearer token or relies on a
@@ -243,6 +291,136 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
       logger.warn('Proactive token refresh failed — falling back to 401 interceptor', { err })
     }
   })
+
+  // An adapter whose session is kept by an SDK learns of changes the app never
+  // asked for: a redirect sign-in the SDK completed, a token it rotated in the
+  // background, a sign-out in another tab. It reports them here, and this is
+  // what puts them in the store. Feature-detected, like `refreshSession`: the
+  // built-in adapters have nothing to announce. The subscription lasts as long
+  // as the provider installed above, which is the lifetime of the app.
+  //
+  // What is announced is not written as it comes. The refresh path above has
+  // `sessionEpoch` so that an answer for one session never lands in the next;
+  // an announcement needs the same care, because it can be late too, and it
+  // can be for somebody else. The rules are the contract on
+  // `AuthAdapter.subscribe` (core/lib/auth/adapter.ts), and they are these.
+  if (typeof refreshing.subscribe === 'function') {
+    // Such an adapter usually also declares that the SDK stores the session.
+    // The store is then never handed a refresh token, so it has none to write.
+    const external = refreshing.persistence === 'external'
+    const cookie = adapter.transport === 'cookie'
+
+    // The highest `sequence` received. A change with a lower one was made
+    // before something already seen, and arrived after it.
+    let latestSequence: number | null = null
+    // `endedHere` (declared with the session epoch, set by `sessionEnded`)
+    // is the third piece of state: after the app ended a session itself, and
+    // until the SDK agrees or the app signs somebody in, a session the
+    // adapter announces may be the one that just ended, announced late.
+
+    /** End the session in the store because the SDK said it ended. */
+    function endForSdk(reason: 'logout' | 'expired') {
+      endingForSdk = true
+      try {
+        if (reason === 'expired') {
+          expireSession()
+          unreportedExpiry = false
+        } else {
+          authStore.clearAuth('logout')
+          // The store announces it and the listener at the top hears it. A
+          // store from before 1.1.0 announces nothing: recorded here too.
+          sessionEnded('logout')
+          resetAuthInterceptor()
+        }
+      } finally {
+        endingForSdk = false
+      }
+    }
+
+    refreshing.subscribe(({ session, reason, sequence }: AuthStateChange) => {
+      const sequenced = typeof sequence === 'number' && Number.isFinite(sequence)
+      if (sequenced) {
+        if (latestSequence !== null && sequence < latestSequence) {
+          logger.info(
+            'The auth adapter announced a change older than one already received — ignoring it',
+          )
+          return
+        }
+        latestSequence = sequence
+      }
+
+      if (session) {
+        if (!session.user) {
+          logger.warn('The auth adapter announced a session without a user — ignoring it')
+          return
+        }
+        // Held to the same contract as a user from any other source. One that
+        // does not fit is no session; `parseUser` has logged which fields.
+        let announced: User
+        try {
+          announced = parseUser(session.user, 'The user the auth adapter announced')
+        } catch {
+          return
+        }
+
+        if (endedHere) {
+          if (hasSession()) {
+            // The app has signed somebody in since. Announcements are for
+            // that session again.
+            endedHere = false
+          } else {
+            logger.info(
+              'The auth adapter announced a session after this tab ended one — ignoring it',
+            )
+            return
+          }
+        }
+
+        if (!session.token && !cookie) {
+          // Bearer transport: without a token there is nothing to present, and
+          // a user in the store with no token is signed in to nothing.
+          logger.warn('The auth adapter announced a session without a token — ignoring it')
+          return
+        }
+
+        // Somebody else. End the session in progress before the new user is
+        // visible: `auth.logout` is what drops the previous user's query
+        // cache and discards a refresh still in flight for them.
+        const current = authStore.user
+        if (current && String(current.id) !== String(announced.id)) endForSdk('logout')
+
+        if (session.token) {
+          const refreshToken = external ? undefined : session.refreshToken
+          authStore.setAuth(announced, session.token, refreshToken, session.expiresIn)
+        } else {
+          // Cookie transport: the credential is the browser's, not the app's.
+          authStore.setUser(announced)
+        }
+        return
+      }
+
+      // The SDK says the session is over. With a place in its order, that
+      // settles what this tab was unsure of: anything it announces from here
+      // on comes after the sign-out, so it is a new sign-in.
+      if (sequenced) endedHere = false
+
+      // The session ended somewhere else. Whoever is on a protected page is
+      // sent to sign in again, with the way back, and told why only when it
+      // was not their own doing. A sign-out this tab asked for arrives here
+      // too; `useAuth().logout()` then finds nothing left to clear.
+      if (!hasSession()) return
+      const target = expiredSessionTarget(router.currentRoute?.value)
+      endForSdk(reason === 'expired' ? 'expired' : 'logout')
+      if (!target) return
+      const destination =
+        reason === 'expired'
+          ? target
+          : ({ name: target.name, query: { redirect: target.query.redirect } } as const)
+      router.replace(destination).catch((err) => {
+        logger.error('Redirect to login failed after the session ended', { err })
+      })
+    })
+  }
 }
 
 export interface SessionRestoreDeps extends Pick<

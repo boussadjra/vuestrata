@@ -10,6 +10,7 @@ import RegisterPage from '@/modules/auth/pages/register.vue'
 const authRefs = vi.hoisted(() => ({
   isLoading: { __v_isRef: true, value: false },
   error: { __v_isRef: true, value: null as string | null },
+  capabilities: { __v_isRef: true, value: { register: true } },
 }))
 
 const authMocks = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ vi.mock('~/modules/auth', () => {
       register: authMocks.register,
       isLoading: authRefs.isLoading,
       error: authRefs.error,
+      capabilities: authRefs.capabilities,
     }),
   }
 })
@@ -157,6 +159,7 @@ function mountRegisterPage() {
 beforeEach(() => {
   authRefs.isLoading.value = false
   authRefs.error.value = null
+  authRefs.capabilities.value = { register: true }
   authMocks.register.mockReset()
 })
 
@@ -190,5 +193,18 @@ describe('register page', () => {
     expect(wrapper.text()).toContain('Passwords do not match')
     expect(wrapper.text()).not.toContain('auth_confirm_password')
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('says accounts are not created here when the adapter cannot register', async () => {
+    // A backend with no sign-up endpoint, or an identity provider that owns
+    // accounts. The form would only fail on submit.
+    authRefs.capabilities.value = { register: false }
+    const wrapper = mountRegisterPage()
+    await flushPromises()
+
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.find('[role="alert"]').text()).toContain('Accounts are not created here')
+    // The way back to signing in is still there.
+    expect(wrapper.find('a[href="/auth/login"]').exists()).toBe(true)
   })
 })

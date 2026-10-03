@@ -6,7 +6,7 @@ import Logo from '@/components/Logo.vue'
 import { useAuth } from '~/modules/auth'
 
 const { t } = useI18n()
-const { register, isLoading, error } = useAuth()
+const { register, isLoading, error, capabilities } = useAuth()
 
 const registerInitialValues = {
   name: '',
@@ -88,7 +88,17 @@ async function onSubmit(values: Record<string, unknown>) {
         </span>
       </div>
 
+      <!--
+        An adapter that cannot register (a backend with no sign-up endpoint, an
+        identity provider that owns accounts) gets a sentence instead of a form
+        that fails on submit.
+      -->
+      <UiAlert v-if="!capabilities.register" variant="info">
+        {{ t('auth_register_unavailable') }}
+      </UiAlert>
+
       <UiForm
+        v-else
         class="space-y-5"
         :schema="registerSchema"
         disableHtmlValidation

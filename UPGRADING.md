@@ -260,6 +260,10 @@ boot sequence, the route guard, the build and header scripts) into Vuestrata's
 care, and fixes sessions, the API client, the error screens and the Docker
 image. `CHANGELOG.md` lists it all. This is what to do, in order.
 
+> **Before you deploy: does the app use the `jwt` adapter against an API on
+> another origin?** Then your backend has to change first, or its login is
+> refused by the browser. Read [item 1 of "What needs you"](#what-needs-you).
+
 #### The order
 
 ```bash
@@ -270,10 +274,25 @@ vp exec vuestrata diff                   # what would change; writes nothing
 vp exec vuestrata upgrade
 ```
 
+The first line works once that version is on npm (`vp pm view @vuestrata/cli
+dist-tags` lists what is). A prerelease that is tagged but not published yet is
+run from a checkout of the template instead, with your project as the working
+directory:
+
+```bash
+git clone --depth 1 --branch v1.1.0-alpha.0 https://github.com/boussadjra/vuestrata.git ../vuestrata
+(cd ../vuestrata && vp install && node packages/cli/scripts/build-payload.mjs)
+node ../vuestrata/packages/cli/src/index.mjs upgrade     # and doctor, diff, adopt
+```
+
 1. **Read the notes.** The upgrade ends with a "Needs a person" list. Each line
    is one thing it could not decide for you, with the change to make. Nothing
    else in its output asks for anything.
-2. **Regenerate the security headers**, if the notes say the header generators
+2. **Change the backend first, if the first note is about it.** A note that
+   opens with `ACTION MAY BE NEEDED ON YOUR BACKEND` is the credentialed-CORS
+   change ([item 1 below](#what-needs-you)). The API has to answer the new way
+   before the upgraded app is deployed, not after.
+3. **Regenerate the security headers**, if the notes say the header generators
    were replaced (they are, unless you edited `scripts/security/headers.mjs` or
    `sync-headers.mjs`):
 
@@ -281,13 +300,17 @@ vp exec vuestrata upgrade
    vpr security:headers
    ```
 
-   It rewrites `public/_headers`, `docker/*.conf`, the `headers` block of
-   `vercel.json` and the CSP `<meta>` in `index.html`. `vpr lint` reports drift
-   until you do.
+   It rewrites `public/_headers`, the files under `docker/`, the `headers`
+   block of `vercel.json` and the CSP `<meta>` in `index.html`. `vpr lint`
+   reports drift until you do. A deployment your project does not have is left
+   out, and the command says so: without a `docker/` directory nothing is
+   written there, and the same goes for `vercel.json` and `public/`. The
+   upgrade follows the same rule: a project with neither a `Dockerfile` nor a
+   `docker/` directory does not receive the container's entrypoint script.
 
-3. **`vp install`**, only when `package.json` changed its dependencies. 1.1.0
+4. **`vp install`**, only when `package.json` changed its dependencies. 1.1.0
    changes none, so there is nothing to install.
-4. **Run the gates.**
+5. **Run the gates.**
 
    ```bash
    vp build                 # once: regenerates the route and import typings
@@ -330,6 +353,10 @@ prerelease after the first: every step looks for what is still to do.
 - Records the `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts` as
   merged files, keeping what `vuestrata add` wrote into their `app:` regions.
 - Writes `src/modules/app/config/rbac.overrides.ts`.
+- For a project that ran `eject` on 1.0: installs this release's
+  `core/lib/rbac/types.ts` and `inheritance.ts` over the copies that `eject`
+  edited, and withdraws the permissions it had removed in `rbac.overrides.ts`
+  ([If you ran `eject` on 1.0](#if-you-ran-eject-on-10)).
 - Takes `&& node scripts/release/check-template-lock.mjs` out of the `lint`
   script in `package.json`.
 - In `plugins/router.ts`, `plugins/stale-chunk.ts` and
@@ -361,18 +388,36 @@ prerelease after the first: every step looks for what is still to do.
 A file you edited is never overwritten. The release's version is written to
 `.vuestrata/incoming/<path>`, and a note says what it carries:
 
-| You edited                                                  | You keep                                                     | Until you merge it                                                                                                                                               |
-| ----------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A managed file, or one that became managed                  | Your copy, and that file's 1.0 behaviour                     | Fixes to that file do not reach you                                                                                                                              |
-| `src/main.ts`, `src/App.vue`                                | Your copy and the old boot sequence                          | Fixes to the boot order, the auth wiring and the root error handling do not reach you                                                                            |
-| `headers.mjs` or `sync-headers.mjs`                         | Both, as they were: they are replaced together or not at all | No gzip, `/healthz`, JSON `502` or cache policy in the image. `e2e/production-artifact.spec.ts` is held back too, because its assertions describe the new config |
-| `Dockerfile`, `ci.yml` and the other container and CI files | Your copy                                                    | One note lists what changed in each                                                                                                                              |
-| `core/lib/rbac/inheritance.ts`                              | Your copy, which does not read `rbac.overrides.ts` grants    | Move your edits into `grants` in `rbac.overrides.ts`, then take the incoming file                                                                                |
-| A merged file, outside its `app:` regions                   | Your copy                                                    | The incoming copy already holds your `app:` entries                                                                                                              |
+| You edited                                                  | You keep                                                     | Until you merge it                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A managed file, or one that became managed                  | Your copy, and that file's 1.0 behaviour                     | Fixes to that file do not reach you. For the four rows below, files around it are affected too                                                                                                                                                                                                        |
+| `stores/auth.ts`                                            | Your copy                                                    | No `auth.logout` event: signing out does not clear the query cache or reset the API client's refresh state. The proactive refresh needs a refresh token JavaScript holds. A user with a role and no `permissions` is still refused by the guard                                                       |
+| `auth/adapters/base.ts`, `jwt.ts` or `types.ts`             | All three, as they were: they are replaced together          | No cookies on `/auth/*`, so under `refresh-cookie` a reload signs the user out. Merging them turns credentialed requests on: read item 1 of "What needs you" first                                                                                                                                    |
+| `core/lib/rbac/types.ts`, outside its `app:` region         | Your copy                                                    | **`vp check` and `vpr build` fail** until it is merged: see "If you ran `eject` on 1.0"                                                                                                                                                                                                               |
+| `src/main.ts`, `src/App.vue`                                | Your copy and the old boot sequence                          | Fixes to the boot order, the auth wiring and the root error handling do not reach you                                                                                                                                                                                                                 |
+| `headers.mjs` or `sync-headers.mjs`                         | Both, as they were: they are replaced together or not at all | No gzip, `/healthz`, JSON `502` or cache policy in the image, no CSP from `vp dev`, and `deploy.config.ts` headers have no effect. An unedited `Dockerfile` and `e2e/production-artifact.spec.ts` are held back too: both describe the new config, and the next upgrade after you merge replaces them |
+| `Dockerfile`, `ci.yml` and the other container and CI files | Your copy                                                    | One note lists what changed in each                                                                                                                                                                                                                                                                   |
+| `core/lib/rbac/inheritance.ts`                              | Your copy, which does not read `rbac.overrides.ts` grants    | Move your edits into `grants` in `rbac.overrides.ts`, then take the incoming file                                                                                                                                                                                                                     |
+| A merged file, outside its `app:` regions                   | Your copy                                                    | The incoming copy already holds your `app:` entries                                                                                                                                                                                                                                                   |
 
 A project-owned file whose changed lines you had rewritten (`router.ts`,
 `login.vue`, a docs page, a test) gets no incoming copy: the note gives the
 change itself.
+
+**A file you kept degrades; it does not break the build.** The files Vuestrata
+replaced around it are written to work beside its 1.0 version: they read what
+1.1.0 added through a type the old file also satisfies, or ask whether it is
+there. So an edited `stores/auth.ts` announces no `auth.logout` and still needs
+a refresh token JavaScript holds for the proactive timer; an edited adapter
+without `refreshSession` keeps the body-token refresh; an edited
+`auth-interceptor.ts` ignores `provider.refresh`; an edited
+`core/lib/rbac/inheritance.ts` ignores the grants and withdrawals in
+`rbac.overrides.ts`; and beside an edited `scripts/security/headers.mjs` the
+Vite plugin serves no CSP. Each is the 1.0 behaviour of that one file, and
+the app type-checks, builds and runs. The one exception is
+`core/lib/rbac/types.ts`, in the table above. The template tests this for every
+file that became managed in 1.1.0, the two rbac files and the header generators
+(`test/unit/cli/held-back-1.1.0.test.ts`).
 
 Merge what you want from the incoming copy, then tell the CLI the file is clean:
 
@@ -391,6 +436,71 @@ anything you want to keep into a seam first (`brand.css`,
 run `vpr security:headers`. Delete `.vuestrata/incoming/` when you are done; it
 is not tracked by the lockfile.
 
+#### If you ran `eject` on 1.0
+
+The 1.0 `eject` retired the permissions of the modules it removed by editing
+two of Vuestrata's own files: it struck them from the union in
+`core/lib/rbac/types.ts` and from the grants in `core/lib/rbac/inheritance.ts`.
+1.1.0 keeps a withdrawal in `src/modules/app/config/rbac.overrides.ts` instead,
+and its `core/lib/rbac/` does not compile beside a 1.0 `types.ts`.
+
+**When the two files differ from 1.0 only by what `eject` removed**, the upgrade
+does the move for you. It installs this release's `types.ts` and
+`inheritance.ts`, and lists the removed permissions under `withdrawn` in
+`rbac.overrides.ts`, so every role holds exactly what it held. The report names
+the three files on the line "permissions the 1.0 eject struck from
+core/lib/rbac/ are withdrawn in rbac.overrides.ts". There is nothing to do.
+Having let the formatter reflow the two files makes no difference.
+
+**When you changed them further** (a permission of your own added to the union,
+a grant moved), they are left alone and the notes open with `THE PROJECT WILL
+NOT TYPE-CHECK UNTIL THIS IS DONE`: `vp check` and `vpr build` fail in
+`core/lib/rbac/index.ts` and `overrides.ts`, which import `AppPermissions` and
+`RbacOverrides` from a `types.ts` that does not declare them. The note lists
+the permissions your union lacks and the ones it adds. To finish:
+
+```bash
+cp .vuestrata/incoming/src/modules/core/lib/rbac/types.ts src/modules/core/lib/rbac/types.ts
+cp .vuestrata/incoming/src/modules/core/lib/rbac/inheritance.ts src/modules/core/lib/rbac/inheritance.ts
+```
+
+Then say in `rbac.overrides.ts` what your copies said by being edited:
+
+```ts
+declare module '~/lib/rbac/types' {
+  interface AppPermissions {
+    // app:permissions-start
+    'invoices:read': true // a permission you had added to the union
+    // app:permissions-end
+  }
+}
+
+export default defineRbacOverrides({
+  grants: {
+    // app:grants-start
+    viewer: ['invoices:read'], // a grant you had added to inheritance.ts
+    // app:grants-end
+  },
+  withdrawn: [
+    // app:withdrawn-start
+    'customers:read', // every permission the note lists as removed
+    'customers:manage',
+    // app:withdrawn-end
+  ],
+})
+```
+
+And tell the CLI both files are clean:
+
+```bash
+vp exec vuestrata adopt src/modules/core/lib/rbac/types.ts src/modules/core/lib/rbac/inheritance.ts
+```
+
+One thing the 1.0 `eject` left behind is not the upgrade's to fix: `vpr lint`
+fails on the raw-palette baseline (`src/modules/showcase/pages/tables.vue: 25 →
+0`), before the upgrade and after it. Delete that entry from
+`scripts/lint/plugins/no-raw-palette.plugin.mjs`, as the message says.
+
 #### What needs you
 
 **1. A cross-origin API must allow credentials.** This is the one change that
@@ -403,11 +513,31 @@ requests with:
 ```http
 Access-Control-Allow-Origin: https://app.yourcompany.com
 Access-Control-Allow-Credentials: true
+Access-Control-Allow-Headers: Authorization, Content-Type
+Vary: Origin
 ```
 
 The origin must be the exact one, not `*`: a browser refuses a credentialed
-response that answers `*`, and the login fails. If your backend sets no refresh
-cookie, choose another mode and nothing changes:
+response that answers `*`, and the login fails. The same holds for the headers:
+on a credentialed request `Access-Control-Allow-Headers: *` is read as a header
+named `*`, so a backend that answers `*` there has the login's preflight
+refused. List them explicitly, as above. (`Access-Control-Allow-Methods: *` is
+read literally too; the auth routes use only `GET` and `POST`, which need no
+listing.) [Environment variables](docs/6.configuration/1.environment.md), under
+`VUESTRATA_SESSION_PERSISTENCE`, has everything the backend must do under
+`refresh-cookie`, the cookie's attributes included.
+
+The upgrade prints this as a note that opens with `ACTION MAY BE NEEDED ON YOUR
+BACKEND`, unless a `.env`, `.env.production` or `.env.production.local` file
+shows that it cannot apply (another adapter, another session mode, a
+same-origin API). A project that sets its production variables in CI or in a
+hosting dashboard gets it as a condition, because the upgrade cannot see them.
+If you edited `auth/adapters/base.ts`, `jwt.ts` or `types.ts`, the adapters stay
+at 1.0 and none of this applies until you merge them, which their own note
+says.
+
+If your backend sets no refresh cookie, choose another mode and nothing
+changes:
 
 ```bash
 VUESTRATA_SESSION_PERSISTENCE=session   # or none, or local
@@ -620,3 +750,33 @@ handler:
 The old behaviour made a `Ui*` wrapper depend on an application store, which is
 the one dependency that makes a component impossible to update independently of
 the app around it.
+
+**14. The docs site, if you kept it.** Every docs page showed its title twice
+as a level-one heading: in the header above the content, and again as the
+`# Title` the markdown opens with. That is fixed in the template, and the fix
+does not reach you: `src/modules/app/components/docs/` is yours, so no upgrade
+writes there. Copy three files from the release (a checkout at the tag, or the
+tag on GitHub) over yours, or merge them if you changed them:
+
+```text
+src/modules/app/components/docs/DocsContent.vue
+src/modules/app/components/docs/DocsShell.vue
+src/modules/app/components/docs/docsNavigation.ts
+```
+
+A project that ran `eject` has no docs site and nothing to do.
+
+**15. `.node-version`.** `vp` does not read `.nvmrc` while `package.json`
+declares `engines.node`: it resolves Node from `.node-version`, then
+`devEngines.runtime`, then `engines.node`, and only then `.nvmrc`. So your
+local `vp check`, `vpr test` and `vpr build` run on the newest Node the
+`engines` range allows, while CI and the Docker image run the major in
+`.nvmrc`. To develop on the Node you ship with:
+
+```bash
+vp env pin 22        # writes .node-version; use the major your .nvmrc names
+```
+
+`scripts/lint/check-toolchain-pins.mjs` (in `vpr lint`) then fails when the two
+files name different majors. The file is yours, so the upgrade only says this
+in a note.

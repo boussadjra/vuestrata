@@ -191,6 +191,63 @@ describe.skipIf(!CLI_PRESENT)('upgrade', () => {
     expect(readLock(project).files['src/ui/Badge.vue'].class).toBe('managed')
   })
 
+  describe('a file the release introduces for a deployment', () => {
+    const ENTRYPOINT = 'docker/entrypoint.d/40-vuestrata-runtime.sh'
+    const SCRIPT = '#!/bin/sh\n'
+
+    async function upgrade() {
+      buildPayload('1.1.0', { [ENTRYPOINT]: SCRIPT })
+      return runUpgrade({
+        root: project,
+        version: '1.1.0',
+        flags: FLAGS,
+        apply: true,
+        source: await source(),
+      })
+    }
+
+    it('is not installed in a project that removed its Dockerfile and docker/', async () => {
+      // Nothing in the lock says the project ships no container: the Dockerfile
+      // and docker/ were its own files. Writing this one would bring docker/ back.
+      seedProject()
+
+      const report = await upgrade()
+
+      expect(exists('docker')).toBe(false)
+      expect(report.written).toEqual([])
+      expect(report.skipped).toContainEqual({
+        rel: ENTRYPOINT,
+        reason: 'no container deployment here',
+      })
+      // Not recorded, so it is not "deleted here" for ever either.
+      expect(readLock(project).files[ENTRYPOINT]).toBeUndefined()
+      expect(readLock(project).ejected).toEqual([])
+    })
+
+    it.each([
+      ['a Dockerfile', 'Dockerfile'],
+      ['a docker/ directory', 'docker/nginx.conf'],
+    ])('is installed in a project that has %s', async (_what, rel) => {
+      seedProject()
+      write(rel, '# ours\n')
+
+      await upgrade()
+
+      expect(read(ENTRYPOINT)).toBe(SCRIPT)
+      expect(readLock(project).files[ENTRYPOINT].class).toBe('managed')
+    })
+
+    it('arrives with the next upgrade once the project deploys that way', async () => {
+      seedProject()
+      await upgrade()
+
+      write('Dockerfile', 'FROM node:22\n')
+      await upgrade()
+
+      expect(read(ENTRYPOINT)).toBe(SCRIPT)
+    })
+  })
+
   it('does not restore a managed file the project deleted', async () => {
     seedProject()
     fs.rmSync(path.join(project, 'src/ui/Card.vue'))
@@ -934,5 +991,131 @@ describe.skipIf(!CLI_PRESENT)('the docs pages a lockfile lists', () => {
 
     expect(readLock(project).template).toBe('1.3.0')
     expect(readLock(project).docs).toContain('docs/index.md')
+  })
+})
+
+describe.skipIf(!CLI_PRESENT)('doctor and an auth.config.ts that nothing installs', () => {
+  const CONFIG = 'src/modules/app/config/auth.config.ts'
+  const SEAMS = 'src/modules/app/bootstrap/seams.ts'
+
+  // The file before the seam existed, and with the call that installs it.
+  const UNWIRED = 'export function installSeams(): void {\n  // Intentionally empty.\n}\n'
+  const WIRED =
+    "import authConfig from '@/config/auth.config'\n" +
+    "import { resolveAuthConfig } from '@/lib/auth/config'\n" +
+    "import { installAuthConfig } from '@/lib/runtime'\n\n" +
+    'export function installSeams(): void {\n' +
+    '  installAuthConfig(resolveAuthConfig(authConfig))\n}\n'
+  const UNINSTALLED = /auth\.config\.ts exists, but .*bootstrap\/seams\.ts does not install it/
+
+  const warningsOf = (options: { source?: unknown; migrations?: unknown[] } = {}) =>
+    diagnose({ root: project, version: '1.2.0', migrations: [], ...options }).warnings.join('\n')
+
+  beforeEach(() => {
+    write(CONFIG, 'export default defineAuthConfig({})\n')
+  })
+
+  it('warns when the project edited seams.ts before the seam existed', () => {
+    write(SEAMS, `${UNWIRED}// ours\n`)
+    writeLock(project, emptyLock('1.2.0'))
+
+    const text = warningsOf()
+    expect(text).toMatch(UNINSTALLED)
+    // The change itself, so the warning can be acted on without the docs.
+    expect(text).toContain('installAuthConfig(resolveAuthConfig(authConfig))')
+    expect(text).toContain("import authConfig from '@/config/auth.config'")
+    expect(text).toContain("import { installAuthConfig } from '@/lib/runtime'")
+  })
+
+  it('warns in a project that is not tracked yet', () => {
+    write(SEAMS, UNWIRED)
+    expect(warningsOf()).toMatch(UNINSTALLED)
+  })
+
+  it('says nothing once the file installs the configuration', () => {
+    write(SEAMS, `${WIRED}// ours\n`)
+    writeLock(project, emptyLock('1.2.0'))
+
+    expect(warningsOf()).not.toMatch(UNINSTALLED)
+  })
+
+  it('says nothing when the next upgrade replaces the file with the wired copy', () => {
+    write(SEAMS, UNWIRED)
+    const lock = emptyLock('1.1.0')
+    lock.files[SEAMS] = { class: 'managed', hash: hash(UNWIRED), since: '1.1.0' }
+    writeLock(project, lock)
+
+    const source = writePayload(payload, { version: '1.2.0', files: { [SEAMS]: WIRED } })
+
+    expect(warningsOf({ source })).not.toMatch(UNINSTALLED)
+  })
+
+  it('still warns when that upgrade will hold the file back as edited', () => {
+    write(SEAMS, `${UNWIRED}// ours\n`)
+    const lock = emptyLock('1.1.0')
+    lock.files[SEAMS] = { class: 'managed', hash: hash(UNWIRED), since: '1.1.0' }
+    writeLock(project, lock)
+
+    const source = writePayload(payload, { version: '1.2.0', files: { [SEAMS]: WIRED } })
+
+    expect(warningsOf({ source })).toMatch(UNINSTALLED)
+  })
+
+  it('says nothing without an auth.config.ts to install', () => {
+    fs.rmSync(path.join(project, CONFIG))
+    write(SEAMS, UNWIRED)
+    writeLock(project, emptyLock('1.2.0'))
+
+    expect(warningsOf()).not.toMatch(UNINSTALLED)
+  })
+
+  it('does not confuse the two seams: each warning is about its own file', () => {
+    write(SEAMS, UNWIRED)
+    write('src/modules/app/config/rbac.overrides.ts', 'export default defineRbacOverrides({})\n')
+    write(
+      'src/modules/app/state/runtime-backends.ts',
+      'export function installRuntimeBackends() {\n  installRbacConfig(rbacConfig)\n}\n',
+    )
+    writeLock(project, emptyLock('1.2.0'))
+
+    const text = warningsOf()
+    expect(text).toMatch(UNINSTALLED)
+    expect(text).not.toMatch(/rbac\.overrides\.ts exists, but/)
+  })
+})
+
+describe.skipIf(!CLI_PRESENT)('auth.config.ts in an upgrade', () => {
+  const CONFIG = 'src/modules/app/config/auth.config.ts'
+  const SHIPPED =
+    "import { defineAuthConfig } from '~/lib/auth'\n\nexport default defineAuthConfig({})\n"
+
+  const upgradeTo = (version: string) =>
+    runUpgrade({
+      root: project,
+      version,
+      flags: FLAGS,
+      apply: true,
+      source: writePayload(payload, { version, seeded: { [CONFIG]: SHIPPED } }),
+      migrations: [],
+    })
+
+  it('is written once for a project that has none, and recorded as the project’s', () => {
+    writeLock(project, emptyLock('1.1.0'))
+
+    upgradeTo('1.2.0')
+
+    expect(read(CONFIG)).toBe(SHIPPED)
+    expect(readLock(project).files[CONFIG]).toEqual({ class: 'seeded', since: '1.2.0' })
+  })
+
+  it('is never rewritten once the project has configured it', () => {
+    writeLock(project, emptyLock('1.1.0'))
+    upgradeTo('1.2.0')
+    const configured = SHIPPED.replace('({})', "({ endpoints: { me: '/users/me' } })")
+    write(CONFIG, configured)
+
+    upgradeTo('1.3.0')
+
+    expect(read(CONFIG)).toBe(configured)
   })
 })

@@ -18,6 +18,7 @@ const {
   isLoading,
   error,
   capabilities,
+  providers,
 } = useAuth()
 const notifications = useNotificationStore()
 
@@ -99,29 +100,27 @@ function onForgotPassword() {
 }
 
 // Provider hover tints follow each vendor's brand colour, not the app theme,
-// so they are deliberately exempt from the semantic-token rule.
-const socialProviders = computed(() => [
-  {
-    id: 'google' as const,
-    label: t('auth_provider_google'),
-    icon: 'i-logos-google-icon',
-    // lint-allow-raw-palette
-    bg: 'hover:bg-red-50 dark:hover:bg-red-950/20',
-  },
-  {
-    id: 'github' as const,
-    label: t('auth_provider_github'),
-    icon: 'i-logos-github-icon',
-    bg: 'hover:bg-surface-100 dark:hover:bg-surface-800',
-  },
-  {
-    id: 'microsoft' as const,
-    label: t('auth_provider_microsoft'),
-    icon: 'i-logos-microsoft-icon',
-    // lint-allow-raw-palette
-    bg: 'hover:bg-blue-50 dark:hover:bg-blue-950/20',
-  },
-])
+// so they are deliberately exempt from the semantic-token rule. A provider a
+// project adds gets the neutral one.
+const PROVIDER_TINTS: Record<string, string> = {
+  // lint-allow-raw-palette
+  google: 'hover:bg-red-50 dark:hover:bg-red-950/20',
+  // lint-allow-raw-palette
+  microsoft: 'hover:bg-blue-50 dark:hover:bg-blue-950/20',
+}
+const NEUTRAL_TINT = 'hover:bg-surface-100 dark:hover:bg-surface-800'
+
+// Which buttons there are is configuration (`providers` in
+// `app/config/auth.config.ts`), not markup; whether there are any is the
+// adapter's `social` capability, checked in the template.
+const socialProviders = computed(() =>
+  providers.value.map((provider) => ({
+    id: provider.id,
+    label: provider.labelKey ? t(provider.labelKey) : (provider.label ?? provider.id),
+    icon: provider.icon,
+    bg: PROVIDER_TINTS[provider.id] ?? NEUTRAL_TINT,
+  })),
+)
 </script>
 
 <template>
@@ -163,7 +162,7 @@ const socialProviders = computed(() => [
           :disabled="isLoading"
           @click="socialLogin(provider.id)"
         >
-          <span :class="[provider.icon, 'h-5 w-5']" />
+          <span v-if="provider.icon" :class="[provider.icon, 'h-5 w-5']" />
           {{ t('auth_continue_with_provider', { provider: provider.label }) }}
         </UiButton>
       </div>
@@ -324,7 +323,8 @@ const socialProviders = computed(() => [
       </div>
     </div>
 
-    <p class="text-surface-500 mt-6 text-center text-sm">
+    <!-- A link to a form the adapter cannot submit is a dead end. -->
+    <p v-if="capabilities.register" class="text-surface-500 mt-6 text-center text-sm">
       {{ t('auth_no_account') }}
       <RouterLink to="/auth/register" class="text-link hover:text-link-hover font-medium">
         {{ t('auth_register') }}

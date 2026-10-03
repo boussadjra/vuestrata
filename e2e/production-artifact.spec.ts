@@ -18,6 +18,21 @@ import { test, expect, type ConsoleMessage, type Page } from '@playwright/test'
  *   E2E_TARGET=external E2E_BASE_URL=http://127.0.0.1:8080 \
  *     vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
  *
+ * One image serves every environment, so the same suite runs against the same
+ * image started differently. `E2E_API_URL` says what the container was given,
+ * and the suite then checks that the page, the app and the CSP all follow it:
+ *
+ *   docker run -d -p 8081:8080 -e VUESTRATA_API_URL=https://api.staging.example.test vuestrata
+ *   E2E_TARGET=external E2E_BASE_URL=http://127.0.0.1:8081 \
+ *     E2E_API_URL=https://api.staging.example.test \
+ *     vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+ *
+ * `E2E_APP_TITLE` does the same for a title (`-e VUESTRATA_APP_TITLE="Acme
+ * Console"`). An API URL on a placeholder host is a case of its own, because
+ * the BUILD refuses one and a container must not:
+ *
+ *   docker run -d -p 8082:8080 -e VUESTRATA_API_URL=http://localhost:8000 vuestrata
+ *
  * There is no backend behind it. That is the point: an unauthenticated visitor
  * must still get a working login screen, and every assertion here is chosen to
  * hold without an API.
@@ -47,19 +62,32 @@ const IGNORED_CONSOLE_PATTERNS = [
   /\/api\//i,
 ]
 
-function collectConsoleErrors(page: Page): string[] {
+/**
+ * `apiBase` is where this container's API calls go. With no backend there, the
+ * app logs each one as failed, and that is as expected as the browser's own
+ * "Failed to load resource" — for a cross-origin API as much as for `/api/`.
+ *
+ * A Content Security Policy violation is never noise, whatever URL it names: a
+ * policy that blocks the API the container was started with is exactly the
+ * defect this suite exists to catch.
+ */
+function collectConsoleErrors(page: Page, apiBase: string): string[] {
   const errors: string[] = []
   page.on('console', (message: ConsoleMessage) => {
     if (message.type() !== 'error') return
     const text = message.text()
-    if (IGNORED_CONSOLE_PATTERNS.some((pattern) => pattern.test(text))) return
+    const blockedByPolicy = /Content Security Policy/i.test(text)
+    const expected =
+      text.includes(apiBase) || IGNORED_CONSOLE_PATTERNS.some((pattern) => pattern.test(text))
+    if (expected && !blockedByPolicy) return
     errors.push(text)
   })
   return errors
 }
 
-test('the app boots', async ({ page }) => {
-  const errors = collectConsoleErrors(page)
+test('the app boots', async ({ page, baseURL }) => {
+  const { VUESTRATA_API_URL: apiUrl = '/api' } = await runtimeConfig(page)
+  const errors = collectConsoleErrors(page, apiBaseOf(apiUrl, baseURL))
 
   await page.goto('/')
 
@@ -143,22 +171,172 @@ test('answers the health probe itself', async ({ page }) => {
   expect(response.headers()['content-type']).toContain('text/plain')
 })
 
-test('fails an unrouted API call as JSON, not with the SPA shell', async ({ page }) => {
-  // The image is built for the default same-origin VUESTRATA_API_URL=/api (CI
-  // builds it that way) and nothing routes /api/ here: that is the ingress's
-  // job. The SPA fallback used to answer with index.html and a 200, so the app
-  // failed parsing HTML as JSON, far from the actual cause.
-  //
-  // An image built for an absolute API URL has no such block, and its CSP
-  // names that origin in connect-src. There is nothing to check then.
+/**
+ * What the container was started with, as the page will see it: the object
+ * `/runtime-config.js` assigns to `window.__VUESTRATA_RUNTIME__`.
+ */
+async function runtimeConfig(page: Page): Promise<Record<string, string>> {
+  const script = await (await page.request.get('/runtime-config.js')).text()
+  const literal = /^window\.__VUESTRATA_RUNTIME__ = (\{.*\});\s*$/.exec(script)?.[1]
+  expect(literal, `Unexpected /runtime-config.js:\n${script}`).toBeDefined()
+  return JSON.parse(literal!) as Record<string, string>
+}
+
+/**
+ * The absolute URL the app's API calls start with, no trailing slash: the
+ * configured URL itself, or the page's origin followed by a same-origin path.
+ */
+function apiBaseOf(apiUrl: string, baseURL: string | undefined): string {
+  return new URL(apiUrl, baseURL).href.replace(/\/+$/, '')
+}
+
+/** The `connect-src` sources of the CSP header the server sends. */
+async function connectSrcOf(page: Page): Promise<string[]> {
   const csp = (await page.request.get('/')).headers()['content-security-policy'] ?? ''
-  const connectSrc = /(?:^|;)\s*connect-src ([^;]*)/.exec(csp)?.[1] ?? ''
-  test.skip(/https?:/.test(connectSrc), 'The image was built for a cross-origin API.')
+  return /(?:^|;)\s*connect-src ([^;]*)/.exec(csp)?.[1]?.trim().split(/\s+/) ?? []
+}
+
+test('serves the runtime configuration as a script, never cached', async ({ page }) => {
+  const response = await page.request.get('/runtime-config.js')
+
+  expect(response.status()).toBe(200)
+  // The SPA fallback would answer 200 as well, with HTML, and the page's first
+  // script would be a syntax error.
+  expect(response.headers()['content-type']).toMatch(/javascript/)
+  // Written per container under a name that never changes: a cached copy
+  // would keep a browser on the previous environment's values.
+  expect(response.headers()['cache-control']).toBe('no-store')
+  expect(await response.text()).toMatch(/^window\.__VUESTRATA_RUNTIME__ = \{/)
+  // The security headers are re-included in this location like any other.
+  expect(response.headers()['content-security-policy']).toContain("default-src 'self'")
+})
+
+test('loads the runtime configuration before the app', async ({ page }) => {
+  const html = await (await page.request.get('/')).text()
+
+  const config = html.indexOf('<script src="/runtime-config.js"></script>')
+  expect(config, 'index.html does not load /runtime-config.js').toBeGreaterThanOrEqual(0)
+  expect(config).toBeLessThan(html.search(/<script[^>]+type="module"/))
+  // Never inlined: the same image must be able to serve other values.
+  expect(html).not.toContain('__VUESTRATA_RUNTIME__')
+})
+
+test('hands the container environment to the page', async ({ page }) => {
+  const served = await runtimeConfig(page)
+
+  await page.goto('/')
+  const seen = await page.evaluate(
+    () => (window as unknown as { __VUESTRATA_RUNTIME__?: unknown }).__VUESTRATA_RUNTIME__,
+  )
+
+  // The image always carries an API URL: the Dockerfile makes the build's
+  // value the container's default, so the headers and the app cannot disagree.
+  expect(seen).toEqual(served)
+  expect(typeof served.VUESTRATA_API_URL).toBe('string')
+  // The caller may say what it started the container with.
+  if (env.E2E_API_URL) expect(served.VUESTRATA_API_URL).toBe(env.E2E_API_URL)
+})
+
+test('calls the API the container was started with', async ({ page, baseURL }) => {
+  // The value in runtime-config.js is only worth something if the app uses it.
+  // At boot, the jwt adapter asks the API to resume a session; where that
+  // request goes is the API base the app resolved.
+  const { VUESTRATA_API_URL: apiUrl = '/api', VUESTRATA_SESSION_PERSISTENCE: persistence } =
+    await runtimeConfig(page)
+  test.skip(persistence === 'none', 'This container makes no API call at boot.')
+
+  const apiBase = apiBaseOf(apiUrl, baseURL)
+  const sameOriginApiCalls: string[] = []
+  page.on('request', (candidate) => {
+    if (candidate.url().startsWith(`${new URL(baseURL!).origin}/api/`)) {
+      sameOriginApiCalls.push(candidate.url())
+    }
+  })
+  const request = page.waitForRequest((candidate) => candidate.url().startsWith(`${apiBase}/`), {
+    timeout: 20_000,
+  })
+  await page.goto('/dashboard')
+
+  expect((await request).url()).toBe(`${apiBase}/auth/refresh`)
+  await expect(page).toHaveURL(/\/auth\/login/, { timeout: 20_000 })
+
+  // A container started with an absolute URL must not also call /api on its
+  // own origin. That is what the app did for a URL on a placeholder host such
+  // as http://localhost:8000: the headers allowed the origin, the app fell
+  // back to /api, and the SPA fallback answered its refresh call with HTML.
+  if (!apiUrl.startsWith('/')) expect(sameOriginApiCalls).toEqual([])
+})
+
+test('shows the title the container was started with', async ({ page }) => {
+  const { VUESTRATA_APP_TITLE: title } = await runtimeConfig(page)
+  test.skip(title === undefined, 'This container was started with no title.')
+
+  await page.goto('/auth/login')
+  await expect(page.locator('#app-loader')).toHaveCount(0, { timeout: 20_000 })
+
+  // "Acme Console" has a space in it, and the page title ends with it.
+  await expect(page).toHaveTitle(new RegExp(`${title!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
+  if (env.E2E_APP_TITLE) expect(title).toBe(env.E2E_APP_TITLE)
+})
+
+test('does not block in the page what the header allows', async ({ page }) => {
+  // A browser enforces the page's own CSP <meta> in addition to the header.
+  // The image decides its API origin at start, long after index.html was
+  // written, so its tag must leave connections to the header: a tag that
+  // named the build's origin would block the one this container was given.
+  const html = await (await page.request.get('/')).text()
+  const meta = /http-equiv="Content-Security-Policy"\s+content="([^"]*)"/.exec(html)?.[1] ?? ''
+  const metaConnect = /(?:^|;)\s*connect-src ([^;]*)/.exec(meta)?.[1]?.trim().split(/\s+/) ?? []
+  const headerConnect = await connectSrcOf(page)
+
+  expect(metaConnect.length, 'the page states no connect-src').toBeGreaterThan(0)
+  for (const source of headerConnect) {
+    expect(metaConnect.includes('*') || metaConnect.includes(source), source).toBe(true)
+  }
+  // The header itself is never wide.
+  expect(headerConnect).not.toContain('*')
+})
+
+test('allows the configured API origin in the CSP, and only as an origin', async ({
+  page,
+  baseURL,
+}) => {
+  const { VUESTRATA_API_URL: apiUrl = '/api' } = await runtimeConfig(page)
+  const connectSrc = await connectSrcOf(page)
+
+  expect(connectSrc).toContain("'self'")
+  // One invalid source makes a browser discard the whole directive, so every
+  // one of them must be exactly an origin.
+  for (const source of connectSrc.filter((entry) => entry !== "'self'")) {
+    expect(source).toMatch(/^(https?|wss?):\/\/[a-z0-9*.-]+(:\d+)?$/)
+  }
+
+  if (apiUrl.startsWith('/')) {
+    // Same origin: 'self' covers it, and no API origin was added for it.
+    expect(connectSrc).not.toContain(new URL(baseURL!).origin)
+  } else {
+    expect(connectSrc).toContain(new URL(apiUrl).origin)
+    expect(connectSrc.join(' ')).not.toContain(new URL(apiUrl).pathname.replace(/\/$/, '') || ' / ')
+  }
+})
+
+test('fails an unrouted API call as JSON, not with the SPA shell', async ({ page }) => {
+  // With a same-origin VUESTRATA_API_URL such as the default /api, nothing
+  // routes that path here: that is the ingress's job. The SPA fallback used to
+  // answer with index.html and a 200, so the app failed parsing HTML as JSON,
+  // far from the actual cause.
+  //
+  // A container started with an absolute API URL has no such block, and its
+  // CSP names that origin in connect-src. There is nothing to check then.
+  const { VUESTRATA_API_URL: apiUrl = '/api' } = await runtimeConfig(page)
+  test.skip(!apiUrl.startsWith('/'), 'The container was started with a cross-origin API.')
+  const api = apiUrl.replace(/\/+$/, '')
+  test.skip(api === '', 'The API is at the site root: no prefix to answer for.')
 
   // The extensions are there because nginx labels a response from the
   // request's own extension unless told otherwise: /api/export.html once came
   // back as text/html, and the client could not read the error in it.
-  for (const path of ['/api/anything', '/api', '/api/export.html']) {
+  for (const path of [`${api}/anything`, api, `${api}/export.html`]) {
     const response = await page.request.get(path)
 
     expect(response.status(), path).toBe(502)

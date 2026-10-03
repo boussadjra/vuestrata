@@ -35,17 +35,23 @@ export function headersBeingReplaced(ws) {
 
 /**
  * The generator that writes the 1.1.0 nginx config is in place, or is about to
- * be: the one that knows `/healthz`. Files that assert what that config does
- * are only right beside it.
+ * be: the one that knows the health probe. Files that assert what that config
+ * does are only right beside it.
+ *
+ * The probe's path is a literal in the first 1.1.0 generator and the
+ * `HEALTH_PATH` constant from headers.mjs in later ones, so either counts.
  */
 export function headersGenerateTheNewConfig(ws) {
   if (headersBeingReplaced(ws)) return true
   const sync = HEADERS_SCRIPTS[1]
-  return ws.exists(sync) && ws.read(sync).includes('/healthz')
+  if (!ws.exists(sync)) return false
+  const source = ws.read(sync)
+  return source.includes('/healthz') || /\bHEALTH_PATH\b/.test(source)
 }
 
 /** The reminder that follows a replaced pair, as a sentence other notes can end on. */
 export const REGENERATE_HEADERS =
-  'run `vpr security:headers`: it regenerates public/_headers, docker/*.conf, the headers ' +
-  'block of vercel.json and the CSP meta in index.html from the new generators, and ' +
-  '`vpr lint` reports drift until you do.'
+  'run `vpr security:headers`: it regenerates public/_headers, the nginx config under ' +
+  'docker/, the headers block of vercel.json and the CSP meta in index.html from the new ' +
+  'generators (leaving out a deployment this project does not have), and `vpr lint` reports ' +
+  'drift until you do.'

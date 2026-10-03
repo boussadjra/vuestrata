@@ -235,12 +235,12 @@ obeys both:
 
 A step is one of four kinds:
 
-| Kind                  | Shape                                                               | What it does                                                                                                                                                                                                                                    |
-| --------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| codemod (the default) | `{ file, apply(source, manifest, ws), pending?, incoming?, note? }` | Rewrites the file. Returning the source unchanged means there was nothing to do.                                                                                                                                                                |
-| `note`                | `{ kind: 'note', note, file?, pending? }`                           | Nothing automatic: a line under "Needs a person" in the upgrade report.                                                                                                                                                                         |
-| `promote`             | `{ kind: 'promote', file, pristine, unit?, note? }`                 | A file the project owned becomes managed. Adopted only when its hash is in `pristine` (or already matches this release); an edited copy stays, with the release's version in `.vuestrata/incoming/`. A copy the project moved is never adopted. |
-| `reclassify`          | `{ kind: 'reclassify', file, pristine?, note? }`                    | A managed file becomes merged, keeping the project's `app:` entries. Its recorded whole-file hash counts as clean once, and so does a `pristine` hash computed the merged way. Merged is the only destination.                                  |
+| Kind                  | Shape                                                                        | What it does                                                                                                                                                                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| codemod (the default) | `{ file, apply(source, manifest, ws, release), pending?, incoming?, note? }` | Rewrites the file. Returning the source unchanged means there was nothing to do.                                                                                                                                                                |
+| `note`                | `{ kind: 'note', note, file?, pending? }`                                    | Nothing automatic: a line under "Needs a person" in the upgrade report.                                                                                                                                                                         |
+| `promote`             | `{ kind: 'promote', file, pristine, unit?, note? }`                          | A file the project owned becomes managed. Adopted only when its hash is in `pristine` (or already matches this release); an edited copy stays, with the release's version in `.vuestrata/incoming/`. A copy the project moved is never adopted. |
+| `reclassify`          | `{ kind: 'reclassify', file, pristine?, note? }`                             | A managed file becomes merged, keeping the project's `app:` entries. Its recorded whole-file hash counts as clean once, and so does a `pristine` hash computed the merged way. Merged is the only destination.                                  |
 
 The parts, precisely:
 
@@ -249,6 +249,13 @@ The parts, precisely:
   is for a change that depends on another file. The new `main.ts` passes a
   project's own query options to `boot()` only when `plugins/vue-query.ts` was
   edited, and that is a question about another file.
+- **`release`**, the fourth argument of the same four, is what this upgrade
+  installs: `release.has(rel)` and `release.read(rel)`. It is for the rare step
+  that must write into a file the release seeds, before the sync has written
+  it. Such a step writes the files beside its own with `ws.write(rel, contents)`,
+  and the report lists them with the step's own file. The one example is
+  `migrations/1.1.0/rbac-eject.mjs`, which undoes what the 1.0 `eject` did to
+  two managed files and records it in `rbac.overrides.ts` instead.
 - **`pending(source, manifest, ws)`** may sit on any step that names a file.
   While it returns false the step has nothing to do there. On a codemod it is
   also the guard: `apply` must change all of what it recognises or none of it,
@@ -268,7 +275,9 @@ The parts, precisely:
   a function `(source, manifest, ws)` that returns it from what the steps
   before it left behind; one that returns nothing prints nothing, and `source`
   is undefined when the step names no file. A `note` step without `pending`
-  prints on every upgrade that crosses the version, so give it one.
+  prints on every upgrade that crosses the version, so give it one. On a
+  `reclassify` step, `note: false` likewise says nothing about an edited file,
+  for one that a `note` step speaks for.
 - **`unit`**, on `promote` steps, names files that only work together. If the
   project edited any member it has, none is adopted, each gets its incoming
   copy, and only the first step's note is printed: put the note for the whole
@@ -321,8 +330,9 @@ unedited file becomes (`BECOMES`), which is the hash the next migration needs.
 `migrations/1.1.0/` has one of everything to copy from: a codemod
 (`index.mjs`), guarded codemods on text hunks (`project-files.mjs`), whole-file
 replacements with one note for the family (`deployment.mjs`), promotions and a
-unit (`promotions.mjs`), reclassifications, and notes that are said once
-(`notes.mjs`). Every step has a test in `test/unit/cli/` that starts from the
+unit (`promotions.mjs`), reclassifications, a step that takes back files an
+earlier release of the tool edited (`rbac-eject.mjs`), and notes that are said
+once (`notes.mjs`). Every step has a test in `test/unit/cli/` that starts from the
 files the release tags hold.
 
 When a change genuinely cannot be automated, write the manual step in

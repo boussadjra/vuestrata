@@ -615,6 +615,11 @@ describe('credentials on every auth call', () => {
   function recordingBackend() {
     const seen: SeenRequest[] = []
     server.use(
+      // The one endpoint whose answer is a user rather than a session.
+      http.get('*/api/auth/me', async ({ request }) => {
+        seen.push(await describeRequest(request))
+        return HttpResponse.json(user)
+      }),
       http.all('*/api/auth/*', async ({ request }) => {
         seen.push(await describeRequest(request))
         return HttpResponse.json({ user, token: 'access', refreshToken: 'refresh', expiresIn: 900 })

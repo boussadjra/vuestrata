@@ -235,7 +235,13 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description:
       "Teach the API client your backend's headers, session signals, error format and CSRF handshake, without editing the client.",
   },
-  '/docs/9.recipes/10.submit-a-form-to-your-api.md': {
+  '/docs/9.recipes/10.write-your-own-auth-adapter.md': {
+    navTitle: 'Write an auth adapter',
+    title: 'Write Your Own Auth Adapter',
+    description:
+      'Point the app at your auth backend, or put an SDK behind the adapter contract, from one file that is yours.',
+  },
+  '/docs/9.recipes/11.submit-a-form-to-your-api.md': {
     navTitle: 'Submit a form to your API',
     title: 'Submit a Form to Your API',
     description:

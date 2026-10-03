@@ -224,6 +224,10 @@ const ${n.entities}Api = createCollectionApi<${n.Entity}, ${n.Entity}Filters, ${
   resource: '${n.moduleId}',
   schema: ${n.entity}Schema,
   keys: ${n.entities}ModuleKeys,
+  // Speaks the project's collection dialect: \`collection\` (or the \`backend\`
+  // preset) in app/config/api.overrides.ts, else Vuestrata's own contract. If
+  // this one resource is served differently, name its dialect here:
+  //   dialect: dialects.spring,   // from '~/lib/api/dialects'
 })
 
 export const use${n.Entities}Query = ${n.entities}Api.useList

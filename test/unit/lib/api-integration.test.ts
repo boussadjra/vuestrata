@@ -10,6 +10,7 @@ import {
   unauthorizedStatus,
 } from '@/lib/api/classifiers'
 import { csrfPresets, DEFAULT_CSRF_STRATEGY } from '@/lib/api/csrf'
+import { dialects, extendDialect, type CollectionDialect } from '@/lib/api/dialects'
 import {
   drfErrorMapper,
   laravelErrorMapper,
@@ -318,10 +319,35 @@ describe('how a preset and the project options combine', () => {
     },
   )
 
-  it('accepts and ignores the reserved collection key', () => {
-    expect(resolveApiIntegration({ collection: { pageParam: 'page' } })).toEqual(
-      DEFAULT_API_INTEGRATION,
-    )
+  it('names no collection dialect unless the project or its preset does', () => {
+    expect(DEFAULT_API_INTEGRATION.collection).toBeUndefined()
+    expect('collection' in resolveApiIntegration({})).toBe(false)
+    expect('collection' in resolveApiIntegration({ backend: presets.vuestrata })).toBe(false)
+    expect('collection' in resolveApiIntegration({ backend: presets.aspnet })).toBe(false)
+    expect('collection' in resolveApiIntegration({ backend: presets.nest })).toBe(false)
+  })
+
+  it('resolves the collection dialect of the project, which replaces that of the preset', () => {
+    expect(resolveApiIntegration({ collection: dialects.spring }).collection).toMatchObject({
+      name: 'spring',
+      spec: dialects.spring,
+      updateMethod: 'PATCH',
+    })
+
+    const camel = extendDialect(dialects.laravel, { keys: 'camel' })
+    const resolved = resolveApiIntegration({ backend: presets.laravel, collection: camel })
+
+    expect(resolved.collection?.spec).toBe(camel)
+    expect(resolved.collection?.keys).toEqual({ wire: 'snake' })
+    // Everything else of the preset still applies.
+    expect(resolved.csrf).toBe(csrfPresets.laravel)
+  })
+
+  it('refuses a collection value that is not a dialect, naming what it expected', () => {
+    // What the key held while it was reserved: an options bag, not a dialect.
+    const bag = { pageParam: 'page' } as unknown as CollectionDialect
+
+    expect(() => resolveApiIntegration({ collection: bag })).toThrow(/Not a collection dialect/)
   })
 })
 
@@ -355,6 +381,7 @@ describe('the shipped presets', () => {
       'unauthenticated',
     )
     expect(verdictOf(response({ status: 403, ok: false }))).toBeNull()
+    expect(resolved.collection?.spec).toBe(dialects.laravel)
   })
 
   it('django: DRF errors, the csrftoken cookie, and both meanings of a 403', () => {
@@ -371,6 +398,7 @@ describe('the shipped presets', () => {
     )
     // A signed-in user who may not do this stays signed in.
     expect(verdictOf(forbidden('You do not have permission to perform this action.'))).toBeNull()
+    expect(resolved.collection?.spec).toBe(dialects.drf)
   })
 
   it('spring: problem details before the Boot default, the XSRF-TOKEN cookie', () => {
@@ -382,6 +410,7 @@ describe('the shipped presets', () => {
       vuestrataErrorMapper,
     ])
     expect(resolved.csrf).toBe(csrfPresets.spring)
+    expect(resolved.collection?.spec).toBe(dialects.spring)
   })
 
   it('aspnet: problem details, and no CSRF convention of its own', () => {

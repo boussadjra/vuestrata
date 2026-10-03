@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import {
+  describeEnvValueIssue,
   ENV_KEYS,
   isDemoRuntime,
   parseRuntimeEnv,
@@ -100,6 +101,28 @@ describe('parseRuntimeEnv (strict, build time)', () => {
     )
   })
 
+  it.each([
+    ['a protocol-relative URL', '//evil.test/api'],
+    ['a backslash a browser reads as a second slash', '/\\evil.test/api'],
+    ['three slashes', '///evil.test'],
+  ])('does not take %s for a same-origin path', (_, apiUrl) => {
+    // It starts with "/", and a browser sends every request to that host.
+    for (const serving of [false, true]) {
+      expect(() =>
+        parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: apiUrl }, { serving }),
+      ).toThrow(/names another host/)
+    }
+
+    const onWarn = vi.fn()
+    const lenient = resolveRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: apiUrl }, { onWarn })
+    expect(lenient.apiUrl).toBe('/api')
+    expect(onWarn).toHaveBeenCalledWith(expect.stringContaining('names another host'))
+  })
+
+  it.each(['/api', '/api/v1/', '/', '/a\\b'])('still takes %s for one', (apiUrl) => {
+    expect(parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.apiUrl]: apiUrl }).apiUrl).toBe(apiUrl)
+  })
+
   it('rejects values outside an allowlist', () => {
     expect(() => parseRuntimeEnv({ [ENV_KEYS.authAdapter]: 'saml' })).toThrow(
       /Invalid environment/i,
@@ -178,6 +201,34 @@ describe('resolveRuntimeEnv (lenient, browser)', () => {
  * same is the mistake the placeholder rule exists to catch — so that one rule,
  * and only that one, depends on it.
  */
+describe('describeEnvValueIssue (one value, on its own)', () => {
+  it.each([
+    [ENV_KEYS.sessionPersistence, 'session'],
+    [ENV_KEYS.title, 'Acme Console'],
+    [ENV_KEYS.apiUrl, '/backend'],
+    [ENV_KEYS.apiUrl, 'https://api.acme.test/v1'],
+    // A placeholder host is a rule about a build nobody configured, not about
+    // the value.
+    [ENV_KEYS.apiUrl, 'http://localhost:8000'],
+    [ENV_KEYS.errorReportingDsn, 'https://key@errors.acme.test/1'],
+    // Not a key the schema knows: nothing to say about it.
+    ['VUESTRATA_FEATURE_X', 'anything'],
+  ])('finds nothing wrong with %s=%s', (key, value) => {
+    expect(describeEnvValueIssue(key, value)).toBeNull()
+  })
+
+  it.each([
+    [ENV_KEYS.sessionPersistence, 'Session'],
+    [ENV_KEYS.errorReportingDsn, 'not a url'],
+    [ENV_KEYS.apiUrl, 'ftp://files.acme.test'],
+    [ENV_KEYS.apiUrl, '//evil.test/api'],
+    [ENV_KEYS.apiUrl, 'api.acme.test'],
+    [ENV_KEYS.authAdapter, 'saml'],
+  ])('says what is wrong with %s=%s', (key, value) => {
+    expect(describeEnvValueIssue(key, value)).toEqual(expect.any(String))
+  })
+})
+
 describe('serving (vp dev) versus building', () => {
   const localBackend = { ...productionEnv, [ENV_KEYS.apiUrl]: 'http://localhost:8000/api' }
 
@@ -277,6 +328,136 @@ describe('serving (vp dev) versus building', () => {
     for (const raw of [demoEnv, productionEnv, localBackend, {}]) {
       expect(resolveRuntimeEnv(raw, { serving: true })).toEqual(
         parseRuntimeEnv(raw, { serving: true }),
+      )
+    }
+  })
+})
+
+describe('adapters a project registered in auth.config.ts', () => {
+  // What the Vite plugin reads from `app/config/auth.config.ts` and hands to
+  // both parsers: each registered name, with the transport it declares.
+  const authAdapters = { supabase: 'bearer', 'company-sso': 'cookie' } as const
+
+  const withAdapter = (name: string, extra: Record<string, string> = {}) => ({
+    ...productionEnv,
+    [ENV_KEYS.authAdapter]: name,
+    ...extra,
+  })
+
+  it('accepts a registered name, in the build and in the browser', () => {
+    expect(parseRuntimeEnv(withAdapter('supabase'), { authAdapters }).authAdapter).toBe('supabase')
+
+    const onWarn = vi.fn()
+    const env = resolveRuntimeEnv(withAdapter('supabase'), { authAdapters, onWarn })
+    expect(env.authAdapter).toBe('supabase')
+    expect(onWarn).not.toHaveBeenCalled()
+  })
+
+  it('still accepts every built-in name alongside them', () => {
+    expect(parseRuntimeEnv(withAdapter('jwt'), { authAdapters }).authAdapter).toBe('jwt')
+    expect(parseRuntimeEnv(demoEnv, { authAdapters }).authAdapter).toBe('mock')
+  })
+
+  it('fails the build for a name nobody registered, and says where to register it', () => {
+    const attempt = () => parseRuntimeEnv(withAdapter('firebase'), { authAdapters })
+
+    expect(attempt).toThrow(/VUESTRATA_AUTH_ADAPTER: unknown auth adapter "firebase"/)
+    expect(attempt).toThrow(/src\/modules\/app\/config\/auth\.config\.ts/)
+  })
+
+  it('knows no custom name at all when none is passed', () => {
+    expect(() => parseRuntimeEnv(withAdapter('supabase'))).toThrow(/auth\.config\.ts/)
+  })
+
+  it('never answers an unknown name with the mock adapter in the browser', () => {
+    const onWarn = vi.fn()
+    const env = resolveRuntimeEnv(withAdapter('firebase'), { authAdapters, onWarn })
+
+    // The mode default for production. Its endpoints exist; the mock's do not.
+    expect(env.authAdapter).toBe('jwt')
+    expect(onWarn).toHaveBeenCalledWith(expect.stringMatching(/unknown auth adapter "firebase"/))
+  })
+
+  it('does not treat an inherited property name as a registered adapter', () => {
+    expect(() => parseRuntimeEnv(withAdapter('constructor'), { authAdapters })).toThrow(
+      /unknown auth adapter "constructor"/,
+    )
+  })
+
+  describe('the cross-field rules follow the declared transport', () => {
+    it('refuses a bearer persistence strategy for a cookie-transport adapter', () => {
+      // `refresh-cookie` is the production default, so leaving the variable
+      // unset is the common way to get here.
+      expect(() => parseRuntimeEnv(withAdapter('company-sso'), { authAdapters })).toThrow(
+        /VUESTRATA_SESSION_PERSISTENCE="refresh-cookie" has no meaning with VUESTRATA_AUTH_ADAPTER="company-sso": that adapter uses cookie transport/,
+      )
+      expect(() =>
+        parseRuntimeEnv(withAdapter('company-sso', { [ENV_KEYS.sessionPersistence]: 'local' }), {
+          authAdapters,
+        }),
+      ).toThrow(/has no meaning with VUESTRATA_AUTH_ADAPTER="company-sso"/)
+    })
+
+    it('accepts that adapter once persistence is "none"', () => {
+      const env = parseRuntimeEnv(
+        withAdapter('company-sso', { [ENV_KEYS.sessionPersistence]: 'none' }),
+        { authAdapters },
+      )
+      expect(env.authAdapter).toBe('company-sso')
+      expect(env.sessionPersistence).toBe('none')
+    })
+
+    it('corrects it in the browser instead of throwing', () => {
+      const onWarn = vi.fn()
+      const env = resolveRuntimeEnv(withAdapter('company-sso'), { authAdapters, onWarn })
+
+      expect(env.sessionPersistence).toBe('none')
+      expect(onWarn).toHaveBeenCalledWith(expect.stringMatching(/cookie transport/))
+    })
+
+    it('leaves a bearer-transport adapter every persistence mode', () => {
+      for (const mode of ['none', 'refresh-cookie', 'session', 'local']) {
+        const env = parseRuntimeEnv(
+          withAdapter('supabase', { [ENV_KEYS.sessionPersistence]: mode }),
+          {
+            authAdapters,
+          },
+        )
+        expect(env.sessionPersistence).toBe(mode)
+      }
+    })
+
+    it('words the built-in oauth rule exactly as before', () => {
+      expect(() => parseRuntimeEnv(withAdapter('oauth'), { authAdapters })).toThrow(
+        'VUESTRATA_SESSION_PERSISTENCE="refresh-cookie" has no meaning with ' +
+          'VUESTRATA_AUTH_ADAPTER="oauth": that adapter uses cookie transport and resumes from ' +
+          'its session cookie. Set it to "none".',
+      )
+    })
+
+    it('still forbids the mock adapter in production', () => {
+      expect(() => parseRuntimeEnv(withAdapter('mock'), { authAdapters })).toThrow(
+        /mock.*not valid in production/i,
+      )
+    })
+
+    it('still requires the mock adapter in a demo build, whatever is registered', () => {
+      expect(() =>
+        parseRuntimeEnv({ ...demoEnv, [ENV_KEYS.authAdapter]: 'supabase' }, { authAdapters }),
+      ).toThrow(/must be "mock".*received "supabase"/)
+    })
+  })
+
+  it('keeps the strict and lenient parsers in agreement', () => {
+    const valid = [
+      withAdapter('supabase'),
+      withAdapter('company-sso', { [ENV_KEYS.sessionPersistence]: 'none' }),
+      withAdapter('jwt'),
+      demoEnv,
+    ]
+    for (const raw of valid) {
+      expect(resolveRuntimeEnv(raw, { authAdapters })).toEqual(
+        parseRuntimeEnv(raw, { authAdapters }),
       )
     }
   })
