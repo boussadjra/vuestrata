@@ -357,6 +357,155 @@ describe('the build target', () => {
   })
 })
 
+/**
+ * `VUESTRATA_MOCK_ONLY`: a demo build in what it bundles (MSW and the mock
+ * handlers must be compiled in), with a real adapter and a real backend. The
+ * plugin adds no constant for it. `__VUESTRATA_DEMO__` goes on meaning "the
+ * mocks are in the bundle", which is what every module barrel reads it for.
+ */
+describe('a build that mocks some modules beside a real backend', () => {
+  const hybrid = {
+    VUESTRATA_RUNTIME_MODE: 'demo',
+    VUESTRATA_AUTH_ADAPTER: 'jwt',
+    VUESTRATA_API_URL: '/api',
+    VUESTRATA_MOCK_ONLY: 'orders,reports',
+  }
+
+  it.each([
+    ['a build', build()],
+    ['vp dev', serve()],
+  ])(
+    'compiles the mocks in for %s, with the defines of a demo build and no other',
+    async (_, env) => {
+      const root = project({ '.env': hybrid })
+
+      const { result, warn } = await runConfig(root, env)
+
+      expect(result.define).toEqual({
+        __VUESTRATA_DEMO__: 'true',
+        __VUESTRATA_AUTH_ADAPTERS__: '{}',
+      })
+      expect(result.build).toEqual({ sourcemap: 'hidden' })
+      expect(warn).not.toHaveBeenCalled()
+    },
+  )
+
+  it('fails a production build that sets the variable, naming it', async () => {
+    const root = project({
+      '.env': { ...production, VUESTRATA_API_URL: '/api', VUESTRATA_MOCK_ONLY: 'orders' },
+    })
+
+    await expect(runConfig(root, build())).rejects.toThrow(
+      /VUESTRATA_MOCK_ONLY is not valid when VUESTRATA_RUNTIME_MODE="production": MSW and the mock handlers are not bundled/,
+    )
+  })
+
+  it('fails a build that sets it and leaves the mode to default, which is production', async () => {
+    const root = project({ '.env': { VUESTRATA_API_URL: '/api', VUESTRATA_MOCK_ONLY: 'orders' } })
+
+    await expect(runConfig(root, build())).rejects.toThrow(/VUESTRATA_MOCK_ONLY is not valid/)
+  })
+
+  it('refuses it under vp dev in production mode too: MSW is compiled out there as well', async () => {
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        VUESTRATA_MOCK_ONLY: 'orders',
+      },
+    })
+
+    await expect(runConfig(root, serve())).rejects.toThrow(/VUESTRATA_MOCK_ONLY is not valid/)
+  })
+
+  it.each([
+    ['the mock adapter', { VUESTRATA_AUTH_ADAPTER: 'mock' }, /needs a real auth adapter/],
+    ['"auth" in the list', { VUESTRATA_MOCK_ONLY: 'orders,auth' }, /cannot name "auth"/],
+    [
+      'a malformed id',
+      { VUESTRATA_MOCK_ONLY: 'Orders' },
+      /VUESTRATA_MOCK_ONLY: expected module ids/,
+    ],
+    ['mocks switched off', { VUESTRATA_USE_MOCKS: 'false' }, /VUESTRATA_USE_MOCKS must be "true"/],
+  ])('fails the build for %s', async (_, vars, message) => {
+    const root = project({ '.env': { ...hybrid, ...vars } })
+
+    await expect(runConfig(root, build())).rejects.toThrow(message)
+  })
+
+  it('still proxies the API path under vp dev: MSW answers first, in the browser', async () => {
+    const root = project({ '.env.development.local': { ...hybrid, DEV_API_TARGET: TARGET } })
+
+    const { result, warn } = await runConfig(root, serve())
+
+    expect(Object.values(result.server?.proxy ?? {})).toEqual([
+      expect.objectContaining({ target: TARGET, changeOrigin: true }),
+    ])
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('holds a build to a real API URL, and lets vp dev point at a local backend', async () => {
+    const root = project({ '.env': { ...hybrid, VUESTRATA_API_URL: 'http://localhost:8000' } })
+
+    await expect(runConfig(root, serve())).resolves.toBeDefined()
+    await expect(runConfig(root, build())).rejects.toThrow(
+      /not usable with a real backend: .*placeholder host "localhost"/,
+    )
+  })
+
+  it('accepts an adapter the project registered as the real one', async () => {
+    const root = project({ '.env': { ...hybrid, VUESTRATA_AUTH_ADAPTER: 'acme' } })
+    fs.mkdirSync(path.join(root, 'src/modules/app/config'), { recursive: true })
+    fs.writeFileSync(
+      path.join(root, 'src/modules/app/config/auth.config.ts'),
+      [
+        'export default defineAuthConfig({ adapters: { acme: () => ({}) } })',
+        "declare module '~/lib/auth' {",
+        '  interface RegisteredAuthAdapterNames {',
+        '    acme: true',
+        '  }',
+        '}',
+        '',
+      ].join('\n'),
+    )
+
+    const { result } = await runConfig(root, build())
+
+    expect(result.define).toMatchObject({ __VUESTRATA_DEMO__: 'true' })
+  })
+
+  describe('in a real build', () => {
+    async function buildWith(vars: Record<string, string>) {
+      const root = project({ '.env': vars })
+      fs.writeFileSync(
+        path.join(root, 'index.html'),
+        '<!doctype html><html><head><title>t</title></head><body><div id="app"></div>' +
+          '<script type="module" src="/main.js"></script></body></html>',
+      )
+      fs.writeFileSync(path.join(root, 'main.js'), 'document.title = String(Date.now())\n')
+      fs.mkdirSync(path.join(root, 'public'))
+      fs.writeFileSync(path.join(root, 'public/mockServiceWorker.js'), '/* msw */\n')
+
+      await viteBuild({
+        configFile: false,
+        root,
+        logLevel: 'silent',
+        envPrefix: 'VUESTRATA_',
+        plugins: [vuestrataEnv()],
+      })
+      return path.join(root, 'dist')
+    }
+
+    it('publishes the mock service worker, which a production build removes', async () => {
+      const dist = await buildWith(hybrid)
+      expect(fs.existsSync(path.join(dist, 'mockServiceWorker.js'))).toBe(true)
+
+      const productionDist = await buildWith({ ...production, VUESTRATA_API_URL: '/api' })
+      expect(fs.existsSync(path.join(productionDist, 'mockServiceWorker.js'))).toBe(false)
+    })
+  })
+})
+
 describe('the runtime configuration script', () => {
   const indexHtml = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8')
 
