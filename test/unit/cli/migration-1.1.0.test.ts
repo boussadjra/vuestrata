@@ -112,9 +112,9 @@ const BECOMES: Record<string, string> = {
   'src/modules/showcase/pages/forms.vue':
     'sha256-61f5ae4a05b7434b860775a9e2ff9453b94f621991058b99aee83eeea5fe0439',
   'e2e/forms.spec.ts': 'sha256-5173d57b438e6f70c4595f4b4a55c91bd39766d31c17b16de9af5088b99b0d47',
-  // After its three codemods: the env plugin import (promotions), the test
-  // block, and `.vuestrata/` in the ignore lists.
-  'vite.config.ts': 'sha256-242b39d3ab26b15c0cf87408ceff7b26094971b6e4c64a89d33a287da04db0dc',
+  // After its four codemods: the env plugin import (promotions), the test
+  // block, `.vuestrata/` in the ignore lists, and the vendor chunk groups.
+  'vite.config.ts': 'sha256-a9f848e66ee39ec31e8e39010457d3f9a50a2e3698580cd5bfb21610f91898c7',
   'test/stores.test.ts': 'sha256-b3059a058cd1090b419d50510ac25f2a15c31a71a3b6366471dcac4ef9e94a8d',
   'test/unit/composables/use-rbac.test.ts':
     'sha256-282e7036330f710e4b21945162fc75cc87b4535f1c5b8da0d3025becc9f4cfec',
@@ -1186,6 +1186,152 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
         // The comment ignores nothing, so the entry is still added.
         expect(lf(fixture.read(VITE)).split(ENTRY)).toHaveLength(3)
         expect(ignoreNotes(report)).toEqual([])
+      })
+    })
+
+    describe('and the vendor chunks', () => {
+      const FUNCTION = '        manualChunks(id) {\n'
+      const GROUPS = '        codeSplitting: {\n          groups: [\n'
+      const CHARTS_GROUP = [
+        '            {',
+        "              name: 'charts-vendor',",
+        '              test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/,',
+        '              priority: 10,',
+        '            },',
+        '',
+      ].join('\n')
+      const chunkNotes = (report: Report) =>
+        texts(report).filter((text) => text.includes('codeSplitting'))
+
+      it('replaces the function both releases shipped with groups that have an order', async () => {
+        for (const tag of TAGS) {
+          const shipped = atTag(tag, VITE)!
+          expect(lf(shipped), tag).toContain(FUNCTION)
+          fixture.write(VITE, shipped)
+          writeLock(fixture.project, emptyLock(FROM))
+
+          const report = await upgrade()
+
+          const result = lf(fixture.read(VITE))
+          expect(result, tag).not.toContain(FUNCTION)
+          expect(result, tag).toContain(GROUPS)
+          // The patterns are written with backslashes, which a careless
+          // replacement halves or doubles.
+          expect(result, tag).toContain(CHARTS_GROUP)
+          // The framework is claimed ahead of the chart group, which is the fix.
+          expect(result.indexOf("name: 'vue-vendor'"), tag).toBeLessThan(
+            result.indexOf("name: 'charts-vendor'"),
+          )
+          expect(hash(result), tag).toBe(BECOMES[VITE])
+          expect(chunkNotes(report), tag).toEqual([])
+        }
+      })
+
+      // Four codemods meet in this file: the env plugin import, the test block,
+      // the ignore lists and the chunks. Together they must write the config a
+      // new project gets, or an upgraded project and a new one differ for ever
+      // in a file no later release can reach. Only the template is held to
+      // that: a project's vite.config.ts is its own.
+      it.runIf(MAINTAINER)(
+        'brings an unedited config to the one this repository ships',
+        async () => {
+          seed([VITE])
+
+          await upgrade()
+
+          expect(lf(fixture.read(VITE))).toBe(lf(inRepo(VITE)))
+          expect(hash(inRepo(VITE))).toBe(BECOMES[VITE])
+        },
+      )
+
+      it('leaves a function the project changed, and gives the groups to write', async () => {
+        seed([VITE])
+        const own = lf(released(VITE)).replace(
+          "          if (id.includes('node_modules/msw/')) {\n",
+          "          if (id.includes('node_modules/leaflet/')) return 'maps-vendor'\n" +
+            "          if (id.includes('node_modules/msw/')) {\n",
+        )
+        expect(own).not.toBe(lf(released(VITE)))
+        fixture.write(VITE, own)
+
+        const report = await upgrade()
+
+        const result = lf(fixture.read(VITE))
+        expect(result).toContain(FUNCTION)
+        expect(result).toContain("return 'maps-vendor'")
+        expect(result).not.toContain('codeSplitting')
+        // The other three still found their lines in the same file.
+        expect(result).toContain('    testTimeout: 15_000,\n')
+        expect(result).toContain("      '.vuestrata/**',\n")
+        expect(result).toContain("from './scripts/vite/vuestrata-plugin.mjs'")
+
+        expect(chunkNotes(report)).toHaveLength(1)
+        const [note] = chunkNotes(report)
+        expect(note).toMatch(/not the one 1\.0\.1-alpha\.6 shipped/)
+        expect(note).toContain('verify-bundle.mjs')
+        // Exact enough to paste: every group, with the pattern as it is written.
+        for (const name of ['vue', 'ui', 'data', 'charts', 'docs', 'msw']) {
+          expect(note, name).toContain(`{ name: '${name}-vendor', test: /node_modules[\\\\/]`)
+        }
+        expect(note).toContain(
+          "{ name: 'charts-vendor', test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/, priority: 10 }",
+        )
+        expect(fixture.exists(incoming(VITE))).toBe(false)
+      })
+
+      it('says it again on the next upgrade, until the function is gone', async () => {
+        seed([VITE])
+        fixture.write(
+          VITE,
+          lf(released(VITE)).replace('// Charting — large;', '// Charts — large;'),
+        )
+        await upgrade()
+
+        const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+        expect(chunkNotes(again)).toHaveLength(1)
+        expect(changed(again)).toEqual([])
+      })
+
+      // A declaration that may already exist is never added a second time:
+      // with both in the file, rolldown ignores the function, and the project
+      // has made the change already.
+      it.each([
+        [
+          'codeSplitting',
+          "        codeSplitting: { groups: [{ name: 'vendor', test: /node_modules/ }] },\n",
+        ],
+        [
+          'advancedChunks',
+          "        advancedChunks: { groups: [{ name: 'vendor', test: /node_modules/ }] },\n",
+        ],
+      ])('leaves a config that already declares %s, without a word', async (_, declared) => {
+        seed([VITE])
+        const own = lf(released(VITE)).replace(FUNCTION, declared + FUNCTION)
+        expect(own).not.toBe(lf(released(VITE)))
+        fixture.write(VITE, own)
+
+        const report = await upgrade()
+
+        const result = lf(fixture.read(VITE))
+        expect(result).toContain(declared + FUNCTION)
+        expect(result.split('codeSplitting')).toHaveLength(
+          declared.includes('codeSplitting') ? 2 : 1,
+        )
+        expect(chunkNotes(report)).toEqual([])
+      })
+
+      it('has nothing to say to a config that no longer names its chunks', async () => {
+        seed([VITE])
+        const own = lf(released(VITE))
+        const start = own.indexOf(FUNCTION)
+        const end = own.indexOf('        },\n', start) + '        },\n'.length
+        fixture.write(VITE, own.slice(0, start) + own.slice(end))
+
+        const report = await upgrade()
+
+        expect(lf(fixture.read(VITE))).not.toContain('codeSplitting')
+        expect(chunkNotes(report)).toEqual([])
       })
     })
   })

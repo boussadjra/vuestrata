@@ -13,7 +13,7 @@
     },
     "scripts/build/verify-bundle.mjs": {
       "class": "managed",
-      "hash": "sha256-9c27c73b202980998841a4ca30d852a19b6ae1ae3e87dfbdc530e61cc31097a4",
+      "hash": "sha256-8577f5e914daee32db4023a8a7cdb5ed03c3a37042dd5acc7cf5464bbf66dc36",
       "since": "1.1.0-alpha.0"
     },
     "scripts/build/write-version.mjs": {
