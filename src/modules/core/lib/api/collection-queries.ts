@@ -223,11 +223,15 @@ export interface CollectionActionConfig<
   invalidates?: readonly (readonly unknown[])[]
 }
 
-/** What an action's mutation is called with. */
-export type ActionVariables<TInput, TPath> = (TPath extends string
-  ? { id?: undefined }
-  : { id: string }) &
-  ([TInput] extends [undefined] ? { input?: undefined } : { input: TInput })
+/**
+ * What an action's mutation is called with: the record's id when its path is
+ * a function of one, its input when it declares a schema for one. An action
+ * with neither is called with nothing at all: `mutate()`.
+ */
+export type ActionVariables<TInput, TPath> =
+  | ((TPath extends string ? { id?: undefined } : { id: string }) &
+      ([TInput] extends [undefined] ? { input?: undefined } : { input: TInput }))
+  | ([TPath] extends [string] ? ([TInput] extends [undefined] ? void : never) : never)
 
 /** The composable an action is: call it in `setup`, as any mutation composable. */
 export type CollectionAction<TInput, TOutput, TPath> = () => UseMutationReturnType<
@@ -236,6 +240,48 @@ export type CollectionAction<TInput, TOutput, TPath> = () => UseMutationReturnTy
   ActionVariables<TInput, TPath>,
   unknown
 >
+
+/**
+ * A read that is neither the list nor the record: `GET /orders/{id}/summary`,
+ * `GET /orders/stats`. What a hand-written `useQuery` around `apiGet<T>()`
+ * was, with the three things that one left out: the answer is validated, the
+ * dialect's envelope and key case apply, and it is cached where a write to
+ * the collection finds it.
+ */
+export interface CollectionReadConfig<TOutput, TPath extends string | ((id: string) => string)> {
+  /**
+   * What the read is called in the cache: `'summary'`. On a collection it is
+   * cached under the collection's own key, per record, so every write to the
+   * collection refreshes it.
+   */
+  name: string
+  /**
+   * Where it is read from, exactly as an action's `path`: a function of the
+   * record's id for a read of one record (the id arrives encoded), a string
+   * otherwise; continuing the collection's path unless it starts with `/`.
+   */
+  path: TPath
+  /** The response's schema. A response that does not match fails as `CONTRACT_MISMATCH`. */
+  output: ZodType<TOutput>
+}
+
+/** What a read's composable returns. */
+export interface ApiRead<T> {
+  data: Ref<T | undefined>
+  isPending: Ref<boolean>
+  isFetching: Ref<boolean>
+  isError: Ref<boolean>
+  error: Ref<Error | null>
+  refetch: () => void
+}
+
+/**
+ * The composable a read is. For a read of one record it takes the id, as a
+ * value, a ref or a getter, and asks for nothing until there is one.
+ */
+export type CollectionRead<TOutput, TPath> = TPath extends string
+  ? () => ApiRead<TOutput>
+  : (id: MaybeRefOrGetter<string | undefined>) => ApiRead<TOutput>
 
 /** The composables of a collection. */
 export interface CollectionComposables<T, TFilters extends CollectionFilters, TCreate, TUpdate> {
@@ -259,6 +305,13 @@ export interface CollectionComposables<T, TFilters extends CollectionFilters, TC
   >(
     config: CollectionActionConfig<TInput, TOutput, TPath>,
   ) => CollectionAction<TInput, TOutput, TPath>
+  /** Declare a read that is neither the list nor the record. See `CollectionReadConfig`. */
+  read: <
+    TOutput,
+    TPath extends string | ((id: string) => string) = string | ((id: string) => string),
+  >(
+    config: CollectionReadConfig<TOutput, TPath>,
+  ) => CollectionRead<TOutput, TPath>
 }
 
 export interface CollectionApi<
@@ -697,6 +750,8 @@ interface Backend<T, TFilters, TCreate, TUpdate> {
 interface Scope {
   listKey: (params: Record<string, unknown>) => readonly unknown[]
   detailKey: (id: string) => readonly unknown[]
+  /** Where a `read()` is cached: under the collection, by its name and its record. */
+  readKey: (name: string, id: string | undefined) => readonly unknown[]
   /** Absent when there is nothing to wait for. */
   ready?: () => boolean
 }
@@ -868,6 +923,23 @@ function defineAction<TInput, TOutput, TPath extends string | ((id: string) => s
 }
 
 /**
+ * The path of a call that belongs to no collection. It has no collection path
+ * to continue: one that does not start at the API root is a template that put
+ * an id, or a whole URL, where the root belongs.
+ */
+function rootedPath(target: string): string {
+  if (target.startsWith('/')) return target
+  throw new AppError({
+    message: 'A standalone path starts with "/": it is taken from the API root.',
+    code: 'INVALID_PATH',
+    status: 400,
+    kind: 'unknown',
+    retryable: false,
+    messageKey: 'errors.status_400',
+  })
+}
+
+/**
  * A validated call that belongs to no collection: `POST /invitations`,
  * `PATCH /users/{id}/role` in a module whose list is not a collection.
  *
@@ -900,22 +972,98 @@ export function createApiAction<
   return defineAction(config, {
     resource: config.resource ?? 'action',
     dialect: () => own ?? currentApiIntegration().collection ?? DEFAULT_DIALECT,
-    resolvePath: (target) => {
-      // Belonging to no collection, the path has nothing to continue: one
-      // that does not start at the API root is a template that put an id, or
-      // a whole URL, where the root belongs.
-      if (target.startsWith('/')) return target
-      throw new AppError({
-        message: 'A standalone action path starts with "/": it is taken from the API root.',
-        code: 'INVALID_PATH',
-        status: 400,
-        kind: 'unknown',
-        retryable: false,
-        messageKey: 'errors.status_400',
-      })
-    },
+    resolvePath: rootedPath,
     defaultInvalidates: [],
   })
+}
+
+interface ReadRuntime {
+  resource: string
+  dialect: () => ResolvedCollectionDialect
+  resolvePath: (target: string, dialect: ResolvedCollectionDialect) => string
+  key: (id: string | undefined) => readonly unknown[]
+  /** Absent when there is nothing to wait for. */
+  ready?: () => boolean
+}
+
+function defineRead<TOutput, TPath extends string | ((id: string) => string)>(
+  config: CollectionReadConfig<TOutput, TPath>,
+  runtime: ReadRuntime,
+): CollectionRead<TOutput, TPath> {
+  const outputCase = keyCaseFor(config.output, runtime.resource)
+  const ofOneRecord = typeof config.path === 'function'
+
+  function useRead(id?: MaybeRefOrGetter<string | undefined>): ApiRead<TOutput> {
+    const query = useQuery({
+      queryKey: computed(() => runtime.key(ofOneRecord ? (toValue(id) ?? '') : undefined)),
+      queryFn: async ({ signal }) => {
+        const dialect = runtime.dialect()
+        const target = actionTarget(config.path, toValue(id))
+        const body = await apiGet<unknown>(runtime.resolvePath(target, dialect), {
+          signal,
+          ...READS_JSON,
+        })
+        return parseAs(
+          runtime.resource,
+          config.output,
+          outputCase(dialect).toApp(dialect.unwrapRecord(body)),
+        )
+      },
+      // As a detail: nothing is asked for until the record is known.
+      enabled: computed(
+        () => (!ofOneRecord || Boolean(toValue(id))) && (runtime.ready?.() ?? true),
+      ),
+    })
+
+    return {
+      data: computed(() => query.data.value),
+      isPending: computed(() => query.isPending.value),
+      isFetching: computed(() => query.isFetching.value),
+      isError: computed(() => query.isError.value),
+      error: computed(() => query.error.value),
+      refetch: () => void query.refetch(),
+    }
+  }
+
+  return useRead as CollectionRead<TOutput, TPath>
+}
+
+/**
+ * A validated read that belongs to no collection: `GET /reports/revenue`,
+ * `GET /users/{id}/permissions` in a module whose list is not a collection.
+ *
+ * The same as a collection's `read()`, with two differences: `path` is always
+ * from the API root, so it starts with `/`, and the cache key is the one
+ * given as `key` (with the record's id after it, for a read of one record).
+ *
+ *     const useRevenue = createApiRead({
+ *       key: ['reports', 'revenue'],
+ *       path: '/reports/revenue',
+ *       output: revenueSchema,
+ *     })
+ */
+export function createApiRead<
+  TOutput,
+  TPath extends string | ((id: string) => string) = string | ((id: string) => string),
+>(
+  config: Omit<CollectionReadConfig<TOutput, TPath>, 'name'> & {
+    /** What the read is cached under. Invalidate it to refresh the read. */
+    key: readonly unknown[]
+    /** Names the read in log lines. Defaults to `read`. */
+    resource?: string
+    dialect?: CollectionDialect
+  },
+): CollectionRead<TOutput, TPath> {
+  const own = config.dialect === undefined ? undefined : resolveCollectionDialect(config.dialect)
+  return defineRead(
+    { ...config, name: 'read' },
+    {
+      resource: config.resource ?? 'read',
+      dialect: () => own ?? currentApiIntegration().collection ?? DEFAULT_DIALECT,
+      resolvePath: rootedPath,
+      key: (id) => (id === undefined ? config.key : [...config.key, id]),
+    },
+  )
 }
 
 export function createCollectionApi<
@@ -1389,12 +1537,19 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
     }
   }
 
-  const rootScope: Scope = { listKey: keys.list, detailKey: keys.detail }
+  const rootScope: Scope = {
+    listKey: keys.list,
+    detailKey: keys.detail,
+    readKey: (name, id) => [...keys.all, 'read', name, ...(id === undefined ? [] : [id])],
+  }
 
   if ('source' in config) return composables(sourceBackend(config.source), rootScope)
 
   /** The REST composables for one base path, plus the actions under it. */
   function restComposables(base: () => string, scope: Scope) {
+    /** A path that continues the collection's own, unless it starts from the API root. */
+    const resolvePath = (target: string, spoken: ResolvedCollectionDialect) =>
+      target.startsWith('/') ? target : spoken.paths.action(`${base()}/${target}`)
     return {
       ...composables(restBackend(base), scope),
       action: <TInput, TOutput, TPath extends string | ((id: string) => string)>(
@@ -1403,9 +1558,18 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
         defineAction(actionConfig, {
           resource,
           dialect,
-          resolvePath: (target, spoken) =>
-            target.startsWith('/') ? target : spoken.paths.action(`${base()}/${target}`),
+          resolvePath,
           defaultInvalidates: [keys.all],
+        }),
+      read: <TOutput, TPath extends string | ((id: string) => string)>(
+        readConfig: CollectionReadConfig<TOutput, TPath>,
+      ) =>
+        defineRead(readConfig, {
+          resource,
+          dialect,
+          resolvePath,
+          key: (id) => scope.readKey(readConfig.name, id),
+          ...(scope.ready ? { ready: scope.ready } : {}),
         }),
     }
   }
@@ -1439,6 +1603,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
     return restComposables(base, {
       listKey: (params) => scoped('list', params),
       detailKey: (id) => scoped('detail', id),
+      readKey: (name, id) => scoped('read', id === undefined ? [name] : [name, id]),
       ready: () => complete() !== undefined,
     })
   }

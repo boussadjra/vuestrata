@@ -10,10 +10,11 @@ import {
   it,
   vi,
 } from 'vite-plus/test'
+import { ref } from 'vue'
 import { z } from 'zod'
 
 import { installApiAuth } from '@/lib/api/client'
-import { createApiAction, createCollectionApi } from '@/lib/api/collection-queries'
+import { createApiAction, createApiRead, createCollectionApi } from '@/lib/api/collection-queries'
 import { dialects, extendDialect } from '@/lib/api/dialects'
 import { resolveApiIntegration } from '@/lib/api/integration'
 import { AppError } from '@/lib/errors'
@@ -209,6 +210,37 @@ describe('an action on the collection', () => {
     expect(wire).toEqual([{ request: 'PUT /api/orders/O-1/reopen', body: null, contentType: null }])
   })
 
+  it('is called with nothing at all when it takes neither an id nor an input', async () => {
+    const useRecount = orders.action({ path: 'recount' })
+    const useReopen = orders.action({ path: (id) => `${id}/reopen` })
+    const useRename = orders.action({ path: 'rename', input: z.object({ name: z.string() }) })
+    server.use(http.post('*/api/orders/*', () => new HttpResponse(null, { status: 204 })))
+    recordWire()
+    const { recount, reopen, rename } = withQueryClient(() => ({
+      recount: useRecount(),
+      reopen: useReopen(),
+      rename: useRename(),
+    }))
+
+    // No `{}` to pass: there is nothing to say.
+    await recount.mutateAsync()
+    recount.mutate()
+    await recount.mutateAsync({})
+    await vi.waitFor(() => expect(wire).toHaveLength(3), { timeout: 5_000 })
+
+    expect(wire.map((entry) => [entry.request, entry.body])).toEqual([
+      ['POST /api/orders/recount', null],
+      ['POST /api/orders/recount', null],
+      ['POST /api/orders/recount', null],
+    ])
+
+    // An action that needs an id or an input still has to be given it.
+    // @ts-expect-error the record's id is required
+    void reopen.mutateAsync().catch(() => {})
+    // @ts-expect-error the input is required
+    void rename.mutateAsync().catch(() => {})
+  })
+
   it('takes a path from the API root, and its own keys to invalidate', async () => {
     const useRefund = orders.action({
       path: (id) => `/payments/${id}/refund`,
@@ -368,5 +400,290 @@ describe('a standalone action', () => {
 
     expect(wire[0]?.body).toEqual({ email_address: 'ada@example.test' })
     expect(invitation).toEqual({ id: 'I-1', invitedBy: 'U-1' })
+  })
+})
+
+describe('a read of a sub-resource', () => {
+  const summarySchema = z.object({ orderId: z.string(), lineCount: z.number().int() })
+
+  const useOrderSummary = orders.read({
+    name: 'summary',
+    path: (id) => `${id}/summary`,
+    output: summarySchema,
+  })
+
+  it('asks for nothing until it has an id, then validates what comes back', async () => {
+    server.use(
+      http.get('*/api/orders/:id/summary', ({ params }) =>
+        HttpResponse.json({ orderId: params.id, lineCount: 3, internal: 'dropped' }),
+      ),
+    )
+    recordWire()
+    const id = ref<string | undefined>(undefined)
+    const { summary, queryClient } = withQueryClient((client) => ({
+      summary: useOrderSummary(id),
+      queryClient: client,
+    }))
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(wire).toEqual([])
+    expect(summary.data.value).toBeUndefined()
+
+    id.value = 'O-1'
+    await vi.waitFor(() => expect(summary.data.value).toBeDefined(), { timeout: 5_000 })
+
+    expect(wire.map((entry) => entry.request)).toEqual(['GET /api/orders/O-1/summary'])
+    expect(summary.data.value).toEqual({ orderId: 'O-1', lineCount: 3 })
+    expect(summary.isError.value).toBe(false)
+    // Under the collection's own key, per record: a write to the collection
+    // invalidates it along with the lists.
+    expect(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .map((query) => query.queryKey),
+    ).toEqual([['orders', 'read', 'summary', 'O-1']])
+  })
+
+  it('is refreshed by a write to the collection', async () => {
+    const answers = { lineCount: 3 }
+    server.use(
+      http.get('*/api/orders/:id/summary', () =>
+        HttpResponse.json({ orderId: 'O-1', lineCount: answers.lineCount }),
+      ),
+      http.delete('*/api/orders/:id', () => new HttpResponse(null, { status: 204 })),
+    )
+    const { summary, remove } = withQueryClient(() => ({
+      summary: useOrderSummary('O-1'),
+      remove: orders.useRemove(),
+    }))
+    await vi.waitFor(() => expect(summary.data.value?.lineCount).toBe(3), { timeout: 5_000 })
+
+    answers.lineCount = 2
+    await remove.mutateAsync('O-9')
+
+    await vi.waitFor(() => expect(summary.data.value?.lineCount).toBe(2), { timeout: 5_000 })
+  })
+
+  it('fails an answer that is not what its schema says as a contract mismatch', async () => {
+    server.use(http.get('*/api/orders/:id/summary', () => HttpResponse.json({ orderId: 7 })))
+    const summary = withQueryClient(() => useOrderSummary('O-1'))
+
+    await vi.waitFor(() => expect(summary.isError.value).toBe(true), { timeout: 5_000 })
+
+    expect(summary.error.value).toMatchObject({ code: 'CONTRACT_MISMATCH', kind: 'contract' })
+    expect(Object.keys((summary.error.value as AppError).details ?? {})).toEqual([
+      'orderId',
+      'lineCount',
+    ])
+    expect(summary.data.value).toBeUndefined()
+  })
+
+  it('sends the id as one segment, and refuses one no path can hold', async () => {
+    server.use(
+      http.get('*/api/orders/:id/summary', () => HttpResponse.json({ orderId: 'x', lineCount: 0 })),
+    )
+    recordWire()
+    const { hostile, refused } = withQueryClient(() => ({
+      hostile: useOrderSummary('../admin#x'),
+      refused: useOrderSummary('..'),
+    }))
+
+    await vi.waitFor(
+      () => {
+        expect(hostile.isPending.value).toBe(false)
+        expect(refused.isError.value).toBe(true)
+      },
+      { timeout: 5_000 },
+    )
+
+    expect(wire.map((entry) => entry.request)).toEqual(['GET /api/orders/..%2Fadmin%23x/summary'])
+    expect(refused.error.value).toMatchObject({ code: 'INVALID_ID' })
+  })
+
+  it('reads the whole collection’s sub-resource without an id', async () => {
+    const useStats = orders.read({
+      name: 'stats',
+      path: 'stats',
+      output: z.object({ open: z.number() }),
+    })
+    server.use(http.get('*/api/orders/stats', () => HttpResponse.json({ open: 4 })))
+    recordWire()
+    const { stats, queryClient } = withQueryClient((client) => ({
+      stats: useStats(),
+      queryClient: client,
+    }))
+
+    await vi.waitFor(() => expect(stats.data.value).toEqual({ open: 4 }), { timeout: 5_000 })
+
+    expect(wire.map((entry) => entry.request)).toEqual(['GET /api/orders/stats'])
+    expect(queryClient.getQueryCache().getAll()[0]?.queryKey).toEqual(['orders', 'read', 'stats'])
+  })
+
+  it('speaks the collection’s dialect: its envelope, its key case, its trailing slash', async () => {
+    const laravelOrders = createCollectionApi<Order>({
+      resource: 'orders',
+      schema: orderSchema,
+      keys: orderKeys,
+      dialect: extendDialect(dialects.laravel, { keys: 'camel' }),
+    })
+    const drfOrders = createCollectionApi<Order>({
+      resource: 'tickets',
+      schema: orderSchema,
+      keys: defineQueryKeys('tickets'),
+      dialect: dialects.drf,
+    })
+    server.use(
+      http.get('*/api/orders/:id/summary', () =>
+        HttpResponse.json({ data: { order_id: 'O-1', line_count: 3 } }),
+      ),
+      http.get('*/api/tickets/:id/summary/', () =>
+        HttpResponse.json({ orderId: 'O-1', lineCount: 5 }),
+      ),
+    )
+    recordWire()
+    const config = { name: 'summary', path: (id: string) => `${id}/summary`, output: summarySchema }
+    const { laravel, drf } = withQueryClient(() => ({
+      laravel: laravelOrders.read(config)('O-1'),
+      drf: drfOrders.read(config)('O-1'),
+    }))
+
+    await vi.waitFor(
+      () => {
+        expect(laravel.data.value).toEqual({ orderId: 'O-1', lineCount: 3 })
+        expect(drf.data.value).toEqual({ orderId: 'O-1', lineCount: 5 })
+      },
+      { timeout: 5_000 },
+    )
+    expect(wire.map((entry) => entry.request).toSorted()).toEqual([
+      'GET /api/orders/O-1/summary',
+      'GET /api/tickets/O-1/summary/',
+    ])
+  })
+
+  it('waits for the parent of a nested collection, and is cached under it', async () => {
+    const lines = createCollectionApi<
+      Order,
+      Record<string, never>,
+      Partial<Order>,
+      Partial<Order>,
+      { orderId: string }
+    >({
+      resource: 'lines',
+      path: ({ orderId }) => `/orders/${orderId}/lines`,
+      schema: orderSchema,
+      keys: defineQueryKeys('lines'),
+    })
+    server.use(http.get('*/api/orders/:orderId/lines/totals', () => HttpResponse.json({ open: 2 })))
+    recordWire()
+    const orderId = ref('')
+    const { totals, queryClient } = withQueryClient((client) => ({
+      totals: lines
+        .within(() => ({ orderId: orderId.value }))
+        .read({ name: 'totals', path: 'totals', output: z.object({ open: z.number() }) })(),
+      queryClient: client,
+    }))
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(wire).toEqual([])
+
+    orderId.value = 'O-1'
+    await vi.waitFor(() => expect(totals.data.value).toEqual({ open: 2 }), { timeout: 5_000 })
+
+    expect(wire.map((entry) => entry.request)).toEqual(['GET /api/orders/O-1/lines/totals'])
+    expect(queryClient.getQueryCache().getAll().at(-1)?.queryKey).toEqual([
+      'lines',
+      'within',
+      { orderId: 'O-1' },
+      'read',
+      ['totals'],
+    ])
+  })
+})
+
+describe('a standalone read', () => {
+  const permissionsSchema = z.object({ userId: z.string(), permissions: z.array(z.string()) })
+
+  it('reads a path from the API root under its own key, validated', async () => {
+    const usePermissions = createApiRead({
+      key: ['users', 'permissions'],
+      path: (id) => `/users/${id}/permissions`,
+      output: permissionsSchema,
+    })
+    const useRevenue = createApiRead({
+      key: ['reports', 'revenue'],
+      path: '/reports/revenue',
+      output: z.object({ total: z.number() }),
+    })
+    server.use(
+      http.get('*/api/users/:id/permissions', ({ params }) =>
+        HttpResponse.json({ userId: params.id, permissions: ['orders.read'], extra: 1 }),
+      ),
+      http.get('*/api/reports/revenue', () => HttpResponse.json({ total: 12 })),
+    )
+    recordWire()
+    const id = ref<string | undefined>(undefined)
+    const { permissions, revenue, queryClient } = withQueryClient((client) => ({
+      permissions: usePermissions(() => id.value),
+      revenue: useRevenue(),
+      queryClient: client,
+    }))
+
+    await vi.waitFor(() => expect(revenue.data.value).toEqual({ total: 12 }), { timeout: 5_000 })
+    expect(wire.map((entry) => entry.request)).toEqual(['GET /api/reports/revenue'])
+
+    id.value = 'U 1'
+    await vi.waitFor(() => expect(permissions.data.value).toBeDefined(), { timeout: 5_000 })
+
+    expect(permissions.data.value).toEqual({ userId: 'U 1', permissions: ['orders.read'] })
+    expect(wire.map((entry) => entry.request)).toEqual([
+      'GET /api/reports/revenue',
+      'GET /api/users/U%201/permissions',
+    ])
+    expect(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .map((query) => query.queryKey),
+    ).toEqual(
+      expect.arrayContaining([
+        ['reports', 'revenue'],
+        ['users', 'permissions', 'U 1'],
+      ]),
+    )
+  })
+
+  it('speaks the project’s dialect, and refuses a path that is not from the root', async () => {
+    installApiIntegration(
+      resolveApiIntegration({ collection: extendDialect(dialects.laravel, { keys: 'camel' }) }),
+    )
+    server.use(
+      http.get('*/api/users/:id/permissions', () =>
+        HttpResponse.json({ data: { user_id: 'U-1', permissions: [] } }),
+      ),
+    )
+    recordWire()
+    const { permissions, relative } = withQueryClient(() => ({
+      permissions: createApiRead({
+        key: ['users', 'permissions'],
+        path: (id) => `/users/${id}/permissions`,
+        output: permissionsSchema,
+      })('U-1'),
+      relative: createApiRead({
+        key: ['x'],
+        path: (id) => `${id}/permissions`,
+        output: permissionsSchema,
+      })('https://evil.example'),
+    }))
+
+    await vi.waitFor(
+      () => {
+        expect(permissions.data.value).toEqual({ userId: 'U-1', permissions: [] })
+        expect(relative.isError.value).toBe(true)
+      },
+      { timeout: 5_000 },
+    )
+    expect(relative.error.value).toMatchObject({ code: 'INVALID_PATH' })
+    expect(wire.map((entry) => entry.request)).toEqual(['GET /api/users/U-1/permissions'])
   })
 })
