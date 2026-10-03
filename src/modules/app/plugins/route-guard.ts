@@ -6,7 +6,7 @@ import {
   hasPermission,
   isRoleAtLeast,
 } from '~/lib/rbac'
-import { resolveSubjectPermissions } from '~/lib/rbac/identity'
+import { anyRoleAtLeast, resolveSubjectPermissions } from '~/lib/rbac/identity'
 import type { Permission, Role } from '~/types'
 
 const guardLogger = createScopedLogger('router')
@@ -34,6 +34,12 @@ export interface GuardedRoute {
 export interface GuardSubject {
   isAuthenticated: boolean
   role: Role
+  /**
+   * Every role the user holds, when the caller knows them (the auth store's
+   * `userRoles`). `requiredRole` is met by any of them. Optional: a caller
+   * that passes `role` alone is judged on that one, as before.
+   */
+  roles?: readonly Role[]
   /**
    * `undefined` means the backend sent none, so the role decides; an array,
    * even an empty one, is the user's whole set.
@@ -83,7 +89,13 @@ export function resolveRouteAccess(route: GuardedRoute, subject: GuardSubject): 
   // whatever role label they carry.
   const permissions = subject.isAuthenticated ? resolveSubjectPermissions(subject) : []
 
-  if (route.meta.requiredRole && !isRoleAtLeast(role, route.meta.requiredRole)) {
+  // Any role the user holds can meet `requiredRole`, not only the primary one.
+  // Without a list (or with an empty one: a visitor, a user with no role the
+  // app has) `role` is the whole answer, as it was.
+  const meetsRole = (required: Role) =>
+    subject.roles?.length ? anyRoleAtLeast(subject.roles, required) : isRoleAtLeast(role, required)
+
+  if (route.meta.requiredRole && !meetsRole(route.meta.requiredRole)) {
     return { type: 'forbidden' }
   }
 

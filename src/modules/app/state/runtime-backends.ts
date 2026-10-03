@@ -1,7 +1,8 @@
 import { useApiRuntimeStore } from '@/stores/api-runtime'
 import rbacOverrides from '~/config/rbac.overrides'
 import { resolveRolePermissions } from '~/lib/rbac/inheritance'
-import { resolveRbacOverrides } from '~/lib/rbac/overrides'
+import { assertRbacConfig, resolveRbacOverrides } from '~/lib/rbac/overrides'
+import { knownRoles } from '~/lib/rbac/role-graph'
 import type { AuthorizationHookFn, Permission, PredicateFn, Role } from '~/lib/rbac/types'
 import {
   installApiAuthBackend,
@@ -40,10 +41,17 @@ const rbacConfig = resolveRbacOverrides(rbacOverrides)
  * `resolveRolePermissions` takes the role alone: calling that with two
  * arguments does not compile. A function of one parameter does fit this type,
  * so both do, and the old one ignores the overrides until it is merged.
+ *
+ * A project's own roles are walked as well. No built-in role inherits from
+ * one, so a permission granted to a project role alone is held by nobody in
+ * the hierarchy, and would otherwise be reported as unregistered. With no
+ * project role this is `super_admin`'s set, in the order it always had.
  */
 const resolveSeedPermissions: (role: Role, config: RbacConfig) => Permission[] =
   resolveRolePermissions
-export const BUILTIN_PERMISSIONS: Permission[] = resolveSeedPermissions('super_admin', rbacConfig)
+export const BUILTIN_PERMISSIONS: Permission[] = [
+  ...new Set(knownRoles(rbacConfig).flatMap((role) => resolveSeedPermissions(role, rbacConfig))),
+]
 
 /**
  * Build a fresh RBAC backend (Set/Map registries) seeded with built-in
@@ -54,6 +62,7 @@ const rbacBackendState = createGlobalState((): RbacBackend => {
   const permissions = new Set<string>()
   const predicates = new Map<string, PredicateFn>()
   const hooks = new Set<AuthorizationHookFn>()
+  const reportedNames = new Set<string>()
 
   function seedBuiltins(): void {
     for (const perm of BUILTIN_PERMISSIONS) permissions.add(perm)
@@ -69,10 +78,11 @@ const rbacBackendState = createGlobalState((): RbacBackend => {
     permissions.clear()
     predicates.clear()
     hooks.clear()
+    reportedNames.clear()
     seedBuiltins()
   }
 
-  return { permissions, predicates, hooks, resetPermissions, reset }
+  return { permissions, predicates, hooks, reportedNames, resetPermissions, reset }
 })
 
 /** Build a fresh validation-adapter cache backend. */
@@ -108,6 +118,10 @@ const validationCacheBackendState = createGlobalState(
 export function installRuntimeBackends(): void {
   const apiRuntime = useApiRuntimeStore()
   installApiAuthBackend(apiRuntime.backend)
+  // A role table with a cycle or an unknown parent stops the boot here, with a
+  // message naming rbac.overrides.ts. Until it is fixed such a role holds
+  // nothing either way: resolving the seam already left it out.
+  assertRbacConfig(rbacConfig)
   installRbacConfig(rbacConfig)
   installRbacBackend(rbacBackendState())
   installValidationCacheBackend(validationCacheBackendState())

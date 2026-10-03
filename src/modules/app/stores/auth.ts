@@ -9,7 +9,11 @@ import {
 } from '~/lib/auth/session-persistence'
 import { appEvents } from '~/lib/events'
 import { createScopedLogger } from '~/lib/logger'
-import { resolveSubjectPermissions } from '~/lib/rbac/identity'
+import {
+  resolvePrimaryRole,
+  resolveSubjectPermissions,
+  resolveSubjectRoles,
+} from '~/lib/rbac/identity'
 import type { User, Role, Permission } from '~/types'
 
 const authStoreLogger = createScopedLogger('auth-store')
@@ -84,9 +88,18 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(
     () => !!user.value && (!!token.value || getAuthTransport() === 'cookie'),
   )
-  const userRole = computed<Role>(() => user.value?.role ?? 'guest')
+  // The primary role: the user's `role` when the app has it, else the first of
+  // their `roles` that it has. A role the app does not have is kept as named
+  // when there is nothing better (it holds nothing and is at least nothing),
+  // and no role at all reads as `guest`, as it always has.
+  const userRole = computed<Role>(
+    () => resolvePrimaryRole(user.value) ?? user.value?.role ?? 'guest',
+  )
+  // Every role the user holds that the app has. Usually one. Empty for a
+  // visitor, and for a user none of whose roles the app declares.
+  const userRoles = computed<Role[]>(() => resolveSubjectRoles(user.value))
   // Resolved, never undefined: the explicit set when the backend sent one, else
-  // what the role grants. The route guard reads this and `useRbac` resolves the
+  // what the roles grant. The route guard reads this and `useRbac` resolves the
   // same way, so a sidebar link and the route behind it cannot disagree.
   const userPermissions = computed<Permission[]>(() => resolveSubjectPermissions(user.value))
 
@@ -198,6 +211,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     isAuthenticated,
     userRole,
+    userRoles,
     userPermissions,
     setAuth,
     setUser,
