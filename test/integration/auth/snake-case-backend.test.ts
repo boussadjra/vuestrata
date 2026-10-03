@@ -394,11 +394,12 @@ describe('a snake_case backend with its own paths', () => {
 
   it('fails the sign-in loudly when the user payload has drifted', async () => {
     const backend = snakeCaseBackend()
-    // A release of the backend renamed the field the mapper reads.
+    // A release of the backend renamed a field the mapper reads, and it is
+    // one the app cannot do without.
     backend.state.me = {
-      id: 7,
+      uid: 7,
       email: 'ada@example.test',
-      display_name: 'Ada',
+      full_name: 'Ada Lovelace',
       role_name: 'manager',
     }
     const { store } = wire('none')
@@ -410,11 +411,29 @@ describe('a snake_case backend with its own paths', () => {
 
     expect(error).toBeInstanceOf(AppError)
     expect(error).toMatchObject({ code: 'CONTRACT_MISMATCH', kind: 'contract' })
-    expect((error as AppError).details).toHaveProperty('name')
+    expect((error as AppError).details).toHaveProperty('id')
     // Nobody is half signed in.
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
     expect(store.token).toBeNull()
+  })
+
+  it('signs in a user the backend gives no name and no role, holding nothing', async () => {
+    const backend = snakeCaseBackend()
+    // What the app accepted before identity was validated: the store read a
+    // missing role as `guest`, and nothing required a name.
+    backend.state.me = { id: 7, email: 'ada@example.test' }
+    const { store } = wire('none')
+
+    await signIn(store)
+
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.user).toEqual({ id: '7', email: 'ada@example.test', name: 'ada@example.test' })
+    // The least-privileged role for role checks, and no permission at all:
+    // exactly what such a user had before.
+    expect(store.userRole).toBe('guest')
+    expect(store.userPermissions).toEqual([])
+    store.clearRefreshTimer()
   })
 
   it('does not resume a session whose user payload has drifted', async () => {

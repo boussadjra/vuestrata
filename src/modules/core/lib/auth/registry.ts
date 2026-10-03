@@ -1,6 +1,9 @@
+import { scannedAuthAdapters } from '../config'
 import { AUTH_ADAPTERS, ENV_KEYS } from '../config/env.schema'
+import { AppError } from '../errors'
 import type { AuthAdapter, AuthAdapterOptions } from './adapter'
 import { getAuthConfig, type ResolvedAdapterRegistration } from './config'
+import { authContractMismatch, parseUser } from './user'
 
 /**
  * The adapters a project registered under `adapters` in
@@ -36,43 +39,104 @@ const isAdapterShaped = (value: unknown): value is AuthAdapter => {
   )
 }
 
-/** The members of an adapter that answer with a session, and so with tokens. */
-const SESSION_METHODS = [
-  'login',
-  'register',
-  'refreshToken',
-  'verifyMagicLink',
-  'verifyMfa',
-  'exchangeCode',
-  'resumeSession',
-  'refreshSession',
-] as const
+/**
+ * The members of an adapter that answer with a session. `userRequired` is
+ * whether the answer has to carry a user: a sign-in does (unless it is an MFA
+ * challenge), a refresh does not, and a resume without one is "no session",
+ * which the session restore already handles.
+ */
+const SESSION_METHODS = {
+  login: { userRequired: true },
+  register: { userRequired: true },
+  verifyMagicLink: { userRequired: true },
+  verifyMfa: { userRequired: true },
+  exchangeCode: { userRequired: true },
+  refreshToken: { userRequired: false },
+  refreshSession: { userRequired: false },
+  resumeSession: { userRequired: false },
+} as const satisfies Partial<Record<keyof AuthAdapter, { userRequired: boolean }>>
+
+type SessionMethod = keyof typeof SESSION_METHODS
+
+const isContractMismatch = (err: unknown): boolean =>
+  err instanceof AppError && err.code === 'CONTRACT_MISMATCH'
 
 /**
- * Keep an SDK-owned session's refresh token out of the app.
+ * Hold a project's adapter to the contracts the built-in ones are held to.
  *
- * An adapter that declares `persistence: 'external'` says its SDK stores the
- * session. The auth store writes a refresh token it is given to Web Storage
- * under `VUESTRATA_SESSION_PERSISTENCE=session|local`, so the guarantee is made
- * here, at the one place every session passes through: the token is taken off
- * whatever such an adapter returns, and the store is never given one to write.
+ * The built-in adapters get both of these from `createAuthEndpoints`, which
+ * every response of theirs passes through. A project's adapter talks to an SDK
+ * or a protocol of its own and passes through nothing, so they are applied
+ * here, at the one place every adapter of a project's is built:
+ *
+ * - **The `User` contract.** The user of every session the adapter answers
+ *   with, and of `getUser()`, goes through `parseUser`. Without this, an
+ *   adapter that forwarded its SDK's user as it came could put a user with no
+ *   `id`, or with an array for a role, in the store, where identity from a
+ *   REST backend would have been refused. A user that does not fit is "no
+ *   session": a sign-in or a refresh rejects with `CONTRACT_MISMATCH`, and
+ *   `resumeSession()` and `getUser()` answer null, because a boot-time resume
+ *   must never be what takes the app down. Either way one error is logged,
+ *   with field paths and never the payload. That holds for a mismatch the
+ *   adapter raised itself too (the recipe's adapter calls `parseUser`).
+ *
+ * - **`persistence: 'external'`.** An adapter that declares it says its SDK
+ *   stores the session. The auth store writes a refresh token it is given to
+ *   Web Storage under `VUESTRATA_SESSION_PERSISTENCE=session|local`, so the
+ *   token is taken off whatever such an adapter returns, and the store is
+ *   never given one to write.
+ *
  * The adapter is wrapped rather than changed, and its methods still run with
  * the adapter itself as `this`.
  */
-function withoutRefreshTokens(adapter: AuthAdapter): AuthAdapter {
+function sealAdapter(name: string, adapter: AuthAdapter): AuthAdapter {
+  const external = adapter.persistence === 'external'
   const sealed = Object.create(adapter) as Record<string, unknown>
-  for (const method of SESSION_METHODS) {
+
+  function checked(method: SessionMethod, result: unknown): unknown {
+    if (typeof result !== 'object' || result === null) return result
+    const { refreshToken, user, ...rest } = result as Record<string, unknown>
+    const what = `The "${name}" adapter's ${method}()`
+
+    const session: Record<string, unknown> = rest
+    if (refreshToken !== undefined && !external) session.refreshToken = refreshToken
+    if (user !== null && user !== undefined) {
+      session.user = parseUser(user, `${what} user`)
+    } else if (SESSION_METHODS[method].userRequired && rest.mfaRequired !== true) {
+      throw authContractMismatch(what, [
+        { path: ['user'], code: 'custom', message: 'expected a user' },
+      ])
+    }
+    return session
+  }
+
+  for (const method of Object.keys(SESSION_METHODS) as SessionMethod[]) {
     const original = adapter[method] as ((...args: unknown[]) => Promise<unknown>) | undefined
     if (typeof original !== 'function') continue
     sealed[method] = async (...args: unknown[]) => {
-      const result = await original.apply(adapter, args)
-      if (typeof result !== 'object' || result === null || !('refreshToken' in result)) {
-        return result
+      try {
+        return checked(method, await original.apply(adapter, args))
+      } catch (err) {
+        // Nothing to resume is the ordinary answer at boot; a user that does
+        // not fit the contract is that answer too, already logged.
+        if (method === 'resumeSession' && isContractMismatch(err)) return null
+        throw err
       }
-      const { refreshToken: _dropped, ...session } = result as { refreshToken?: unknown }
-      return session
     }
   }
+
+  sealed.getUser = async () => {
+    try {
+      const user = await adapter.getUser()
+      return user === null || user === undefined
+        ? null
+        : parseUser(user, `The "${name}" adapter's getUser() user`)
+    } catch (err) {
+      if (isContractMismatch(err)) return null
+      throw err
+    }
+  }
+
   return sealed as unknown as AuthAdapter
 }
 
@@ -82,6 +146,14 @@ function finishAdapter(
   registration: ResolvedAdapterRegistration,
   adapter: unknown,
 ): AuthAdapter {
+  if (typeof (adapter as PromiseLike<unknown> | null)?.then === 'function') {
+    // `name: () => import('…')`: the factory is the import itself.
+    throw new Error(
+      `The "${name}" adapter registered in ${AUTH_CONFIG_FILE} is a function that returns a ` +
+        'promise, not an adapter. A module loaded on demand is registered with `load`: ' +
+        `register it as \`${name}: { load: () => import(…) }\`.`,
+    )
+  }
   if (!isAdapterShaped(adapter)) {
     throw new Error(
       `The "${name}" adapter registered in ${AUTH_CONFIG_FILE} did not return an auth adapter: ` +
@@ -90,15 +162,27 @@ function finishAdapter(
   }
   // The build validated VUESTRATA_SESSION_PERSISTENCE against the transport
   // written in the config file, which it read as text. If the adapter turns
-  // out to use the other one, that validation was for the wrong thing.
-  if (adapter.transport !== registration.transport) {
+  // out to use the other one, that validation was for the wrong thing. It is
+  // compared with the registration as it evaluated, and with what the build
+  // read: the two can differ, and the build's reading is the one the rule was
+  // checked against. (No reading for this name means nothing validated it: a
+  // test, or a Vite config without the plugin.)
+  const read = Object.hasOwn(scannedAuthAdapters, name) ? scannedAuthAdapters[name] : undefined
+  const expected =
+    adapter.transport !== registration.transport
+      ? registration.transport
+      : read !== undefined && adapter.transport !== read
+        ? read
+        : undefined
+  if (expected !== undefined) {
     throw new Error(
-      `${AUTH_CONFIG_FILE} registers "${name}" as a ${registration.transport}-transport adapter, ` +
-        `but the adapter it builds uses "${adapter.transport}". Declare it: ` +
+      `${AUTH_CONFIG_FILE} registers "${name}" as a ${expected}-transport adapter` +
+        (expected === read && expected !== registration.transport ? ', as the build read it' : '') +
+        `, but the adapter it builds uses "${adapter.transport}". Declare it: ` +
         `\`${name}: { transport: '${adapter.transport}', … }\`.`,
     )
   }
-  return adapter.persistence === 'external' ? withoutRefreshTokens(adapter) : adapter
+  return sealAdapter(name, adapter)
 }
 
 /**

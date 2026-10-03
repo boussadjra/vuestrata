@@ -18,10 +18,17 @@ import {
  *   default export is the factory. An SDK registered this way is in the bundle
  *   only as a separate chunk, fetched by the deployment that selects it.
  *
- * The transport is written here, as a literal, because the build has to know
- * it without running any of this: it validates `VUESTRATA_SESSION_PERSISTENCE`
- * against it, and it reads this file as text. `boot()` then checks the adapter
- * really uses the transport declared.
+ * Each is written INLINE in `auth.config.ts`, and the transport as a literal,
+ * because the build has to know it without running any of this: it validates
+ * `VUESTRATA_SESSION_PERSISTENCE` against it, and it reads that file as text.
+ * A registration held in a variable, or built by a call, is one the build
+ * cannot read, and it fails the build saying so.
+ *
+ * The adapter is then held to what was written, when it is built
+ * (`finishAdapter` in `./registry.ts`): its `transport` has to be the one
+ * registered here AND the one the build read. Both, because they can differ —
+ * the build's reading is of the text, this object is what the text evaluated
+ * to — and the build's is the one the persistence rule was checked against.
  */
 export type AuthAdapterRegistration =
   | AuthAdapterFactory

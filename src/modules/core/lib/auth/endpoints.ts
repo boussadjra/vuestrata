@@ -1,5 +1,8 @@
 import type { FetchContext } from 'ofetch'
 
+// From the interceptor module, not through `client`: a test that replaces the
+// client with a stub of `apiFetch` alone must still be able to load this.
+import { getAuthTransport } from '~/lib/api/auth-interceptor'
 import { apiFetch, type ApiFetchOptions } from '~/lib/api/client'
 import { AppError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
@@ -455,6 +458,16 @@ export function createAuthEndpoints(
       mapped(what, () => mapAuth(raw)),
       what,
     ) as MappedAuthResponse
+
+    // Under bearer transport the token IS the session: the store counts a
+    // user as signed in only while it holds one. A response with a user and no
+    // token would leave somebody in the header whom every request then
+    // presents as nobody. Only an MFA challenge comes without one, and only
+    // cookie transport never has one. `snakeCase` and `oauthToken` check
+    // their own field; this holds for every mapper, a project's included.
+    if (!rest.mfaRequired && getAuthTransport() === 'bearer' && !stringOrUndefined(rest.token)) {
+      throw authContractMismatch(what, issue('token', 'expected a non-empty string'))
+    }
 
     if (user !== null && user !== undefined) {
       return { ...rest, user: toUser(user, `${what}'s user`) } as AuthResponse

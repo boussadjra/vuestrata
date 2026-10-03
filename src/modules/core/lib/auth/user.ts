@@ -25,26 +25,41 @@ const optional = <T extends z.ZodType>(schema: T) =>
  * in `app/types/index.ts`, which is the project's file: an upgrade cannot add
  * an export to it, and Vuestrata's own code may only read what it ships.
  *
- * Three deliberate choices:
+ * Four deliberate choices:
  *
  * - **Unknown fields are kept** (`looseObject`). A project that widens `User`
  *   with, say, `tenantId` gets it through without touching this file.
  * - **`null` on an optional field reads as absent**, and **a numeric `id`
  *   becomes a string**. Both are how real backends serialise these, neither
  *   says anything about who the user is, and the result matches the type.
- * - **`role` is any non-empty string.** Which roles exist is the RBAC layer's
- *   question, and it fails closed on one it does not know.
+ * - **`role` is any string.** Which roles exist is the RBAC layer's question,
+ *   and it fails closed on one it does not know.
+ * - **A user with no `role`, or no `name`, still signs in.** The app worked
+ *   with both before identity was validated, and a release must not end every
+ *   sign-in of a deployment whose backend never sent them. A missing (or
+ *   `null`, or empty) role stays absent: the auth store and `useRbac` read
+ *   that as `guest` for role checks, as they always have, and such a user
+ *   holds no permission at all. A missing name is the email address, which is
+ *   what there is to show in the header.
  *
- * Anything else that does not fit — no id, no email, no name, permissions that
- * are not strings — is rejected. A backend with a different shape maps it with
+ * What is rejected is what cannot be made safe: no `id` (nothing to tell two
+ * users apart by), no `email`, a `role` that is not a string (an array of
+ * roles is a different model, and guessing which one applies is how a user
+ * gets the wrong one), a `name` that is not a string, `permissions` that are
+ * not an array of strings. A backend with a different shape maps it with
  * `mapUser` in `app/config/auth.config.ts`.
  */
 export const userSchema = z.looseObject({
   id: z.union([z.string().min(1), z.number().transform(String)]),
   email: z.string().min(1),
-  name: z.string(),
+  // Filled in from the email by `parseUser` when absent.
+  name: optional(z.string()),
   avatar: optional(z.string()),
-  role: z.string().min(1),
+  // `||`, not `??`: an empty role names no role, which is what absent means.
+  role: z
+    .string()
+    .nullish()
+    .transform((value) => value || undefined),
   permissions: optional(z.array(z.string())),
   emailVerified: optional(z.boolean()),
   mfaEnabled: optional(z.boolean()),
@@ -106,7 +121,10 @@ export function parseUser(raw: unknown, source = 'The user'): User {
   for (const [key, value] of Object.entries(result.data)) {
     if (value !== undefined) user[key] = value
   }
+  // A backend that sends no name: the email is what there is to show.
+  user.name ??= result.data.email
   // `role` and `permissions` are checked as strings; narrowing them to the
-  // unions is the RBAC layer's job, and it does not trust them either.
+  // unions is the RBAC layer's job, and it does not trust them either. A user
+  // the backend gave no role has none here: see the schema.
   return user as unknown as User
 }

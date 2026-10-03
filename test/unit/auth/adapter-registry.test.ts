@@ -13,6 +13,8 @@ import {
   registeredAuthAdapters,
   resolveAuthAdapterName,
 } from '@/modules/auth/adapters'
+import { scannedAuthAdapters } from '~/lib/config'
+import { AppError } from '~/lib/errors'
 
 /**
  * The adapter registry: the built-in adapters, plus whatever a project
@@ -27,9 +29,16 @@ import {
 /** Put a configuration in force, as `installSeams()` does with the project's file. */
 const configure = (config: AuthConfig = {}) => installAuthConfig(resolveAuthConfig(config))
 
+/**
+ * What the build read from `auth.config.ts`, which is a constant of the
+ * bundle. A test that needs the build to have read something says so here.
+ */
+const scanned = scannedAuthAdapters as Record<string, 'bearer' | 'cookie'>
+
 afterEach(() => {
   // The shipped, empty configuration.
   configure()
+  for (const name of Object.keys(scanned)) delete scanned[name]
   vi.unstubAllGlobals()
 })
 
@@ -176,6 +185,191 @@ describe('an adapter the project registered with a factory', () => {
     configure({ adapters: { vague: () => adapter({ transport: undefined as never }) } })
 
     expect(() => createAuthAdapter('vague')).toThrow(/did not return an auth adapter/)
+  })
+
+  it('must not be the import itself: a module loaded on demand is registered with load', () => {
+    // `sdk: () => import('./sdk-adapter')` type-checks as nothing, and reads
+    // like the lazy form. It is a factory that returns a promise.
+    configure({
+      adapters: { sdk: (() => Promise.resolve({ default: () => adapter() })) as never },
+    })
+
+    expect(() => createAuthAdapter('sdk')).toThrow(
+      /"sdk" adapter registered in src\/modules\/app\/config\/auth\.config\.ts is a function that returns a promise.*register it as `sdk: \{ load: \(\) => import\(…\) \}`/s,
+    )
+  })
+})
+
+describe('the transport the build read from auth.config.ts', () => {
+  // The build validates VUESTRATA_SESSION_PERSISTENCE against the transport
+  // it read from the file as text. The registration the app holds is what
+  // that text evaluated to, and the two are not the same thing.
+  const cookieAdapter = () => adapter({ transport: 'cookie' })
+
+  it('must be the one the adapter uses, even when the registration agrees with the adapter', () => {
+    // What the build made of a registration it could not see into.
+    scanned.sso = 'bearer'
+    configure({ adapters: { sso: { transport: 'cookie', create: cookieAdapter } } })
+
+    expect(() => createAuthAdapter('sso')).toThrow(
+      /registers "sso" as a bearer-transport adapter, as the build read it, but the adapter it builds uses "cookie"\. Declare it: `sso: \{ transport: 'cookie'/,
+    )
+  })
+
+  it('is not in the way when all three agree', () => {
+    scanned.sso = 'cookie'
+    configure({ adapters: { sso: { transport: 'cookie', create: cookieAdapter } } })
+
+    expect(createAuthAdapter('sso').transport).toBe('cookie')
+  })
+
+  it('has nothing to say about a name the build did not read', () => {
+    // A test, or a Vite config without the plugin: nothing was validated.
+    scanned.other = 'bearer'
+    configure({ adapters: { sso: { transport: 'cookie', create: cookieAdapter } } })
+
+    expect(createAuthAdapter('sso').transport).toBe('cookie')
+  })
+
+  it('still names the registration when that is what the adapter contradicts', () => {
+    scanned.sso = 'bearer'
+    configure({ adapters: { sso: cookieAdapter } })
+
+    const refusal = () => createAuthAdapter('sso')
+    expect(refusal).toThrow(/registers "sso" as a bearer-transport adapter, but the adapter/)
+    expect(refusal).not.toThrow(/as the build read it/)
+  })
+})
+
+describe('the User contract, for an adapter of the project’s own', () => {
+  // The built-in adapters get this from the endpoint calls every response of
+  // theirs passes through. A project's adapter talks to an SDK, and used to
+  // pass through nothing: a user with no id was stored as it came.
+  const user = { id: 'u1', email: 'ada@example.test', name: 'Ada', role: 'member' }
+  const credentials = { email: user.email, password: 'pw' }
+
+  function own(overrides: Partial<AuthAdapter>) {
+    configure({ adapters: { own: () => adapter(overrides) } })
+    return createAuthAdapter('own')
+  }
+  const answering = (session: unknown) => async () => session as never
+
+  async function contractError(run: () => Promise<unknown>) {
+    const error = await run().then(
+      () => undefined,
+      (reason: unknown) => reason,
+    )
+    expect(error).toBeInstanceOf(AppError)
+    expect(error).toMatchObject({ code: 'CONTRACT_MISMATCH', kind: 'contract' })
+    return error as AppError
+  }
+
+  it.each([
+    ['no id', { email: 'x' }, 'id'],
+    ['an array for a role', { ...user, role: ['super_admin'] }, 'role'],
+    ['permissions that are not an array', { ...user, permissions: 'users:delete' }, 'permissions'],
+  ])('refuses a sign-in whose user has %s', async (_case, drifted, field) => {
+    const built = own({ login: answering({ user: drifted, token: 'access' }) })
+
+    const error = await contractError(() => built.login(credentials))
+
+    expect(error.details).toHaveProperty(field)
+  })
+
+  it.each(['register', 'verifyMagicLink', 'verifyMfa', 'exchangeCode', 'refreshToken'] as const)(
+    'holds %s to it as well',
+    async (method) => {
+      const built = own({ [method]: answering({ user: { email: 'x' }, token: 'access' }) })
+
+      await contractError(() => (built[method] as () => Promise<unknown>)())
+    },
+  )
+
+  it('hands on the user as the contract shapes it', async () => {
+    const built = own({
+      login: answering({ user: { id: 7, email: user.email, avatar: null }, token: 'access' }),
+    })
+
+    await expect(built.login(credentials)).resolves.toEqual({
+      user: { id: '7', email: user.email, name: user.email },
+      token: 'access',
+    })
+  })
+
+  it('refuses a sign-in that names nobody', async () => {
+    const built = own({ login: answering({ token: 'access' }) })
+
+    const error = await contractError(() => built.login(credentials))
+
+    expect(error.details).toHaveProperty('user')
+  })
+
+  it('lets an MFA challenge through: there is nobody to name yet', async () => {
+    const challenge = { mfaRequired: true, mfaToken: 'challenge' }
+    const built = own({ login: answering(challenge) })
+
+    await expect(built.login(credentials)).resolves.toEqual(challenge)
+  })
+
+  it('resumes nothing, rather than failing the boot, for a user that does not fit', async () => {
+    const built = own({ resumeSession: answering({ user: { email: 'x' }, token: 'access' }) })
+
+    await expect(built.resumeSession!()).resolves.toBeNull()
+  })
+
+  it('reads a mismatch the adapter raised itself the same way', async () => {
+    // The recipe's adapter calls `parseUser` on what its SDK returns.
+    const { parseUser } = await import('@/lib/auth')
+    const built = own({
+      resumeSession: async () => ({ user: parseUser({ email: 'x' }), token: 'access' }),
+      getUser: async () => parseUser({ email: 'x' }),
+    })
+
+    await expect(built.resumeSession!()).resolves.toBeNull()
+    await expect(built.getUser()).resolves.toBeNull()
+  })
+
+  it('does not hide a resume that failed for any other reason', async () => {
+    const built = own({
+      resumeSession: async () => {
+        throw new Error('the SDK could not reach its backend')
+      },
+    })
+
+    await expect(built.resumeSession!()).rejects.toThrow('the SDK could not reach its backend')
+  })
+
+  it('leaves a resumed session with no user for the session restore to refuse', async () => {
+    const built = own({ resumeSession: answering({ token: 'access' }) })
+
+    await expect(built.resumeSession!()).resolves.toEqual({ token: 'access' })
+  })
+
+  it('answers getUser with a valid user, with nobody, and with nobody for one that does not fit', async () => {
+    await expect(own({ getUser: async () => user as never }).getUser()).resolves.toEqual(user)
+    await expect(own({ getUser: async () => null }).getUser()).resolves.toBeNull()
+    await expect(
+      own({ getUser: answering({ ...user, role: ['super_admin'] }) }).getUser(),
+    ).resolves.toBeNull()
+  })
+
+  it('checks the user a refresh chose to include, and asks for none', async () => {
+    await expect(
+      own({ refreshSession: answering({ token: 'access-2' }) }).refreshSession!(),
+    ).resolves.toEqual({ token: 'access-2' })
+
+    const drifted = own({ refreshSession: answering({ token: 'access-2', user: { id: 'u1' } }) })
+    await contractError(() => drifted.refreshSession!())
+  })
+
+  it('keeps a refresh token an adapter without external persistence returns', async () => {
+    const built = own({ login: answering({ user, token: 'access', refreshToken: 'refresh' }) })
+
+    await expect(built.login(credentials)).resolves.toEqual({
+      user,
+      token: 'access',
+      refreshToken: 'refresh',
+    })
   })
 })
 
