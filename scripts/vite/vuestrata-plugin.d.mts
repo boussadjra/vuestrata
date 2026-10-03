@@ -19,12 +19,14 @@ export interface VuestrataEnvOptions {
 /**
  * Validates the `VUESTRATA_*` environment — strictly, so an invalid
  * combination fails the build — and supplies `__VUESTRATA_DEMO__`,
- * `__VUESTRATA_AUTH_ADAPTERS__` and `build.sourcemap` from it. The variables
+ * `__VUESTRATA_AUTH_ADAPTERS__`, `__VUESTRATA_SESSION_ADAPTER__` and
+ * `build.sourcemap` from it. The variables
  * declares in `deploy.config.ts` are validated the same way.
  *
  * It also makes every page load `runtime-config.js` before the app, which is
  * how a deployment sets values when the app starts rather than when it is
- * built. Under `vp dev`, it proxies a same-origin API path to `DEV_API_TARGET`.
+ * built. Under `vp dev`, it proxies a same-origin API path to `DEV_API_TARGET`,
+ * and with it the backend's own routes listed in `DEV_PROXY_PATHS`.
  *
  * The implementation and its reasoning are in `vuestrata-plugin.mjs`.
  */

@@ -3,8 +3,9 @@ import type { FetchContext } from 'ofetch'
 // From the interceptor module, not through `client`: a test that replaces the
 // client with a stub of `apiFetch` alone must still be able to load this.
 import { getAuthTransport } from '~/lib/api/auth-interceptor'
+import { apiOriginUrl } from '~/lib/api/base-url'
 import { apiFetch, type ApiFetchOptions } from '~/lib/api/client'
-import { AppError } from '~/lib/errors'
+import { AppError, ERROR_MESSAGE_KEYS } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import type {
   AuthCredentials,
@@ -47,10 +48,20 @@ export type AuthEndpointMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
  * Where one request goes. `path` is relative to `VUESTRATA_API_URL`, like every
  * path handed to the API client; an absolute `http(s)://` URL is used as it is.
  * `providerAuthorize` carries a `:provider` segment.
+ *
+ * `base: 'origin'` resolves the path against the API's ORIGIN instead, for a
+ * route the backend serves beside its API rather than under it. Laravel is the
+ * usual case: the API is under `/api`, and the session routes (`/login`,
+ * `/logout`) are at the root. It works the same whether the API URL is `/api`
+ * on the page's own origin or `https://api.example.test/api` on another, and
+ * the request still carries the session: cookies, the CSRF header and whatever
+ * `api.overrides.ts` adds go to the API's origin, which this is.
  */
 export interface AuthEndpoint {
   readonly path: string
   readonly method?: AuthEndpointMethod
+  /** What `path` is relative to: the API URL (the default), or its origin. */
+  readonly base?: 'api' | 'origin'
 }
 
 /**
@@ -92,6 +103,16 @@ const DEFAULT_METHODS: Partial<Record<AuthEndpointName, AuthEndpointMethod>> = {
  * a path and keep the rest:
  *
  *   endpoints: { ...endpointPresets.vuestrata, me: '/users/me' }
+ *
+ * `sanctum` is Laravel Sanctum's SPA authentication with the routes Fortify
+ * and Breeze register, for `VUESTRATA_AUTH_ADAPTER=session`: `POST /login`,
+ * `POST /logout` and `POST /register` at the root of the backend's origin,
+ * and the current user at `/user` under the API (`GET /api/user`, the route a
+ * new Laravel application ships in `routes/api.php`). Everything Sanctum has
+ * no route for is switched off, which hides its controls. The CSRF cookie it
+ * needs first (`GET /sanctum/csrf-cookie`) is not an endpoint here: it is the
+ * prime step of the CSRF strategy `presets.laravel` brings in
+ * `api.overrides.ts`.
  */
 export const endpointPresets = {
   vuestrata: {
@@ -109,6 +130,21 @@ export const endpointPresets = {
     providerAuthorize: { path: '/auth/:provider' },
     token: { path: '/auth/token', method: 'POST' },
   },
+  sanctum: {
+    login: { path: '/login', method: 'POST', base: 'origin' },
+    register: { path: '/register', method: 'POST', base: 'origin' },
+    logout: { path: '/logout', method: 'POST', base: 'origin' },
+    me: { path: '/user' },
+    refresh: null,
+    magicLink: null,
+    magicLinkVerify: null,
+    mfaSetup: null,
+    mfaVerify: null,
+    mfaDisable: null,
+    authorize: null,
+    providerAuthorize: null,
+    token: null,
+  },
 } as const satisfies Record<string, AuthEndpointSpec>
 
 const isUsablePath = (path: unknown): path is string =>
@@ -119,8 +155,9 @@ const isUsablePath = (path: unknown): path is string =>
  *
  * Throws on what cannot be meant: a name that is not an endpoint (a typo would
  * otherwise leave the default in place and say nothing), a path that is
- * neither rooted nor absolute, and `login` or `me` switched off — every adapter
- * has to be able to start a session and to say who it belongs to.
+ * neither rooted nor absolute, a `base` that cannot apply, and `login` or `me`
+ * switched off — every adapter has to be able to start a session and to say
+ * who it belongs to.
  */
 export function resolveAuthEndpoints(overrides: AuthEndpointOverrides = {}): AuthEndpointSpec {
   const known = new Set<string>(AUTH_ENDPOINT_NAMES)
@@ -158,9 +195,40 @@ export function resolveAuthEndpoints(overrides: AuthEndpointOverrides = {}): Aut
       )
     }
     const method = endpoint.method ?? DEFAULT_METHODS[name]
-    spec[name] = method ? { path: endpoint.path, method } : { path: endpoint.path }
+    spec[name] = {
+      path: endpoint.path,
+      ...(method ? { method } : {}),
+      // Only when it says something: an endpoint under the API, which is every
+      // endpoint of a project that configures nothing, stays a path and a method.
+      ...(isOriginBased(name, endpoint) ? { base: 'origin' as const } : {}),
+    }
   }
   return spec
+}
+
+/** Whether an endpoint is resolved against the API's origin, checking that it can be. */
+function isOriginBased(name: AuthEndpointName, endpoint: AuthEndpoint): boolean {
+  const base: unknown = endpoint.base
+  if (base === undefined || base === 'api') return false
+  if (base !== 'origin') {
+    throw new Error(
+      `auth.config.ts: the "${name}" endpoint has base ${JSON.stringify(base)}. It is "api" ` +
+        '(relative to VUESTRATA_API_URL, the default) or "origin" (relative to its origin).',
+    )
+  }
+  if (!endpoint.path.startsWith('/')) {
+    throw new Error(
+      `auth.config.ts: the "${name}" endpoint is an absolute URL, which is used as it is. ` +
+        'Remove `base`, or write a path starting with "/".',
+    )
+  }
+  if (name === 'authorize' || name === 'providerAuthorize') {
+    throw new Error(
+      `auth.config.ts: \`base\` does not apply to the "${name}" endpoint, which is an address ` +
+        'the browser is sent to rather than a request. Write it as an absolute URL.',
+    )
+  }
+  return true
 }
 
 // ─── Response shapes ──────────────────────────────────────────────────────────
@@ -213,6 +281,10 @@ function record(raw: unknown, what: string): Record<string, unknown> {
   if (!isRecord(raw)) throw authContractMismatch(what, issue('', 'expected a JSON object'))
   return raw
 }
+
+/** No body: a 204, or a 200 whose body is empty or blank. */
+const isEmptyBody = (value: unknown) =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
 
 const stringOrUndefined = (value: unknown) =>
   typeof value === 'string' && value !== '' ? value : undefined
@@ -366,6 +438,22 @@ export interface AuthEndpoints {
     code_verifier: string
     redirect_uri: string
   }) => Promise<AuthResponse>
+  /**
+   * The calls that start a session, for a backend that keeps it in a cookie
+   * and may answer them with no body at all: Sanctum and Django say 204, and
+   * the cookie in that answer is the whole result. An empty answer, or one
+   * that names nobody, is followed by the `me` endpoint, as it is for the
+   * calls above. What differs is that an empty one is not a contract mismatch,
+   * and that a `me` refused straight after a sign-in the backend accepted is
+   * reported as what it is: a session cookie the browser did not store, or did
+   * not send (`SESSION_NOT_ESTABLISHED`). The `session` adapter uses these.
+   */
+  readonly cookieSession: {
+    login: (credentials: AuthCredentials) => Promise<AuthResponse>
+    register: (data: AuthCredentials & { name: string }) => Promise<AuthResponse>
+    verifyMagicLink: (token: string) => Promise<AuthResponse>
+    verifyMfa: (request: MfaVerifyRequest) => Promise<AuthResponse>
+  }
 }
 
 /**
@@ -399,7 +487,9 @@ export function createAuthEndpoints(
     const endpoint = spec[name]
     if (!endpoint) return Promise.reject(new AuthEndpointDisabledError(name))
     return apiFetch<T>(
-      endpoint.path,
+      // Beside the API rather than under it: an absolute URL on the API's
+      // origin, which the client sends with the session like any API request.
+      endpoint.base === 'origin' ? apiOriginUrl(endpoint.path) : endpoint.path,
       authCall({ ...(endpoint.method ? { method: endpoint.method } : {}), ...options }),
     )
   }
@@ -447,13 +537,64 @@ export function createAuthEndpoints(
     )
 
   /**
+   * Who a cookie session that has just been started belongs to.
+   *
+   * The backend accepted the sign-in a moment ago, so a `me` it now refuses as
+   * unauthenticated is not a wrong password: the session cookie did not come
+   * back. Left as a bare 401 it reads as "invalid credentials", and the real
+   * cause (a `Secure` cookie over http, `SameSite`, a `Domain` that does not
+   * cover this host, CORS without credentials) is somewhere nobody looks.
+   */
+  async function cookieSessionUser(what: string): Promise<User> {
+    let fetched: User | null
+    try {
+      fetched = await getUser()
+    } catch (err) {
+      if (!(err instanceof AppError) || err.status !== 401) throw err
+      authLogger.error(
+        'The backend accepted the sign-in and then answered the request for the current user ' +
+          'as unauthenticated: the browser did not store the session cookie, or did not send ' +
+          'it. Check the cookie the sign-in set: `Secure` on a page served over http; ' +
+          '`SameSite=None; Secure` and credentialed CORS (an explicit ' +
+          '`Access-Control-Allow-Origin` and `Access-Control-Allow-Credentials: true`) when ' +
+          'the API is on another site; a `Domain` that does not cover the host the app is ' +
+          'served from. Under `vp dev`, the session routes also have to reach the backend: ' +
+          'see DEV_PROXY_PATHS in docs/1.getting-started/4.develop-against-your-backend.md.',
+      )
+      throw err.with({
+        message:
+          'Signed in, but the session did not reach the next request: the session cookie was ' +
+          'not stored or not sent.',
+        code: 'SESSION_NOT_ESTABLISHED',
+        kind: 'contract',
+        messageKey: ERROR_MESSAGE_KEYS.contract,
+        // The backend's "Unauthenticated." is true and beside the point.
+        serverMessage: undefined,
+      })
+    }
+    if (!fetched) {
+      throw authContractMismatch(what, issue('user', 'no user in the response, or from `me`'))
+    }
+    return fetched
+  }
+
+  /**
    * A response that starts a session, in the app's shape and with a user.
    *
    * A backend that answers a login with tokens alone (an OAuth token endpoint
    * always does) is asked who that is, as the holder of the token it just
    * issued. An MFA challenge is passed on as it is: there is no session yet.
+   *
+   * `cookieSession` is the reading `AuthEndpoints.cookieSession` documents:
+   * no body is an answer, and `me` refusing afterwards is a lost cookie.
    */
-  async function session(raw: unknown, what: string): Promise<AuthResponse> {
+  async function session(raw: unknown, what: string, cookieSession = false): Promise<AuthResponse> {
+    // Nothing to map, and nothing wrong: the session is the cookie that came
+    // with the answer.
+    if (cookieSession && isEmptyBody(raw)) {
+      return { user: await cookieSessionUser(what) } as AuthResponse
+    }
+
     const { user, ...rest } = record(
       mapped(what, () => mapAuth(raw)),
       what,
@@ -473,6 +614,9 @@ export function createAuthEndpoints(
       return { ...rest, user: toUser(user, `${what}'s user`) } as AuthResponse
     }
     if (rest.mfaRequired) return rest as AuthResponse
+    if (cookieSession && !rest.token) {
+      return { ...rest, user: await cookieSessionUser(what) } as AuthResponse
+    }
 
     const fetched = rest.token ? await getUserAs(rest.token) : await getUser()
     if (!fetched) {
@@ -571,5 +715,27 @@ export function createAuthEndpoints(
         await request<unknown>('token', { body: { grant_type: 'authorization_code', ...body } }),
         'The token response',
       ),
+
+    cookieSession: {
+      login: async (credentials) =>
+        session(await request<unknown>('login', { body: credentials }), 'The login response', true),
+
+      register: async (data) =>
+        session(
+          await request<unknown>('register', { body: data }),
+          'The registration response',
+          true,
+        ),
+
+      verifyMagicLink: async (token) =>
+        session(
+          await request<unknown>('magicLinkVerify', { body: { token } }),
+          'The magic-link response',
+          true,
+        ),
+
+      verifyMfa: async (body) =>
+        session(await request<unknown>('mfaVerify', { body }), 'The MFA response', true),
+    },
   }
 }

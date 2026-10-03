@@ -11,6 +11,7 @@ import {
 import { createJwtAdapter } from './jwt'
 import { createMockAdapter } from './mock'
 import { createOAuthAdapter } from './oauth'
+import { createSessionAdapter } from './session'
 
 // The other half of this registry: a project's adapter that is loaded on
 // demand. It lives in `core/lib` because `boot()` calls it, and the bootstrap
@@ -35,6 +36,30 @@ const createJwt = createJwtAdapter as unknown as (
 ) => AuthAdapter
 
 /**
+ * Set by the Vite plugin: whether `VUESTRATA_AUTH_ADAPTER` was `session` when
+ * this bundle was built. Declared here rather than in `src/env.d.ts`, which is
+ * the project's file and does not change with a release.
+ */
+declare const __VUESTRATA_SESSION_ADAPTER__: boolean | undefined
+
+/**
+ * Whether the `session` adapter is in this bundle.
+ *
+ * The adapter is selected when the app is built and cannot change afterwards,
+ * so a bundle built for another adapter has no use for this one. The constant
+ * is then the literal `false`, the branch that builds it is dead code, and
+ * `session.ts` goes with it, the way `mock.ts` leaves a production bundle.
+ *
+ * Beside a Vite plugin from before the constant existed (a project that edited
+ * its copy keeps it) there is nothing to read, and the adapter stays in: a
+ * few hundred bytes are a better outcome than a name the build accepted and
+ * the app cannot build.
+ */
+function hasSessionAdapter(): boolean {
+  return typeof __VUESTRATA_SESSION_ADAPTER__ === 'undefined' || __VUESTRATA_SESSION_ADAPTER__
+}
+
+/**
  * The adapters Vuestrata ships, as factories.
  *
  * `mock` is behind `__VUESTRATA_DEMO__`, read when it is asked for rather than
@@ -51,12 +76,17 @@ function builtinFactory(name: string): AuthAdapterFactory | undefined {
   }
   if (name === 'oauth') return () => createOAuthAdapter()
   if (name === 'mock') return __VUESTRATA_DEMO__ ? () => createMockAdapter() : undefined
+  if (name === 'session') return hasSessionAdapter() ? () => createSessionAdapter() : undefined
   return undefined
 }
 
-/** The built-in names this build has. `mock` exists in a demo build only. */
+/**
+ * The built-in names this build has. `mock` exists in a demo build only, and
+ * `session` in a build made for it.
+ */
 function builtinNames(): string[] {
-  return __VUESTRATA_DEMO__ ? ['mock', 'jwt', 'oauth'] : ['jwt', 'oauth']
+  const names = __VUESTRATA_DEMO__ ? ['mock', 'jwt', 'oauth'] : ['jwt', 'oauth']
+  return hasSessionAdapter() ? [...names, 'session'] : names
 }
 
 /** Every adapter name `VUESTRATA_AUTH_ADAPTER` can select in this build. */
@@ -91,6 +121,13 @@ export function resolveAuthAdapterName(adapterName: string | undefined): AuthAda
       `${AUTH_ADAPTER_ENV_KEY}="mock" needs a demo build: the mock adapter's endpoints only ` +
         'exist inside MSW, and the adapter is not in a production bundle. Use "jwt", "oauth" ' +
         `or an adapter registered in ${AUTH_CONFIG_FILE}.`,
+    )
+  }
+  if (adapterName === 'session') {
+    throw new Error(
+      `${AUTH_ADAPTER_ENV_KEY}="session" is not in this bundle: the session adapter is compiled ` +
+        `in when the app is built with ${AUTH_ADAPTER_ENV_KEY}=session, and this one was built ` +
+        'for another adapter. The adapter is chosen at build time; rebuild with it set.',
     )
   }
   throw new Error(unknownAuthAdapterMessage(adapterName, builtinNames()))

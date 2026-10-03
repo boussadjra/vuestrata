@@ -11,7 +11,6 @@ import {
   type ResponseType,
 } from 'ofetch'
 
-import { runtimeEnv } from '~/lib/config'
 import {
   AppError,
   ERROR_MESSAGE_KEYS,
@@ -27,6 +26,7 @@ import {
   handleTokenRefresh,
   notifySessionExpired,
 } from './auth-interceptor'
+import { apiBaseUrl } from './base-url'
 import { getCsrfToken, invalidateCsrfToken, primeCsrfToken } from './csrf'
 import { isTimeoutReason, parseRetryAfter, redactUrl, toAppError } from './failure'
 import {
@@ -106,27 +106,9 @@ export interface ApiFetch {
 type ApiRequestOptions = Omit<ApiFetchOptions<'json'>, 'method' | 'body'>
 // `runtimeEnv.apiUrl` may be a relative path like '/api'. In Node (tests) a
 // relative base breaks URL resolution inside ofetch (new URL requires an
-// absolute base). Normalize to an absolute URL using the current origin in
-// browser environments, or fall back to http://localhost during tests/Node.
-//
-// Read through the validated env boundary (core/lib/config) rather than
-// import.meta.env directly, so there is one place that decides what a valid
-// API URL is.
-const _rawBaseURL = runtimeEnv.apiUrl
-const baseURL = ((): string => {
-  try {
-    if (typeof _rawBaseURL !== 'string') return String(_rawBaseURL)
-    if (!_rawBaseURL.startsWith('/')) return _rawBaseURL
-    const origin =
-      typeof window !== 'undefined' && window.location?.origin
-        ? window.location.origin
-        : 'http://localhost'
-    return `${origin.replace(/\/+$/, '')}${_rawBaseURL}`
-  } catch {
-    // Fallback to raw value if anything unexpected happens.
-    return String(_rawBaseURL)
-  }
-})()
+// absolute base), so it is made absolute: see `./base-url`, which the auth
+// endpoints read too, for an address on the API's origin outside its path.
+const baseURL = apiBaseUrl
 const apiLogger = createScopedLogger('api')
 
 /** Methods that change nothing server-side, and so need no CSRF token. */

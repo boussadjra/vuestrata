@@ -1,6 +1,8 @@
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 import { installApiAuth, resetAuthInterceptor } from '@/lib/api/client'
+import { readCsrfToken } from '@/lib/api/csrf'
+import { currentApiIntegration } from '@/lib/api/integration'
 import type { AuthStateChange } from '@/lib/auth/adapter'
 import { parseUser } from '@/lib/auth/user'
 import { appEvents } from '@/lib/events'
@@ -97,6 +99,31 @@ export function expiredSessionTarget(
     (meta.requiredPermissions?.length ?? 0) > 0
   if (!isProtected) return null
   return { name: '/auth/login', query: { redirect: route.fullPath, reason: 'expired' } } as const
+}
+
+/**
+ * Say, in development, that the `session` adapter has no CSRF token to send.
+ *
+ * A server session is a cookie the browser attaches by itself, so the backend
+ * expects a token on every write. The strategy that applies when
+ * `api.overrides.ts` names none reads it from a `<meta name="csrf-token">` tag
+ * the server rendered into the page, and a statically hosted app has no such
+ * tag: every write would go out without a token and come back refused, with
+ * nothing to say why. This can be known when the app starts, so it is said
+ * then, once. Not for a strategy that reads a cookie or can fetch a token, and
+ * not when the tag is there: those have, or can get, something to send.
+ */
+function warnIfSessionHasNoCsrfToken(): void {
+  const { csrf } = currentApiIntegration()
+  if (csrf.source !== 'meta' || csrf.prime || readCsrfToken(csrf) !== null) return
+  logger.warn(
+    `VUESTRATA_AUTH_ADAPTER=session sends the backend's session cookie, and the CSRF strategy ` +
+      `in force reads the token from <meta name="${csrf.name}">, which this page does not ` +
+      'have: state-changing requests will carry no CSRF token. Name your backend in ' +
+      'src/modules/app/config/api.overrides.ts (`backend: presets.laravel`, `presets.django`, ' +
+      "`presets.spring`), or set `csrf` there: a strategy of your own, or `{ source: 'none' }` " +
+      'for a backend that relies on SameSite cookies alone.',
+  )
 }
 
 export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWiringDeps): void {
@@ -255,6 +282,8 @@ export function setupAuthInterceptor(authStore: AuthWiringStore, deps: AuthWirin
     // it always had.
     ...(refreshSession ? { refresh: refreshOnce, canRefresh } : {}),
   })
+
+  if (import.meta.env.DEV && refreshing.name === 'session') warnIfSessionHasNoCsrfToken()
 
   // Proactive token refresh: when the store schedules a refresh it delegates
   // to the adapter through this handler. It runs whenever the adapter CAN
