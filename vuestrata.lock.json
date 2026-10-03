@@ -818,12 +818,12 @@
     },
     "src/modules/auth/adapters/mock.ts": {
       "class": "managed",
-      "hash": "sha256-5746e188407eec2253811ac66d5fd2e31e1ca5ca80fc3c41ee89961eaf370e64",
+      "hash": "sha256-4a167fcdcd50e2f214f7d404e4a49179a302c69a29a32346174730e16f4d12de",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/auth/adapters/oauth.ts": {
       "class": "managed",
-      "hash": "sha256-6de105831cec77e439c398b033181f77426ec026a5993e5d792b9359f99b6ae3",
+      "hash": "sha256-56175575cf5b9b57ef832eaceb14eb78dc6fa2a768e3de5d76edf212daa07e0e",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/auth/adapters/pkce-state.ts": {
@@ -833,7 +833,7 @@
     },
     "src/modules/auth/adapters/registry.ts": {
       "class": "managed",
-      "hash": "sha256-959b4061e629f69e1e2f0c87d35dff095449fd19322b6cc909a23854e3d41da3",
+      "hash": "sha256-cc7bc8caed89163ed77d428c33f7c0c7a7e0da6c194dda2e6720b1694fca54b7",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/auth/adapters/types.ts": {
