@@ -35,10 +35,13 @@ Every generator supports:
 
 `vpr gen` with no arguments lists everything.
 
-One recipe extends nothing: it describes the backend you already have.
+Two recipes extend nothing: they are about the backend you already have.
 [Connect your backend API](/docs/recipes/connect-your-backend-api) covers the
 headers, session signals, error format and CSRF handshake of your API, all in one
-file that is yours.
+file that is yours. [Submit a form to your API](/docs/recipes/submit-a-form-to-your-api)
+covers the form in front of it: validation in the user's language, a save that
+is awaited, the server's refusal under the right field, and the question before
+unsaved changes are lost.
 
 ## Why some tasks have no generator
 

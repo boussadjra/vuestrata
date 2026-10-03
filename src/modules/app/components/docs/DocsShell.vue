@@ -235,6 +235,12 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description:
       "Teach the API client your backend's headers, session signals, error format and CSRF handshake, without editing the client.",
   },
+  '/docs/9.recipes/10.submit-a-form-to-your-api.md': {
+    navTitle: 'Submit a form to your API',
+    title: 'Submit a Form to Your API',
+    description:
+      "A form that validates in the user's language, awaits the save, shows the server's refusal under the right field, and asks before unsaved changes are lost.",
+  },
 }
 
 const markdownModules = import.meta.glob('/docs/**/*.md', {
