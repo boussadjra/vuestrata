@@ -18,9 +18,11 @@ import {
 } from '@/plugins/appearance'
 import { getI18n } from '@/plugins/i18n'
 import { useAppStore } from '@/stores/app'
+import { appPathname } from '~/lib/config'
 
+/** The path inside the app, without the base path it may be served under. */
 function readWindowPathname(): string {
-  return typeof window === 'undefined' ? '/' : window.location.pathname
+  return appPathname()
 }
 
 /**

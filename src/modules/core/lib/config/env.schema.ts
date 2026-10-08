@@ -159,6 +159,7 @@ export const ENV_KEYS = {
   demoRetentionHours: 'VUESTRATA_DEMO_AUTH_RETENTION_HOURS',
   errorReportingDsn: 'VUESTRATA_ERROR_REPORTING_DSN',
   release: 'VUESTRATA_RELEASE',
+  basePath: 'VUESTRATA_BASE_PATH',
 } as const
 
 /** Kept for source compatibility with existing imports and tests. */
@@ -270,6 +271,74 @@ const moduleIdList = z
   })
   .optional()
 
+/** `VUESTRATA_BASE_PATH` when nothing sets it: the app at the root of its origin. */
+export const DEFAULT_BASE_PATH = '/'
+
+/** `/`, or `/` followed by segments of unreserved characters, each closed by `/`. */
+const BASE_PATH = /^\/(?:[A-Za-z0-9._~-]+\/)*$/
+
+/**
+ * What stops `value` from being a base path, or null when it is one.
+ *
+ * A base path is the prefix the app is served under on its OWN origin:
+ * `/console/` for `https://portal.example.com/console/`. It ends up in every
+ * asset URL of the bundle, in the router's history, in redirect URIs and in
+ * the generated server configuration, so it is held to one spelling: it starts
+ * and ends with `/`, and holds only letters, digits and `._~-` in between. That
+ * leaves out everything that would turn it into something else: `//host/` is
+ * another origin to a browser, `..` walks out of the prefix, and a space, a
+ * quote or a `;` would end a directive in the nginx configuration.
+ *
+ * A missing slash is refused rather than added. The same value is given to the
+ * build, to the header generator and to the Docker build, and three places
+ * that each tidied it their own way could disagree; one spelling cannot.
+ *
+ * Assets on ANOTHER origin (a CDN) are not what this is for and are not
+ * supported: `script-src 'self'` and `runtime-config.js` both assume the app's
+ * files come from the origin that serves the page.
+ */
+export function describeBasePathIssue(value: string): string | null {
+  if (BASE_PATH.test(value)) {
+    return value.split('/').some((segment) => segment === '.' || segment === '..')
+      ? `"${value}" has a "." or ".." segment, which a browser resolves away.`
+      : null
+  }
+
+  if (/^[A-Za-z]:[\\/]/.test(value)) {
+    return (
+      `"${value}" is a file path. Git Bash rewrites a value that starts with "/" into one: ` +
+      'set MSYS_NO_PATHCONV=1 for the command, or put the variable in a .env file.'
+    )
+  }
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) || /^[/\\]{2}/.test(value)) {
+    return (
+      `"${value}" names another origin. A base path is a path on the app's own origin, such ` +
+      'as "/console/"; serving the assets from another host is not supported.'
+    )
+  }
+  if (/[?#]/.test(value)) return `"${value}" has a query or a fragment; a base path has neither.`
+  if (!value.startsWith('/') || !value.endsWith('/')) {
+    const suggestion = `/${value.replace(/^\/+|\/+$/g, '')}/`
+    return (
+      `"${value}" must start and end with "/".` +
+      (BASE_PATH.test(suggestion) ? ` Write "${suggestion}".` : '')
+    )
+  }
+  if (value.includes('//')) return `"${value}" has an empty segment ("//").`
+  return (
+    `"${value}" may hold only letters, digits and "._~-" between its slashes ` +
+    '(no spaces, no percent-encoding).'
+  )
+}
+
+const basePath = z
+  .string()
+  .superRefine((value, ctx) => {
+    const issue = describeBasePathIssue(value)
+    if (issue) ctx.addIssue({ code: 'custom', message: issue })
+  })
+  .optional()
+
 /**
  * An adapter name: a built-in one, or one the project registered.
  *
@@ -317,6 +386,7 @@ function createEnvSchema(registered: RegisteredAuthAdapters) {
     // different thing entirely and must never appear in a VUESTRATA_ variable.
     [ENV_KEYS.errorReportingDsn]: z.url('must be a valid DSN URL').optional(),
     [ENV_KEYS.release]: z.string().min(1).optional(),
+    [ENV_KEYS.basePath]: basePath,
   })
 }
 
@@ -355,6 +425,18 @@ export interface RuntimeEnv {
     /** Version string sent with reports, normally the git SHA. */
     release: string | undefined
   }
+  /**
+   * `VUESTRATA_BASE_PATH`: the path prefix the app is served under, `/` unless
+   * a deployment mounts it deeper (`/console/`). Always starts and ends with
+   * `/`. Decided when the app is BUILT, because it is in every asset URL of the
+   * bundle: a deployment cannot change it at start.
+   *
+   * The build hands it to Vite as `base`. Code that runs in the browser reads
+   * Vite's answer through `appBasePath()` and `appUrl()` (`./base-path.ts`),
+   * not this field, so that a project which sets `base` in its own Vite config
+   * is still served from one base.
+   */
+  basePath: string
 }
 
 /** True when this configuration ships demo code (MSW, seeded IndexedDB users). */
@@ -780,6 +862,7 @@ function applyDefaults(parsed: ParsedEnv, isDev: boolean): RuntimeEnv {
       dsn: parsed[ENV_KEYS.errorReportingDsn],
       release: parsed[ENV_KEYS.release],
     },
+    basePath: parsed[ENV_KEYS.basePath] ?? DEFAULT_BASE_PATH,
   }
 }
 

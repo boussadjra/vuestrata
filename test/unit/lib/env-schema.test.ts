@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import {
+  DEFAULT_BASE_PATH,
+  describeBasePathIssue,
   describeEnvValueIssue,
   ENV_KEYS,
   isDemoRuntime,
@@ -886,5 +888,89 @@ describe('VUESTRATA_MOCK_ONLY: some modules mocked beside a real backend', () =>
       resolveRuntimeEnv(raw, { onWarn })
       expect(onWarn).not.toHaveBeenCalledWith(expect.stringMatching(/VUESTRATA_MOCK_ONLY/))
     })
+  })
+})
+
+describe('VUESTRATA_BASE_PATH: the app under a path prefix', () => {
+  const withBase = (value: string) => ({ ...productionEnv, [ENV_KEYS.basePath]: value })
+
+  it('is the root of the origin when nothing sets it', () => {
+    expect(parseRuntimeEnv(productionEnv).basePath).toBe('/')
+    expect(parseRuntimeEnv(demoEnv).basePath).toBe('/')
+    expect(parseRuntimeEnv(withBase('')).basePath).toBe('/')
+    expect(resolveRuntimeEnv({}).basePath).toBe('/')
+    expect(DEFAULT_BASE_PATH).toBe('/')
+  })
+
+  it.each([['/'], ['/console/'], ['/apps/console/'], ['/a.b_c~d-e/'], ['/V2/Console/']])(
+    'accepts %j',
+    (value) => {
+      expect(parseRuntimeEnv(withBase(value)).basePath).toBe(value)
+      expect(describeBasePathIssue(value)).toBeNull()
+      expect(describeEnvValueIssue(ENV_KEYS.basePath, value)).toBeNull()
+    },
+  )
+
+  it('ignores the whitespace around a value, like every other variable', () => {
+    expect(parseRuntimeEnv(withBase('  /console/  ')).basePath).toBe('/console/')
+  })
+
+  // A missing slash is refused, not added: the build, the header generator and
+  // the Docker build are all given the value, and must be given the same one.
+  it.each([
+    ['console', '/console/'],
+    ['/console', '/console/'],
+    ['console/', '/console/'],
+    ['/apps/console', '/apps/console/'],
+  ])('refuses %j at build, and says to write %j', (value, suggestion) => {
+    expect(() => parseRuntimeEnv(withBase(value))).toThrow(
+      new RegExp(`VUESTRATA_BASE_PATH: .*must start and end with "/".*Write "${suggestion}"`),
+    )
+  })
+
+  it.each([
+    ['a protocol-relative URL', '//evil.example/', /names another origin/],
+    ['a backslash spelling of one', '/\\evil.example/', /names another origin/],
+    ['a full URL', 'https://cdn.example.com/console/', /names another origin/],
+    ['a javascript: URL', 'javascript:alert(1)', /names another origin/],
+    ['a parent segment', '/a/../b/', /"\." or "\.\." segment/],
+    ['a current-directory segment', '/a/./b/', /"\." or "\.\." segment/],
+    ['a parent segment alone', '/../', /"\." or "\.\." segment/],
+    ['a space', '/a b/', /may hold only letters/],
+    ['an empty segment', '/a//b/', /empty segment/],
+    ['a query', '/console/?x=1', /query or a fragment/],
+    ['a fragment', '/console/#top', /query or a fragment/],
+    ['a percent-encoded character', '/a%2Fb/', /may hold only letters/],
+    ['a quote', '/a"b/', /may hold only letters/],
+    ['a semicolon, which ends an nginx directive', '/a;b/', /may hold only letters/],
+    ['a brace', '/a{b/', /may hold only letters/],
+    ['a dollar sign', '/$uri/', /may hold only letters/],
+    ['a line break', '/a\nb/', /may hold only letters/],
+    ['a path Git Bash rewrote', 'C:/Program Files/Git/console/', /MSYS_NO_PATHCONV/],
+  ])('refuses %s at build', (_name, value, reason) => {
+    expect(describeBasePathIssue(value)).toMatch(reason)
+    expect(() => parseRuntimeEnv(withBase(value))).toThrow(/VUESTRATA_BASE_PATH/)
+    expect(() => parseRuntimeEnv(withBase(value))).toThrow(reason)
+  })
+
+  it('falls back to the root in the browser, with a warning, instead of throwing', () => {
+    const onWarn = vi.fn()
+
+    const env = resolveRuntimeEnv(withBase('//evil.example/'), { onWarn })
+
+    expect(env.basePath).toBe('/')
+    expect(onWarn).toHaveBeenCalledWith(
+      expect.stringMatching(/Ignoring invalid VUESTRATA_BASE_PATH.*another origin/),
+    )
+    // Nothing else moved with it.
+    expect({ ...env, basePath: '/' }).toEqual(resolveRuntimeEnv(productionEnv))
+  })
+
+  it('changes nothing else about a configuration', () => {
+    expect({ ...parseRuntimeEnv(withBase('/console/')), basePath: '/' }).toEqual(
+      parseRuntimeEnv(productionEnv),
+    )
+    // The API is not under the base: it stays where the variable puts it.
+    expect(parseRuntimeEnv({ ...demoEnv, [ENV_KEYS.basePath]: '/console/' }).apiUrl).toBe('/api')
   })
 })

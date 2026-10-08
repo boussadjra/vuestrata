@@ -190,6 +190,9 @@ describe('compile-time keys', () => {
     [ENV_KEYS.iconProvider, 'lucide'],
     [ENV_KEYS.theme, 'analog'],
     [ENV_KEYS.demoRetentionHours, '1'],
+    // In every asset URL of the bundle, and in the server configuration the
+    // files are served by: a container cannot be started under another prefix.
+    [ENV_KEYS.basePath, '/elsewhere/'],
   ] as const
 
   it.each(COMPILE_TIME)('%s cannot be overridden at runtime', (key, value) => {
