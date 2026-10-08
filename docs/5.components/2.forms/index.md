@@ -159,6 +159,60 @@ functions that take an optional field path), plus:
 not cover. Formwerk is pre-1.0 and its API moves; prefer the members in the
 table, which do not.
 
+#### Which value a field opens on
+
+One rule, for every `Ui*` field inside a `UiForm`:
+
+1. **You passed the field a value** (`v-model` or `model-value`, an explicit
+   `''`, `[]`, `false` or `0` included): that value wins over
+   `initialValues`, and a bound ref stays in step with the form.
+2. **You passed none, and `initialValues` holds a value for the field's
+   path**: the form's value is shown. This is what an edit form wants: give
+   `UiForm` the record and name the fields.
+3. **You passed none, and the form holds nothing, `undefined` or `null` for
+   it**: the field's own empty value applies, where it has one.
+
+```html
+<UiForm :schema="schema" :initial-values="customer">
+  <!-- Opens on customer.status and customer.active. -->
+  <UiSelect name="status" label="Status" :options="statuses" />
+  <UiSwitch name="active" label="Active" />
+
+  <!-- Opens blank although the record has a plan: an explicit empty value. -->
+  <UiSelect name="plan" label="Plan" :options="plans" model-value="" />
+</UiForm>
+```
+
+To make a field open blank although the record has a value, pass it an
+explicit empty model value, as the last field does.
+
+The empty values of rule 3:
+
+| Field                                                    | Its own empty value                      |
+| -------------------------------------------------------- | ---------------------------------------- |
+| `UiSelect`, `UiComboBox`, `UiTreeSelect`                 | `''`, or `[]` with `multiple`            |
+| `UiTagsField`                                            | `[]`                                     |
+| `UiCheckbox`, `UiSwitch`, `UiToggle`                     | `false`                                  |
+| `UiRatingField`                                          | `0`                                      |
+| `UiColorPicker`                                          | `#000000`                                |
+| `UiMentionsField`, `UiEditable`                          | `''`                                     |
+| `UiTextField`, `UiTextarea`, `UiNumberField`,            | none: the form's value is kept as it is, |
+| `UiRadioGroup`, `UiSlider`, `UiDateField`, `UiTimeField` | `undefined` and `null` included          |
+
+The last row matters for a backend with nullable columns. A `UiTextField`
+over `notes: null` holds `null`, and `z.string()` reports it the moment the
+form opens. Say what the column is in the schema (`z.string().nullable()`), or
+map the record once before handing it over (`notes: customer.notes ?? ''`).
+
+`reset()` returns to the state the form opened in, the fields' own empty
+values and the values you bound included.
+
+Two fields are not there yet. `UiOTPField` draws its cells from its
+`model-value` alone and does not write a typed code to the form, so it neither
+shows nor edits a form value: drive it with `v-model` outside a form, as the
+sign-in flow does. `UiRadioGroup` holds the form's value but does not mark the
+matching option as checked until the user picks one.
+
 For config-driven forms, open the [Form Builder guide](/docs/components/forms/form-builder).
 
 Find it in the sidebar: Components > Forms > Form Builder.
@@ -197,9 +251,7 @@ runs that lifecycle:
       <UiTextField name="company" label="Company" required />
       <UiTextField name="email" label="Email" type="email" required />
 
-      <UiButton type="submit" variant="primary" :loading="isSubmitting" :disabled="isSubmitting">
-        Save
-      </UiButton>
+      <UiButton type="submit" variant="primary" :loading="isSubmitting">Save</UiButton>
     </template>
   </UiForm>
 </template>
@@ -218,7 +270,18 @@ What happens on submit, in order:
    stays dirty. `success` is emitted with what the action resolved with.
 4. **On failure**, the rejection is caught. The server's messages go under the
    fields they are about, `formErrors` carries the rest, and `error` is emitted.
-   The form is ready to be submitted again.
+   Focus moves to the first field the server refused, in document order, and
+   the page scrolls to it (without animation for a reader who asked for reduced
+   motion); when the refusal names no field, to the first `role="alert"` in the
+   form, which is where the example above puts `formErrors`. The form is ready
+   to be submitted again, and the next submit clears what the server said
+   before it validates.
+
+Mark the submit button `:loading="isSubmitting"` and leave `disabled` off. A
+disabled button drops focus to the page for the length of the save, and a
+keyboard user is then nowhere when it fails. A loading `UiButton` keeps focus,
+announces `aria-busy` and ignores a second press; `UiForm` ignores a second
+submit as well.
 
 `action` is usually a mutation's `mutateAsync`, wrapped in a module composable
 so the page stays a thin adapter (see `src/modules/customers/composables/useCustomerForm.ts`).
@@ -226,11 +289,12 @@ It should let a failure reject: catching it there hides it from the form.
 
 ### What is reported
 
-A request the server refused (any `4xx`) is an answer, not a crash. It is shown
-to the user and **not** sent to the error reporter. Anything else, a `5xx`, a
-response that broke its contract, a bug in the action, is reported once (source
-`form:action`) and shown as the generic localized message; a `5xx`'s own text
-never reaches the user.
+A request the server refused (any `4xx`) is an answer, not a crash, and so is
+one that never arrived: the network is down, or the request timed out. Both are
+shown to the user in their language and **not** sent to the error reporter.
+Anything else, a `5xx`, a response that broke its contract, a bug in the
+action, is reported once (source `form:action`) and shown as the generic
+localized message; a `5xx`'s own text never reaches the user.
 
 Without an `action` the form emits `submit` and waits for nothing, exactly as
 before. In that mode a handler that throws, or returns a promise that rejects,
@@ -288,6 +352,10 @@ Other things worth knowing:
 - A server message never blocks a resubmit, and `isValid` ignores it: the server
   refused what was sent, and what is in the field now may be different.
 - Messages are text. Markup in a message is displayed, never rendered.
+- The body is the server's, so what one response can put on a form is bounded:
+  100 keys, 10 messages a key, 50 form-level messages. A key longer than 200
+  characters is not read as a field path; its messages go to `formErrors`
+  behind the first 40 characters of it.
 - `formErrors` is never empty after a failed save. With no form-level message
   from the server it holds the one line `describeError()` gives for the error
   (the backend's own message for a `4xx`, otherwise a translation), so render it
@@ -322,6 +390,34 @@ that field, or has tried to submit. What the server said is shown either way.
 Nothing is asked when the form is clean, which includes right after a successful
 `action`. So `@success="router.push(...)"` navigates without a prompt.
 
+**A session that ended is never held.** When the session expires the app sends
+the user to the login page, and "keep editing" there would leave them on a
+protected page with no session and changes that can no longer be saved. So the
+guard stands down while a session that existed is gone: the redirect goes
+through, a question already on screen is answered and closed, and the browser's
+prompt is withdrawn. A form on a page nobody was signed in on is guarded as
+usual.
+
+A sign-out the user asks for is different, because there is still time to ask:
+`useAuth().logout()` asks first, and "keep editing" cancels the sign-out. If
+your project kept its own copy of `useAuth.ts` from 1.0, add the question to
+its `logout()`:
+
+```ts
+import { confirmDiscardingChanges } from '@/composables/forms'
+
+async function logout() {
+  if (!(await confirmDiscardingChanges())) return
+  // …sign out
+}
+```
+
+`confirmDiscardingChanges()` is for any action that loses the page without
+navigating first. It resolves `true` at once when nothing is unsaved.
+
+Two guarded forms on one page ask once: the answer is for the navigation, not
+for a form.
+
 The guard is also a composable, for a form that is not a `UiForm`:
 
 ```html
@@ -339,6 +435,16 @@ The guard is also a composable, for a form that is not a `UiForm`:
 
 Render the dialog whenever you use the composable. A held navigation with
 nothing on screen to answer it is a link that silently does nothing.
+
+The composable takes an `allow(to, from)` option for a navigation of your own
+that must not be held (a forced redirect to a maintenance page, the next step
+of the same wizard): return `true` and it goes through unasked.
+
+```ts
+const guard = useUnsavedChangesGuard(() => isDirty.value, {
+  allow: (to) => to.name === 'maintenance',
+})
+```
 
 ### Localized validation messages
 
@@ -359,7 +465,36 @@ interpolated and plural forms chosen:
 
 The map is installed once at boot (`installValidationMessages()` in
 `src/modules/app/bootstrap/`), and reads the active locale each time it is
-asked, so switching language changes the next validation with no reload.
+asked, so switching language changes the next validation with no reload. A
+`UiForm` that is showing schema messages validates again when the language
+changes, so the ones on screen follow at once; what the server said stays in
+the server's words.
+
+Zod has one global error map, so it applies to every `schema.safeParse()` in
+the app, not only to forms. What the template itself checks with zod for a
+developer's eyes (a response that broke its contract, the user a backend sent,
+the deployment's configuration) is parsed through `safeParseForDiagnostics()`
+from `~/lib/validation/diagnostics`, and reads in zod's own English whatever
+the language. Use it for a parse of your own whose issues are logged or
+reported rather than shown.
+
+**In tests.** `test/setup.ts` does not install the map, so a component test
+sees zod's English (`Invalid input: expected string, received undefined`). That
+is deliberate: most tests assert that a message appears, not how it reads. A
+test that asserts the wording installs the map itself and removes it afterwards:
+
+```ts
+import { installValidationMessages } from '@/bootstrap/validation-messages'
+
+let removeMessages: () => void
+beforeEach(() => (removeMessages = installValidationMessages()))
+afterEach(() => removeMessages())
+```
+
+And test a form against the real Formwerk. A suite that mocks `@formwerk/core`
+proves only that the test agrees with itself; if yours does, its mock needs a
+`FormKey` export (`FormKey: Symbol('FormKey')`), which the fields read to
+learn whether they are inside a form.
 
 - **To reword a message for every form**, override it in
   `<locale>.overrides.json`: `{ "validation": { "required": "{field} is missing" } }`.
