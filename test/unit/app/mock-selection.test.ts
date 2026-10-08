@@ -201,8 +201,14 @@ describe('the static handler sets Vuestrata ships', () => {
    * The ids the docs list as mockable: every module with a `mockHandlers`
    * factory or a static set, except `auth`. If this changes, so does the list in
    * docs/1.getting-started/4.develop-against-your-backend.md.
+   *
+   * Maintainer-only, like the public-surface snapshots: the list names the
+   * template's demo modules, so it stops being true at a project's first
+   * `vuestrata eject` or `add module`, and this test stays in that project.
    */
-  it('together with the modules, make these ids mockable', async () => {
+  const MAINTAINER = process.env.VUESTRATA_MAINTAINER === '1'
+
+  it.skipIf(!MAINTAINER)('together with the modules, make these ids mockable', async () => {
     const { warnings } = await selectMockHandlers(['nope'], appModules, handlerSets)
 
     expect(warnings[0]).toContain(
