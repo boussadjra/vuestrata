@@ -10,10 +10,11 @@ import { useI18n } from 'vue-i18n'
 
 import { usePermissionLabels } from '@/composables/usePermissionLabels'
 import { resolveIcon } from '@/config/icon-provider'
+import { roleLabel } from '@/lib/rbac'
 
 import { matrixPermissions, matrixRoles } from '../presentation'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { permLabel } = usePermissionLabels()
 
 const roles = matrixRoles()
@@ -42,7 +43,7 @@ const permissions = matrixPermissions()
               :key="roleDef.name"
               class="text-muted-foreground px-3 py-2 text-center font-semibold"
             >
-              {{ t(`role_${roleDef.name}`) }}
+              {{ roleLabel(roleDef.name, { t, te }) }}
             </th>
           </tr>
         </thead>

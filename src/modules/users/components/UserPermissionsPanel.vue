@@ -3,17 +3,18 @@ import { useI18n } from 'vue-i18n'
 
 import { UiButton, UiCheckbox } from '@/components/ui'
 import { usePermissionLabels } from '@/composables/usePermissionLabels'
-import { getRegisteredPermissions, getRolePermissions } from '@/lib/rbac'
+import { getRegisteredPermissions, roleLabel } from '@/lib/rbac'
 import type { BuiltinPermission } from '@/lib/rbac/types'
 import { useAuthStore } from '@/stores/auth'
 import type { Permission, User } from '@/types'
 
 import { useUpdatePermissionsMutation } from '../composables/useUpdatePermissionsMutation'
+import { roleDefaultPermissions } from '../presentation'
 
 const props = defineProps<{ user: User }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { permLabel, permNamespaceLabel } = usePermissionLabels()
 
 const authStore = useAuthStore()
@@ -36,10 +37,11 @@ function permissionsForNamespace(ns: string) {
 }
 
 // Effective permissions: user's explicit list OR role defaults
-const roleDefaults = computed(() => new Set(getRolePermissions(props.user.role)))
+// From every role the user holds, not the primary one alone.
+const roleDefaults = computed(() => new Set(roleDefaultPermissions(props.user)))
 
 const selected = ref<Set<Permission>>(
-  new Set(props.user.permissions ?? getRolePermissions(props.user.role)),
+  new Set(props.user.permissions ?? roleDefaultPermissions(props.user)),
 )
 
 const isSelf = computed(() => authStore.user?.id === props.user.id)
@@ -59,7 +61,7 @@ function setPermission(perm: Permission, enabled: boolean | 'indeterminate') {
 }
 
 function resetToRoleDefaults() {
-  selected.value = new Set(getRolePermissions(props.user.role))
+  selected.value = new Set(roleDefaultPermissions(props.user))
 }
 
 const serverError = ref<string | null>(null)
@@ -99,7 +101,7 @@ async function submit() {
             {{ t('users_permissions_title') }}
           </h2>
           <p class="text-muted-foreground mt-0.5 text-sm">
-            {{ user.name }} · {{ t(`role_${user.role}`) }}
+            {{ user.name }} · {{ roleLabel(user.role, { t, te }) }}
           </p>
         </div>
         <UiButton variant="ghost" size="sm" icon aria-label="Close" @click="$emit('close')">

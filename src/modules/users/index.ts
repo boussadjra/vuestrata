@@ -72,7 +72,15 @@ export { useUpdateRoleMutation } from './composables/useUpdateRoleMutation'
 // `useUsersTable` and `useUserRoleEditor` are deliberately absent: they wire up
 // this module's own screen and have no cross-module consumers. The barrel is
 // the public API, not an index of every file.
-export { matrixPermissions, matrixRoles, providerIcon, roleBadgeClass } from './presentation'
+export {
+  assignableRoles,
+  listedRoles,
+  matrixPermissions,
+  matrixRoles,
+  providerIcon,
+  roleBadgeClass,
+  roleDefaultPermissions,
+} from './presentation'
 export { useInviteUserMutation } from './composables/useInviteUserMutation'
 export { useUpdatePermissionsMutation } from './composables/useUpdatePermissionsMutation'
 export { usersModuleKeys } from './query-keys'

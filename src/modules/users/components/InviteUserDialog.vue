@@ -2,13 +2,14 @@
 import { useI18n } from 'vue-i18n'
 
 import { UiButton, UiSelect, UiTextField } from '@/components/ui'
-import { ROLE_DEFINITIONS } from '@/lib/rbac'
+import { roleLabel } from '@/lib/rbac'
 import type { Role } from '@/types'
 
 import { useInviteUserMutation } from '../composables/useInviteUserMutation'
+import { assignableRoles } from '../presentation'
 
 const emit = defineEmits<{ close: [] }>()
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const { inviteUser, isPending } = useInviteUserMutation()
 
@@ -18,9 +19,9 @@ const role = ref<Role>('member')
 const fieldErrors = ref<{ email?: string; name?: string; server?: string }>({})
 
 const roleOptions = computed(() =>
-  Object.values(ROLE_DEFINITIONS)
+  assignableRoles()
     .filter((r) => r.name !== 'guest')
-    .map((r) => ({ value: r.name as Role, label: t(`role_${r.name}`) })),
+    .map((r) => ({ value: r.name, label: roleLabel(r.name, { t, te }) })),
 )
 
 function readInputValue(event: Event | undefined, selector: string, fallback = ''): string {
