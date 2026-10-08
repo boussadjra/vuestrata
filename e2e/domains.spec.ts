@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { test, expect, type Page } from '@playwright/test'
 
-import { logInAsDemoAdmin } from './helpers/auth'
+import { expireSession, logInAsDemoAdmin, signOut } from './helpers/auth'
 
 /**
  * The domain pages actually render their data.
@@ -312,4 +312,80 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
       await expect(page).toHaveURL(/\/dashboard\/customers$/)
     })
   }
+
+  for (const { locale, dir } of [
+    { locale: 'en', dir: 'ltr' },
+    { locale: 'ar', dir: 'rtl' },
+  ] as const) {
+    test(`a refusal brings the refused field into view and focuses it (${locale})`, async ({
+      page,
+    }) => {
+      // Short enough that the email field is off screen once the submit
+      // button, at the foot of the form, has been scrolled to.
+      await page.setViewportSize({ width: 1024, height: 420 })
+      await logInAsDemoAdmin(page)
+      await setLocale(page, locale)
+      const taken = await takenEmail(page)
+
+      await fillNewCustomer(page, taken)
+      await expect(page.locator('html')).toHaveAttribute('dir', dir)
+      const submit = page.locator('form button[type="submit"]')
+      await submit.scrollIntoViewIfNeeded()
+      const email = page.locator('input[name="email"]')
+      await expect(email).not.toBeInViewport()
+
+      await submit.focus()
+      await page.keyboard.press('Enter')
+
+      await expect(errorOf(page, 'email')).toBeVisible({ timeout: 15_000 })
+      await expect(email).toBeFocused()
+      await expect(email).toBeInViewport()
+      // While it saved, the button kept focus instead of handing it to <body>;
+      // afterwards it is an ordinary button again.
+      await expect(submit).not.toHaveAttribute('aria-busy', 'true')
+      await expect(submit).toBeEnabled()
+    })
+  }
+
+  test('an expired session is sent to login, unsaved changes or not', async ({ page }) => {
+    await logInAsDemoAdmin(page)
+    await fillNewCustomer(page, 'grace.expired@hopper.example')
+    await expireSession(page)
+
+    // The save is the request that finds out.
+    await page.locator('form button[type="submit"]').click()
+
+    await expect(page).toHaveURL(/\/auth\/login\?/, { timeout: 15_000 })
+    const query = new URL(page.url()).searchParams
+    expect(query.get('reason')).toBe('expired')
+    expect(query.get('redirect')).toBe('/dashboard/customers/new')
+    // Nothing stood in the way, and nothing is left asking.
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page.getByRole('status').filter({ hasText: /session expired/i })).toBeVisible()
+  })
+
+  test('signing out with unsaved changes asks first, and can be declined', async ({ page }) => {
+    await logInAsDemoAdmin(page)
+    await page.goto('/dashboard/customers/new')
+    await expect(page.locator('form')).toBeVisible({ timeout: 15_000 })
+    await page.locator('input[name="company"]').fill('Hopper Systems')
+
+    await signOut(page)
+
+    // Asked before anything was ended: "keep editing" keeps the session too.
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText('Discard unsaved changes?')
+    await page.getByTestId('unsaved-changes-stay').click()
+    await expect(dialog).toBeHidden()
+    await expect(page).toHaveURL(/\/dashboard\/customers\/new$/)
+    await expect(page.locator('input[name="company"]')).toHaveValue('Hopper Systems')
+    await expect(page.getByTestId('account-menu-trigger')).toBeVisible()
+
+    // And "discard" signs out, with no second question on the way to login.
+    await page.locator('input[name="company"]').fill('Hopper Systems')
+    await signOut(page)
+    await page.getByTestId('unsaved-changes-leave').click()
+    await expect(page).toHaveURL(/\/auth\/login/, { timeout: 15_000 })
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+  })
 })
