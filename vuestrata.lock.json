@@ -282,7 +282,7 @@
     },
     "src/modules/app/components/ui/UiForm.vue": {
       "class": "managed",
-      "hash": "sha256-30085e061ec2a48fec3f426712a1231deedfb4ef28124a6ccb5049912ccecca2",
+      "hash": "sha256-23f5d0732c37c7d3f73cd36ae817714265c5c5dc07f4007e2c0e764d4dd6385e",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/components/ui/UiFormBuilder.vue": {
@@ -505,6 +505,11 @@
       "hash": "sha256-dbd3b491412263fa1a1156b5bb5bd5d146c2a4e0da1c058f499ebe5994b9b85d",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/app/composables/forms/ui-form-props.ts": {
+      "class": "managed",
+      "hash": "sha256-e9fbd2a6f20698e8b8c5bb5a12678f06311cb3f331595664ef8aeb1305d2354d",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/app/composables/forms/useFormwerkElementRef.ts": {
       "class": "managed",
       "hash": "sha256-7c4fbe24f57173a0616c0fe4007adb5d8ac88963f31b91f126bd75ce31613fac",
@@ -517,7 +522,7 @@
     },
     "src/modules/app/composables/forms/useServerErrors.ts": {
       "class": "managed",
-      "hash": "sha256-cea7d92f5e352a4080ffbfc1a81db32edc9fb0ec070f9f310ffece9a113540ce",
+      "hash": "sha256-5592625abaddde60a39f6ba2c394e0ce17fa80b07e830a5965f4d2953d805599",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/composables/forms/useUiCheckbox.ts": {
@@ -552,7 +557,7 @@
     },
     "src/modules/app/composables/forms/useUiForm.ts": {
       "class": "managed",
-      "hash": "sha256-a52a29d1ea949f4ae31e5307c186702e1fda0ed6579eafb2074c29e56b2326b9",
+      "hash": "sha256-937ba5c43abce3cc6a191338cfc42a080dc1339233cb97095091517af76d707f",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/composables/forms/useUiMentionsField.ts": {
