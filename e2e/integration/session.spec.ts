@@ -232,29 +232,38 @@ test.describe('a server session, in a browser', () => {
   }) => {
     const seen = watchRequests(page)
     await signIn(page)
+    // On a page whose data has arrived and that asks for nothing more by
+    // itself, so the request that finds out is the one made below. (The
+    // dashboard keeps retrying the panels this stub has no data for, and one
+    // of those would find out first.)
+    await page.goto('/dashboard/customers', { waitUntil: 'domcontentloaded' })
+    const record = page.getByRole('link', { name: 'Analytical Engines Ltd' }).first()
+    await expect(record).toBeVisible({ timeout: 15_000 })
 
     // The server session runs out while the app is open.
     await request.post('/__stub/expire-session')
     const before = (await served(request)).length
-    await page.getByRole('link', { name: 'Customers', exact: true }).first().click()
+    await record.click()
 
     await expect(page).toHaveURL(/\/auth\/login\?/, { timeout: 15_000 })
     const landed = new URL(page.url())
     expect(landed.searchParams.get('reason')).toBe('expired')
-    expect(landed.searchParams.get('redirect')).toBe('/dashboard/customers')
+    expect(landed.searchParams.get('redirect')).toBe('/dashboard/customers/CUS-1000')
     await expect(page.getByRole('status').filter({ hasText: /session expired/i })).toBeVisible()
 
     // The request that found out, and nothing sent to renew anything.
     const after = (await served(request)).slice(before)
-    expect(lines(after)).toContain('GET /api/customers 401')
+    expect(lines(after)).toContain('GET /api/customers/CUS-1000 401')
     expect(after.filter((entry) => entry.status === 401).length).toBeGreaterThanOrEqual(1)
     expect(seen.filter((entry) => /refresh/i.test(new URL(entry.url).pathname))).toEqual([])
     expect(lines(after).filter((line) => line.startsWith('POST'))).toEqual([])
 
     await fillLogin(page)
 
-    await expect(page).toHaveURL(/\/dashboard\/customers$/, { timeout: 15_000 })
-    await expect(page.getByText('Analytical Engines Ltd')).toBeVisible({ timeout: 15_000 })
+    await expect(page).toHaveURL(/\/dashboard\/customers\/CUS-1000$/, { timeout: 15_000 })
+    await expect(page.getByText('Analytical Engines Ltd').first()).toBeVisible({
+      timeout: 15_000,
+    })
   })
 
   test('signs out, and a later reload stays signed out', async ({ page, context, request }) => {
