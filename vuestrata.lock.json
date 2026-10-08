@@ -38,12 +38,12 @@
     },
     "scripts/vite/vuestrata-plugin.d.mts": {
       "class": "managed",
-      "hash": "sha256-4ed3383e359f0b86ec0a282b466252fcef3df62e1884bc9a5d871a7e015dcd9c",
+      "hash": "sha256-6c9b685dfe6d4872b96840455ab3c6021115453c350aee96444ebb679e9ec5ff",
       "since": "1.1.0-alpha.0"
     },
     "scripts/vite/vuestrata-plugin.mjs": {
       "class": "managed",
-      "hash": "sha256-7ff5c4c8dacc3fee97f3b0280fa4afdcaac2cdc35a21b5d1716942c424d05f38",
+      "hash": "sha256-4edda8e365975aad0599e6e8bcb900e94403db0501e6d1a11506fc148fda604b",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/bootstrap/app-env.ts": {
@@ -58,7 +58,7 @@
     },
     "src/modules/app/bootstrap/auth-wiring.ts": {
       "class": "managed",
-      "hash": "sha256-2bcfa57b2790368891f96a6fc121230a9f9b1e1560aebc51d1f9c65780268514",
+      "hash": "sha256-e85bbdf032992f12a22ec5826fd720d6ebf91ef4b80df5a82d82f34f901fdda2",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/bootstrap/boot-error.ts": {
@@ -833,12 +833,17 @@
     },
     "src/modules/auth/adapters/registry.ts": {
       "class": "managed",
-      "hash": "sha256-cc7bc8caed89163ed77d428c33f7c0c7a7e0da6c194dda2e6720b1694fca54b7",
+      "hash": "sha256-946e453d0d514d0944cbc97ad53170bbcef6855c0f9ecdf191dcfa304ce08171",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/auth/adapters/session.ts": {
+      "class": "managed",
+      "hash": "sha256-9f1d33b4eb0dfd3cc83ba0b44d725f5da85105fb4e7a070a5e22963f1546b341",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/auth/adapters/types.ts": {
       "class": "managed",
-      "hash": "sha256-9d7b1a019549954c6ef1a6bf598a213bb92328a1037d858f734655fb39b156ea",
+      "hash": "sha256-38f87bd4812471d7c851fb5c47cf96f9f1dda4f939205618b77e1c675aaf1872",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/auth/composables/useAuth.ts": {
@@ -861,6 +866,11 @@
       "hash": "sha256-24eda5b8e1f51ef02eb394a81f54f71b868360d3382a8e6bfee0977dfe236958",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/core/lib/api/base-url.ts": {
+      "class": "managed",
+      "hash": "sha256-f1bf36a5ec5612e8183dadb73b988330417345ca92482ad12156c20a2355f3a8",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/core/lib/api/classifiers.ts": {
       "class": "managed",
       "hash": "sha256-ef09e6c3fd6ebb4c874b11292f1bf860545ce9b424378cc6b0d4d62938e12c5e",
@@ -868,7 +878,7 @@
     },
     "src/modules/core/lib/api/client.ts": {
       "class": "managed",
-      "hash": "sha256-d0f5b255ccf1260a42d64c978b819363b5b61f1ed8b4eaebaabfea0c63cc6823",
+      "hash": "sha256-3a0a21323463ee5d6d3ba704707ed341316fcfba5a86242f1bc32c0d7cd73421",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/api/collection-queries.ts": {
@@ -963,7 +973,7 @@
     },
     "src/modules/core/lib/auth/endpoints.ts": {
       "class": "managed",
-      "hash": "sha256-05bd8bbaace8392705a33c27639f81541eed3f5dfbd95bfcca09d86ec711836b",
+      "hash": "sha256-8d0a0719a16f09109a2a1dd71bce3e5de64f1f23e10882bd9cc32edfe43af397",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/auth/index.ts": {
@@ -998,7 +1008,7 @@
     },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
-      "hash": "sha256-8c0af5255811a9d77a9e8be021e5b03e43b627a63e64a345392030ba5a158773",
+      "hash": "sha256-cfbdf63fbc24a3e7e525d0d0cae30f2b1a987b8126940d8528f74cc0f08b7583",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/config/index.ts": {
