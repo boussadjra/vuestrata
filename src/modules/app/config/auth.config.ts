@@ -33,6 +33,31 @@
  *     },
  *   })
  *
+ * A backend that describes its users the way an identity provider does (roles
+ * under `realm_access`, a `permissions` claim, group ids) is read with an
+ * identity mapper, from `~/lib/rbac/identity-mappers`. It answers in the roles
+ * and permissions this app declares in `rbac.overrides.ts` and drops every
+ * name it does not. Keycloak, with one of its roles renamed on the way in:
+ *
+ *   const identity = identityMappers.keycloak({
+ *     clientId: 'my-app',
+ *     roleMap: { 'team-lead': 'manager' },
+ *   })
+ *
+ *   export default defineAuthConfig({
+ *     mapUser: (raw) => {
+ *       const claims = raw as { sub: string; email: string; name?: string }
+ *       return applyIdentity(
+ *         { id: claims.sub, email: claims.email, name: claims.name },
+ *         identity(raw),
+ *       )
+ *     },
+ *   })
+ *
+ * `identityMappers.auth0`, `.entra` and `.claims` (for anything else) are used
+ * the same way. What they return decides what the interface shows, nothing
+ * more: your backend must enforce every role and permission itself.
+ *
  * An adapter of your own, loaded only by the deployment that selects it. Write
  * `adapters` inline, with plain names, and each adapter inline too: the build
  * reads the names (and each `transport`) from this file as text, without
