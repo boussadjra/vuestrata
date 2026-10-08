@@ -22,7 +22,7 @@ import { Plan } from '../../../packages/cli/src/lib/plan.mjs'
 import { checkToolchainPins } from '../../../scripts/lint/check-toolchain-pins.mjs'
 import { MAINTAINER } from './cli'
 import { createFixture, type Fixture } from './fixture'
-import { readWorkflow, stepOf, type Workflow } from './workflow'
+import { readWorkflow, stepOf, TEMPLATE_CI, type Workflow } from './workflow'
 
 const { driftedFiles, readLock, recordProvenance, writeLock } = lockfile
 
@@ -36,7 +36,14 @@ const { driftedFiles, readLock, recordProvenance, writeLock } = lockfile
  */
 
 const REPO = process.cwd()
-const TEMPLATE_WORKFLOW = fs.readFileSync(path.join(REPO, CI_WORKFLOW), 'utf8')
+/** A file of this checkout, or nothing: a project may have deleted any of them. */
+const inRepo = (rel: string) =>
+  fs.existsSync(path.join(REPO, rel)) ? fs.readFileSync(path.join(REPO, rel), 'utf8') : ''
+/**
+ * This repository's own workflow. The template's in the template; in a project
+ * it is whatever the project made of it, so only the maintainer suites read it.
+ */
+const TEMPLATE_WORKFLOW = inRepo(CI_WORKFLOW)
 const OWN_WORKFLOW = 'name: Ours\n\non: push\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n'
 
 interface CiPlan {
@@ -235,7 +242,7 @@ describe('add ci: what the workflow holds', () => {
     })
     expect(steps.flatMap((step) => step.run ?? [])).toEqual([
       'vp exec playwright install --with-deps chromium',
-      'vpr test:e2e -- --project=chromium',
+      'vpr test:e2e --project=chromium',
     ])
     expect(stepOf(generated().job('e2e'), 'Run E2E against the preview build')?.env).toEqual({
       E2E_TARGET: 'preview',
@@ -250,7 +257,7 @@ describe('add ci: what the workflow holds', () => {
     expect(script).toContain('docker build')
     expect(script).toContain('/healthz')
     expect(stepOf(job, 'Smoke-test the running production artifact')).toMatchObject({
-      run: 'vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium',
+      run: 'vpr test:e2e e2e/production-artifact.spec.ts --project=chromium',
       env: { E2E_TARGET: 'external', E2E_BASE_URL: 'http://127.0.0.1:8080' },
     })
     expect(script).not.toMatch(/docker (?:push|login)|--push/)
@@ -336,7 +343,7 @@ describe('add ci: a workflow that is already there', () => {
   beforeEach(() => seed())
 
   it('refuses to write over the template’s, saying what it is and offering --force', () => {
-    fixture.write(CI_WORKFLOW, TEMPLATE_WORKFLOW)
+    fixture.write(CI_WORKFLOW, TEMPLATE_CI)
 
     const { problems } = add()
 
@@ -344,7 +351,7 @@ describe('add ci: a workflow that is already there', () => {
     expect(problems[0]).toContain("it is the template's own pipeline")
     expect(problems[0]).toContain('skipped outside the template repository')
     expect(problems[0]).toContain('`vuestrata add ci --force` replaces it')
-    expect(fixture.read(CI_WORKFLOW)).toBe(TEMPLATE_WORKFLOW)
+    expect(fixture.read(CI_WORKFLOW)).toBe(TEMPLATE_CI)
   })
 
   it('refuses to write over a workflow the project wrote, and says it is theirs', () => {
@@ -358,7 +365,7 @@ describe('add ci: a workflow that is already there', () => {
   })
 
   it('replaces either with --force, and records the file as the project’s', () => {
-    fixture.write(CI_WORKFLOW, TEMPLATE_WORKFLOW)
+    fixture.write(CI_WORKFLOW, TEMPLATE_CI)
 
     expect(add({ force: true }).problems).toEqual([])
 
@@ -447,12 +454,12 @@ describe('add ci: the toolchain pins', () => {
  * this fails until the other follows.
  */
 describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own workflow', () => {
+  // Vitest runs this body to collect the tests even when the suite is skipped,
+  // and in a project the workflow here may have none of these jobs. So nothing
+  // outside a test may assume one.
   const template = readWorkflow(TEMPLATE_WORKFLOW)
   const project = readWorkflow(
-    renderCiWorkflow({
-      node: fs.readFileSync(path.join(REPO, '.nvmrc'), 'utf8').trim(),
-      docker: true,
-    }) as string,
+    renderCiWorkflow({ node: inRepo('.nvmrc').trim() || '22', docker: true }) as string,
   )
 
   const runsOf = (workflow: Workflow, job: string) =>
@@ -464,10 +471,28 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
       text ?? '',
     )
 
-  const consumer = runsOf(template, 'cli-roundtrip')
+  /**
+   * A script's arguments, passed the way that reaches the script.
+   *
+   * The template writes `vpr test:e2e -- --project=chromium`. With Vite+ 0.2.9
+   * `vp run` hands that `--` on, the script becomes `playwright test --
+   * --project=chromium`, and Playwright reads everything after a `--` as a file
+   * filter: measured here, 420 tests in four browsers where 105 in Chromium
+   * were asked for. Without the separator the arguments arrive as arguments,
+   * whether or not a later `vp run` strips it. So the project workflow is held
+   * to the template's command WITHOUT the separator, and this is the one place
+   * the two strings are allowed to differ. When the template's workflow drops
+   * it, delete this function.
+   */
+  const forwarded = (command: string) => command.replace(/^(vpr \S+) -- /, '$1 ')
+
+  const consumer = MAINTAINER ? runsOf(template, 'cli-roundtrip') : []
   const buildLeg = { target: 'production', runtime_mode: 'production', use_mocks: 'false' }
 
-  it('reads both workflows whole', () => {
+  it('reads both workflows whole, and knows the template’s for what it is', () => {
+    expect(workflowOrigin(TEMPLATE_WORKFLOW)).toBe('template')
+    // The stand-in the other suites use is told apart by the same job.
+    expect(workflowOrigin(TEMPLATE_CI)).toBe('template')
     expect(template.accounts).toBe(true)
     expect(project.accounts).toBe(true)
   })
@@ -537,7 +562,8 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
     const theirs = stepOf(template.job('e2e'), 'Run E2E against the production preview')
     const ours = stepOf(project.job('e2e'), 'Run E2E against the preview build')
 
-    expect(ours?.run).toBe(leg(theirs?.run, { browser: 'chromium' }))
+    expect(ours?.run).toBe(forwarded(leg(theirs?.run, { browser: 'chromium' })))
+    expect(ours?.run).not.toContain(' -- ')
     expect(ours?.env).toEqual(theirs?.env)
     // The template installs per matrix leg; its docker job names Chromium outright.
     const install = runsOf(project, 'e2e')[0]
@@ -548,7 +574,12 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
   it('opens the image with the template’s smoke step', () => {
     const name = 'Smoke-test the running production artifact'
 
-    expect(stepOf(project.job('docker'), name)).toEqual(stepOf(template.job('docker'), name))
+    const theirs = stepOf(template.job('docker'), name)
+
+    expect(stepOf(project.job('docker'), name)).toEqual({
+      ...theirs,
+      run: forwarded(theirs?.run ?? ''),
+    })
   })
 
   it('pins each action the template also uses to the version the template uses', () => {
@@ -576,7 +607,7 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
  * publishing the demo to a team's production Vercel project.
  */
 describe.skipIf(!MAINTAINER)('the template’s demo deploy, in a project that kept it', () => {
-  const source = fs.readFileSync(path.join(REPO, '.github/workflows/deploy-demo.yml'), 'utf8')
+  const source = inRepo('.github/workflows/deploy-demo.yml')
 
   it('has one job, and it runs only in the template’s repository', () => {
     const { jobs, accounts } = readWorkflow(source)
@@ -615,6 +646,6 @@ describe.skipIf(!MAINTAINER)('add ci: from the command line, in this repository'
     expect(planned.status).toBe(0)
     expect(`${planned.stdout}${planned.stderr}`).toContain(`create  ${CI_WORKFLOW}  (seeded)`)
 
-    expect(fs.readFileSync(path.join(REPO, CI_WORKFLOW), 'utf8')).toBe(TEMPLATE_WORKFLOW)
+    expect(inRepo(CI_WORKFLOW)).toBe(TEMPLATE_WORKFLOW)
   }, 60_000)
 })

@@ -23,7 +23,7 @@ import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
 // @ts-expect-error - see above.
 import { loadManifest } from '../../../packages/cli/src/lib/manifest.mjs'
 import { createFixture, type Fixture } from './fixture'
-import { readWorkflow } from './workflow'
+import { readWorkflow, TEMPLATE_CI } from './workflow'
 
 const { driftedFiles, emptyLock, hashFor, readLock, writeLock } = lockfile
 
@@ -193,7 +193,7 @@ function seed() {
   f.write('vendor/README.md', '# vendor\n')
   f.write('vendor/comark-1.0.0.tgz', 'tarball')
 
-  f.write('.github/workflows/ci.yml', real('.github/workflows/ci.yml'))
+  f.write('.github/workflows/ci.yml', TEMPLATE_CI)
   f.write('.github/workflows/deploy-demo.yml', 'name: demo\n')
   f.write('.github/workflows/release.yml', 'name: release\n')
   f.write('packages/cli/src/index.mjs', '// the CLI\n')
@@ -512,7 +512,7 @@ describe('eject and the CI workflow', () => {
     expect(fixture.read(CI)).not.toContain('lint:maintainer')
     // The fixture has no .nvmrc: the pin is the one the template's workflow carried.
     expect(fixture.read(CI)).toContain(
-      `NODE_VERSION: '${/NODE_VERSION: '(\d+)'/.exec(real(CI))?.[1]}'`,
+      `NODE_VERSION: '${/NODE_VERSION: '(\d+)'/.exec(TEMPLATE_CI)?.[1]}'`,
     )
   })
 
@@ -574,7 +574,7 @@ describe('eject and the CI workflow', () => {
 
   it('counts the template’s workflow with its round trip already cut as somebody’s own', () => {
     // What `eject` left before it wrote a workflow: somebody may have built on it.
-    const earlier = dropCliRoundtrip(real(CI)) as string
+    const earlier = dropCliRoundtrip(TEMPLATE_CI) as string
     fixture.write(CI, earlier)
     eject()
 

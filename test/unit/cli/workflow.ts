@@ -148,6 +148,58 @@ export function readWorkflow(source: string): Workflow {
   }
 }
 
+/**
+ * A stand-in for the template's own `ci.yml`: its shape, a Node pin, and the
+ * `cli-roundtrip` job it is recognised by.
+ *
+ * Not the repository's file. These tests stay in a project that keeps
+ * `packages/cli`, and there `.github/workflows/ci.yml` is the project's from
+ * the day it runs `vuestrata add ci --force`; a test that read it as "the
+ * template's workflow" would fail in that project for doing what it was told.
+ */
+export const TEMPLATE_CI = `name: CI
+
+on:
+  push:
+    branches: [main]
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Maintainer gates (template lock, CLI payload)
+        if: github.repository == 'boussadjra/vuestrata'
+        run: vpr lint:maintainer
+
+  docker:
+    name: Docker image (production artifact)
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - run: docker build -t vuestrata:ci .
+
+  # The CLI edits projects built from this template.
+  cli-roundtrip:
+    name: CLI Round Trip
+    if: github.repository == 'boussadjra/vuestrata'
+    runs-on: ubuntu-latest
+    steps:
+      - run: node packages/cli/src/index.mjs doctor
+
+  ci-ok:
+    name: CI OK
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint, docker, cli-roundtrip]
+    steps:
+      - run: echo "All CI jobs succeeded."
+`
+
 /** The step of `job` named `name`, or the one whose `run` is exactly `name`. */
 export function stepOf(job: WorkflowJob | undefined, name: string): WorkflowStep | undefined {
   return job?.steps.find((entry) => entry.name === name || entry.run === name)

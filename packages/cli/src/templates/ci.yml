@@ -133,10 +133,14 @@ jobs:
       # backend, mock sign-in: see playwright.config.ts), because the specs need
       # a backend that answers. Running them against your own backend is a
       # matter of E2E_TARGET=external and E2E_BASE_URL.
+      #
+      # No `--` before the arguments: `vp run` would hand it on to Playwright,
+      # which reads everything after one as a file name, and the suite would
+      # run in every browser the config defines.
       - name: Run E2E against the preview build
         env:
           E2E_TARGET: preview
-        run: vpr test:e2e -- --project=chromium
+        run: vpr test:e2e --project=chromium
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -195,7 +199,7 @@ jobs:
         env:
           E2E_TARGET: external
           E2E_BASE_URL: http://127.0.0.1:8080
-        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+        run: vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
 
       - name: Container logs
         if: always()
