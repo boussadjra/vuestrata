@@ -322,3 +322,10 @@ a **conditional spread**:
 Declaring the property unconditionally keeps the dynamic `import()` in the
 barrel's graph and ships an MSW chunk to real users. `verify-bundle.mjs` is the
 only check that can see this — types and tests cannot.
+
+A demo build is not always the self-contained demo. With `VUESTRATA_MOCK_ONLY`
+set to module ids and a real auth adapter, MSW answers for those modules alone
+and a real backend for the rest. `__VUESTRATA_DEMO__` is `true` there too, so
+anything that belongs to the demo ACCOUNT (its credentials, the seeded admin,
+its session) is decided by `__VUESTRATA_DEMO__ && authAdapter === 'mock'`, never
+by the constant alone. A production build refuses the variable.

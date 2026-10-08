@@ -27,6 +27,10 @@ import { z } from 'zod'
  *
  *   demo       — public showcase. MSW intercepts everything; mock auth only.
  *   production — real deployment. No MSW, no demo state, real auth adapter.
+ *
+ * A demo build has one variation, which `VUESTRATA_MOCK_ONLY` selects: MSW
+ * answers for the modules that variable lists, and a real backend, signed in
+ * to through a real adapter, answers for everything else. See `isHybridRuntime`.
  */
 export const RUNTIME_MODES = ['production', 'demo'] as const
 /**
@@ -147,6 +151,7 @@ export const ENV_KEYS = {
   title: 'VUESTRATA_APP_TITLE',
   apiUrl: 'VUESTRATA_API_URL',
   useMocks: 'VUESTRATA_USE_MOCKS',
+  mockOnly: 'VUESTRATA_MOCK_ONLY',
   authAdapter: 'VUESTRATA_AUTH_ADAPTER',
   sessionPersistence: 'VUESTRATA_SESSION_PERSISTENCE',
   iconProvider: 'VUESTRATA_ICON_PROVIDER',
@@ -224,6 +229,47 @@ const retentionHours = z
   })
   .optional()
 
+/** A module id, as `ModuleConfig.id` and `vuestrata add module` write one. */
+const MODULE_ID = /^[a-z][a-z0-9-]*$/
+
+/**
+ * The module whose mock handlers answer `/auth/*`. A real adapter talks to
+ * those endpoints on the backend, so the two can never be combined.
+ */
+const AUTH_MODULE_ID = 'auth'
+
+/**
+ * A comma-separated list of module ids: trimmed, in the order given, each once.
+ *
+ * Only the form of an id is checked. Which modules exist is the app's to know,
+ * not this file's, so an id that names none is reported when the mocks start
+ * (`app/bootstrap/mocks.ts`), with the ids that do.
+ */
+const moduleIdList = z
+  .string()
+  .transform((value, ctx) => {
+    const ids = [
+      ...new Set(
+        value
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ]
+    const malformed = ids.filter((id) => !MODULE_ID.test(id))
+    if (malformed.length > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'expected module ids separated by commas (lowercase letters, digits and dashes, ' +
+          `starting with a letter), received ${malformed.map((id) => `"${id}"`).join(', ')}`,
+      })
+      return z.NEVER
+    }
+    return ids
+  })
+  .optional()
+
 /**
  * An adapter name: a built-in one, or one the project registered.
  *
@@ -257,6 +303,7 @@ function createEnvSchema(registered: RegisteredAuthAdapters) {
     [ENV_KEYS.title]: z.string().min(1).optional(),
     [ENV_KEYS.apiUrl]: z.string().min(1).optional(),
     [ENV_KEYS.useMocks]: booleanish,
+    [ENV_KEYS.mockOnly]: moduleIdList,
     [ENV_KEYS.authAdapter]: authAdapterName(registered),
     [ENV_KEYS.sessionPersistence]: z.enum(SESSION_PERSISTENCE_MODES).optional(),
     [ENV_KEYS.iconProvider]: z.enum(ICON_PROVIDERS).optional(),
@@ -282,6 +329,12 @@ export interface RuntimeEnv {
   title: string
   apiUrl: string
   useMocks: boolean
+  /**
+   * The modules MSW answers for while a real backend answers for the rest, or
+   * empty: the self-contained demo, and every production build. Never holds
+   * `auth`, and is never set beside the mock adapter. See `isHybridRuntime`.
+   */
+  mockOnly: readonly string[]
   /**
    * A built-in adapter, or one the project registered in `auth.config.ts` and
    * declared in `RegisteredAuthAdapterNames`. With nothing declared this is
@@ -309,6 +362,19 @@ export function isDemoRuntime(env: Pick<RuntimeEnv, 'runtimeMode'>): boolean {
   return env.runtimeMode === 'demo'
 }
 
+/**
+ * True when MSW answers only for the modules in `VUESTRATA_MOCK_ONLY`, and a
+ * real backend, signed in to through a real adapter, answers everything else.
+ *
+ * A demo build in what it bundles (MSW and the mock handlers are compiled in),
+ * and not a demo in what it does: no mock adapter, no demo account, no seeded
+ * super-admin. A tool for development and for staging; a production build
+ * refuses the variable.
+ */
+export function isHybridRuntime(env: Pick<RuntimeEnv, 'runtimeMode' | 'mockOnly'>): boolean {
+  return env.runtimeMode === 'demo' && env.mockOnly.length > 0
+}
+
 // ─── Combination rules ────────────────────────────────────────────────────────
 
 type Correction = {
@@ -316,7 +382,12 @@ type Correction = {
   apply: (draft: RuntimeEnv) => void
   /** Set by the placeholder-host rule, for `describeDevProxyAlternative`. */
   placeholderApiUrl?: URL
+  /** Set by the rules about `VUESTRATA_MOCK_ONLY`, for `describeMockOnlyAdvice`. */
+  mockOnlyAdvice?: MockOnlyAdvice
 }
+
+/** Which rule about `VUESTRATA_MOCK_ONLY` an issue broke. */
+type MockOnlyAdvice = 'real-adapter-in-demo' | 'mock-adapter' | 'auth-listed' | 'production'
 
 /**
  * The cross-field rules that were entirely missing before: nothing stopped a
@@ -325,6 +396,23 @@ type Correction = {
  *
  * Each rule carries a correction so the lenient path can recover instead of
  * throwing. The strict path ignores the corrections and reports the messages.
+ *
+ * What is valid, by mode, mocks, adapter and `VUESTRATA_MOCK_ONLY`:
+ *
+ *   mode        mocks  adapter  mock-only        result
+ *   demo        on     mock     unset            the self-contained demo
+ *   demo        on     real     modules          hybrid: those modules mocked
+ *   demo        on     real     unset            refused: a demo signs in with mock
+ *   demo        on     real     includes "auth"  refused: two owners for /auth/*
+ *   demo        on     mock     set              refused: no backend to sign in to
+ *   demo        off    any      any              refused: mocks must be on
+ *   production  off    real     unset            production
+ *   production  off    real     set              refused: MSW is not bundled
+ *   production  on     any      any              refused, as before
+ *   production  any    mock     any              refused, as before
+ *
+ * A hybrid build is also held to what production asks of the backend: a usable
+ * API URL, and no bearer persistence beside a cookie-transport adapter.
  */
 function collectCombinationIssues(
   env: RuntimeEnv,
@@ -333,7 +421,22 @@ function collectCombinationIssues(
 ): Correction[] {
   const issues: Correction[] = []
 
-  if (env.runtimeMode === 'demo') {
+  // Some modules mocked beside a real backend. With the mock adapter there is
+  // no real backend to sign in to, so that combination is refused, and then
+  // judged as the self-contained demo it falls back to.
+  let hybrid = isHybridRuntime(env)
+  if (hybrid && env.authAdapter === 'mock') {
+    issues.push({
+      message: `${ENV_KEYS.mockOnly} needs a real auth adapter, and ${ENV_KEYS.authAdapter} is "mock".`,
+      mockOnlyAdvice: 'mock-adapter',
+      apply: (draft) => {
+        draft.mockOnly = []
+      },
+    })
+    hybrid = false
+  }
+
+  if (env.runtimeMode === 'demo' && !hybrid) {
     if (!env.useMocks) {
       issues.push({
         message: `${ENV_KEYS.useMocks} must be "true" when ${ENV_KEYS.runtimeMode}="demo" — the demo has no backend to talk to.`,
@@ -345,6 +448,7 @@ function collectCombinationIssues(
     if (env.authAdapter !== 'mock') {
       issues.push({
         message: `${ENV_KEYS.authAdapter} must be "mock" when ${ENV_KEYS.runtimeMode}="demo" (received "${env.authAdapter}").`,
+        mockOnlyAdvice: 'real-adapter-in-demo',
         apply: (draft) => {
           draft.authAdapter = 'mock'
         },
@@ -364,8 +468,44 @@ function collectCombinationIssues(
     return issues
   }
 
-  // runtimeMode === 'production'
-  if (env.useMocks) {
+  if (hybrid) {
+    if (!env.useMocks) {
+      issues.push({
+        message: `${ENV_KEYS.useMocks} must be "true" when ${ENV_KEYS.mockOnly} is set: it lists the modules MSW answers for.`,
+        apply: (draft) => {
+          draft.useMocks = true
+        },
+      })
+    }
+    if (env.mockOnly.includes(AUTH_MODULE_ID)) {
+      issues.push({
+        message: `${ENV_KEYS.mockOnly} cannot name "${AUTH_MODULE_ID}" with ${ENV_KEYS.authAdapter}="${env.authAdapter}".`,
+        mockOnlyAdvice: 'auth-listed',
+        apply: (draft) => {
+          draft.mockOnly = draft.mockOnly.filter((id) => id !== AUTH_MODULE_ID)
+          if (draft.mockOnly.length > 0) return
+          // Nothing left to mock beside a backend: what remains is the
+          // self-contained demo, which signs in through the mock adapter.
+          draft.authAdapter = 'mock'
+          draft.sessionPersistence = 'none'
+        },
+      })
+    }
+  }
+
+  // runtimeMode === 'production', or the real half of a hybrid build: from here
+  // on the rules are about the backend, and a hybrid build has one.
+  if (!hybrid && env.mockOnly.length > 0) {
+    issues.push({
+      message: `${ENV_KEYS.mockOnly} is not valid when ${ENV_KEYS.runtimeMode}="production".`,
+      mockOnlyAdvice: 'production',
+      apply: (draft) => {
+        draft.mockOnly = []
+      },
+    })
+  }
+
+  if (!hybrid && env.useMocks) {
     issues.push({
       message: `${ENV_KEYS.useMocks} must be "false" when ${ENV_KEYS.runtimeMode}="production" — MSW is not bundled in a production build.`,
       apply: (draft) => {
@@ -409,7 +549,7 @@ function collectCombinationIssues(
   const apiUrlIssue = describeApiUrlIssue(env.apiUrl, serving)
   if (apiUrlIssue) {
     issues.push({
-      message: `${ENV_KEYS.apiUrl} is not usable in production: ${apiUrlIssue.message}`,
+      message: `${ENV_KEYS.apiUrl} is not usable ${hybrid ? 'with a real backend' : 'in production'}: ${apiUrlIssue.message}`,
       placeholderApiUrl: apiUrlIssue.placeholder,
       apply: (draft) => {
         draft.apiUrl = '/api'
@@ -494,6 +634,41 @@ function describeDevProxyAlternative(apiUrl: URL): string {
 }
 
 /**
+ * Why a rule about `VUESTRATA_MOCK_ONLY` exists, and the way out of it.
+ *
+ * Only the strict parser calls this, like `describeDevProxyAlternative`, so the
+ * explanations stay out of the browser bundle: there, the rule is stated and
+ * corrected, and a production bundle carries one short sentence per rule for a
+ * variable it can never use.
+ */
+function describeMockOnlyAdvice(advice: MockOnlyAdvice): string {
+  switch (advice) {
+    // What a build that kept a real adapter in demo mode was probably after.
+    case 'real-adapter-in-demo':
+      return (
+        `To keep a real adapter and mock only the modules your backend has not built yet, set ` +
+        `${ENV_KEYS.mockOnly} to their ids (docs/1.getting-started/4.develop-against-your-backend.md).`
+      )
+    case 'mock-adapter':
+      return (
+        `The modules it lists are mocked beside a real backend, and the mock adapter signs in ` +
+        `against MSW alone. Set ${ENV_KEYS.authAdapter} to "jwt", "oauth" or an adapter of your ` +
+        `own, or remove ${ENV_KEYS.mockOnly} for the self-contained demo.`
+      )
+    case 'auth-listed':
+      return (
+        `The mock sign-in endpoints and a real adapter cannot both own /auth/*. ` +
+        `Remove "${AUTH_MODULE_ID}" from the list.`
+      )
+    case 'production':
+      return (
+        `MSW and the mock handlers are not bundled in a production build. Remove it, or set ` +
+        `${ENV_KEYS.runtimeMode}="demo" to mock those modules beside a real backend.`
+      )
+  }
+}
+
+/**
  * What is wrong with ONE value taken on its own, or null when it is fine.
  *
  * The rules a value can break without reference to any other: its field's
@@ -562,6 +737,18 @@ function normalize(raw: RawEnv): Record<string, string | undefined> {
 function applyDefaults(parsed: ParsedEnv, isDev: boolean): RuntimeEnv {
   const runtimeMode: RuntimeMode = parsed[ENV_KEYS.runtimeMode] ?? (isDev ? 'demo' : 'production')
   const demo = runtimeMode === 'demo'
+  const mockOnly = parsed[ENV_KEYS.mockOnly] ?? []
+  // The self-contained demo, as opposed to a demo build that lists the modules
+  // to mock: that one talks to a real backend, so its auth defaults are the
+  // ones of a real deployment.
+  const selfContained = demo && mockOnly.length === 0
+  // The schema checked the name against the built-in adapters and the ones
+  // the build read from `auth.config.ts`. The type is the project's own
+  // declaration of those (`RegisteredAuthAdapterNames`), which a schema
+  // cannot see: the build says when the two disagree.
+  const authAdapter =
+    (parsed[ENV_KEYS.authAdapter] as AuthAdapterName | undefined) ??
+    (selfContained ? 'mock' : 'jwt')
 
   return {
     runtimeMode,
@@ -570,18 +757,20 @@ function applyDefaults(parsed: ParsedEnv, isDev: boolean): RuntimeEnv {
     // Defaults follow the mode, so a correct demo/production config needs only
     // one variable set. Explicit values still win — and are then cross-checked.
     useMocks: parsed[ENV_KEYS.useMocks] ?? demo,
-    // The schema checked the name against the built-in adapters and the ones
-    // the build read from `auth.config.ts`. The type is the project's own
-    // declaration of those (`RegisteredAuthAdapterNames`), which a schema
-    // cannot see: the build says when the two disagree.
-    authAdapter:
-      (parsed[ENV_KEYS.authAdapter] as AuthAdapterName | undefined) ?? (demo ? 'mock' : 'jwt'),
+    mockOnly,
+    authAdapter,
     // Default to the strategy that cannot leak a long-lived credential. When
     // the backend does not set a refresh cookie the boot call simply 401s and
     // the user lands on the login page — exactly what happened before this
     // setting existed, so the default is never worse than the old behaviour,
     // and is strictly better against a backend that does support it.
-    sessionPersistence: parsed[ENV_KEYS.sessionPersistence] ?? (demo ? 'none' : 'refresh-cookie'),
+    //
+    // `none` wherever the mock adapter signs in, including a list of modules
+    // set beside it by mistake: that is refused for the adapter, and need not
+    // be refused a second time for a default nobody chose.
+    sessionPersistence:
+      parsed[ENV_KEYS.sessionPersistence] ??
+      (selfContained || (demo && authAdapter === 'mock') ? 'none' : 'refresh-cookie'),
     iconProvider: parsed[ENV_KEYS.iconProvider] ?? 'solar',
     theme: parsed[ENV_KEYS.theme] ?? 'default',
     demoAuth: {
@@ -623,11 +812,14 @@ export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Runt
   if (combination.length > 0) {
     throw new Error(
       `[vuestrata:env] Incompatible environment configuration:\n  - ${combination
-        .map((issue) =>
-          issue.placeholderApiUrl
-            ? `${issue.message} ${describeDevProxyAlternative(issue.placeholderApiUrl)}`
-            : issue.message,
-        )
+        .map((issue) => {
+          if (issue.placeholderApiUrl) {
+            return `${issue.message} ${describeDevProxyAlternative(issue.placeholderApiUrl)}`
+          }
+          return issue.mockOnlyAdvice
+            ? `${issue.message} ${describeMockOnlyAdvice(issue.mockOnlyAdvice)}`
+            : issue.message
+        })
         .join('\n  - ')}`,
     )
   }

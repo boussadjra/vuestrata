@@ -43,7 +43,7 @@
     },
     "scripts/vite/vuestrata-plugin.mjs": {
       "class": "managed",
-      "hash": "sha256-7ff5c4c8dacc3fee97f3b0280fa4afdcaac2cdc35a21b5d1716942c424d05f38",
+      "hash": "sha256-b2b369296ca8408d02b93aa7c8b84aa2473c35c6a5c6bbd34cc59162555dfca0",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/bootstrap/app-env.ts": {
@@ -73,12 +73,17 @@
     },
     "src/modules/app/bootstrap/index.ts": {
       "class": "managed",
-      "hash": "sha256-da712ea84d1a80355ccc00046af5bf5ef0bcf33b1c030e1f9ba5456c4ae5c4c8",
+      "hash": "sha256-f298c2064dc7493bc5b9e883d040bcd248a0e71fe7816694247946eb1d962f7f",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/bootstrap/mock-selection.ts": {
+      "class": "managed",
+      "hash": "sha256-aef81ff46dfb15a84b793946d7ce01a1d8b0ff611f73bd89b57ab0713a35400d",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/bootstrap/mocks.ts": {
       "class": "managed",
-      "hash": "sha256-cd518a44e4c8545738ac6d73b8aedb3f14d539fc26983f434358526015ac62b1",
+      "hash": "sha256-2193f539b4b9e4b9c22419bfcb3a7220ab78cbcb9e5083dffac32ad5ea6393e9",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/bootstrap/query-client.ts": {
@@ -684,7 +689,7 @@
     },
     "src/modules/app/mocks/utils.ts": {
       "class": "managed",
-      "hash": "sha256-c561839b83157d786926cbc8e7f61b99cd582b235ffe6bdae1930c51fc445372",
+      "hash": "sha256-56a602fbebfab49658fa6b56a35a6d51dfd550081d6ad4b93ca78f1c9e8632cd",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/plugins/route-guard.ts": {
@@ -998,7 +1003,7 @@
     },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
-      "hash": "sha256-8c0af5255811a9d77a9e8be021e5b03e43b627a63e64a345392030ba5a158773",
+      "hash": "sha256-d392453a4401803cc5847163a68102d43ad78496aee438b9db12f5d7a773157a",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/config/index.ts": {
@@ -1139,7 +1144,7 @@
   },
   "regions": {
     ".env.example": {
-      "vuestrata:env": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "vuestrata:env": "sha256-ca43abdbff4bfab2cb4595d8513dc85ebb034b1c630ff9a9d79c883a0cb9e51f"
     },
     "src/modules/app/config/theme.config.ts": {
       "vuestrata:themes": "sha256-600438ccf174bf0ffe8ef102721664cdbb701246c49fcd84c45147a394d966d7"

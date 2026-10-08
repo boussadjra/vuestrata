@@ -101,8 +101,10 @@ const BECOMES: Record<string, string> = {
     'sha256-c16bd27f487fc5e8d3e62ad80be1143aaaa15a6fab5334cd9b8190f5a07a8bbe',
   'src/modules/app/plugins/stale-chunk.ts':
     'sha256-fcb5e00e0064205e5b64ec5393db49aafd956ae4f98935e4aed3ad1cf57c6f9f',
+  // After its two codemods: the expired-session notice, and the demo account
+  // shown only with the mock adapter (hybrid-mocks.mjs).
   'src/modules/auth/pages/login.vue':
-    'sha256-1f006949a32b6ba109ddad138a83c2b1d3480887f6946f5af8cde0df830a3939',
+    'sha256-0e4eb0528703998111b7498c2e1f6e7c7cfa207bec173be475bb86ad8419d3d4',
   'docs/6.configuration/2.auth-rbac.md':
     'sha256-06a27b89e0a751c451a8199ba817b1ecba5dc76b10c42053ab4252ce3877bff2',
   'docs/6.configuration/3.auth-deep-dive.md':
@@ -150,7 +152,40 @@ const SPEC = 'e2e/production-artifact.spec.ts'
 const CI = '.github/workflows/ci.yml'
 const JWT = 'src/modules/auth/adapters/jwt.ts'
 
+const HANDLERS = 'src/modules/app/mocks/handlers/index.ts'
+
 const PINNED_TESTS = Object.keys(BECOMES).filter((rel) => rel.startsWith('test/'))
+
+/** The line of the login page that chooses whether to show the demo account, at 1.0. */
+const DEMO_HINT_10 = 'const demoAccount = __VUESTRATA_DEMO__ ? DEMO_ACCOUNT : null\n'
+const DEMO_HINT_11 =
+  "const demoAccount = __VUESTRATA_DEMO__ && runtimeEnv.authAdapter === 'mock' ? DEMO_ACCOUNT : null\n"
+const ICON_IMPORT = "import { resolveIcon } from '~/config/icon-provider'\n"
+const ENV_IMPORT = "import { runtimeEnv } from '~/lib/config'\n"
+
+/**
+ * A 1.0 login page that already chooses the demo hint the way 1.1.0 does, so
+ * that a case about another step of that page has only that step left to run.
+ */
+const pastDemoHint = (page: string) =>
+  page.replace(ICON_IMPORT, ICON_IMPORT + ENV_IMPORT).replace(DEMO_HINT_10, DEMO_HINT_11)
+
+/** What the same step adds to the comment above that line. */
+const DEMO_HINT_COMMENT = ` *
+ * And only where the mock adapter signs in. A demo build can also mock a few
+ * modules beside a real backend (\`VUESTRATA_MOCK_ONLY\`), with a real adapter:
+ * the demo account does not exist there, and the hint would be a lie.
+`
+
+/**
+ * A 1.0 login page that already shows the expired-session message, its own
+ * way: the other step 1.1.0 has for that page finds nothing to do in it.
+ */
+const pastExpiredNotice = (page: string) =>
+  page.replace(
+    '        v-if="error"\n',
+    '        v-if="error || expired"\n        :title="t(\'auth_session_expired\')"\n',
+  )
 
 /** The standing reminder that follows a replaced pair of header generators. */
 const REMINDER = /were replaced .*run `vpr security:headers`/s
@@ -657,11 +692,11 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
     it('leaves a page whose error block was rewritten, and describes the notice', async () => {
       seed([LOGIN])
-      const edited = released(LOGIN).replace(
+      const edited = pastDemoHint(released(LOGIN)).replace(
         '        v-if="error"\n        class="border-danger-200',
         '        v-if="error"\n        role="alert"\n        class="border-danger-200',
       )
-      expect(edited).not.toBe(released(LOGIN))
+      expect(edited).not.toBe(pastDemoHint(released(LOGIN)))
       fixture.write(LOGIN, edited)
 
       const report = await upgrade()
@@ -677,7 +712,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       seed([LOGIN])
       fixture.write(
         LOGIN,
-        released(LOGIN).replace(
+        pastDemoHint(released(LOGIN)).replace(
           '        v-if="error"\n',
           '        v-if="error || expired"\n        :title="t(\'auth_session_expired\')"\n',
         ),
@@ -704,11 +739,11 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       ],
     ])('leaves a page that %s, and describes the notice', async (_what, declarations) => {
       seed([LOGIN])
-      const own = released(LOGIN).replace(
+      const own = pastDemoHint(released(LOGIN)).replace(
         'const notifications = useNotificationStore()\n',
         `const notifications = useNotificationStore()\n${declarations}`,
       )
-      expect(own).not.toBe(released(LOGIN))
+      expect(own).not.toBe(pastDemoHint(released(LOGIN)))
       fixture.write(LOGIN, own)
 
       const report = await upgrade()
@@ -719,6 +754,257 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(texts(report)).toEqual([
         expect.stringMatching(/useRouteQueryParam\('reason'\).*auth_session_expired/s),
       ])
+    })
+  })
+
+  /**
+   * `VUESTRATA_MOCK_ONLY` mocks some modules beside a real backend, in a demo
+   * build with a real adapter. Two of the project's files assumed that a demo
+   * build is always the self-contained demo.
+   */
+  describe('what VUESTRATA_MOCK_ONLY reads in the project’s files', () => {
+    describe('the demo account on the login page', () => {
+      it('is shown only with the mock adapter, on an unedited page', async () => {
+        seed([LOGIN])
+
+        const report = await upgrade()
+
+        const result = fixture.read(LOGIN)
+        expect(result).toContain(ICON_IMPORT + ENV_IMPORT)
+        expect(result).toContain(DEMO_HINT_11)
+        expect(result).not.toContain(DEMO_HINT_10)
+        // The comment above the line says why, as this repository's page does.
+        expect(result).toContain(' * And only where the mock adapter signs in.')
+        expect(inRepo(LOGIN)).toContain(
+          result.slice(
+            result.indexOf('/**\n * Demo credential hint.'),
+            result.indexOf(DEMO_HINT_11),
+          ),
+        )
+        expect(report.notes).toEqual([])
+      })
+
+      it('changes nothing else in the page', async () => {
+        seed([LOGIN])
+        const page = pastExpiredNotice(released(LOGIN))
+        fixture.write(LOGIN, page)
+
+        await upgrade()
+
+        // Take what this step writes back out, and the page is the one it was given.
+        const result = fixture.read(LOGIN)
+        expect(result).not.toBe(page)
+        expect(
+          result
+            .replace(ENV_IMPORT, '')
+            .replace(DEMO_HINT_11, DEMO_HINT_10)
+            .replace(DEMO_HINT_COMMENT, ''),
+        ).toBe(page)
+      })
+
+      it('keeps the line endings of a CRLF page', async () => {
+        seed([LOGIN])
+        fixture.write(LOGIN, lf(released(LOGIN)).replaceAll('\n', '\r\n'))
+
+        const report = await upgrade()
+
+        const result = fixture.read(LOGIN)
+        expect(result).toContain(DEMO_HINT_11.replace('\n', '\r\n'))
+        expect(result.replaceAll('\r\n', '')).not.toContain('\n')
+        expect(report.notes).toEqual([])
+      })
+
+      it('still changes the line under a comment the project reworded', async () => {
+        seed([LOGIN])
+        fixture.write(
+          LOGIN,
+          released(LOGIN).replace(
+            ' * the address does not appear in the bundle at all.\n',
+            ' * the address is not in the bundle.\n',
+          ),
+        )
+
+        const report = await upgrade()
+
+        const result = fixture.read(LOGIN)
+        expect(result).toContain(' * the address is not in the bundle.\n */\n' + DEMO_HINT_11)
+        expect(result).toContain(ENV_IMPORT)
+        expect(report.notes).toEqual([])
+      })
+
+      it('is quiet for a page that no longer shows the demo account', async () => {
+        seed([LOGIN])
+        const own = pastExpiredNotice(released(LOGIN)).replace(
+          DEMO_HINT_10,
+          'const demoAccount = null\n',
+        )
+        fixture.write(LOGIN, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(LOGIN)).toBe(own)
+        expect(report.notes).toEqual([])
+      })
+
+      it('is quiet for a page that already asks about the adapter', async () => {
+        seed([LOGIN])
+        const own = pastExpiredNotice(released(LOGIN)).replace(
+          DEMO_HINT_10,
+          'const demoAccount = __VUESTRATA_DEMO__ && isMock ? DEMO_ACCOUNT : null\n',
+        )
+        fixture.write(LOGIN, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(LOGIN)).toBe(own)
+        expect(report.notes).toEqual([])
+      })
+
+      it.each([
+        [
+          'wrote the condition its own way',
+          (page: string) =>
+            page.replace(
+              DEMO_HINT_10,
+              'const demoAccount = __VUESTRATA_DEMO__ ? DEMO_ACCOUNT : undefined\n',
+            ),
+        ],
+        [
+          'already declares `runtimeEnv` for something else',
+          (page: string) =>
+            page.replace(
+              'const notifications = useNotificationStore()\n',
+              'const notifications = useNotificationStore()\nconst runtimeEnv = useRuntime()\n',
+            ),
+        ],
+        [
+          'imports the icons from somewhere else',
+          (page: string) => page.replace(ICON_IMPORT, "import { resolveIcon } from '@/icons'\n"),
+        ],
+      ])('leaves a page that %s, and says what to write', async (_what, edit) => {
+        seed([LOGIN])
+        const own = edit(pastExpiredNotice(released(LOGIN)))
+        expect(own).not.toBe(pastExpiredNotice(released(LOGIN)))
+        fixture.write(LOGIN, own)
+
+        const report = await upgrade()
+
+        // Not the condition without its import: the page would not compile.
+        expect(fixture.read(LOGIN)).toBe(own)
+        expect(changed(report)).toEqual([])
+        expect(texts(report)).toEqual([
+          expect.stringMatching(
+            /login\.vue is yours.*VUESTRATA_MOCK_ONLY.*import \{ runtimeEnv \} from '~\/lib\/config'.*runtimeEnv\.authAdapter === 'mock' \? DEMO_ACCOUNT : null/s,
+          ),
+        ])
+      })
+
+      it('does not mistake a comment about the old line for the line', async () => {
+        seed([LOGIN])
+        const own = pastExpiredNotice(pastDemoHint(released(LOGIN))).replace(
+          DEMO_HINT_11,
+          `// was: __VUESTRATA_DEMO__ ? DEMO_ACCOUNT : null\n${DEMO_HINT_11}`,
+        )
+        fixture.write(LOGIN, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(LOGIN)).toBe(own)
+        expect(report.notes).toEqual([])
+      })
+
+      it('has nothing left to do on the next upgrade', async () => {
+        seed([LOGIN])
+        await upgrade()
+        const once = fixture.read(LOGIN)
+
+        const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+        expect(fixture.read(LOGIN)).toBe(once)
+        expect(again.notes).toEqual([])
+        expect(changed(again)).toEqual([])
+      })
+    })
+
+    describe('the static mock handlers', () => {
+      it('are grouped by module id in an unedited file, which becomes the one this release ships', async () => {
+        seed([HANDLERS])
+
+        const report = await upgrade()
+
+        expect(fixture.read(HANDLERS)).toBe(lf(inRepo(HANDLERS)))
+        expect(fixture.read(HANDLERS)).toContain('export const handlerSets = {')
+        expect(changed(report)).toEqual([HANDLERS])
+        expect(report.notes).toEqual([])
+      })
+
+      it('keep the flat list an ordinary demo starts exactly as it was', async () => {
+        seed([HANDLERS])
+
+        await upgrade()
+
+        expect(fixture.read(HANDLERS).startsWith(released(HANDLERS))).toBe(true)
+      })
+
+      it('keep the line endings of a CRLF file', async () => {
+        seed([HANDLERS])
+        fixture.write(HANDLERS, lf(released(HANDLERS)).replaceAll('\n', '\r\n'))
+
+        await upgrade()
+
+        const result = fixture.read(HANDLERS)
+        expect(result).toContain('export const handlerSets = {\r\n')
+        expect(result.replaceAll('\r\n', '')).not.toContain('\n')
+      })
+
+      it.each([
+        [
+          'added a set of its own to the list',
+          (file: string) =>
+            file.replace('  ...auditHandlers,\n', '  ...auditHandlers,\n  ...invoiceHandlers,\n'),
+        ],
+        [
+          'removed a set from the list',
+          (file: string) => file.replace('  ...billingHandlers,\n', ''),
+        ],
+        [
+          'already groups its handlers',
+          (file: string) => `${file}\nexport const handlerSets = { users: usersHandlers }\n`,
+        ],
+      ])('are left alone, without a note, in a file that %s', async (_what, edit) => {
+        seed([HANDLERS])
+        const own = edit(released(HANDLERS))
+        expect(own).not.toBe(released(HANDLERS))
+        fixture.write(HANDLERS, own)
+
+        const report = await upgrade()
+
+        // The app says what to export when the variable is set; an upgrade
+        // report is not the place for a feature the project may never turn on.
+        expect(fixture.read(HANDLERS)).toBe(own)
+        expect(report.notes).toEqual([])
+        expect(changed(report)).toEqual([])
+      })
+
+      it('have nothing left to do on the next upgrade', async () => {
+        seed([HANDLERS])
+        await upgrade()
+        const once = fixture.read(HANDLERS)
+
+        const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+        expect(fixture.read(HANDLERS)).toBe(once)
+        expect(changed(again)).toEqual([])
+      })
+
+      it('is not missed by a project that has no such file', async () => {
+        seed([LOGIN])
+
+        const report = await upgrade()
+
+        expect(fixture.exists(HANDLERS)).toBe(false)
+        expect(report.notes).toEqual([])
+      })
     })
   })
 

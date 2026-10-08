@@ -303,6 +303,12 @@ export function vuestrataEnv(options = {}) {
           // demo path (MSW, seeded IndexedDB users, demo credentials) out of a
           // production bundle. `appConfig` cannot do this — it is a runtime
           // value. Forced on under test so demo-state suites keep working.
+          //
+          // Also true for a demo build that mocks only the modules in
+          // VUESTRATA_MOCK_ONLY beside a real backend: the mocks have to be
+          // compiled in there too, and every module barrel reads this one
+          // constant for that. What such a build must not do (the demo
+          // account, the seeded admin) is decided by the adapter being `mock`.
           __VUESTRATA_DEMO__: JSON.stringify(mode === 'test' ? true : isDemoBuild),
           // The registrations just validated against, for the browser's own
           // (lenient) parse in core/lib/config: it must accept the adapter

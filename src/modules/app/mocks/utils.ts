@@ -6,7 +6,13 @@
  * inside the auth module's mocks so non-auth modules (billing, users, etc.)
  * can authorize their requests without importing from `@/modules/auth`.
  */
-import { runtimeEnv } from '~/lib/config'
+import { isHybridRuntime, runtimeEnv } from '~/lib/config'
+
+/**
+ * True when MSW answers for the modules in `VUESTRATA_MOCK_ONLY` alone, and a
+ * real backend answers for everything else. Fixed for the life of the page.
+ */
+const BESIDE_A_BACKEND = isHybridRuntime(runtimeEnv)
 
 /**
  * The path the API is mounted at, taken from the same validated env the real
@@ -21,6 +27,27 @@ const API_BASE_PATH = ((): string => {
     return path.replace(/\/+$/, '')
   } catch {
     return ''
+  }
+})()
+
+/**
+ * What a pattern puts in front of the base path: any origin, in the demo.
+ *
+ * Beside a real backend on ANOTHER origin it is that origin, exactly. The
+ * backend's mount point is not ours to choose there, and many serve from the
+ * root: `http://localhost:8000` gives an empty base path, and `*​/orders/:id`
+ * would then claim `/src/modules/orders/index.ts` on the dev server, which is
+ * the failure described below. Naming the origin leaves the app's own origin
+ * out of it. A same-origin API (`/api`, behind the dev proxy) keeps the `*`:
+ * its base path is the namespace.
+ */
+const API_ORIGIN = ((): string => {
+  const raw = runtimeEnv.apiUrl
+  if (!BESIDE_A_BACKEND || typeof raw !== 'string' || raw.startsWith('/')) return '*'
+  try {
+    return new URL(raw).origin
+  } catch {
+    return '*'
   }
 })()
 
@@ -47,10 +74,21 @@ const API_BASE_PATH = ((): string => {
  * page. Give the API a path of its own.
  */
 export function mockApiUrl(path: string): string {
-  return `*${API_BASE_PATH}${path}`
+  return `${API_ORIGIN}${API_BASE_PATH}${path}`
 }
 
+/**
+ * Whether a mocked endpoint should answer this request.
+ *
+ * In the demo, only for a token the mock adapter issued. Beside a real backend
+ * (`VUESTRATA_MOCK_ONLY`), for any request: the token is that backend's, which
+ * nothing here can verify, or there is none at all under cookie transport. A
+ * mock is a stand-in for an endpoint that does not exist yet, not a security
+ * boundary, and one that answered 401 to a signed-in user would only send the
+ * app into a refresh it cannot win.
+ */
 export function isValidToken(request: Request): boolean {
+  if (BESIDE_A_BACKEND) return true
   const auth = request.headers.get('Authorization')
   if (!auth?.startsWith('Bearer ')) return false
   const token = auth.slice('Bearer '.length)
