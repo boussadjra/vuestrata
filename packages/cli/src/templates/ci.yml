@@ -1,0 +1,232 @@
+# CI for this project.
+#
+# Written once, by `vuestrata add ci` or `vuestrata eject`. It is YOUR file from
+# then on: `vuestrata upgrade` never rewrites it and `vuestrata doctor` never
+# compares it, so change whatever your team needs. `vuestrata add ci --force`
+# writes the current version over it, if you ever want to start again.
+#
+# What it runs, and why each job is there:
+#   {{docs}}
+#
+# Two repository variables (Settings → Secrets and variables → Actions →
+# Variables) decide what the production build is built with. Neither has to be
+# set for the first run to pass:
+#
+#   VUESTRATA_API_URL        default https://api.vuestrata.invalid
+#   VUESTRATA_AUTH_ADAPTER   default jwt
+name: CI
+
+on:
+  push:
+    branches: ['{{branch}}']
+  pull_request:
+
+# A newer push to the same branch makes an in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Held to .nvmrc by scripts/lint/check-toolchain-pins.mjs, which `vp run lint`
+  # runs: change the Node version there, and here in the same commit.
+  NODE_VERSION: '{{node}}'
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      # Only for what it generates: the route and auto-import typings are not
+      # committed, and the type-aware steps below read them. The artifact that
+      # counts is built, with its real configuration, by the build job.
+      - name: Generate the route and import typings
+        run: vp build
+      - run: vp check
+      - run: vp run lint
+      # `vp check` does not type-check .vue files the way vue-tsc does.
+      - run: vp exec vue-tsc --noEmit
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      - run: vp run test --run --coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+
+  build:
+    name: Build (production)
+    runs-on: ubuntu-latest
+    needs: [check, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      # A PRODUCTION build: no mock backend, no demo account. The API URL and
+      # the auth adapter come from the repository's variables. The defaults make
+      # the first run pass before anything is set up: `api.vuestrata.invalid`
+      # is a host the build accepts and nothing can ever answer on, so set
+      # VUESTRATA_API_URL before you deploy what this job uploads.
+      - name: Build
+        env:
+          VUESTRATA_RUNTIME_MODE: production
+          VUESTRATA_USE_MOCKS: 'false'
+          VUESTRATA_AUTH_ADAPTER: ${{ vars.VUESTRATA_AUTH_ADAPTER || 'jwt' }}
+          VUESTRATA_API_URL: ${{ vars.VUESTRATA_API_URL || 'https://api.vuestrata.invalid' }}
+          VUESTRATA_RELEASE: ${{ github.sha }}
+        run: vp build
+
+      # Type checking and tests cannot see what ends up in the bundle. This is
+      # the check that catches the mock backend or the demo account reaching a
+      # production artifact, and a payload that outgrew its budget.
+      - name: Verify bundle invariants
+        run: node scripts/build/verify-bundle.mjs --mode=production
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-production
+          path: dist/
+          retention-days: 7
+
+  e2e:
+    name: E2E (chromium)
+    runs-on: ubuntu-latest
+    # After build, so a broken bundle fails cheaply, before any browser time.
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The browser download is the slow part of this job, and it changes only
+      # when Playwright does. The install step still runs on a hit: it is what
+      # installs the system libraries, which no cache holds.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: vp exec playwright install --with-deps chromium
+
+      # E2E_TARGET=preview makes Playwright build the app and serve dist/, so
+      # the suite runs against a real bundle. That build is the DEMO one (mock
+      # backend, mock sign-in: see playwright.config.ts), because the specs need
+      # a backend that answers. Running them against your own backend is a
+      # matter of E2E_TARGET=external and E2E_BASE_URL.
+      - name: Run E2E against the preview build
+        env:
+          E2E_TARGET: preview
+        run: vpr test:e2e -- --project=chromium
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # @docker:start
+  # The image is what a container deployment ships, and `verify-bundle` only
+  # reads files on disk: it cannot tell you the app mounts behind nginx. Built
+  # here and opened in a browser, never pushed. Delete this job if you stop
+  # shipping a container.
+  docker:
+    name: Docker image (production artifact)
+    runs-on: ubuntu-latest
+    needs: [check, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The image takes its API URL when a container STARTS (VUESTRATA_API_URL
+      # in its environment), so one image serves every environment. `/api` is
+      # only what a container started without one falls back to.
+      - name: Build the image
+        run: |
+          docker build \
+            --build-arg VUESTRATA_RELEASE=${{ github.sha }} \
+            --build-arg VUESTRATA_API_URL=/api \
+            -t app:ci .
+
+      - name: Start the container
+        run: |
+          docker run -d --name app-ci -p 8080:8080 app:ci
+          # Poll the endpoint the image's HEALTHCHECK uses rather than sleeping
+          # an arbitrary number of seconds.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs app-ci
+          exit 1
+
+      - run: vp exec playwright install --with-deps chromium
+
+      - name: Smoke-test the running production artifact
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8080
+        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+
+      - name: Container logs
+        if: always()
+        run: docker logs app-ci || true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-docker
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+  # @docker:end
+
+  # No deploy job. Where this ships (a container registry, a static host, an
+  # object store behind a CDN) and who may trigger it are your decisions, and a
+  # guess here would publish something. "Adding a deploy job" in the page linked
+  # at the top shows where one goes and what it should wait for.
+
+  # Single required status check. Point branch protection at this one job and it
+  # stays correct as jobs are added or renamed.
+  ci-ok:
+    name: CI OK
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [check, test, build, e2e, docker]
+    steps:
+      - name: Fail if any dependency failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One or more CI jobs did not succeed."
+          exit 1
+      - run: echo "All CI jobs succeeded."
