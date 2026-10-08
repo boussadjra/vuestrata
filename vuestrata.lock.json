@@ -28,12 +28,12 @@
     },
     "scripts/security/headers.mjs": {
       "class": "managed",
-      "hash": "sha256-0d6ad5cc755f3250a70e7e0178fc79887ebc7a0d630b6d72b98b1b4322491c74",
+      "hash": "sha256-e6e62325f8577e287646713c1ae46a8ed4411f1cfc226e4c3d77e799bc98b0f9",
       "since": "1.1.0-alpha.0"
     },
     "scripts/security/sync-headers.mjs": {
       "class": "managed",
-      "hash": "sha256-e31b091aa89e0aca6dd5511f6ac9feee52466944bd95930c9ffd3f2cdb2565fd",
+      "hash": "sha256-620a99d024ef1ee368edc94beb90ff28823e432d251b4c98778b8d3ec12a227d",
       "since": "1.1.0-alpha.0"
     },
     "scripts/vite/vuestrata-plugin.d.mts": {
