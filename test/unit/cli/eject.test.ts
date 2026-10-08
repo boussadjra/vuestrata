@@ -16,6 +16,8 @@ import { dropCliRoundtrip, rewriteDocLinks } from '../../../packages/cli/src/lib
 import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
 // @ts-expect-error - see above.
 import { loadManifest } from '../../../packages/cli/src/lib/manifest.mjs'
+// @ts-expect-error - see above.
+import { blankRegions } from '../../../packages/cli/src/lib/registry.mjs'
 import { createFixture, type Fixture } from './fixture'
 
 const { driftedFiles, emptyLock, hashFor, readLock, writeLock } = lockfile
@@ -371,7 +373,9 @@ describe('eject and the files Vuestrata owns', () => {
   // belongs to no module, so there is nothing of a role to withdraw: the ones
   // a project declared stay exactly as written.
   it('leaves the roles a project declared as they are, and still drifts nothing', () => {
-    const declared = real(OVERRIDES)
+    // From the file with its regions emptied: a project that has declared a
+    // role of its own already would otherwise get this one twice.
+    const declared = (blankRegions(real(OVERRIDES)) as string)
       .replace('    // app:roles-start\n', '    // app:roles-start\n    auditor: true\n')
       .replace(
         '    // app:role-definitions-start\n',

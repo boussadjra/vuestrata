@@ -23,7 +23,7 @@ import { createFixture, type Fixture } from './fixture'
 
 const { driftedFiles, emptyLock, hashFor, readLock, recordProvenance, writeLock } = lockfile
 const { DEFAULT_SLOTS, loadManifest, missingSlots, SEEDED_SLOTS } = manifests
-const { ANCHORED_REGISTRIES, hasSentinel, readRegion } = registry
+const { ANCHORED_REGISTRIES, blankRegions, hasSentinel, readRegion } = registry
 
 /**
  * What a generator may and may not touch.
@@ -42,6 +42,14 @@ const REGISTRY = 'src/modules/setup.ts'
 
 const real = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
 
+/**
+ * `rbac.overrides.ts` as a project has it before any generator ran: the file of
+ * this checkout with its `app:` regions emptied. In the template that is the
+ * file itself. In a project that has already run `add module invoices`, the
+ * file itself would make every case below a second run of the same generator.
+ */
+const seam = () => blankRegions(real(OVERRIDES))
+
 const SETUP = `import customersModule from './customers'
 import usersModule from './users'
 
@@ -59,9 +67,10 @@ let fixture: Fixture
 
 beforeEach(() => {
   fixture = createFixture()
-  for (const rel of [TYPES, INHERITANCE, OVERRIDES, UI_BARREL, FORMS_BARREL]) {
+  for (const rel of [TYPES, INHERITANCE, UI_BARREL, FORMS_BARREL]) {
     fixture.write(rel, real(rel))
   }
+  fixture.write(OVERRIDES, seam())
   fixture.write(REGISTRY, SETUP)
 
   const lock = emptyLock('1.0.0')
@@ -140,7 +149,7 @@ describe('add module', () => {
     expect(edited).not.toContain(INHERITANCE)
     expect(plan.validate()).toEqual([])
     // Planning wrote nothing.
-    expect(fixture.read(OVERRIDES)).toBe(real(OVERRIDES))
+    expect(fixture.read(OVERRIDES)).toBe(seam())
   })
 
   it('tells the user to grant in rbac.overrides.ts, not in inheritance.ts', () => {

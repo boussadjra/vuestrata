@@ -3,7 +3,7 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { CLI_PRESENT, loadCli } from './cli'
+import { CLI_PRESENT, loadCli, MAINTAINER } from './cli'
 import { createFixture, type Fixture, writePayload } from './fixture'
 
 const { diagnose } = await loadCli('src/commands/doctor.mjs')
@@ -13,7 +13,7 @@ const { driftedFiles, emptyLock, hashFor, readLock, recordProvenance, writeLock 
   await loadCli('src/lib/lockfile.mjs')
 const { deriveModuleNames } = await loadCli('src/lib/naming.mjs')
 const { Plan } = await loadCli('src/lib/plan.mjs')
-const { ANCHORED_REGISTRIES, hasSentinel, readRegion, REGIONS, regionNames } =
+const { ANCHORED_REGISTRIES, blankRegions, hasSentinel, readRegion, REGIONS, regionNames } =
   await loadCli('src/lib/registry.mjs')
 
 /**
@@ -37,6 +37,13 @@ const BACKENDS = 'src/modules/app/state/runtime-backends.ts'
 const REGISTRY = 'src/modules/setup.ts'
 
 const real = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
+
+/**
+ * The seam before anything was written into it: this checkout's file with its
+ * `app:` regions emptied. The template's own file is that already; a project's
+ * holds what the project declared, which is not what these cases start from.
+ */
+const seam = (): string => blankRegions(real(OVERRIDES))
 
 /** The seeded file with a role declared, defined and granted by hand, as the recipe says. */
 function withRoles(source: string) {
@@ -82,7 +89,7 @@ let fixture: Fixture
 beforeEach(() => {
   fixture = createFixture()
   for (const rel of [TYPES, INHERITANCE, BACKENDS]) fixture.write(rel, real(rel))
-  fixture.write(OVERRIDES, withRoles(real(OVERRIDES)))
+  fixture.write(OVERRIDES, withRoles(seam()))
   fixture.write(REGISTRY, SETUP)
   fixture.write(
     'src/modules/customers/index.ts',
@@ -137,8 +144,8 @@ describe.skipIf(!CLI_PRESENT)('the role regions of rbac.overrides.ts', () => {
     for (const entry of entries) expect(entry.upstream).toBe(false)
   })
 
-  it('ship empty in the seeded file, each a region of its own', () => {
-    const shipped = real(OVERRIDES)
+  it('are in the seeded file, each a region of its own', () => {
+    const shipped = seam()
 
     expect(regionNames(shipped)).toEqual([
       'permissions',
@@ -148,9 +155,15 @@ describe.skipIf(!CLI_PRESENT)('the role regions of rbac.overrides.ts', () => {
       'withdrawn',
     ])
     expect(regionNames(shipped, { scope: 'vuestrata' })).toEqual([])
-    for (const name of regionNames(shipped)) expect(readRegion(shipped, `app:${name}`)).toEqual([])
     // One name is not read as the other: `app:roles` is not a prefix match.
     expect(hasSentinel(shipped.replace(/.*app:roles-(start|end)\n/g, ''), 'app:roles')).toBe(false)
+  })
+
+  // What a project puts in its regions is its own business; the template
+  // ships every one of them empty.
+  it.runIf(MAINTAINER)('ship empty', () => {
+    const shipped = real(OVERRIDES)
+    for (const name of regionNames(shipped)) expect(readRegion(shipped, `app:${name}`)).toEqual([])
   })
 
   it('leave doctor with nothing to say about a project that declared a role', () => {
@@ -188,7 +201,7 @@ describe.skipIf(!CLI_PRESENT)('a project that declared a role', () => {
       apply: true,
       source: writePayload(fixture.payload, {
         version: '1.2.0',
-        seeded: { [OVERRIDES]: `${real(OVERRIDES)}// a later release's copy\n` },
+        seeded: { [OVERRIDES]: `${seam()}// a later release's copy\n` },
       }),
       migrations: [],
     })

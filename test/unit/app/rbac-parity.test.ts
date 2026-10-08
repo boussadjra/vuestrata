@@ -27,7 +27,14 @@ import { createUser } from '../../fixtures'
  * for every permission the template knows.
  */
 
-const PROBES: Permission[] = [...new Set(ROLE_HIERARCHY.flatMap((r) => resolveRolePermissions(r)))]
+// Asked for inside a test, like `expected` below and for the same reason: what
+// a role holds depends on the project's `rbac.overrides.ts`, installed by the
+// setup that runs before each test. Worked out while the file is collected, the
+// list would lack every permission the project granted to a built-in role, and
+// each role row would fail on a permission nobody probed.
+const probes = (): Permission[] => [
+  ...new Set(ROLE_HIERARCHY.flatMap((r) => resolveRolePermissions(r))),
+]
 
 function navModule(): ModuleDefinition {
   return {
@@ -38,7 +45,7 @@ function navModule(): ModuleDefinition {
       version: '1.0.0',
       category: 'content',
     },
-    navItems: PROBES.map((permission) => ({
+    navItems: probes().map((permission) => ({
       label: permission,
       icon: 'file',
       to: `/${permission}`,
@@ -81,7 +88,7 @@ async function surfaces(): Promise<Surfaces> {
   return {
     // No `requiresAuth`, so a signed-out visitor is judged on permissions too.
     guard: new Set(
-      PROBES.filter(
+      probes().filter(
         (permission) =>
           resolveRouteAccess(
             { fullPath: `/${permission}`, meta: { requiredPermission: permission } },
@@ -89,7 +96,7 @@ async function surfaces(): Promise<Surfaces> {
           ).type === 'allow',
       ),
     ),
-    rbac: new Set(PROBES.filter((permission) => can(permission))),
+    rbac: new Set(probes().filter((permission) => can(permission))),
     nav: new Set(groups.value.flatMap((group) => group.items.map((item) => item.label))),
   }
 }
