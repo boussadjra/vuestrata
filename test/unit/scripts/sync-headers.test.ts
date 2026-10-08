@@ -1208,8 +1208,10 @@ describe('the CLI', { timeout: 60_000 }, () => {
   it('is what the Dockerfile asks for, with the API URL of the build', () => {
     const dockerfile = fs.readFileSync(path.join(process.cwd(), 'Dockerfile'), 'utf8')
 
+    // With the base path of the build as well, on a continuation line: the
+    // locations and the SPA fallback of the image follow it.
     expect(dockerfile).toMatch(
-      /^RUN node scripts\/security\/sync-headers\.mjs --runtime-config --api-url="\$VUESTRATA_API_URL"$/m,
+      /^RUN node scripts\/security\/sync-headers\.mjs --runtime-config --api-url="\$VUESTRATA_API_URL" \\\r?\n +--base-path="\$VUESTRATA_BASE_PATH"$/m,
     )
     // And before the build, which reads index.html.
     expect(dockerfile.indexOf('sync-headers.mjs --runtime-config')).toBeLessThan(

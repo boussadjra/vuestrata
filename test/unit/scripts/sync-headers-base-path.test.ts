@@ -412,7 +412,8 @@ describe('the paths the image answers itself, under a base', () => {
       // "no path prefix" and never routes.
       .filter(Boolean)
 
-    expect(locations.sort()).toEqual([...headers.reservedApiPaths(BASE)].sort())
+    const reserved = headers.reservedApiPaths(BASE) as string[]
+    expect(locations.sort()).toEqual([...reserved].sort())
   })
 
   it('refuse an image whose own default API would take the app', () => {
