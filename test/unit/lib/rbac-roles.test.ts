@@ -517,7 +517,7 @@ describe('what the e2e helpers can load without a bundler', () => {
     const imports = (file: string) =>
       [...fs.readFileSync(`src/modules/core/lib/rbac/${file}`, 'utf8').matchAll(/from '([^']+)'/g)]
         .map((match) => match[1])
-        .sort()
+        .toSorted()
 
     expect(imports('role-graph.ts')).toEqual(['./types', '~/lib/runtime'])
     expect(imports('inheritance.ts')).toEqual(['./role-graph', './types', '~/lib/runtime'])
