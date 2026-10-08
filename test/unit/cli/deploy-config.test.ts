@@ -20,17 +20,19 @@ const wiring = await loadCli('src/lib/deploy-wiring.mjs')
 
 /**
  * `deploy.config.ts`, as the CLI sees it: a seam an upgrade writes once and
- * then never touches, read by two of Vuestrata's own scripts.
+ * then never touches, read by three of Vuestrata's own scripts.
  *
  * The second half is the part that can go wrong quietly. A project that edited
- * its copy of the Vite plugin or of the header generator keeps that copy, and
- * a copy from before the file existed does not read it. The project then has a
- * config that looks effective and does nothing, and only `doctor` says so.
+ * its copy of the Vite plugin, of the header generator or of the bundle check
+ * keeps that copy, and a copy from before the file existed does not read it.
+ * The project then has a config that looks effective and does nothing, and
+ * only `doctor` says so.
  */
 
 const SEAM = 'src/modules/app/config/deploy.config.ts'
 const PLUGIN = 'scripts/vite/vuestrata-plugin.mjs'
 const GENERATOR = 'scripts/security/sync-headers.mjs'
+const BUNDLE_CHECK = 'scripts/build/verify-bundle.mjs'
 
 const FLAGS = { 'allow-dirty': true, 'no-format': true }
 
@@ -227,10 +229,34 @@ describe.skipIf(!CLI_PRESENT)('doctor and a deploy.config.ts that nothing reads'
   it('recognises the copies this release ships', () => {
     expect(wiring.readsDeployConfig(real(PLUGIN))).toBe(true)
     expect(wiring.readsDeployConfig(real(GENERATOR))).toBe(true)
+    expect(wiring.readsDeployConfig(real(BUNDLE_CHECK))).toBe(true)
     expect(wiring.DEPLOY_CONFIG_READERS.map((reader: { file: string }) => reader.file)).toEqual([
       PLUGIN,
       GENERATOR,
+      BUNDLE_CHECK,
     ])
+  })
+
+  // Until 1.1.0 a budget was raised by editing the script, so this is the copy
+  // a project is most likely to have kept. Its `bundle` key then does nothing.
+  it('warns about a bundle check the project kept from before it read the file', () => {
+    write(BUNDLE_CHECK, 'const INITIAL_PAYLOAD_BUDGET_GZIP = 900 * 1024\n')
+    writeLock(project, emptyLock('1.2.0'))
+
+    const text = warningsOf()
+
+    expect(text).toMatch(
+      /deploy\.config\.ts exists, but scripts\/build\/verify-bundle\.mjs does not read it/,
+    )
+    expect(text).toContain('A budget you changed in the script belongs under `bundle` now')
+    expect(text).toContain(`vuestrata adopt ${BUNDLE_CHECK}`)
+  })
+
+  it('says nothing about a bundle check that reads the file', () => {
+    write(BUNDLE_CHECK, real(BUNDLE_CHECK))
+    writeLock(project, emptyLock('1.2.0'))
+
+    expect(warningsOf()).not.toMatch(/verify-bundle\.mjs does not read it/)
   })
 
   it('warns, per script, when the project edited a copy from before the file existed', () => {

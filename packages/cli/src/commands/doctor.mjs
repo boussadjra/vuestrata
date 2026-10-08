@@ -348,9 +348,10 @@ function unwiredApiOverrides({ root, manifest }) {
  * A warning for each script that should read the project's `deploy.config.ts`
  * and is a copy that does not.
  *
- * The Vite plugin and the header generator are what give the file its effect.
- * A copy from before it existed ignores it, so the variables, runtime keys and
- * header sources declared there do nothing — and nothing fails to say so.
+ * The Vite plugin, the header generator and the bundle check are what give the
+ * file its effect. A copy from before it existed ignores it, so the variables,
+ * runtime keys, header sources and budgets declared there do nothing — and
+ * nothing fails to say so.
  * `skip` names the copies an upgrade is about to replace.
  */
 function unreadDeployConfig({ root, manifest, skip = () => false }) {

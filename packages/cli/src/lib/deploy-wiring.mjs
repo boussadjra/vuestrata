@@ -1,11 +1,12 @@
 /**
  * How `deploy.config.ts` reaches the tooling that acts on it.
  *
- * The file is data. Two of Vuestrata's scripts read it: the Vite plugin, which
+ * The file is data. Three of Vuestrata's scripts read it: the Vite plugin, which
  * validates the variables it declares and makes every page load
- * `runtime-config.js`, and the header generator, which turns its `headers` and
- * `runtime` into the CSP and the container's key list. Both are Vuestrata's, so
- * a pristine project gets the copies that read it from the upgrade.
+ * `runtime-config.js`, the header generator, which turns its `headers` and
+ * `runtime` into the CSP and the container's key list, and the bundle check,
+ * which takes its budgets from `bundle`. All are Vuestrata's, so a pristine
+ * project gets the copies that read it from the upgrade.
  *
  * An edited copy stays as it was. The project then has a `deploy.config.ts`
  * that looks effective and is not: nothing validates it, nothing widens the
@@ -32,6 +33,15 @@ export const DEPLOY_CONFIG_READERS = [
     consequence:
       'the `headers` and `runtime` you declare there reach neither the generated security ' +
       'headers nor docker/runtime/keys',
+  },
+  {
+    // The copy a project is most likely to have edited: until 1.1.0, raising a
+    // budget meant changing a number in this script.
+    file: 'scripts/build/verify-bundle.mjs',
+    consequence:
+      'the budgets and on-demand chunks you declare there under `bundle` are not what your ' +
+      'build is checked against: the numbers in that copy are. A budget you changed in the ' +
+      'script belongs under `bundle` now, which leaves nothing of yours in the script',
   },
 ]
 
