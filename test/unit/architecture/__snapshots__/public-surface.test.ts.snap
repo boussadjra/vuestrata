@@ -182,6 +182,7 @@ exports[`public surface > exposes a stable set of environment variables 1`] = `
   "VUESTRATA_API_URL",
   "VUESTRATA_APP_TITLE",
   "VUESTRATA_AUTH_ADAPTER",
+  "VUESTRATA_BASE_PATH",
   "VUESTRATA_DEMO_AUTH_RETENTION_HOURS",
   "VUESTRATA_ERROR_REPORTING_DSN",
   "VUESTRATA_ICON_PROVIDER",

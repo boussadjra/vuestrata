@@ -17,7 +17,7 @@
  * root of the origin wherever the app is mounted. A backend that lives under
  * the prefix says so in that variable (`/console/api`).
  */
-import { DEFAULT_BASE_PATH, describeBasePathIssue } from './env.schema'
+import { DEFAULT_BASE_PATH, isBasePath } from './env.schema'
 
 /**
  * The path prefix the app is served under: `/`, or `/console/`. Always starts
@@ -31,7 +31,7 @@ export function appBasePath(): string {
   const base: unknown = import.meta.env.BASE_URL
   if (typeof base !== 'string') return DEFAULT_BASE_PATH
   const closed = base.endsWith('/') ? base : `${base}/`
-  return describeBasePathIssue(closed) === null ? closed : DEFAULT_BASE_PATH
+  return isBasePath(closed) ? closed : DEFAULT_BASE_PATH
 }
 
 /** C0 controls and DEL, which a browser strips from a URL before reading it. */

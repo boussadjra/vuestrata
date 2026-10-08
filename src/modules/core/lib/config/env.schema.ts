@@ -278,7 +278,24 @@ export const DEFAULT_BASE_PATH = '/'
 const BASE_PATH = /^\/(?:[A-Za-z0-9._~-]+\/)*$/
 
 /**
+ * Whether `value` is a base path: `/`, or `/console/`. The rule itself, and
+ * all of it that runs in a browser; `describeBasePathIssue` says the same in
+ * words, for a build.
+ */
+export function isBasePath(value: string): boolean {
+  return (
+    BASE_PATH.test(value) &&
+    !value.split('/').some((segment) => segment === '.' || segment === '..')
+  )
+}
+
+/**
  * What stops `value` from being a base path, or null when it is one.
+ *
+ * Only the strict parser and the Vite plugin call this, both in Node, so the
+ * explanations stay out of the browser bundle, as the ones for the API URL and
+ * for `VUESTRATA_MOCK_ONLY` do. There the rule is `isBasePath`, and a value
+ * that breaks it is dropped with one short sentence.
  *
  * A base path is the prefix the app is served under on its OWN origin:
  * `/console/` for `https://portal.example.com/console/`. It ends up in every
@@ -333,9 +350,8 @@ export function describeBasePathIssue(value: string): string | null {
 
 const basePath = z
   .string()
-  .superRefine((value, ctx) => {
-    const issue = describeBasePathIssue(value)
-    if (issue) ctx.addIssue({ code: 'custom', message: issue })
+  .refine(isBasePath, {
+    error: 'expected a path that starts and ends with "/", such as "/console/"',
   })
   .optional()
 
@@ -866,10 +882,21 @@ function applyDefaults(parsed: ParsedEnv, isDev: boolean): RuntimeEnv {
   }
 }
 
-function formatFieldIssues(error: z.ZodError): string[] {
+/**
+ * One line per invalid field, for the strict parser. `values` is what was
+ * parsed: a base path gets the reason it was refused and what to write, which
+ * the field's own message is too short to say.
+ */
+function formatFieldIssues(
+  error: z.ZodError,
+  values: Record<string, string | undefined>,
+): string[] {
   return error.issues.map((issue) => {
     const key = issue.path.join('.') || '(root)'
-    return `${key}: ${issue.message}`
+    const value = values[key]
+    const reason =
+      key === ENV_KEYS.basePath && value !== undefined ? describeBasePathIssue(value) : null
+    return `${key}: ${reason ?? issue.message}`
   })
 }
 
@@ -883,10 +910,11 @@ function formatFieldIssues(error: z.ZodError): string[] {
 export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): RuntimeEnv {
   const { isDev = false, serving = false, authAdapters = {} } = options
 
-  const parsed = createEnvSchema(authAdapters).safeParse(normalize(raw))
+  const values = normalize(raw)
+  const parsed = createEnvSchema(authAdapters).safeParse(values)
   if (!parsed.success) {
     throw new Error(
-      `[vuestrata:env] Invalid environment configuration:\n  - ${formatFieldIssues(parsed.error).join('\n  - ')}`,
+      `[vuestrata:env] Invalid environment configuration:\n  - ${formatFieldIssues(parsed.error, values).join('\n  - ')}`,
     )
   }
 

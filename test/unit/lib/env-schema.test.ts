@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vite-plus/test'
 import {
   DEFAULT_BASE_PATH,
   describeBasePathIssue,
+  isBasePath,
   describeEnvValueIssue,
   ENV_KEYS,
   isDemoRuntime,
@@ -908,6 +909,7 @@ describe('VUESTRATA_BASE_PATH: the app under a path prefix', () => {
       expect(parseRuntimeEnv(withBase(value)).basePath).toBe(value)
       expect(describeBasePathIssue(value)).toBeNull()
       expect(describeEnvValueIssue(ENV_KEYS.basePath, value)).toBeNull()
+      expect(isBasePath(value)).toBe(true)
     },
   )
 
@@ -949,6 +951,7 @@ describe('VUESTRATA_BASE_PATH: the app under a path prefix', () => {
     ['a path Git Bash rewrote', 'C:/Program Files/Git/console/', /MSYS_NO_PATHCONV/],
   ])('refuses %s at build', (_name, value, reason) => {
     expect(describeBasePathIssue(value)).toMatch(reason)
+    expect(isBasePath(value)).toBe(false)
     expect(() => parseRuntimeEnv(withBase(value))).toThrow(/VUESTRATA_BASE_PATH/)
     expect(() => parseRuntimeEnv(withBase(value))).toThrow(reason)
   })
@@ -960,7 +963,7 @@ describe('VUESTRATA_BASE_PATH: the app under a path prefix', () => {
 
     expect(env.basePath).toBe('/')
     expect(onWarn).toHaveBeenCalledWith(
-      expect.stringMatching(/Ignoring invalid VUESTRATA_BASE_PATH.*another origin/),
+      expect.stringMatching(/Ignoring invalid VUESTRATA_BASE_PATH.*starts and ends with/),
     )
     // Nothing else moved with it.
     expect({ ...env, basePath: '/' }).toEqual(resolveRuntimeEnv(productionEnv))
