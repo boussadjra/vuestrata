@@ -173,6 +173,11 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description:
       'Deploying against a real backend, and every demo affordance that must be switched off first.',
   },
+  '/docs/8.deployment/3.ci-for-your-project.md': {
+    title: 'CI for Your Project',
+    description:
+      'The GitHub Actions workflow of a project built from the template: what it runs, the two variables it reads, and where a deploy job goes.',
+  },
   '/docs/9.readiness.md': {
     title: 'Readiness',
     description: 'What is production-ready, what is a demo affordance, and what is still missing.',
