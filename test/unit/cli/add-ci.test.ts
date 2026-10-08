@@ -569,6 +569,34 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
   })
 })
 
+/**
+ * A project that does not eject keeps the template's workflows. Its ci.yml is
+ * safe there because the maintainer steps are skipped by repository; the demo
+ * deploy had no such condition, and only a missing secret kept it from
+ * publishing the demo to a team's production Vercel project.
+ */
+describe.skipIf(!MAINTAINER)('the template’s demo deploy, in a project that kept it', () => {
+  const source = fs.readFileSync(path.join(REPO, '.github/workflows/deploy-demo.yml'), 'utf8')
+
+  it('has one job, and it runs only in the template’s repository', () => {
+    const { jobs, accounts } = readWorkflow(source)
+    expect(accounts).toBe(true)
+    expect(Object.keys(jobs)).toEqual(['deploy'])
+
+    const condition = /^ {4}if: >-\n((?: {6}.*\n)+)/m.exec(source)?.[1] ?? ''
+    expect(condition.replaceAll(/\s+/g, ' ').trim()).toBe(
+      "github.repository == 'boussadjra/vuestrata' && " +
+        "(github.event_name == 'workflow_dispatch' || " +
+        "github.event.workflow_run.conclusion == 'success')",
+    )
+  })
+
+  it('names the same repository as the gates in ci.yml', () => {
+    const slug = /github\.repository == '([^']+)'/
+    expect(slug.exec(source)?.[1]).toBe(slug.exec(TEMPLATE_WORKFLOW)?.[1])
+  })
+})
+
 describe.skipIf(!MAINTAINER)('add ci: from the command line, in this repository', () => {
   const cli = (...args: string[]) =>
     spawnSync(process.execPath, ['packages/cli/src/index.mjs', 'add', 'ci', ...args], {
