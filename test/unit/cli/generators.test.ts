@@ -205,7 +205,7 @@ describe('the rbac.overrides.ts seam', () => {
     expect(missing).not.toContain('rbacOverrides')
   })
 
-  it('carries the three app: regions its registries anchor on, and no vuestrata: ones', () => {
+  it('carries the app: regions its registries anchor on, and no vuestrata: ones', () => {
     const source = real(OVERRIDES)
     const entries = ANCHORED_REGISTRIES.filter(
       (registry: { slot: string }) => registry.slot === 'rbacOverrides',
@@ -215,6 +215,9 @@ describe('the rbac.overrides.ts seam', () => {
       'permissions',
       'grants',
       'withdrawn',
+      // A project's own roles: see rbac-roles-regions.test.ts.
+      'roles',
+      'role-definitions',
     ])
     for (const entry of entries) {
       expect(hasSentinel(source, `app:${entry.region}`, { comment: entry.comment })).toBe(true)

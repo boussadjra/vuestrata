@@ -400,7 +400,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags || !MAINTAINER)(
         .filter((entry) => /has no exported member/.test(entry.message))
         .map((entry) => entry.message)
         .join('\n')
-      for (const name of ['RbacOverrides', 'BuiltinRole', 'AppRoles']) {
+      for (const name of ['RbacOverrides', 'BuiltinRole', 'ResolvedProjectRole']) {
         expect(missing).toContain(`'${name}'`)
       }
     })
