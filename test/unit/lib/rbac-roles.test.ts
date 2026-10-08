@@ -292,7 +292,7 @@ describe('a role table that is wrong', () => {
       roles: {
         auditor: { inherits: ['viewer'] },
         // The mistake a type error would have caught, had it not been cast away.
-        clerk: { inherits: ['membr' as Role] },
+        clerk: { inherits: ['membr' as never] },
       },
       grants: { clerk: ['users:delete'] },
     })
@@ -310,7 +310,7 @@ describe('a role table that is wrong', () => {
     const config = resolveRbacOverrides<{ clerk: true; lead: true }>({
       roles: {
         lead: { inherits: ['member', 'clerk'] },
-        clerk: { inherits: ['nobody' as Role] },
+        clerk: { inherits: ['nobody' as never] },
       },
     })
 
@@ -356,7 +356,7 @@ describe('a role table that is wrong', () => {
 
   it('stops the boot with a message that names the file and every mistake', () => {
     const config = resolveRbacOverrides<{ a: true; clerk: true }>({
-      roles: { a: { inherits: ['a'] }, clerk: { inherits: ['membr' as Role] } },
+      roles: { a: { inherits: ['a'] }, clerk: { inherits: ['membr' as never] } },
     })
 
     expect(() => assertRbacConfig(config)).toThrow(/app\/config\/rbac\.overrides\.ts/)
@@ -373,7 +373,7 @@ describe('the configuration with no role defined', () => {
     for (const config of [
       resolveRbacOverrides(),
       resolveRbacOverrides({}),
-      resolveRbacOverrides({ roles: {} }),
+      resolveRbacOverrides<Record<never, never>>({ roles: {} }),
       resolveRbacOverrides({ grants: { viewer: ['billing:read'] }, withdrawn: ['users:delete'] }),
     ]) {
       expect('roles' in config).toBe(false)
