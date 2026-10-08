@@ -16,7 +16,10 @@ const props = withDefaults(
   >(),
   {
     provider: 'reka',
+    // `undefined`, not Vue's `false` for an absent Boolean prop: the field
+    // has to tell "not passed" from "passed unchecked" (see useOwnDefault).
     modelValue: undefined,
+    checked: undefined,
     trueValue: undefined,
     falseValue: undefined,
     indeterminate: undefined,

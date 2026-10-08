@@ -89,11 +89,6 @@ function dotted(path: string): string {
   return path.includes('[') ? toDotPath(path) : path
 }
 
-/** What a field holds before anyone has chosen anything: `''`, or no items. */
-function isEmptyDefault(value: unknown): boolean {
-  return value === '' || (Array.isArray(value) && value.length === 0)
-}
-
 /**
  * A request the server refused, or one the app cancelled itself: an outcome
  * the form shows or ignores, and nobody has to fix. Everything else (a 5xx,
@@ -161,6 +156,14 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
 
   const hasField = (path: string) => (fieldCounts.get(dotted(path)) ?? 0) > 0
 
+  // What a field brought with it when it mounted, where that is not what the
+  // form's baseline holds: its own empty value over nothing or a `null`, or a
+  // value the developer bound. Formwerk's reset goes back to the baseline, so
+  // `reset()` puts these back on top of it: a reset form is the form as it
+  // opened. Which value a field opens on is the field's decision, not made
+  // here (see `useOwnDefault`).
+  const broughtByField = new Map<string, { path: string; value: unknown }>()
+
   const transaction: typeof context.transaction = (run) => {
     context.transaction((inner, kinds) => {
       const commit = run(inner, kinds)
@@ -168,20 +171,17 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
 
       if (commit.kind === kinds.DESTROY_PATH || commit.kind === kinds.UNSET_PATH) {
         countField(commit.path, -1)
+        if (!hasField(commit.path)) broughtByField.delete(dotted(commit.path))
       } else if (commit.kind === kinds.SET_PATH) {
         countField(commit.path, 1)
       } else if (commit.kind === kinds.INIT_PATH) {
         countField(commit.path, 1)
-        // A field that starts out empty by default (a select is `''` until
-        // something is chosen) hands Formwerk that default as its own initial
-        // value, and Formwerk lets a field's value beat the form's. The select
-        // of an edit form then opened blank, over a record that had a status.
-        // The form's initial value is the one the page asked for.
+        const value: unknown = commit.value
         if (
-          isEmptyDefault(commit.value) &&
-          context.getFieldInitialValue(commit.path) !== undefined
+          value !== undefined &&
+          !isSameValue(value, context.getFieldOriginalValue(commit.path))
         ) {
-          return { ...commit, value: undefined }
+          broughtByField.set(dotted(commit.path), { path: commit.path, value })
         }
       }
       return commit
@@ -266,6 +266,8 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
    */
   function rebaseline(saved: FormValues): void {
     context.setInitialValues(saved)
+    // The baseline now holds every field's value, whoever brought it.
+    broughtByField.clear()
     context.revertDirty()
     for (const path of changedPaths(context.getValues(), saved)) context.setDirty(path, true)
   }
@@ -278,6 +280,38 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
     clearErrors()
     if (next === undefined) await form.reset()
     else await form.reset({ value: next })
+
+    // Formwerk went back to the baseline; the fields' own values go back on
+    // top of it, as when the form opened. Values handed to `reset()` are the
+    // caller's word on a field: a field's own value only fills what they
+    // leave empty.
+    let restored = false
+    for (const [key, { path, value }] of broughtByField) {
+      const current: unknown = context.getValue(path)
+      if (next !== undefined && current !== undefined && current !== null) {
+        broughtByField.delete(key)
+        continue
+      }
+      if (isSameValue(current, value)) continue
+      context.setValue(path, value)
+      context.setDirty(path, false)
+      restored = true
+    }
+
+    // A mounted field has a place in the values even while it holds nothing:
+    // Formwerk makes one when the field registers, and its reset takes away
+    // those the baseline never had. Without the place a schema reports the
+    // missing parent (`address`) instead of the field (`address.city`), and
+    // the message lands where no field shows it.
+    for (const path of fieldCounts.keys()) {
+      if (context.isFieldSet(path)) continue
+      context.setValue(path, undefined)
+      context.setDirty(path, false)
+      restored = true
+    }
+
+    // Formwerk validated what it had reverted to, before these were back.
+    if (restored) await form.validate()
   }
 
   /**

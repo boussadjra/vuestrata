@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { SwitchRoot, SwitchThumb } from 'reka-ui'
 
-import { useUiSwitch, type SwitchProps } from '@/composables/forms'
+import { useFormwerkElementRef, useUiSwitch, type SwitchProps } from '@/composables/forms'
 import { useActiveLocale } from '@/composables/useActiveLocale'
 
 /**
@@ -16,6 +16,9 @@ defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<SwitchProps>(), {
   size: 'md',
+  // `undefined`, not Vue's `false` for an absent Boolean prop: the field has
+  // to tell "not passed" from "passed off" (see useOwnDefault).
+  modelValue: undefined,
 })
 
 const attrs = useAttrs()
@@ -44,6 +47,10 @@ const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const { isRtl } = useActiveLocale()
 const { inputProps, labelProps, isPressed, errorMessageProps, displayError } = useUiSwitch(props)
+
+// `SwitchRoot` is a component, so Formwerk's element-capturing ref cannot be
+// spread onto it directly — see useFormwerkElementRef.
+const { attrs: switchAttrs, captureElement } = useFormwerkElementRef(inputProps)
 
 const sizeMap: Record<string, { track: string; thumb: string; on: string; off: string }> = {
   sm: { track: 'h-5 w-9', thumb: 'h-3.5 w-3.5', on: 'translate-x-4', off: 'translate-x-1' },
@@ -79,7 +86,8 @@ function emitToggle() {
   <div v-bind="wrapperAttrs" class="flex flex-col gap-1">
     <div class="inline-flex items-center gap-2">
       <SwitchRoot
-        v-bind="{ ...inputProps, ...controlAttrs }"
+        v-bind="{ ...switchAttrs, ...controlAttrs }"
+        :ref="captureElement"
         :class="trackClasses"
         data-ui="switch"
         data-provider="reka"

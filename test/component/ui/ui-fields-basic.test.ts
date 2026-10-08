@@ -56,6 +56,8 @@ function createMockFieldReturn(overrides: Record<string, unknown> = {}) {
 
 // Mock @formwerk/core
 vi.mock('@formwerk/core', () => ({
+  // Read by useOwnDefault to learn whether a field sits inside a form; here none does.
+  FormKey: Symbol('FormKey'),
   useTextField: vi.fn((props: Record<string, unknown>) => ({
     ...createMockFieldReturn(),
     controlId: 'mock-text-id',
