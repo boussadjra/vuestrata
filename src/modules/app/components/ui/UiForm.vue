@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useUiForm } from '@/composables/forms'
+// Not `FormProps` from '~/types/forms': see ui-form-props.ts.
+import type { UiFormProps } from '@/composables/forms/ui-form-props'
 import type { AppError } from '~/lib/errors'
-import type { FormProps } from '~/types/forms'
 
 import UiUnsavedChangesDialog from './UiUnsavedChangesDialog.vue'
 
-const props = withDefaults(defineProps<FormProps>(), {
+const props = withDefaults(defineProps<UiFormProps>(), {
   disabled: false,
   disableHtmlValidation: true,
   showErrors: 'always',

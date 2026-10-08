@@ -1,5 +1,4 @@
 import { normalizeError, type AppError } from '~/lib/errors'
-import type { FormFieldPathStrategy } from '~/types/forms'
 
 /**
  * What the server said about a submitted form, put where the user can act on
@@ -40,7 +39,7 @@ export interface ServerErrorOptions {
   /** Backend key → form field path. Read first, and only by the exact key. */
   fieldMap?: Readonly<Record<string, string>>
   /** Replaces steps 2 and 3 above with one path of the caller's choosing. */
-  fieldPath?: FormFieldPathStrategy
+  fieldPath?: (key: string) => string
   /**
    * Whether the form shows a field at this path. Without it every path counts
    * as a field, and a message for a field the form lacks would go unseen.

@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import { normalizeError, reportError, type AppError } from '~/lib/errors'
 import { logger } from '~/lib/logger'
-import type { FormProps } from '~/types/forms'
 
+import type { UiFormProps } from './ui-form-props'
 import { toDotPath, useServerErrors, type ServerErrorMapping } from './useServerErrors'
 import { useUnsavedChangesGuard } from './useUnsavedChangesGuard'
 
@@ -165,7 +165,7 @@ function revealRefusal(form: Element, mapping: ServerErrorMapping): void {
   target.scrollIntoView?.({ behavior: still ? 'auto' : 'smooth', block: 'center' })
 }
 
-export function useUiForm(props: FormProps, emit: UiFormEmit) {
+export function useUiForm(props: UiFormProps, emit: UiFormEmit) {
   const formLogger = logger.withTag('form')
   const instance = getCurrentInstance()
 
