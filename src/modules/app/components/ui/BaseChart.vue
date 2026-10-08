@@ -11,9 +11,9 @@ import { useI18n } from 'vue-i18n'
  * the entry graph, that in turn put `charts-vendor` — 778 KB raw, 264 KB
  * gzipped — into index.html's modulepreload list. Every visitor downloaded the
  * whole charting engine before first paint, including on the login page, which
- * has no chart on it. The manualChunks comment in vite.config.ts already said
- * charts are "almost never needed on the first paint"; the import made that
- * untrue.
+ * has no chart on it. The comment on the charts-vendor group in vite.config.ts
+ * says the engine is "fetched by the first chart a page renders"; this
+ * component loading it on demand is what makes that true.
  *
  * The type import above stays static: types are erased and cost nothing.
  */
