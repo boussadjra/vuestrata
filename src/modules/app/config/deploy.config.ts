@@ -4,11 +4,12 @@
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * What your deployment needs that Vuestrata cannot know: environment variables
- * of your own, and the origins your security headers must allow. It is read in
- * three places — the build (which fails on an invalid variable), the browser
- * (typed as `appEnv` from `~/bootstrap/app-env`) and the header generator
- * (`vpr security:headers`) — so it holds data only. Import `zod` for the
- * schemas and nothing else by value.
+ * of your own, the origins your security headers must allow, and the size
+ * budgets your bundle is held to. It is read in four places — the build (which
+ * fails on an invalid variable), the browser (typed as `appEnv` from
+ * `~/bootstrap/app-env`), the header generator (`vpr security:headers`) and
+ * the bundle check (`scripts/build/verify-bundle.mjs`) — so it holds data
+ * only. Import `zod` for the schemas and nothing else by value.
  *
  * After changing `runtime` or `headers`, run `vpr security:headers` and commit
  * what it regenerates. `vpr lint` fails until you do.
@@ -43,6 +44,20 @@
  *       // Popup sign-in (MSAL loginPopup, Firebase signInWithPopup) needs the
  *       // opener the default `same-origin` cuts:
  *       crossOriginOpenerPolicy: 'same-origin-allow-popups',
+ *     },
+ *
+ *     // What `node scripts/build/verify-bundle.mjs` holds your build to, where
+ *     // the defaults in that script do not fit your app. Sizes are in KB. Each
+ *     // run prints what you set here beside the default.
+ *     bundle: {
+ *       initialPayloadGzipKb: 620,
+ *       totalJsKb: 8192,
+ *       onDemandChunks: {
+ *         // A vendor group of your own that pages fetch with import():
+ *         add: ['maps-vendor'],
+ *         // Every page of this app has a chart, so the engine loads with it:
+ *         remove: ['charts-vendor'],
+ *       },
  *     },
  *   })
  */

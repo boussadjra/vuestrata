@@ -8,6 +8,9 @@
  *
  * One loader for both, so the build, the generated headers and the container
  * entrypoint's key list are all derived from the same reading of the file.
+ *
+ * `scripts/build/verify-bundle.mjs` reads the file through it as well, for the
+ * `bundle` key, which is validated here: `resolveDeployBundle`.
  */
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -67,6 +70,120 @@ export async function loadDeployConfig({ root = REPO_ROOT, file } = {}) {
     throw new Error(`${path} must \`export default defineDeployConfig({ ... })\`.`)
   }
   return config
+}
+
+/** The budgets `scripts/build/verify-bundle.mjs` has, by the name a project sets them under. */
+const BUNDLE_BUDGETS = [
+  'initialPayloadGzipKb',
+  'largestEagerChunkKb',
+  'largestEagerStylesheetKb',
+  'totalJsKb',
+]
+
+const BUNDLE_OPTIONS = [...BUNDLE_BUDGETS, 'onDemandChunks']
+
+/** A chunk's name, as `name` in a `codeSplitting` group: no path, no spaces. */
+const CHUNK_NAME = /^[^\s/\\]+$/
+
+const isPlainObject = (value) =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+
+/** A value as its author wrote it, for a message: `"620"`, `NaN`, `-1`. */
+const written = (value) =>
+  typeof value === 'number' ? String(value) : (JSON.stringify(value) ?? String(value))
+
+/**
+ * `bundle` from `deploy.config.ts`, validated: the budgets the project set, in
+ * KB, and the chunk names it adds to or takes off the on-demand check.
+ *
+ * It is the header generator's rule, for the same reason (`resolveDeployHeaders`):
+ * every problem is collected and thrown at once, naming the file and the key,
+ * and nothing invalid is dropped silently. A budget misspelt would otherwise be
+ * a budget its author believes is in force.
+ *
+ * Build tooling only. The app imports `deploy.config.ts` for its variables and
+ * never reads this key, so nothing here, and no schema for it, is in a bundle.
+ *
+ * @param {unknown} bundle
+ * @param {object} [options]
+ * @param {readonly string[]} [options.onDemandChunks] The names the check
+ *   looks for by default, which are the ones `remove` may name.
+ * @returns {{ budgets: Record<string, number>, onDemandChunks: { add: string[], remove: string[] } }}
+ */
+export function resolveDeployBundle(bundle = {}, { onDemandChunks = [] } = {}) {
+  const fail = (problems) => {
+    throw new Error(`Invalid \`bundle\` in ${DEPLOY_CONFIG_PATH}:\n  - ${problems.join('\n  - ')}`)
+  }
+  if (!isPlainObject(bundle)) fail(['bundle: must be an object.'])
+
+  const problems = []
+
+  for (const key of Object.keys(bundle)) {
+    if (!BUNDLE_OPTIONS.includes(key)) {
+      problems.push(`bundle.${key}: unknown option. Known: ${BUNDLE_OPTIONS.join(', ')}.`)
+    }
+  }
+
+  const budgets = {}
+  for (const key of BUNDLE_BUDGETS) {
+    const value = bundle[key]
+    if (value === undefined) continue
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+      problems.push(
+        `bundle.${key}: ${written(value)} is not a size. ` +
+          'Give a number of KB above 0, such as 620.',
+      )
+    } else {
+      budgets[key] = value
+    }
+  }
+
+  /** @type {{ add: string[], remove: string[] }} */
+  const lists = { add: [], remove: [] }
+  const declared = bundle.onDemandChunks
+  if (declared !== undefined && !isPlainObject(declared)) {
+    problems.push('bundle.onDemandChunks: must be an object with `add` and/or `remove`.')
+  } else if (declared !== undefined) {
+    for (const key of Object.keys(declared)) {
+      if (!Object.hasOwn(lists, key)) {
+        problems.push(`bundle.onDemandChunks.${key}: unknown option. Known: add, remove.`)
+      }
+    }
+    for (const key of Object.keys(lists)) {
+      const names = declared[key]
+      if (names === undefined) continue
+      if (!Array.isArray(names)) {
+        problems.push(`bundle.onDemandChunks.${key}: must be a list of chunk names.`)
+        continue
+      }
+      for (const name of names) {
+        if (typeof name !== 'string' || !CHUNK_NAME.test(name)) {
+          problems.push(
+            `bundle.onDemandChunks.${key}: ${written(name)} is not a ` +
+              'chunk name, such as "maps-vendor": the `name` of a group in vite.config.ts.',
+          )
+        } else if (!lists[key].includes(name)) {
+          lists[key].push(name)
+        }
+      }
+    }
+
+    for (const name of lists.remove) {
+      if (lists.add.includes(name)) {
+        problems.push(`bundle.onDemandChunks: "${name}" is under both add and remove.`)
+      } else if (onDemandChunks.length > 0 && !onDemandChunks.includes(name)) {
+        problems.push(
+          `bundle.onDemandChunks.remove: "${name}" is not a chunk the check looks for, so ` +
+            `removing it changes nothing. It looks for: ${onDemandChunks.join(', ')}.`,
+        )
+      }
+    }
+    // Already looked for: saying so twice would only report it twice.
+    lists.add = lists.add.filter((name) => !onDemandChunks.includes(name))
+  }
+
+  if (problems.length > 0) fail(problems)
+  return { budgets, onDemandChunks: lists }
 }
 
 /**
