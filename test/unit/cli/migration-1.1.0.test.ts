@@ -114,7 +114,7 @@ const BECOMES: Record<string, string> = {
   'e2e/forms.spec.ts': 'sha256-5173d57b438e6f70c4595f4b4a55c91bd39766d31c17b16de9af5088b99b0d47',
   // After its four codemods: the env plugin import (promotions), the test
   // block, `.vuestrata/` in the ignore lists, and the vendor chunk groups.
-  'vite.config.ts': 'sha256-a9f848e66ee39ec31e8e39010457d3f9a50a2e3698580cd5bfb21610f91898c7',
+  'vite.config.ts': 'sha256-55d123a498b411840b717b8f2960b3432a9b378b3960f66d907462e1fa8d410f',
   'test/stores.test.ts': 'sha256-b3059a058cd1090b419d50510ac25f2a15c31a71a3b6366471dcac4ef9e94a8d',
   'test/unit/composables/use-rbac.test.ts':
     'sha256-282e7036330f710e4b21945162fc75cc87b4535f1c5b8da0d3025becc9f4cfec',
@@ -1197,6 +1197,8 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
         "              name: 'charts-vendor',",
         '              test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/,',
         '              priority: 10,',
+        // The library alone, without the tslib it shares with the app.
+        '              includeDependenciesRecursively: false,',
         '            },',
         '',
       ].join('\n')
@@ -1274,9 +1276,54 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
           expect(note, name).toContain(`{ name: '${name}-vendor', test: /node_modules[\\\\/]`)
         }
         expect(note).toContain(
-          "{ name: 'charts-vendor', test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/, priority: 10 }",
+          "{ name: 'charts-vendor', test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/, priority: 10, includeDependenciesRecursively: false }",
         )
+        // And only that group: the note says what the option is for.
+        expect(note?.split('includeDependenciesRecursively: false }')).toHaveLength(2)
+        expect(note).toContain('the tslib it depends on gets a chunk of its own')
         expect(fixture.exists(incoming(VITE))).toBe(false)
+      })
+
+      // "Declares" means in code. Read anywhere, the word in a comment made the
+      // step think the project had groups already: no rewrite, and no note,
+      // for a config that has the defect and fails the bundle check.
+      it.each([
+        [
+          'a line comment',
+          '        // TODO: move to codeSplitting: { groups } once rolldown has it\n',
+        ],
+        [
+          'a block comment',
+          '        /* advancedChunks: { groups: [] } was tried and reverted */\n',
+        ],
+      ])('is not put off by %s that mentions groups', async (_, comment) => {
+        seed([VITE])
+        const own = lf(released(VITE)).replace(FUNCTION, comment + FUNCTION)
+        expect(own).not.toBe(lf(released(VITE)))
+        fixture.write(VITE, own)
+
+        const report = await upgrade()
+
+        const result = lf(fixture.read(VITE))
+        // The function is still the shipped one, so it is replaced.
+        expect(result).not.toContain(FUNCTION)
+        expect(result).toContain(comment)
+        expect(result).toContain(GROUPS)
+        expect(result).toContain(CHARTS_GROUP)
+        expect(chunkNotes(report)).toEqual([])
+      })
+
+      it('gives the note to a config whose function changed and whose comment mentions groups', async () => {
+        seed([VITE])
+        const own = lf(released(VITE))
+          .replace(FUNCTION, `        // codeSplitting: see the rolldown docs\n${FUNCTION}`)
+          .replace('// Charting — large;', '// Charts — large;')
+        fixture.write(VITE, own)
+
+        const report = await upgrade()
+
+        expect(lf(fixture.read(VITE))).toContain(FUNCTION)
+        expect(chunkNotes(report)).toHaveLength(1)
       })
 
       it('says it again on the next upgrade, until the function is gone', async () => {

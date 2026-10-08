@@ -1124,10 +1124,19 @@ const CHUNKS_NEW = `        /**
 
             // ── On demand ──────────────────────────────────────────────────
             // Charting — large; fetched by the first chart a page renders.
+            //
+            // It takes the library's own modules and not what they import.
+            // By default a group also takes its modules' dependencies, here
+            // tslib, and one eager import of that package anywhere in the
+            // app (many libraries import it) would put the whole engine back
+            // on every page. Left out, it gets a small chunk of its own.
+            // Check the build before copying this to another group: on
+            // docs-vendor it produced a circular import between two chunks.
             {
               name: 'charts-vendor',
               test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/,
               priority: 10,
+              includeDependenciesRecursively: false,
             },
             // Markdown rendering + syntax highlighting (docs surface only)
             {
@@ -1148,13 +1157,22 @@ const CHUNKS_NEW = `        /**
 
 /**
  * The config still names its vendor chunks with a `manualChunks` function, one
- * of them the charting chunk, and declares no groups of its own. A mention of
- * the function in a comment is not one: the block above has such a comment.
+ * of them the charting chunk, and declares no groups of its own.
+ *
+ * Declares, in code. A mention of the function in a comment is not one: the
+ * block above has such a comment. And a comment that says `codeSplitting:` is
+ * not a set of groups: read as one, a `// TODO: move to codeSplitting: {…}`
+ * left above the function silenced the codemod and its note, in the one
+ * project that had already noticed what was wrong.
  */
-const chunksWithoutAnOrder = (source) =>
-  /^[ \t]*manualChunks\s*[(:]/m.test(source) &&
-  /(['"])charts-vendor\1/.test(source) &&
-  !/\b(?:codeSplitting|advancedChunks)\s*:/.test(source)
+const chunksWithoutAnOrder = (source) => {
+  const code = withoutComments(source)
+  return (
+    /^[ \t]*manualChunks\s*[(:]/m.test(code) &&
+    /(['"])charts-vendor\1/.test(code) &&
+    !/(?:^|[\s,{])(['"]?)(?:codeSplitting|advancedChunks)\1\s*:/m.test(code)
+  )
+}
 
 /**
  * The shipped config named its vendor chunks with a function. Rolldown gives
@@ -1188,9 +1206,12 @@ const chunksInAnOrder = {
     "`{ name: 'ui-vendor', test: /node_modules[\\\\/](?:reka-ui|@floating-ui)[\\\\/]/, priority: 20 }`, " +
     "`{ name: 'data-vendor', test: /node_modules[\\\\/](?:@tanstack[\\\\/]vue-(?:table|query)|@formwerk[\\\\/])/, priority: 20 }`. " +
     'What a page loads with import() comes last and takes what is left: ' +
-    "`{ name: 'charts-vendor', test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/, priority: 10 }`, " +
+    "`{ name: 'charts-vendor', test: /node_modules[\\\\/](?:echarts|vue-echarts|zrender)[\\\\/]/, priority: 10, includeDependenciesRecursively: false }`, " +
     "`{ name: 'docs-vendor', test: /node_modules[\\\\/](?:comark|shiki|@shikijs[\\\\/])/, priority: 10 }`, " +
     "`{ name: 'msw-vendor', test: /node_modules[\\\\/]msw[\\\\/]/, priority: 10 }`. " +
+    '`includeDependenciesRecursively: false` keeps the charting group to the library itself: ' +
+    'the tslib it depends on gets a chunk of its own, so an eager import of tslib elsewhere in ' +
+    'the app does not bring the engine back onto every page. ' +
     'Give a group of your own the priority of its kind, and put a library it shares with the ' +
     'rest of the app in a group above it.',
 }
