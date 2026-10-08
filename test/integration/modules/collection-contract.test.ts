@@ -13,6 +13,7 @@ import {
 import { ref } from 'vue'
 import { z } from 'zod'
 
+import { installValidationMessages } from '@/bootstrap/validation-messages'
 import { installApiAuth } from '@/lib/api/client'
 import { AppError } from '@/lib/errors'
 import { createMockJwt } from '@/mocks/utils'
@@ -26,6 +27,7 @@ import {
 import { customersHandlers, resetCustomersMock } from '@/modules/customers/mocks/customers.handlers'
 import { customersModuleKeys } from '@/modules/customers/query-keys'
 import { customerSchema, type CustomerDraft } from '@/modules/customers/types'
+import { getI18n } from '@/plugins/i18n'
 
 import { withQueryClient } from '../../utils/query-client'
 
@@ -370,6 +372,33 @@ describe('createCollectionApi on other response shapes', () => {
     // The zod issues, keyed by where they are in the body.
     expect((error as AppError).details).toHaveProperty('company')
     expect((error as AppError).details).toHaveProperty('contactName')
+  })
+
+  // The details go to devtools and the error reporter. The app's localized
+  // zod messages are for forms: a developer reading a report needs zod's own.
+  it('describes the mismatch in zod’s English, whatever language the app is in', async () => {
+    const removeMessages = installValidationMessages()
+    getI18n().global.locale.value = 'ar'
+    try {
+      server.use(http.get('*/api/customers/:id', () => HttpResponse.json({ id: 42, company: 42 })))
+      const detail = withQueryClient(() => useCustomerQuery(ref('CUS-1000')))
+
+      await vi.waitFor(() => expect(detail.error.value).toBeTruthy(), { timeout: 5_000 })
+
+      const details = (detail.error.value as AppError).details ?? {}
+      expect(details.id).toEqual(['Invalid input: expected string, received number'])
+      expect(details.company).toEqual(['Invalid input: expected string, received number'])
+      for (const message of Object.values(details).flat()) {
+        expect(message).not.toMatch(/[\u0600-\u06FF]/)
+      }
+
+      // While a form's schema, in the same breath, answers in Arabic.
+      const form = customerSchema.safeParse({ id: 42 })
+      expect(form.error!.issues[0]!.message).toMatch(/[\u0600-\u06FF]/)
+    } finally {
+      removeMessages()
+      getI18n().global.locale.value = 'en'
+    }
   })
 
   // The write may have happened even though its response could not be read,

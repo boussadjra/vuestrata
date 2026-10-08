@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { AppError, ERROR_MESSAGE_KEYS } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
+import { safeParseForDiagnostics } from '~/lib/validation/diagnostics'
 import type { User } from '~/types'
 
 const identityLogger = createScopedLogger('auth:identity')
@@ -111,7 +112,7 @@ export function authContractMismatch(
  * REST backend's.
  */
 export function parseUser(raw: unknown, source = 'The user'): User {
-  const result = userSchema.safeParse(raw)
+  const result = safeParseForDiagnostics(userSchema, raw)
   if (!result.success) throw authContractMismatch(source, result.error.issues)
 
   // `transform` leaves an optional field that was absent or null as an

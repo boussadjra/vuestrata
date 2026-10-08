@@ -15,6 +15,15 @@
  *   - `resolveAppEnv` — lenient. Warns and falls back. The browser runs it.
  */
 import type { z } from 'zod'
+import en from 'zod/v4/locales/en.js'
+
+/**
+ * What this file tells a developer is in zod's own English, whatever error map
+ * the app installed for its forms and whatever language it is showing. The
+ * same options as `~/lib/validation/diagnostics`, which this file cannot
+ * import: it is loaded by Node before any alias exists.
+ */
+const IN_ZODS_OWN_WORDS = { error: en().localeError } as const
 
 /** One declared variable. It is handed the raw string, or `undefined` when unset. */
 export type AppEnvShape = Record<string, z.ZodType>
@@ -174,7 +183,7 @@ export function parseAppEnv<Env extends AppEnvShape>(
 
   for (const [key, schema] of Object.entries(config.env ?? {})) {
     const value = optional(raw[key])
-    const parsed = schema.safeParse(value)
+    const parsed = schema.safeParse(value, IN_ZODS_OWN_WORDS)
     if (parsed.success) {
       values[key] = parsed.data
     } else if (value !== undefined || !runtime.includes(key)) {
@@ -221,7 +230,7 @@ export function resolveAppEnv<Env extends AppEnvShape>(
   for (const [key, schema] of Object.entries(config.env ?? {})) {
     const overlaid = optional(overlay[key])
     if (overlaid !== undefined) {
-      const parsed = schema.safeParse(overlaid)
+      const parsed = schema.safeParse(overlaid, IN_ZODS_OWN_WORDS)
       if (parsed.success) {
         values[key] = parsed.data
         continue
@@ -233,7 +242,7 @@ export function resolveAppEnv<Env extends AppEnvShape>(
     }
 
     const value = optional(raw[key])
-    const parsed = schema.safeParse(value)
+    const parsed = schema.safeParse(value, IN_ZODS_OWN_WORDS)
     if (parsed.success) {
       values[key] = parsed.data
       continue
@@ -245,7 +254,7 @@ export function resolveAppEnv<Env extends AppEnvShape>(
       continue
     }
 
-    const fallback = schema.safeParse(undefined)
+    const fallback = schema.safeParse(undefined, IN_ZODS_OWN_WORDS)
     warn(
       `Ignoring invalid ${key}: ${describeIssues(parsed.error)}. ` +
         (fallback.success ? 'Falling back to the default.' : 'It is undefined in appEnv.'),
