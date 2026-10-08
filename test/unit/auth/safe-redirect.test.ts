@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { safeRedirectPath } from '@/modules/auth/lib/safe-redirect'
 
@@ -76,5 +76,46 @@ describe('safeRedirectPath', () => {
 
   it('returns the value as it was written, not its decoded form', () => {
     expect(safeRedirectPath('/dashboard/files/a%2Fb')).toBe('/dashboard/files/a%2Fb')
+  })
+})
+
+/**
+ * Under `VUESTRATA_BASE_PATH=/console/` the value is still a path INSIDE the
+ * app. The route guard and the expiry redirect write `route.fullPath`, which
+ * never holds the prefix, and `useAuth` hands the result to `router.push`,
+ * which adds it. So this function neither adds nor removes anything, and what
+ * it lets through is what it let through at the root. (That the router does
+ * not double the prefix is in test/unit/app/base-path.test.ts.)
+ */
+describe('safeRedirectPath, for an app served under a base path', () => {
+  const stubBase = () => vi.stubEnv('BASE_URL', '/console/')
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('keeps an in-app path as it is, without a prefix', () => {
+    stubBase()
+    expect(safeRedirectPath('/dashboard/users')).toBe('/dashboard/users')
+    expect(safeRedirectPath('/')).toBe('/')
+  })
+
+  it('does not strip a prefix someone wrote into the value: that is a route of its own', () => {
+    stubBase()
+    // router.push('/console/x') under the base is /console/console/x: an
+    // unknown route inside the app, not a way out of it.
+    expect(safeRedirectPath('/console/dashboard')).toBe('/console/dashboard')
+  })
+
+  it.each([
+    ['a protocol-relative URL', '//evil.example/console/'],
+    ['one that starts like the base', '//console/evil.example'],
+    ['a backslash spelling', '/\\evil.example/console/'],
+    ['an encoded one', '%2F%2Fevil.example%2Fconsole%2F'],
+    ['an absolute URL under the same prefix', 'https://evil.example/console/dashboard'],
+    ['a TAB between the slashes', '/\t/evil.example'],
+  ])('still refuses %s', (_, value) => {
+    stubBase()
+    expect(safeRedirectPath(value)).toBe(FALLBACK)
   })
 })

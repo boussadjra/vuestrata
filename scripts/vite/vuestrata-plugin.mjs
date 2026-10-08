@@ -19,6 +19,8 @@ import { loadEnv, parseAst } from 'vite-plus'
 import { parseAppEnv } from '../../src/modules/core/lib/config/deploy.ts'
 import {
   AUTH_ADAPTERS,
+  DEFAULT_BASE_PATH,
+  describeBasePathIssue,
   ENV_KEYS,
   parseRuntimeEnv,
 } from '../../src/modules/core/lib/config/env.schema.ts'
@@ -87,7 +89,8 @@ const CHARSET_META_TAG = /<meta\s+charset=[^>]*>/i
 
 /**
  * Resolves and validates the runtime environment, then feeds the result into
- * `define` and `build.sourcemap`. Under `vp dev`, it also connects the dev
+ * `define` and `build.sourcemap`, and sets Vite's `base` from
+ * `VUESTRATA_BASE_PATH` — see `resolveBase`. Under `vp dev`, it also connects the dev
  * server to a real backend — see `devApiProxy`. It makes every page load the
  * runtime configuration first — see `transformIndexHtml`. And it sends the
  * Content Security Policy a deployment would send from `vp dev` and
@@ -245,6 +248,16 @@ export function vuestrataEnv(options = {}) {
       const env = parseRuntimeEnv(rawEnv, { isDev, serving, authAdapters })
       isDemoBuild = env.runtimeMode === 'demo'
 
+      // Where the app is served from. Settled before anything is bundled,
+      // because it is in every asset URL the bundle holds.
+      const viteBase = resolveBase({
+        fromEnv: env.basePath,
+        // Set at all, as opposed to resolved to the default.
+        envIsSet: String(rawEnv[ENV_KEYS.basePath] ?? '').trim() !== '',
+        fromConfig: config.base,
+        warn: (message) => this.warn(message),
+      })
+
       // The project's own half of the configuration, held to the same standard:
       // an invalid variable or an impossible header source fails here, with the
       // file to fix named, rather than in a browser or in a container that will
@@ -324,6 +337,7 @@ export function vuestrataEnv(options = {}) {
           sourcemap: isDemoBuild ? 'hidden' : false,
         },
         ...(proxy ? { server: { proxy } } : {}),
+        ...(viteBase === undefined ? {} : { base: viteBase }),
       }
     },
 
@@ -380,6 +394,75 @@ export function vuestrataEnv(options = {}) {
       )
     },
   }
+}
+
+/**
+ * What this plugin sets Vite's `base` to, or undefined to leave it alone.
+ *
+ * `VUESTRATA_BASE_PATH` is how a project says where its app is mounted, and
+ * this is what turns it into Vite's `base`, for `vp build`, `vp dev` and
+ * `vp preview` alike. So a project's `vite.config.ts` needs no change: asset
+ * URLs, `import.meta.env.BASE_URL` (which the router and `appUrl()` read), the
+ * dev server and the preview server all follow the one variable. The header
+ * generator reads the same variable (`sync-headers.mjs --from-env`).
+ *
+ * Nothing is returned for the default, so a project that sets neither gets
+ * exactly the config it had before the variable existed.
+ *
+ * A project may still have a `base` of its own, in its config or as
+ * `vp build --base`. Two answers to one question are refused; one answer given
+ * in the old place is honoured, with a warning that says what does not hear it:
+ *
+ *   - both set, and different: an error. The bundle would be built for one
+ *     prefix and the server configuration generated for another.
+ *   - only the config: it wins, since it is what Vite would have done anyway.
+ *     The generated nginx config, `_headers` and the Vercel block read the
+ *     variable alone, so they would still describe an app at the root.
+ *
+ * @param {object} options
+ * @param {string} options.fromEnv The validated `VUESTRATA_BASE_PATH`.
+ * @param {boolean} options.envIsSet Whether the variable was set at all.
+ * @param {string | undefined} options.fromConfig `base` as the config has it.
+ * @param {(message: string) => void} options.warn
+ * @returns {string | undefined}
+ */
+export function resolveBase({ fromEnv, envIsSet, fromConfig, warn }) {
+  if (typeof fromConfig !== 'string' || fromConfig === '') {
+    return fromEnv === DEFAULT_BASE_PATH ? undefined : fromEnv
+  }
+
+  // Vite closes a base with a slash itself; compare what it will use.
+  const configured = fromConfig.endsWith('/') ? fromConfig : `${fromConfig}/`
+  if (envIsSet) {
+    if (configured !== fromEnv) {
+      throw new Error(
+        `[vuestrata:env] ${ENV_KEYS.basePath}="${fromEnv}" and base "${fromConfig}" in the Vite ` +
+          'config (or `--base`) disagree about where the app is served from. Remove `base` ' +
+          `and keep ${ENV_KEYS.basePath}: the header generator and the Docker image read the ` +
+          'variable.',
+      )
+    }
+    return undefined
+  }
+
+  if (configured === DEFAULT_BASE_PATH) return undefined
+
+  const issue = describeBasePathIssue(configured)
+  warn(
+    issue
+      ? `[vuestrata:env] base "${fromConfig}" in the Vite config is not a path on the app's own ` +
+          `origin (${issue}) Serving the app's files from another origin is not supported: the ` +
+          "Content Security Policy allows scripts from the app's origin only, " +
+          'runtime-config.js has to come from the deployment, and every URL the app builds ' +
+          `itself (a redirect URI, version.json) then starts at the root. For a path prefix, ` +
+          `set ${ENV_KEYS.basePath}.`
+      : `[vuestrata:env] base "${fromConfig}" is set in the Vite config rather than in ` +
+          `${ENV_KEYS.basePath}. The app is built for it, but the generated server ` +
+          'configuration (docker/nginx.conf, public/_headers, the vercel.json headers) reads ' +
+          `the variable and still describes an app at "/". Set ${ENV_KEYS.basePath}=${configured} ` +
+          'and remove `base`.',
+  )
+  return undefined
 }
 
 /**

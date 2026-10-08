@@ -26,9 +26,27 @@ export interface VuestrataEnvOptions {
  * how a deployment sets values when the app starts rather than when it is
  * built. Under `vp dev`, it proxies a same-origin API path to `DEV_API_TARGET`.
  *
+ * And it sets Vite's `base` from `VUESTRATA_BASE_PATH`, so an app served under
+ * a path prefix needs no `base` in the project's own config.
+ *
  * The implementation and its reasoning are in `vuestrata-plugin.mjs`.
  */
 export declare function vuestrataEnv(options?: VuestrataEnvOptions): Plugin
+
+/**
+ * What the plugin sets Vite's `base` to, or undefined when it leaves the
+ * config alone: the default, or a project that set `base` itself. Throws when
+ * the variable and the config name two different bases.
+ */
+export declare function resolveBase(options: {
+  /** The validated `VUESTRATA_BASE_PATH`. */
+  fromEnv: string
+  /** Whether the variable was set at all. */
+  envIsSet: boolean
+  /** `base` as the Vite config (or `--base`) has it. */
+  fromConfig: string | undefined
+  warn: (message: string) => void
+}): string | undefined
 
 /**
  * The auth adapters registered in the project's

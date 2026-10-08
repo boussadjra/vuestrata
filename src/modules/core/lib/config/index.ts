@@ -5,6 +5,7 @@ import { readRuntimeOverlay, resolveRuntimeEnvWithOverlay } from './runtime-over
 export * from './env.schema'
 export * from './runtime-overlay'
 export * from './deploy'
+export * from './base-path'
 
 const configLogger = createScopedLogger('app-config')
 

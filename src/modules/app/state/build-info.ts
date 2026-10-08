@@ -1,4 +1,5 @@
 import { appConfig } from '~/config/app.config'
+import { appPath } from '~/lib/config'
 import { createScopedLogger } from '~/lib/logger'
 
 const buildInfoLogger = createScopedLogger('build-info')
@@ -57,7 +58,10 @@ export const useBuildInfo = createGlobalState(() => {
       // `cache: 'no-store'` matters: version.json is served with a
       // must-revalidate policy, but a bfcache or an intermediary that ignores
       // that would hand back the very build we are trying to compare against.
-      const response = await fetch('/version.json', { cache: 'no-store' })
+      //
+      // Under the base path: the file is written beside index.html, which is
+      // not the root of the origin for an app mounted at /console/.
+      const response = await fetch(appPath('/version.json'), { cache: 'no-store' })
       if (!response.ok) return null
       return (await response.json()) as BuildInfo
     } catch {
@@ -78,7 +82,7 @@ export const useBuildInfo = createGlobalState(() => {
 
     current.value = await fetchVersion()
     if (!current.value) {
-      buildInfoLogger.debug('No /version.json served — deploy detection is off.')
+      buildInfoLogger.debug('No version.json served — deploy detection is off.')
       return () => {}
     }
 

@@ -97,8 +97,11 @@ const incoming = (rel: string) => `.vuestrata/incoming/${rel}`
  * again needs exactly this hash in its `pristine` list.
  */
 const BECOMES: Record<string, string> = {
+  // After its two codemods: the stale-chunk marker, and the history created
+  // with the base path (base-path.mjs). 1.1.0-alpha.0 is unpublished, so the
+  // hash follows the second step rather than joining a pristine list.
   'src/modules/app/plugins/router.ts':
-    'sha256-c16bd27f487fc5e8d3e62ad80be1143aaaa15a6fab5334cd9b8190f5a07a8bbe',
+    'sha256-b5af2e988f7a886ac265a3b9958786b3875c2791933a8126bcf46b09fa39e8a1',
   'src/modules/app/plugins/stale-chunk.ts':
     'sha256-fcb5e00e0064205e5b64ec5393db49aafd956ae4f98935e4aed3ad1cf57c6f9f',
   // After its two codemods: the expired-session notice, and the demo account
@@ -551,7 +554,20 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       const report = await upgrade()
 
-      expect(fixture.read(ROUTER)).toBe(edited)
+      // The hook is left as the project wrote it. The other step for this
+      // file (the history's base path) still applies: its line is untouched.
+      const result = fixture.read(ROUTER)
+      expect(result).toContain('  clearStaleChunkMarker()\n  trackPageView()\n})')
+      expect(result).not.toContain('START_LOCATION')
+      expect(result).toContain('  history: createWebHistory(import.meta.env.BASE_URL),\n')
+      // And nothing else moved: without that one line and its comment, the
+      // file is the project's.
+      expect(
+        result.replace(
+          /(?: {2}\/\/ .*\n){3} {2}history: createWebHistory\(import\.meta\.env\.BASE_URL\),\n/,
+          '  history: createWebHistory(),\n',
+        ),
+      ).toBe(edited)
       expect(texts(report)).toEqual([
         expect.stringContaining('if (!failure && from !== START_LOCATION) clearStaleChunkMarker()'),
       ])
@@ -1005,6 +1021,287 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
         expect(fixture.exists(HANDLERS)).toBe(false)
         expect(report.notes).toEqual([])
       })
+    })
+  })
+
+  describe('what VUESTRATA_BASE_PATH needs in the project’s files', () => {
+    const THEME = 'src/modules/app/plugins/bootstrap-theme.ts'
+    const I18N = 'src/modules/app/plugins/i18n.ts'
+    const LOCALE = 'src/modules/app/composables/useActiveLocale.ts'
+    const MANIFEST = 'public/site.webmanifest'
+    const READERS = [THEME, I18N, LOCALE]
+    const ALL = [ROUTER, ...READERS, MANIFEST]
+
+    const HISTORY_10 = '  history: createWebHistory(),\n'
+    const HISTORY_11 = '  history: createWebHistory(import.meta.env.BASE_URL),\n'
+    const RAW_PATHNAME = "typeof window === 'undefined' ? '/' : window.location.pathname"
+    const PATHNAME_IMPORT = "import { appPathname } from '~/lib/config'\n"
+
+    it('starts from files that still name the root of the origin, at both releases', () => {
+      for (const tag of TAGS) {
+        expect(atTag(tag, ROUTER), tag).toContain(HISTORY_10)
+        for (const rel of READERS) expect(atTag(tag, rel), `${tag} ${rel}`).toContain(RAW_PATHNAME)
+        expect(JSON.parse(atTag(tag, MANIFEST)!), tag).toMatchObject({
+          start_url: '/',
+          scope: '/',
+        })
+      }
+    })
+
+    it('brings every unedited file to what this release ships, with nothing to do by hand', async () => {
+      seed(ALL)
+
+      const report = await upgrade()
+
+      expect(fixture.read(ROUTER)).toContain(HISTORY_11)
+      expect(fixture.read(ROUTER)).not.toContain(HISTORY_10)
+      expect(hash(fixture.read(ROUTER))).toBe(BECOMES[ROUTER])
+      for (const rel of READERS) {
+        const result = fixture.read(rel)
+        expect(result, rel).toContain(PATHNAME_IMPORT)
+        expect(result, rel).toContain('appPathname()')
+        expect(withoutComments(result), rel).not.toContain('window.location.pathname')
+        // One import of the name, where the formatter keeps it.
+        expect(result.split(PATHNAME_IMPORT), rel).toHaveLength(2)
+      }
+      expect(JSON.parse(fixture.read(MANIFEST))).toMatchObject({
+        start_url: '.',
+        scope: '.',
+        icons: [{ src: 'favicon.svg' }],
+      })
+      expect(fixture.read(MANIFEST)).toBe(lf(inRepo(MANIFEST)))
+      expect(changed(report).sort()).toEqual([...ALL].sort())
+      expect(report.notes).toEqual([])
+    })
+
+    // The files went on changing after 1.0 for other reasons (a comment, a
+    // component renamed), so only these two are compared whole. The lines the
+    // codemods write are the repository's lines in all five.
+    it('writes the lines the repository has', async () => {
+      seed(ALL)
+
+      await upgrade()
+
+      expect(fixture.read(ROUTER)).toBe(lf(inRepo(ROUTER)))
+      expect(fixture.read(LOCALE)).toBe(lf(inRepo(LOCALE)))
+      for (const rel of READERS) {
+        const written = fixture
+          .read(rel)
+          .split('\n')
+          .filter((line) => !lf(released(rel)).split('\n').includes(line))
+        expect(written.length, rel).toBeGreaterThan(0)
+        for (const line of written) expect(lf(inRepo(rel)), `${rel}: ${line}`).toContain(line)
+      }
+    })
+
+    it('names the router once in the report, with its other change', async () => {
+      seed(ALL)
+
+      const report = await upgrade()
+
+      const groups = report.migrations.filter((entry) => entry.changed.includes(ROUTER))
+      expect(groups).toHaveLength(1)
+      expect(groups[0]!.description).toMatch(/stale-chunk marker.*history with the base path/)
+    })
+
+    it('keeps the line endings each file had', async () => {
+      seed(ALL)
+      for (const rel of ALL) fixture.write(rel, lf(released(rel)).replaceAll('\n', '\r\n'))
+
+      await upgrade()
+
+      for (const rel of ALL) {
+        const result = fixture.read(rel)
+        expect(result.replaceAll('\r\n', ''), rel).not.toContain('\n')
+        expect(result, rel).toContain('\r\n')
+      }
+      expect(fixture.read(ROUTER)).toContain(HISTORY_11.replace('\n', '\r\n'))
+      expect(hash(fixture.read(ROUTER))).toBe(BECOMES[ROUTER])
+    })
+
+    it('has nothing left to do on the next upgrade', async () => {
+      seed(ALL)
+      await upgrade()
+      const once = ALL.map((rel) => fixture.read(rel))
+
+      const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+
+      expect(ALL.map((rel) => fixture.read(rel))).toEqual(once)
+      expect(changed(again)).toEqual([])
+      expect(again.notes).toEqual([])
+    })
+
+    it('still changes a file the project edited somewhere else', async () => {
+      seed(ALL)
+      const router = released(ROUTER).replace(
+        'export const layoutMap',
+        '// our own layouts are registered below\nexport const layoutMap',
+      )
+      const i18n = `${released(I18N)}\nexport const OUR_OWN = 1\n`
+      fixture.write(ROUTER, router)
+      fixture.write(I18N, i18n)
+
+      const report = await upgrade()
+
+      expect(fixture.read(ROUTER)).toContain('// our own layouts are registered below')
+      expect(fixture.read(ROUTER)).toContain(HISTORY_11)
+      expect(fixture.read(I18N)).toContain('export const OUR_OWN = 1')
+      expect(fixture.read(I18N)).toContain('  return appPathname()\n')
+      expect(report.notes).toEqual([])
+    })
+
+    describe('a router whose history line the project rewrote', () => {
+      it.each([
+        ['a scroll-restoring history', "  history: createWebHistory(), // 'manual' scroll\n"],
+        ['a history built elsewhere', '  history: (() => createWebHistory())(),\n'],
+      ])('is left alone, with the line to write: %s', async (_what, line) => {
+        seed([ROUTER])
+        const own = released(ROUTER).replace(HISTORY_10, line)
+        expect(own).not.toBe(released(ROUTER))
+        fixture.write(ROUTER, own)
+
+        const report = await upgrade()
+
+        // The other change to the file is made all the same.
+        expect(fixture.read(ROUTER)).toContain(line)
+        expect(fixture.read(ROUTER)).toContain(
+          'if (!failure && from !== START_LOCATION) clearStaleChunkMarker()',
+        )
+        expect(texts(report)).toEqual([
+          expect.stringContaining('createWebHistory(import.meta.env.BASE_URL)'),
+        ])
+        expect(texts(report)[0]).toMatch(/Nothing to do if you serve the app at the root/)
+        expect(report.notes[0]?.rel).toBe(ROUTER)
+      })
+
+      it.each([
+        ['already passes the base', '  history: createWebHistory(import.meta.env.BASE_URL),\n'],
+        ['passes a base of its own', "  history: createWebHistory('/portal/'),\n"],
+        ['uses another history', '  history: createWebHashHistory(),\n'],
+      ])('is left alone without a note when it %s', async (_what, line) => {
+        seed([ROUTER])
+        const own = released(ROUTER).replace(HISTORY_10, line)
+        fixture.write(ROUTER, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(ROUTER)).toContain(line)
+        expect(fixture.read(ROUTER).split('history: ')).toHaveLength(2)
+        expect(report.notes).toEqual([])
+      })
+
+      it('is not fooled by the call in a comment', async () => {
+        seed([ROUTER])
+        const own = released(ROUTER).replace(
+          HISTORY_10,
+          "  // was: createWebHistory()\n  history: createWebHistory('/portal/'),\n",
+        )
+        fixture.write(ROUTER, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(ROUTER)).toContain("createWebHistory('/portal/')")
+        expect(report.notes).toEqual([])
+      })
+    })
+
+    describe('a file that reads the address bar in its own way', () => {
+      it.each(READERS)('is left alone, with the call to write: %s', async (rel) => {
+        seed([rel])
+        const own = released(rel).replace(
+          RAW_PATHNAME,
+          "typeof window === 'undefined' ? '/' : window.location.pathname.toLowerCase()",
+        )
+        expect(own).not.toBe(released(rel))
+        fixture.write(rel, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(rel)).toBe(own)
+        expect(texts(report)).toEqual([expect.stringContaining('appPathname()')])
+        expect(texts(report)[0]).toContain("import { appPathname } from '~/lib/config'")
+        expect(texts(report)[0]).toMatch(/Nothing to do if you serve the app at the root/)
+        expect(report.notes[0]?.rel).toBe(rel)
+      })
+
+      it.each(READERS)('never gets the name twice: %s', async (rel) => {
+        seed([rel])
+        // The shipped lines are intact, and the file has the name already.
+        const own = `${released(rel)}\nconst appPathname = () => '/'\nvoid appPathname\n`
+        fixture.write(rel, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(rel)).toBe(own)
+        expect(fixture.read(rel)).not.toContain(PATHNAME_IMPORT)
+        expect(texts(report)).toEqual([expect.stringContaining('appPathname()')])
+      })
+
+      it('is done once the file no longer reads it at all', async () => {
+        seed([THEME])
+        const own = released(THEME).replace(RAW_PATHNAME, "'/'")
+        fixture.write(THEME, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(THEME)).toBe(own)
+        expect(report.notes).toEqual([])
+      })
+    })
+
+    describe('a manifest the project made its own', () => {
+      it('is left alone, with the values to write, while it names the root', async () => {
+        seed([MANIFEST])
+        const own = released(MANIFEST).replace('"start_url": "/"', '"start_url": "/?source=pwa"')
+        expect(own).not.toBe(released(MANIFEST))
+        fixture.write(MANIFEST, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(MANIFEST)).toBe(own)
+        expect(texts(report)).toEqual([expect.stringContaining('"start_url": "."')])
+        expect(texts(report)[0]).toMatch(/Nothing to do if you serve the app at the root/)
+      })
+
+      it('gets the start URL and scope even when the icon is its own', async () => {
+        seed([MANIFEST])
+        const own = released(MANIFEST).replace('"src": "/favicon.svg"', '"src": "/imgs/logo.png"')
+        fixture.write(MANIFEST, own)
+
+        const report = await upgrade()
+
+        expect(JSON.parse(fixture.read(MANIFEST))).toMatchObject({
+          start_url: '.',
+          scope: '.',
+          icons: [{ src: '/imgs/logo.png' }],
+        })
+        expect(report.notes).toEqual([])
+      })
+
+      it.each([
+        ['already relative', (file: string) => file.replaceAll('": "/"', '": "."')],
+        ['under a prefix of its own', (file: string) => file.replaceAll('": "/"', '": "/portal/"')],
+        ['not JSON any more', (file: string) => `// ours\n${file}`],
+      ])('is left alone without a note when it is %s', async (_what, edit) => {
+        seed([MANIFEST])
+        const own = edit(released(MANIFEST))
+        expect(own).not.toBe(released(MANIFEST))
+        fixture.write(MANIFEST, own)
+
+        const report = await upgrade()
+
+        expect(fixture.read(MANIFEST)).toBe(own)
+        expect(report.notes).toEqual([])
+      })
+    })
+
+    it('is not missed by a project that has none of these files', async () => {
+      seed([LOGIN])
+
+      const report = await upgrade()
+
+      for (const rel of [...READERS, MANIFEST]) expect(fixture.exists(rel), rel).toBe(false)
+      expect(report.notes).toEqual([])
     })
   })
 

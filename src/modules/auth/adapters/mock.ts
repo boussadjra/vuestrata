@@ -1,6 +1,7 @@
 // From core/lib, not './types': a project that kept its adapters has the 1.0 one.
 import type { AuthAdapter, AuthProviderId } from '~/lib/auth/adapter'
 import { createAuthEndpoints } from '~/lib/auth/endpoints'
+import { appUrl } from '~/lib/config'
 import type { AuthResponse } from '~/types'
 
 import { assertOAuthProvider } from './base'
@@ -74,7 +75,7 @@ export function createMockAdapter(): AuthAdapter {
       // route and the code-exchange path.
       persistPkceState(MOCK_OAUTH_STATE, MOCK_OAUTH_VERIFIER)
 
-      const url = new URL('/auth/callback', window.location.origin)
+      const url = new URL(appUrl('/auth/callback'))
       url.searchParams.set('code', `demo-oauth-code-${provider}`)
       url.searchParams.set('state', MOCK_OAUTH_STATE)
       window.location.href = url.toString()
@@ -89,7 +90,7 @@ export function createMockAdapter(): AuthAdapter {
       const response = await endpoints.exchangeCode({
         code,
         code_verifier: MOCK_OAUTH_VERIFIER,
-        redirect_uri: `${window.location.origin}/auth/callback`,
+        redirect_uri: appUrl('/auth/callback'),
       })
 
       clearPkceState()

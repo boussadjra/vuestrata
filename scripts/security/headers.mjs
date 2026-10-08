@@ -89,8 +89,68 @@ export const API_PATH_PLACEHOLDER = '__VUESTRATA_API_PATH__'
 /** Where the entrypoint writes what it renders: writable on a read-only root. */
 export const RUNTIME_DIR = '/tmp/vuestrata'
 
-/** The path nginx answers itself for a liveness or readiness probe. */
+/**
+ * The path nginx answers itself for a liveness or readiness probe. Always at
+ * the root of the server, whatever the base path: a probe is configured on the
+ * container, which does not know where a proxy mounts the app.
+ */
 export const HEALTH_PATH = '/healthz'
+
+/** The variable the build reads the base path from (see `env.schema.ts`). */
+export const BASE_PATH_KEY = 'VUESTRATA_BASE_PATH'
+
+/** The app at the root of its origin: what every committed target is generated for. */
+export const ROOT_BASE_PATH = '/'
+
+/** `/`, or `/` followed by segments of unreserved characters, each closed by `/`. */
+const BASE_PATH = /^\/(?:[A-Za-z0-9._~-]+\/)*$/
+
+/**
+ * A base path as the generators use it, or an error saying what is wrong.
+ * Unset and empty mean the root.
+ *
+ * `VUESTRATA_BASE_PATH` is validated by the app's own schema before a build
+ * starts. This does not rely on that having run: the value also arrives here
+ * from a command line (`--base-path`) and from a Docker build argument, and
+ * what it is written into is an nginx configuration, a `_headers` file and a
+ * Vercel route pattern. A `;`, a `{`, a space, a `$` or a line break would end
+ * a directive or start another; `//host/` and `..` would point the redirect at
+ * `/` somewhere else. So the rule is restated here, and it is the same rule:
+ * it starts and ends with `/`, and holds letters, digits and `._~-` between.
+ */
+export function resolveBasePath(value) {
+  if (value === undefined || value === null || value === '') return ROOT_BASE_PATH
+
+  const fail = (reason) => {
+    throw new Error(`${BASE_PATH_KEY}=${JSON.stringify(value)} is not a base path: ${reason}`)
+  }
+  if (typeof value !== 'string') fail('expected a string.')
+  if (/^[A-Za-z]:[\\/]/.test(value)) {
+    fail(
+      'it is a file path. Git Bash rewrites an argument that starts with "/" into one: set ' +
+        'MSYS_NO_PATHCONV=1 for the command.',
+    )
+  }
+  if (!BASE_PATH.test(value)) {
+    fail(
+      'it must start and end with "/" and hold only letters, digits and "._~-" in between, ' +
+        'such as "/console/".',
+    )
+  }
+  if (value.split('/').some((segment) => segment === '.' || segment === '..')) {
+    fail('it cannot have a "." or ".." segment.')
+  }
+  return value
+}
+
+/**
+ * The paths above the app and the app's own, without their trailing slash:
+ * `/apps` and `/apps/console` for `/apps/console/`. None for the root.
+ */
+function basePathAncestors(basePath) {
+  const segments = basePath.split('/').filter(Boolean)
+  return segments.map((_, index) => `/${segments.slice(0, index + 1).join('/')}`)
+}
 
 export const COOP_VALUES = ['same-origin', 'same-origin-allow-popups', 'unsafe-none']
 
@@ -388,7 +448,7 @@ function envConnectSources(resolved, env) {
  * entrypoint applies the same rule to the value it is started with — this is
  * the reference it is tested against.
  */
-export function sameOriginApiPath(apiUrl) {
+export function sameOriginApiPath(apiUrl, { basePath } = {}) {
   if (!apiUrl?.startsWith('/')) return null
 
   const path = apiUrl.replace(/\/+$/, '')
@@ -406,7 +466,7 @@ export function sameOriginApiPath(apiUrl) {
         'have a "." or ".." segment.',
     )
   }
-  if (reservedApiPaths().includes(path)) {
+  if (reservedApiPaths(basePath).includes(path)) {
     throw new Error(
       `Cannot route VUESTRATA_API_URL="${apiUrl}" in nginx: ${path} is a path this server ` +
         'answers itself. Serve the API under another one, such as /api.',
@@ -423,12 +483,19 @@ export function sameOriginApiPath(apiUrl) {
  *
  * The entrypoint reads the list from `docker/runtime/keys`, which is generated
  * with the server block, so the two cannot disagree.
+ *
+ * Under a base path the rules are the app's files under it, and the list also
+ * holds the prefix itself and every path above it (`/apps`, `/apps/console`).
+ * An API there would take the app's own requests: `^~ /apps/` answers
+ * everything under it, the app included. An API BELOW the base
+ * (`/console/api`) is fine, and so is one beside it (`/api`).
  */
-export function reservedApiPaths() {
-  const fromRules = CACHE_RULES.map(
-    (rule) => /^(?:=|\^~) (\/.+?)\/?$/.exec(rule.nginxLocation ?? '')?.[1],
-  ).filter(Boolean)
-  return [HEALTH_PATH, ...fromRules]
+export function reservedApiPaths(basePath) {
+  const base = resolveBasePath(basePath)
+  const fromRules = cacheRulesFor(base)
+    .map((rule) => /^(?:=|\^~) (\/.+?)\/?$/.exec(rule.nginxLocation ?? '')?.[1])
+    .filter(Boolean)
+  return [HEALTH_PATH, ...fromRules, ...basePathAncestors(base)]
 }
 
 // ─── The policy ──────────────────────────────────────────────────────────────
@@ -613,6 +680,29 @@ export const CACHE_RULES = [
       'it to /index.html, which has its own block.',
   },
 ]
+
+/**
+ * `CACHE_RULES` for an app served under `basePath`: the same classes of file,
+ * each under the prefix. For the root it is `CACHE_RULES` itself.
+ *
+ * The rules name the app's own files, and those are under the base: the build
+ * writes `<base>assets/…` into the page, and the image serves the build from
+ * `<root>/<base>`. The mock worker may claim the base and nothing wider.
+ */
+export function cacheRulesFor(basePath) {
+  const base = resolveBasePath(basePath)
+  if (base === ROOT_BASE_PATH) return CACHE_RULES
+
+  const under = (path) => `${base}${path.slice(1)}`
+  return CACHE_RULES.map((rule) => ({
+    ...rule,
+    match: rule.match === null ? null : under(rule.match),
+    nginxLocation: rule.nginxLocation.replace(/\/.*$/, (path) => under(path)),
+    headers: rule.headers.map(([name, value]) =>
+      name === 'Service-Worker-Allowed' ? [name, base] : [name, value],
+    ),
+  }))
+}
 
 /** Marker written into every generated file so nobody hand-edits one. */
 export const GENERATED_BANNER =

@@ -26,6 +26,15 @@
 # the build inlines it, and the final stage hands it to the entrypoint.
 ARG VUESTRATA_API_URL=/api
 
+# The path prefix the app is served under: "/" for the root of its origin,
+# "/console/" for https://portal.example.com/console/. Shared by both stages as
+# well: the build puts it in every asset URL, and the final stage copies the
+# build to the matching place under the web root. Unlike the API URL it CANNOT
+# be changed when a container starts.
+#   docker build --build-arg VUESTRATA_BASE_PATH=/console/ -t console .
+# See "Serve under a path prefix" in docs/8.deployment/2.real-production.md.
+ARG VUESTRATA_BASE_PATH=/
+
 # ─── Stage 1: build ──────────────────────────────────────────────────────────
 FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
 
@@ -64,8 +73,8 @@ COPY . .
 # vuestrata:env plugin validates these and fails the build on an invalid
 # combination.
 #
-# The runtime mode and the auth adapter decide what is IN the bundle, so they
-# exist only here. The others are defaults: a container may be started with a
+# The runtime mode, the auth adapter and the base path decide what is IN the
+# bundle, so they exist only here. The others are defaults: a container may be started with a
 # different API URL, title, session persistence or release (and an
 # error-reporting DSN), and the value it is started with wins.
 ARG VUESTRATA_RUNTIME_MODE=production
@@ -74,8 +83,10 @@ ARG VUESTRATA_API_URL
 ARG VUESTRATA_APP_TITLE=Vuestrata
 ARG VUESTRATA_SESSION_PERSISTENCE=refresh-cookie
 ARG VUESTRATA_RELEASE
+ARG VUESTRATA_BASE_PATH
 ENV VUESTRATA_RUNTIME_MODE=$VUESTRATA_RUNTIME_MODE \
     VUESTRATA_AUTH_ADAPTER=$VUESTRATA_AUTH_ADAPTER \
+    VUESTRATA_BASE_PATH=$VUESTRATA_BASE_PATH \
     VUESTRATA_API_URL=$VUESTRATA_API_URL \
     VUESTRATA_APP_TITLE=$VUESTRATA_APP_TITLE \
     VUESTRATA_SESSION_PERSISTENCE=$VUESTRATA_SESSION_PERSISTENCE \
@@ -98,8 +109,14 @@ ENV VUESTRATA_RUNTIME_MODE=$VUESTRATA_RUNTIME_MODE \
 # records the API URL of THIS build (--api-url), which the entrypoint uses for
 # a container started with none, so its headers allow what its bundle calls.
 #
+# --base-path is where the app is served from: the nginx locations, the SPA
+# fallback and the answer for what lies outside the prefix follow it. The
+# generator validates the value on its own, so a base path that could not be
+# written into a server configuration stops the build here.
+#
 # Before `vp build`, because index.html is one of the targets.
-RUN node scripts/security/sync-headers.mjs --runtime-config --api-url="$VUESTRATA_API_URL"
+RUN node scripts/security/sync-headers.mjs --runtime-config --api-url="$VUESTRATA_API_URL" \
+      --base-path="$VUESTRATA_BASE_PATH"
 
 # A checkout made on Windows with `core.autocrlf` ends these files in \r\n. A
 # shell script whose first line is "#!/bin/sh\r" does not run at all, so the
@@ -133,7 +150,12 @@ RUN find dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -nam
 FROM nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:ed04ec1ff34502c339ee5c3ae3f855442398edc1d05591e2b98981dcbbd20b1e AS production
 
 USER root
-COPY --from=build /app/dist /usr/share/nginx/html
+# The build goes where its URLs say it is: the web root itself for the default
+# base path "/", and <web root>/console/ for "/console/". nginx's `root` then
+# stays the web root, and a request path names a file under it as it always
+# did. The value was validated by the generator in the build stage.
+ARG VUESTRATA_BASE_PATH
+COPY --from=build /app/dist /usr/share/nginx/html$VUESTRATA_BASE_PATH
 
 # The server block is GENERATED from scripts/security/headers.mjs — one
 # definition shared with vercel.json, public/_headers and index.html, with

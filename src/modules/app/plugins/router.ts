@@ -42,7 +42,10 @@ function resolveStaticRoutes(fileRoutes: readonly RouteRecordRaw[]): RouteRecord
 }
 
 export const router = createRouter({
-  history: createWebHistory(),
+  // Vite's `base`, which the build sets from VUESTRATA_BASE_PATH: `/`, or the
+  // prefix the app is mounted under (`/console/`). Route paths stay as written;
+  // the history adds and removes the prefix.
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: resolveStaticRoutes(routes),
   scrollBehavior(_to, _from, savedPosition) {
     return savedPosition ?? { top: 0 }

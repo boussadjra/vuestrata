@@ -3,6 +3,7 @@ import { type App, watch } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { useAppStore } from '@/stores/app'
+import { appPathname } from '~/lib/config'
 
 import ar from '../locales/ar.json'
 import arOverrides from '../locales/ar.overrides.json'
@@ -74,8 +75,9 @@ export function getI18n() {
   return i18n
 }
 
+/** The path inside the app, without the base path it may be served under. */
 function readPathname(): string {
-  return typeof window === 'undefined' ? '/' : window.location.pathname
+  return appPathname()
 }
 
 /**

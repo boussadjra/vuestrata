@@ -2,7 +2,7 @@
 // adapters has the 1.0 types.ts, which declares none of what the auth seam added.
 import type { AuthAdapter, AuthProviderId, ResumedSession } from '~/lib/auth/adapter'
 import { getAuthConfig } from '~/lib/auth/config'
-import { runtimeEnv } from '~/lib/config'
+import { appUrl, runtimeEnv } from '~/lib/config'
 import { normalizeError } from '~/lib/errors'
 import type { AuthResponse } from '~/types'
 
@@ -11,8 +11,14 @@ import { assertOAuthProvider, authEndpoints, authLogger } from './base'
 import { clearPkceState, OAUTH_STATE_TTL_MS, persistPkceState, readPkceState } from './pkce-state'
 import { OAuthRedirectError } from './types'
 
+/**
+ * Where the identity provider sends the visitor back to: the callback ROUTE,
+ * as a URL. Under the base path, so an app mounted at `/console/` registers
+ * and sends `https://host/console/auth/callback`, the address its router
+ * answers.
+ */
 function callbackUrl(): string {
-  return `${window.location.origin}/auth/callback`
+  return appUrl('/auth/callback')
 }
 
 /**

@@ -28,22 +28,22 @@
     },
     "scripts/security/headers.mjs": {
       "class": "managed",
-      "hash": "sha256-8dc80868e37b6f52a6a28283377d4726f07177eb893441e148ee4eba989d4411",
+      "hash": "sha256-e6e62325f8577e287646713c1ae46a8ed4411f1cfc226e4c3d77e799bc98b0f9",
       "since": "1.1.0-alpha.0"
     },
     "scripts/security/sync-headers.mjs": {
       "class": "managed",
-      "hash": "sha256-09fc093cc82585b543d335e89029d2401d645da6283651ae0f984c5c3d237cfc",
+      "hash": "sha256-620a99d024ef1ee368edc94beb90ff28823e432d251b4c98778b8d3ec12a227d",
       "since": "1.1.0-alpha.0"
     },
     "scripts/vite/vuestrata-plugin.d.mts": {
       "class": "managed",
-      "hash": "sha256-4ed3383e359f0b86ec0a282b466252fcef3df62e1884bc9a5d871a7e015dcd9c",
+      "hash": "sha256-831311ddf1124811c05429715539d76f3c779b20c7d910767987b48ae1bd6308",
       "since": "1.1.0-alpha.0"
     },
     "scripts/vite/vuestrata-plugin.mjs": {
       "class": "managed",
-      "hash": "sha256-b2b369296ca8408d02b93aa7c8b84aa2473c35c6a5c6bbd34cc59162555dfca0",
+      "hash": "sha256-a7b2cefcc9d3987600a63818690582c0b2734e1b1fc2170166026ee2fb798605",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/bootstrap/app-env.ts": {
@@ -709,7 +709,7 @@
     },
     "src/modules/app/state/build-info.ts": {
       "class": "managed",
-      "hash": "sha256-f56fe89183e03c11eef803c01ec8ce71e5e269636b2399d2667f71e5168641f8",
+      "hash": "sha256-62e6a499c94248de3496e1788053095d1d68f6ba190629fbaf86d451e51c794e",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/state/runtime-backends.ts": {
@@ -823,12 +823,12 @@
     },
     "src/modules/auth/adapters/mock.ts": {
       "class": "managed",
-      "hash": "sha256-4a167fcdcd50e2f214f7d404e4a49179a302c69a29a32346174730e16f4d12de",
+      "hash": "sha256-68862cf3c510bd7e0501c2633627514b0520589ec72c98043459312911bff68b",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/auth/adapters/oauth.ts": {
       "class": "managed",
-      "hash": "sha256-56175575cf5b9b57ef832eaceb14eb78dc6fa2a768e3de5d76edf212daa07e0e",
+      "hash": "sha256-f5e5803f06b2e605909eeeb8c16846473eeb121857b73542dd5a59d520e767ae",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/auth/adapters/pkce-state.ts": {
@@ -996,6 +996,11 @@
       "hash": "sha256-57b8e36b68bc5e7e1cf3eaac062ce65785f94dcaf75fd51f6afda6832959630b",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/core/lib/config/base-path.ts": {
+      "class": "managed",
+      "hash": "sha256-cda3d777a9c093e95051dddd05d6d866e20be8af4f5ea43acfc9eceb54f343b4",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/core/lib/config/deploy.ts": {
       "class": "managed",
       "hash": "sha256-9df013ad1b8fc608601515ccb04a067f1400ef50bc811a22c895ea20b2aba8c1",
@@ -1003,12 +1008,12 @@
     },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
-      "hash": "sha256-d392453a4401803cc5847163a68102d43ad78496aee438b9db12f5d7a773157a",
+      "hash": "sha256-17f6d56aa17ff31de0947532f729f3ffd0e7b884870c300734f49f71d0dad250",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/config/index.ts": {
       "class": "managed",
-      "hash": "sha256-91e48ba887387cd2d278b0ea017a5c14ebc4f699882e83749c0d864a6726ca0e",
+      "hash": "sha256-b5f09622e3ba00bba0a44c853314979619e15fa5b7f27eaf8c2b84fa55ecb89e",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/config/runtime-overlay.ts": {
@@ -1144,7 +1149,7 @@
   },
   "regions": {
     ".env.example": {
-      "vuestrata:env": "sha256-ca43abdbff4bfab2cb4595d8513dc85ebb034b1c630ff9a9d79c883a0cb9e51f"
+      "vuestrata:env": "sha256-c6479ba0fbb8c4bf9bf172021c50efffac74832be621dc1dd6904fbcf4b50aeb"
     },
     "src/modules/app/config/theme.config.ts": {
       "vuestrata:themes": "sha256-600438ccf174bf0ffe8ef102721664cdbb701246c49fcd84c45147a394d966d7"

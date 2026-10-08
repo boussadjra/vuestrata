@@ -13,13 +13,17 @@
  * and storage keys are reused by the reactive post-mount sync.
  */
 
+import { appPathname } from '~/lib/config'
+
 import { applyAppearance, readPersistedAppearance, resolveActiveLocale } from './appearance'
 import { applyShape, readPersistedShape } from './shape'
 
 /** Apply persisted appearance and shape to `<html>` synchronously. */
 export function bootstrapTheme(): void {
   const appearance = readPersistedAppearance()
-  const pathname = typeof window === 'undefined' ? '/' : window.location.pathname
+  // The path inside the app: under a base path the address bar says
+  // `/console/docs/…`, and `/docs` is what the docs are called.
+  const pathname = appPathname()
   applyAppearance({
     ...appearance,
     locale: resolveActiveLocale(pathname, appearance.locale),
