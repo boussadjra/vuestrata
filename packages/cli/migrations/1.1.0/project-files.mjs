@@ -1,5 +1,6 @@
 import { hashFor } from '../../src/lib/lockfile.mjs'
 import { inSlot } from '../../src/lib/manifest.mjs'
+import { routerBase } from './base-path.mjs'
 import { adaptersBeingReplaced, envPlugin, PRISTINE } from './promotions.mjs'
 import { PERMISSIONS_PRISTINE } from './rbac-eject.mjs'
 import {
@@ -1264,9 +1265,12 @@ export default [
     steps: [lintWithoutLockCheck],
   },
   {
+    // Two changes to one file, in one group: the report names a file once per
+    // group. The second is for VUESTRATA_BASE_PATH (base-path.mjs).
     description:
-      'the router keeps the stale-chunk marker until a navigation the visitor made arrives',
-    steps: [routerAfterEach],
+      'the router keeps the stale-chunk marker until a navigation the visitor made arrives, ' +
+      'and creates its history with the base path',
+    steps: [routerAfterEach, routerBase],
   },
   {
     description: 'a stale chunk reloads the page only when the attempt can be recorded',
