@@ -138,6 +138,7 @@ const DEMO_LITERALS = ['demo@vuestrata.dev', 'vuestrata-demo-auth', 'vuestrata-d
 const PACKAGE = 'package.json'
 const ROUTER = 'src/modules/app/plugins/router.ts'
 const STALE_CHUNK = 'src/modules/app/plugins/stale-chunk.ts'
+const I18N = 'src/modules/app/plugins/i18n.ts'
 const LOGIN = 'src/modules/auth/pages/login.vue'
 const AUTH_RBAC = 'docs/6.configuration/2.auth-rbac.md'
 const DEEP_DIVE = 'docs/6.configuration/3.auth-deep-dive.md'
@@ -628,6 +629,139 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       const again = await upgrade({}, { version: '1.1.0-alpha.1' })
 
       expect(texts(again)).toEqual([expect.stringContaining('no longer exports isStaleChunkError')])
+    })
+  })
+
+  describe('plugins/i18n.ts', () => {
+    const MERGES = 'isGroup(shipped) && isGroup(value) ? withOverrides(shipped, value) : value'
+    const SHALLOW = '  return { ...base, ...overrides }\n'
+
+    it('makes an unedited file merge groups, which is the file this release ships', async () => {
+      seed([I18N])
+      expect(released(I18N)).toContain(SHALLOW)
+
+      const report = await upgrade()
+
+      const result = fixture.read(I18N)
+      expect(result).toContain(MERGES)
+      expect(result).not.toContain(SHALLOW)
+      expect(result).not.toContain('Shallow by design')
+      expect(lf(result)).toBe(lf(inRepo(I18N)))
+      expect(changed(report)).toContain(I18N)
+      expect(report.notes).toEqual([])
+    })
+
+    it('makes the same change in a file the project added a locale to', async () => {
+      seed([I18N])
+      const edited = released(I18N)
+        .replace(
+          "import fr from '../locales/fr.json'\n",
+          "import de from '../locales/de.json'\nimport fr from '../locales/fr.json'\n",
+        )
+        .replace(
+          '    fr: withOverrides(fr, frOverrides),\n',
+          '    de,\n    fr: withOverrides(fr, frOverrides),\n',
+        )
+      expect(edited).not.toBe(released(I18N))
+      fixture.write(I18N, edited)
+
+      const report = await upgrade()
+
+      const result = fixture.read(I18N)
+      expect(result).toContain("import de from '../locales/de.json'")
+      expect(result).toContain('    de,\n')
+      expect(result).toContain(MERGES)
+      expect(report.notes).toEqual([])
+    })
+
+    it('replaces the function and leaves a comment the project rewrote', async () => {
+      seed([I18N])
+      const edited = released(I18N).replace(
+        ' * Shallow by design: the shell catalog is flat',
+        ' * Shallow on purpose (see ADR 12): the shell catalog is flat',
+      )
+      expect(edited).not.toBe(released(I18N))
+      fixture.write(I18N, edited)
+
+      const report = await upgrade()
+
+      const result = fixture.read(I18N)
+      expect(result).toContain('Shallow on purpose (see ADR 12)')
+      expect(result).toContain(MERGES)
+      expect(report.notes).toEqual([])
+    })
+
+    it('keeps the line endings the file had', async () => {
+      seed([I18N])
+      fixture.write(I18N, released(I18N).replaceAll('\n', '\r\n'))
+
+      await upgrade()
+
+      const result = fixture.read(I18N)
+      expect(result).not.toMatch(/[^\r]\n/)
+      expect(lf(result)).toBe(lf(inRepo(I18N)))
+    })
+
+    it('leaves a function the project rewrote, and says what it has to do', async () => {
+      seed([I18N])
+      const edited = released(I18N).replace(
+        SHALLOW,
+        '  // Ours: the brand strings win.\n  return { ...base, ...overrides, ...brand }\n',
+      )
+      expect(edited).not.toBe(released(I18N))
+      fixture.write(I18N, edited)
+
+      const report = await upgrade()
+
+      // Not the shipped spread any more, so not recognised as shallow either:
+      // nothing is written and nothing is said about a function that is theirs.
+      expect(fixture.read(I18N)).toBe(edited)
+      expect(report.notes).toEqual([])
+    })
+
+    it('says what to write when the shallow merge is there in another shape', async () => {
+      seed([I18N])
+      const edited = released(I18N).replace(
+        'function withOverrides<T extends object>(base: T, overrides: object): T {\n' + SHALLOW,
+        'function withOverrides<T extends Messages>(base: T, overrides: Partial<T>): T {\n' +
+          SHALLOW,
+      )
+      expect(edited).not.toBe(released(I18N))
+      fixture.write(I18N, edited)
+
+      const report = await upgrade()
+
+      expect(fixture.read(I18N)).toBe(edited)
+      expect(texts(report)).toEqual([
+        expect.stringMatching(
+          /validation.*replaces the whole group.*withOverrides\(base\[key\], value\)/s,
+        ),
+      ])
+      expect(report.notes[0]?.rel).toBe(I18N)
+    })
+
+    it('is quiet the second time, and for a file that already merges', async () => {
+      seed([I18N])
+      await upgrade()
+      const once = fixture.read(I18N)
+
+      const report = await upgrade()
+
+      expect(fixture.read(I18N)).toBe(once)
+      expect(changed(report)).not.toContain(I18N)
+      expect(report.notes).toEqual([])
+    })
+
+    it('does not read a shallow merge out of a comment', async () => {
+      seed([I18N])
+      await upgrade()
+      const commented = `${fixture.read(I18N)}\n// was: function withOverrides(base, overrides) { return { ...base, ...overrides } }\n`
+      fixture.write(I18N, commented)
+
+      const report = await upgrade()
+
+      expect(fixture.read(I18N)).toBe(commented)
+      expect(report.notes).toEqual([])
     })
   })
 

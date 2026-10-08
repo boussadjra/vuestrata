@@ -362,11 +362,19 @@ The map is installed once at boot (`installValidationMessages()` in
 asked, so switching language changes the next validation with no reload.
 
 - **To reword a message for every form**, override it in
-  `<locale>.overrides.json`. That file is merged over the catalog one level
-  deep, and `validation` is a group: copy the whole `validation` object from the
-  catalog into the overrides file and change the entries you want. A
-  `validation` object with only the one key would replace the group, and every
-  other message would fall back to zod's English.
+  `<locale>.overrides.json`: `{ "validation": { "required": "{field} is missing" } }`.
+  `validation` is a group, and `plugins/i18n.ts` merges a group key by key, so
+  the other messages stay as shipped.
+
+  That file is yours, and this holds for the `withOverrides()` in it that
+  1.1.0 ships. A project upgraded from 1.0 has it too unless it had rewritten
+  the function, in which case `vuestrata upgrade` left it alone and said so:
+  a `withOverrides()` that still returns `{ ...base, ...overrides }` replaces
+  the whole group, and every message you did not repeat is shown as its key
+  (`validation.email`). Until you change the function, copy the whole
+  `validation` object from the catalog into the overrides file and edit the
+  entries you want.
+
 - **A message set in the schema wins**: `z.string().min(2, t('profile_name_short'))`
   says what it says. Build the schema in a `computed` when its messages are
   translated, so they follow the locale.
