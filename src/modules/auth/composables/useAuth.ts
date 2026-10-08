@@ -1,3 +1,6 @@
+// From the file, not the forms barrel: that barrel is merged, and a project's
+// copy from before this export existed would not have it.
+import { confirmDiscardingChanges } from '~/composables/forms/useUnsavedChangesGuard'
 import { authAdapter as configuredAuthAdapter } from '~/config/app.config'
 // From core/lib, not '../adapters': a project that kept its adapters has the 1.0
 // types.ts behind that barrel, whose AuthAdapter is not the one the registry returns.
@@ -180,6 +183,11 @@ export function useAuth() {
   }
 
   async function logout() {
+    // A form with unsaved changes asks first, while "keep editing" can still
+    // mean something: once the session is gone the guard stands down, because
+    // nobody may be kept on a protected page without one. Declined, nothing
+    // has happened and the user is where they were.
+    if (!(await confirmDiscardingChanges())) return
     // Backend logout failure is intentionally non-blocking: the user has
     // already decided to end their session, so client-side cleanup proceeds
     // regardless of network or backend availability. The adapter logs it.

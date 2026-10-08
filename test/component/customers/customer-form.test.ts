@@ -167,7 +167,9 @@ describe('creating a customer', () => {
     // Pending for the whole save, not just for validation.
     const button = wrapper.find('button[type="submit"]')
     expect(button.attributes('aria-busy')).toBe('true')
-    expect(button.attributes('disabled')).toBeDefined()
+    // Still focusable: a disabled button would drop focus to the page mid-save.
+    expect(button.attributes('aria-disabled')).toBe('true')
+    expect(button.attributes('disabled')).toBeUndefined()
 
     await waitFor(
       () => /^\/dashboard\/customers\/CUS-\d+$/.test(router.currentRoute.value.path),

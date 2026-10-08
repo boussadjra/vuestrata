@@ -1,9 +1,15 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { defineComponent, h, ref, type Ref } from 'vue'
 import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router'
 
-import { useUnsavedChangesGuard } from '@/composables/forms'
+import { UiUnsavedChangesDialog } from '@/components/ui'
+import { confirmDiscardingChanges, useUnsavedChangesGuard } from '@/composables/forms'
+import { useAuth } from '@/modules/auth/composables/useAuth'
+import { getI18n } from '@/plugins/i18n'
+import { useAuthStore } from '@/stores/auth'
+
+import { createUser } from '../../fixtures'
 
 /**
  * The unsaved-changes guard, against a real router.
@@ -276,5 +282,318 @@ describe('reload, closed tab, typed address', () => {
 
     wrapper.unmount()
     expect(unloadIsBlocked()).toBe(false)
+  })
+})
+
+// ─── A session that ends ─────────────────────────────────────────────────────
+
+const sessionUser = createUser({ role: 'manager' })
+
+/** A routed, guarded page with a login route beside it, and somebody signed in. */
+async function mountSignedIn(options: { signedIn?: boolean; forms?: number } = {}) {
+  const store = useAuthStore()
+  if (options.signedIn ?? true) store.setAuth(sessionUser, 'access-token')
+
+  const isDirty = ref(false)
+  const guards: Guard[] = []
+  let auth!: ReturnType<typeof useAuth>
+
+  const Form = defineComponent({
+    setup() {
+      guards.push(useUnsavedChangesGuard(isDirty))
+      return () => h('p', 'form')
+    },
+  })
+  const Page = defineComponent({
+    setup() {
+      auth = useAuth()
+      return () => Array.from({ length: options.forms ?? 1 }, () => h(Form))
+    },
+  })
+  const Other = defineComponent({ render: () => h('p', 'other') })
+
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/form/:id', component: Page },
+      { path: '/other', component: Other },
+      { path: '/auth/login', component: Other },
+    ],
+  })
+  await router.push('/form/1')
+  await router.isReady()
+
+  const wrapper = mount(defineComponent({ render: () => h(RouterView) }), {
+    global: { plugins: [router] },
+  })
+  mounted.push(wrapper)
+  await flushPromises()
+
+  return { router, store, isDirty, guards, auth: () => auth }
+}
+
+describe('when the session ends', () => {
+  it('lets the expiry redirect through, reason and destination intact', async () => {
+    const { router, store, isDirty, guards } = await mountSignedIn()
+    isDirty.value = true
+    expect(unloadIsBlocked()).toBe(true)
+
+    // What bootstrap/auth-wiring.ts does when a 401 could not be refreshed.
+    store.clearAuth('expired')
+    await router.replace({ path: '/auth/login', query: { reason: 'expired', redirect: '/form/1' } })
+
+    expect(router.currentRoute.value.path).toBe('/auth/login')
+    expect(router.currentRoute.value.query).toEqual({ reason: 'expired', redirect: '/form/1' })
+    expect(guards[0]!.isPrompting.value).toBe(false)
+    expect(unloadIsBlocked()).toBe(false)
+  })
+
+  it('reads the store when asked, so a store that announces nothing is enough', async () => {
+    const { router, store, isDirty, guards } = await mountSignedIn()
+    isDirty.value = true
+
+    // A stores/auth.ts from before 1.1.0 clears the session without the event.
+    store.$patch({ user: null, token: null })
+    await router.replace('/auth/login?reason=expired')
+
+    expect(router.currentRoute.value.path).toBe('/auth/login')
+    expect(guards[0]!.isPrompting.value).toBe(false)
+  })
+
+  it('answers a question already on screen with "leave" and closes it', async () => {
+    const { router, store, isDirty, guards } = await mountSignedIn()
+    isDirty.value = true
+
+    const held = router.push('/other')
+    await flushPromises()
+    expect(guards[0]!.isPrompting.value).toBe(true)
+
+    store.clearAuth('expired')
+    expect(guards[0]!.isPrompting.value).toBe(false)
+    await held
+    await router.replace('/auth/login?reason=expired')
+
+    expect(router.currentRoute.value.path).toBe('/auth/login')
+    expect(unloadIsBlocked()).toBe(false)
+  })
+
+  it('guards again once somebody is signed in', async () => {
+    const { router, store, isDirty, guards } = await mountSignedIn()
+    isDirty.value = true
+    store.clearAuth('expired')
+    expect(unloadIsBlocked()).toBe(false)
+
+    store.setAuth(sessionUser, 'another-token')
+    expect(unloadIsBlocked()).toBe(true)
+
+    const navigation = router.push('/other')
+    await flushPromises()
+    expect(guards[0]!.isPrompting.value).toBe(true)
+    guards[0]!.stay()
+    await navigation
+    expect(router.currentRoute.value.path).toBe('/form/1')
+  })
+
+  it('still guards a page nobody was signed in on', async () => {
+    const { router, isDirty, guards } = await mountSignedIn({ signedIn: false })
+    isDirty.value = true
+
+    const navigation = router.push('/other')
+    await flushPromises()
+
+    expect(guards[0]!.isPrompting.value).toBe(true)
+    expect(unloadIsBlocked()).toBe(true)
+    guards[0]!.stay()
+    await navigation
+  })
+})
+
+describe('signing out with unsaved changes', () => {
+  /** The backend behind the configured adapter's sign-out. */
+  function backend() {
+    return vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => new Response(null, { status: 204 }))
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('asks before anything is ended, and "keep editing" ends nothing', async () => {
+    const calls = backend()
+    const { router, store, isDirty, guards, auth } = await mountSignedIn()
+    isDirty.value = true
+
+    const signingOut = auth().logout()
+    await flushPromises()
+
+    expect(guards[0]!.isPrompting.value).toBe(true)
+    expect(store.isAuthenticated).toBe(true)
+    expect(calls).not.toHaveBeenCalled()
+
+    guards[0]!.stay()
+    await signingOut
+
+    expect(store.isAuthenticated).toBe(true)
+    expect(calls).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe('/form/1')
+    expect(unloadIsBlocked()).toBe(true)
+  })
+
+  it('signs out and reaches the login page on "discard", without asking twice', async () => {
+    backend()
+    const { router, store, isDirty, guards, auth } = await mountSignedIn()
+    isDirty.value = true
+
+    const signingOut = auth().logout()
+    await flushPromises()
+    guards[0]!.leave()
+    await signingOut
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(router.currentRoute.value.path).toBe('/auth/login')
+    expect(guards[0]!.isPrompting.value).toBe(false)
+    expect(unloadIsBlocked()).toBe(false)
+  })
+
+  it('signs out at once when nothing is unsaved', async () => {
+    backend()
+    const { router, store, guards, auth } = await mountSignedIn()
+
+    await auth().logout()
+
+    expect(guards[0]!.isPrompting.value).toBe(false)
+    expect(store.isAuthenticated).toBe(false)
+    expect(router.currentRoute.value.path).toBe('/auth/login')
+  })
+})
+
+describe('more than one guard on a page', () => {
+  it('asks once for a navigation, and both take the one answer', async () => {
+    const { router, isDirty, guards } = await mountSignedIn({ forms: 2 })
+    isDirty.value = true
+
+    const navigation = router.push('/other')
+    await flushPromises()
+
+    expect(guards.filter((guard) => guard.isPrompting.value)).toHaveLength(1)
+    guards.find((guard) => guard.isPrompting.value)!.leave()
+    await navigation
+
+    expect(router.currentRoute.value.path).toBe('/other')
+  })
+
+  it('stays, for both, when the one question is answered "keep editing"', async () => {
+    const { router, isDirty, guards } = await mountSignedIn({ forms: 2 })
+    isDirty.value = true
+
+    const navigation = router.push('/other')
+    await flushPromises()
+    guards.find((guard) => guard.isPrompting.value)!.stay()
+    await navigation
+    expect(router.currentRoute.value.path).toBe('/form/1')
+
+    // And the next navigation is asked about afresh.
+    const again = router.push('/other')
+    await flushPromises()
+    expect(guards.filter((guard) => guard.isPrompting.value)).toHaveLength(1)
+    guards.find((guard) => guard.isPrompting.value)!.leave()
+    await again
+    expect(router.currentRoute.value.path).toBe('/other')
+  })
+})
+
+describe('a navigation the project allows', () => {
+  it('is not held, and every other one still is', async () => {
+    const isDirty = ref(true)
+    const captured: { guard?: Guard } = {}
+    const Guarded = defineComponent({
+      setup() {
+        captured.guard = useUnsavedChangesGuard(isDirty, {
+          allow: (to) => to.path === '/maintenance',
+        })
+        return () => h('p', 'form')
+      },
+    })
+    const Other = defineComponent({ render: () => h('p', 'other') })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/form', component: Guarded },
+        { path: '/other', component: Other },
+        { path: '/maintenance', component: Other },
+      ],
+    })
+    await router.push('/form')
+    await router.isReady()
+    mounted.push(
+      mount(defineComponent({ render: () => h(RouterView) }), { global: { plugins: [router] } }),
+    )
+    await flushPromises()
+
+    const held = router.push('/other')
+    await flushPromises()
+    expect(captured.guard!.isPrompting.value).toBe(true)
+    captured.guard!.stay()
+    await held
+    expect(router.currentRoute.value.path).toBe('/form')
+
+    await router.push('/maintenance')
+    expect(router.currentRoute.value.path).toBe('/maintenance')
+  })
+})
+
+describe('confirmDiscardingChanges', () => {
+  it('answers true at once when nothing is unsaved, and asks when something is', async () => {
+    const { isDirty, guards } = await mountSignedIn()
+
+    await expect(confirmDiscardingChanges()).resolves.toBe(true)
+
+    isDirty.value = true
+    const answer = confirmDiscardingChanges()
+    await flushPromises()
+    expect(guards[0]!.isPrompting.value).toBe(true)
+    guards[0]!.stay()
+    await expect(answer).resolves.toBe(false)
+  })
+})
+
+describe('the dialog, in a project whose catalog predates it', () => {
+  const keys = [
+    'form_unsaved_title',
+    'form_unsaved_description',
+    'form_unsaved_stay',
+    'form_unsaved_leave',
+  ] as const
+  const i18n = getI18n()
+  const original = i18n.global.getLocaleMessage('en')
+
+  afterEach(() => {
+    i18n.global.setLocaleMessage('en', original)
+  })
+
+  it('asks in English instead of showing the keys', async () => {
+    const without = { ...original } as Record<string, unknown>
+    for (const key of keys) delete without[key]
+    i18n.global.setLocaleMessage('en', without as typeof original)
+
+    mounted.push(mount(UiUnsavedChangesDialog, { props: { open: true }, attachTo: document.body }))
+    await flushPromises()
+
+    const text = document.body.textContent ?? ''
+    for (const key of keys) expect(text).not.toContain(key)
+    expect(text).toContain('Discard unsaved changes?')
+    expect(text).toContain('Keep editing')
+    expect(text).toContain('Discard changes')
+  })
+
+  it('uses the catalog as soon as it has the keys', async () => {
+    i18n.global.setLocaleMessage('en', { ...original, form_unsaved_stay: 'Stay here' })
+
+    mounted.push(mount(UiUnsavedChangesDialog, { props: { open: true }, attachTo: document.body }))
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('Stay here')
   })
 })

@@ -37,7 +37,11 @@ export {
   type ServerErrorMapping,
   type ServerErrorOptions,
 } from './useServerErrors'
-export { useUnsavedChangesGuard, type UnsavedChangesGuardOptions } from './useUnsavedChangesGuard'
+export {
+  confirmDiscardingChanges,
+  useUnsavedChangesGuard,
+  type UnsavedChangesGuardOptions,
+} from './useUnsavedChangesGuard'
 // vuestrata:form-composables-start
 // vuestrata:form-composables-end
 // app:form-composables-start
