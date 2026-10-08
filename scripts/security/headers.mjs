@@ -100,7 +100,7 @@ export const HEALTH_PATH = '/healthz'
 export const BASE_PATH_KEY = 'VUESTRATA_BASE_PATH'
 
 /** The app at the root of its origin: what every committed target is generated for. */
-export const DEFAULT_BASE_PATH = '/'
+export const ROOT_BASE_PATH = '/'
 
 /** `/`, or `/` followed by segments of unreserved characters, each closed by `/`. */
 const BASE_PATH = /^\/(?:[A-Za-z0-9._~-]+\/)*$/
@@ -119,7 +119,7 @@ const BASE_PATH = /^\/(?:[A-Za-z0-9._~-]+\/)*$/
  * it starts and ends with `/`, and holds letters, digits and `._~-` between.
  */
 export function resolveBasePath(value) {
-  if (value === undefined || value === null || value === '') return DEFAULT_BASE_PATH
+  if (value === undefined || value === null || value === '') return ROOT_BASE_PATH
 
   const fail = (reason) => {
     throw new Error(`${BASE_PATH_KEY}=${JSON.stringify(value)} is not a base path: ${reason}`)
@@ -691,7 +691,7 @@ export const CACHE_RULES = [
  */
 export function cacheRulesFor(basePath) {
   const base = resolveBasePath(basePath)
-  if (base === DEFAULT_BASE_PATH) return CACHE_RULES
+  if (base === ROOT_BASE_PATH) return CACHE_RULES
 
   const under = (path) => `${base}${path.slice(1)}`
   return CACHE_RULES.map((rule) => ({

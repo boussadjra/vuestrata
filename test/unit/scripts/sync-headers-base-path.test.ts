@@ -109,7 +109,7 @@ describe('resolveBasePath', () => {
     expect(headers.resolveBasePath(undefined)).toBe('/')
     expect(headers.resolveBasePath(null)).toBe('/')
     expect(headers.resolveBasePath('')).toBe('/')
-    expect(headers.DEFAULT_BASE_PATH).toBe('/')
+    expect(headers.ROOT_BASE_PATH).toBe('/')
   })
 
   it.each([['/'], ['/console/'], ['/apps/console/'], ['/a.b_c~d-e/'], ['/V2/Console/']])(

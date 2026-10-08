@@ -89,7 +89,7 @@ import {
   cacheRulesFor,
   connectSrcFor,
   DEFAULT_API_URL,
-  DEFAULT_BASE_PATH,
+  ROOT_BASE_PATH,
   GENERATED_BANNER,
   HEALTH_PATH,
   replaceMetaCsp,
@@ -477,7 +477,7 @@ function outsideBasePath(base) {
  */
 export function renderNginxConf({ basePath } = {}) {
   const base = resolveBasePath(basePath)
-  const atRoot = base === DEFAULT_BASE_PATH
+  const atRoot = base === ROOT_BASE_PATH
   const blocks = [
     nginxLocation(`= ${HEALTH_PATH}`, {
       comment:
@@ -970,7 +970,7 @@ async function run(args) {
   // none, both mean the root, which is what is committed.
   const basePath =
     parseFlag(args, 'base-path') ??
-    ((fromEnv && process.env[BASE_PATH_KEY]?.trim()) || DEFAULT_BASE_PATH)
+    ((fromEnv && process.env[BASE_PATH_KEY]?.trim()) || ROOT_BASE_PATH)
 
   let result
   try {
@@ -1006,7 +1006,7 @@ async function run(args) {
       logger.warn('--runtime-config has no effect on --check: the committed form is without it.')
     }
   } else if (
-    (fromEnv || runtimeConfig || basePath !== DEFAULT_BASE_PATH) &&
+    (fromEnv || runtimeConfig || basePath !== ROOT_BASE_PATH) &&
     result.written.length > 0
   ) {
     logger.info(
