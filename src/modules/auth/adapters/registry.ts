@@ -54,6 +54,11 @@ declare const __VUESTRATA_SESSION_ADAPTER__: boolean | undefined
  * its copy keeps it) there is nothing to read, and the adapter stays in: a
  * few hundred bytes are a better outcome than a name the build accepted and
  * the app cannot build.
+ *
+ * Only `builtinNames` asks through this function. `builtinFactory` writes the
+ * same test out where it uses it: the bundler folds the constant in place, and
+ * does not carry the answer of a function across a call, so a reference to the
+ * adapter behind `hasSessionAdapter()` would keep it in every bundle.
  */
 function hasSessionAdapter(): boolean {
   return typeof __VUESTRATA_SESSION_ADAPTER__ === 'undefined' || __VUESTRATA_SESSION_ADAPTER__
@@ -76,7 +81,12 @@ function builtinFactory(name: string): AuthAdapterFactory | undefined {
   }
   if (name === 'oauth') return () => createOAuthAdapter()
   if (name === 'mock') return __VUESTRATA_DEMO__ ? () => createMockAdapter() : undefined
-  if (name === 'session') return hasSessionAdapter() ? () => createSessionAdapter() : undefined
+  if (name === 'session') {
+    // Written out, not `hasSessionAdapter()`: see there.
+    return typeof __VUESTRATA_SESSION_ADAPTER__ === 'undefined' || __VUESTRATA_SESSION_ADAPTER__
+      ? () => createSessionAdapter()
+      : undefined
+  }
   return undefined
 }
 
