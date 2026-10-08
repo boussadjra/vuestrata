@@ -17,6 +17,7 @@
  *   node scripts/security/sync-headers.mjs --from-env   # render for THIS environment
  *   node scripts/security/sync-headers.mjs --api-url=https://api.acme.com
  *   node scripts/security/sync-headers.mjs --runtime-config   # for an artifact configured at start
+ *   node scripts/security/sync-headers.mjs --base-path=/console/   # the app under a path prefix
  *
  * Inputs, the same for writing and for `--check`:
  *   - `scripts/security/headers.mjs`, the defaults;
@@ -43,6 +44,16 @@
  *     Run it in the deploy pipeline, before `vp build`, and do not commit the
  *     result: it differs per environment by design, and `--check` would report
  *     it as drift. `--api-url` sets the API URL alone.
+ *
+ * The same holds for where the app is served. The committed files are for an
+ * app at the root of its origin. `--base-path=/console/` (or `--from-env`,
+ * which reads `VUESTRATA_BASE_PATH`, the variable the build reads) renders the
+ * cache rules, the nginx locations and the SPA fallback under that prefix, and
+ * gives the image an answer for the paths outside it. `--check` takes the same
+ * two inputs, so `--check --base-path=/console/` compares with what that write
+ * produces; a project that is always served under one prefix puts the flag in
+ * its `security:headers` and `lint` scripts and commits the result. The
+ * Dockerfile passes its `VUESTRATA_BASE_PATH` build argument.
  *
  * The `<meta>` carries the same `connect-src` as the header, so a host that
  * sends no headers is still held to it. `--runtime-config` is for an artifact
@@ -72,15 +83,18 @@ import { consola } from 'consola'
 import { loadDeployConfig, loadRuntimeKeys } from './deploy-config.mjs'
 import {
   API_PATH_PLACEHOLDER,
+  BASE_PATH_KEY,
   buildCsp,
   buildSecurityHeaders,
-  CACHE_RULES,
+  cacheRulesFor,
   connectSrcFor,
   DEFAULT_API_URL,
+  DEFAULT_BASE_PATH,
   GENERATED_BANNER,
   HEALTH_PATH,
   replaceMetaCsp,
   reservedApiPaths,
+  resolveBasePath,
   resolveDeployHeaders,
   resolveRuntimeKeys,
   RUNTIME_DIR,
@@ -140,7 +154,7 @@ export function renderHeadersFile(options = {}) {
     ),
   )
 
-  for (const rule of CACHE_RULES) {
+  for (const rule of cacheRulesFor(options.basePath)) {
     if (!rule.match) continue
     lines.push('', ...hashComment(rule.comment), rule.match)
     lines.push(...rule.headers.map(([name, value]) => `  ${name}: ${value}`))
@@ -160,10 +174,12 @@ export function renderVercelHeaders(options = {}) {
       source: '/(.*)',
       headers: buildSecurityHeaders(options).map(([key, value]) => ({ key, value })),
     },
-    ...CACHE_RULES.filter((rule) => rule.match).map((rule) => ({
-      source: vercelSource(rule.match),
-      headers: rule.headers.map(([key, value]) => ({ key, value })),
-    })),
+    ...cacheRulesFor(options.basePath)
+      .filter((rule) => rule.match)
+      .map((rule) => ({
+        source: vercelSource(rule.match),
+        headers: rule.headers.map(([key, value]) => ({ key, value })),
+      })),
   ]
 }
 
@@ -384,10 +400,84 @@ const MANIFEST_LOCATION = '~* \\.webmanifest$'
 const MANIFEST_TYPE = 'application/manifest+json'
 
 /**
+ * For an app under a base path: redirects as a path, not as a URL.
+ *
+ * nginx writes a redirect as `scheme://host:port/…` from what IT sees, and
+ * behind the proxy that mounts the app under a prefix it sees its own port
+ * (8080) and plain http. A visitor sent there leaves the site. A `Location`
+ * that is only a path is resolved by the browser against the address it
+ * actually used. It also covers the redirect nginx makes itself, to add the
+ * slash to a directory.
+ */
+function relativeRedirects() {
+  return [
+    '',
+    '  # Redirects carry a path, not a URL: behind the proxy that mounts the app',
+    '  # under a prefix, this server knows neither the public host nor its port.',
+    '  absolute_redirect off;',
+  ]
+}
+
+/**
+ * What the image answers OUTSIDE the base path, when the app is not at the
+ * root: the three blocks that replace "everything is the app".
+ *
+ * A proxy normally sends this container only what is under the prefix, so
+ * these are for someone who reaches it directly, or for a proxy that forwards
+ * the whole host:
+ *
+ *   - the prefix without its slash goes to the prefix. `location <base>` does
+ *     not match it, and nginx only adds the slash by itself for a directory it
+ *     found through `root`, which would then say so with its own port.
+ *   - `/` goes to the app. It is where somebody who typed the host lands.
+ *   - anything else is a 404. Answering it with the app would make every
+ *     unknown path of the host look like a page of this one.
+ *
+ * Both redirects go to a path fixed when the image is built. Nothing from the
+ * request (not the path, not the query, not the Host header) is in the
+ * `Location`, so neither can be made to point anywhere else.
+ */
+function outsideBasePath(base) {
+  // The last line: `resolveBasePath` has refused anything that could end the
+  // directive or start a variable, and this does not rely on a caller having
+  // gone through it.
+  const target = resolveBasePath(base)
+  const redirect = { headers: [['Cache-Control', 'no-store']], reply: `return 302 ${target};` }
+
+  return [
+    nginxLocation(`= ${target.slice(0, -1)}`, {
+      ...redirect,
+      comment: `The prefix without its trailing slash, which the block for ${target} does not match.`,
+    }),
+    nginxLocation('= /', {
+      ...redirect,
+      comment:
+        `The app is served under ${target} (VUESTRATA_BASE_PATH), not here. The root of the\n` +
+        'server sends a visitor there, to a path fixed at build: nothing in the request\n' +
+        'decides where.',
+    }),
+    nginxLocation('/', {
+      comment:
+        `Everything else outside ${target} is not this app. A 404, with the security headers,\n` +
+        'rather than index.html for a path the app does not own.',
+      reply: 'return 404;',
+    }),
+  ]
+}
+
+/**
  * The image's server block. It is the same for every environment: what varies
  * is in the two files it includes from the entrypoint's output directory.
+ *
+ * `basePath` is the one thing decided at BUILD that changes it: the prefix the
+ * app is served under. The image copies the build into `<root><basePath>`, so
+ * `root` stays where it is and `$uri` still names a file under it, and the
+ * locations below are the same ones under the prefix. The health probe and the
+ * unrouted-API answer stay where they were, at the root of the server.
  */
-export function renderNginxConf() {
+export function renderNginxConf({ basePath } = {}) {
+  const base = resolveBasePath(basePath)
+  const atRoot = base === DEFAULT_BASE_PATH
   const blocks = [
     nginxLocation(`= ${HEALTH_PATH}`, {
       comment:
@@ -407,16 +497,17 @@ export function renderNginxConf() {
     ],
   ]
 
-  for (const rule of CACHE_RULES) {
+  for (const rule of cacheRulesFor(base)) {
     if (!rule.nginxLocation) continue
-    const isCatchAll = rule.nginxLocation === '/'
+    // The one rule no hosted target has: every other file of the app.
+    const isCatchAll = rule.match === null
 
     blocks.push(
       nginxLocation(rule.nginxLocation, {
         comment: rule.comment,
         // The SPA fallback belongs to the catch-all; its rule says why that
         // does not put routes under the catch-all's cache policy.
-        directives: isCatchAll ? ['try_files $uri $uri/ /index.html;'] : rule.nginxDirectives,
+        directives: isCatchAll ? [`try_files $uri $uri/ ${base}index.html;`] : rule.nginxDirectives,
         headers: rule.headers,
       }),
     )
@@ -454,6 +545,7 @@ export function renderNginxConf() {
     '  root /usr/share/nginx/html;',
     '  index index.html;',
     '  server_tokens off;',
+    ...(atRoot ? [] : relativeRedirects()),
     '',
     '  # Applies to responses served by this level directly (errors, redirects).',
     '  # Every location below re-includes it — see the note in the snippet.',
@@ -476,6 +568,7 @@ export function renderNginxConf() {
     '  gzip_min_length 1024;',
     `  gzip_types ${GZIP_TYPES.join(' ')};`,
     ...blocks.flatMap((block) => ['', ...block]),
+    ...(atRoot ? [] : outsideBasePath(base).flatMap((block) => ['', ...block])),
     '}',
   ]
   return `${lines.join(NL)}${NL}`
@@ -495,6 +588,7 @@ export function renderRuntimeKeys({
   runtimeKeys = [],
   runtimeKeyFormats = {},
   buildApiUrl = DEFAULT_API_URL,
+  basePath,
 } = {}) {
   const resolved = resolveDeployHeaders(headers)
   const lines = [
@@ -515,10 +609,10 @@ export function renderRuntimeKeys({
     '#   reserved   not a variable: a path the server answers itself, which the',
     '#              API path therefore cannot be',
     ...resolveRuntimeKeys(runtimeKeys).map((key) => configEntry(key, runtimeKeyFormats[key])),
-    `api ${API_URL_KEY} ${entrypointApiUrl(buildApiUrl)}`,
+    `api ${API_URL_KEY} ${entrypointApiUrl(buildApiUrl, basePath)}`,
     ...resolved.connectSrcFromEnv.map((key) => `connect ${key}`),
     ...resolved.websocketFromEnv.map((key) => `websocket ${key}`),
-    ...reservedApiPaths().map((path) => `reserved ${path}`),
+    ...reservedApiPaths(basePath).map((path) => `reserved ${path}`),
   ]
   return `${lines.join(NL)}${NL}`
 }
@@ -552,14 +646,14 @@ const ENTRYPOINT_VALUE = /^[A-Za-z0-9_.~:/?#@&+,=%-]{1,2048}$/
  * checks the entrypoint will apply to it, so an image whose own default would
  * stop every container fails here, at build, instead.
  */
-function entrypointApiUrl(apiUrl) {
+function entrypointApiUrl(apiUrl, basePath) {
   if (typeof apiUrl !== 'string' || !ENTRYPOINT_VALUE.test(apiUrl)) {
     throw new Error(
       `${API_URL_KEY}=${JSON.stringify(apiUrl)} cannot be the default of a container: it may ` +
         'hold only letters, digits and -_.~:/?#@&+,=% (percent-encode the rest).',
     )
   }
-  if (apiUrl.startsWith('/')) sameOriginApiPath(apiUrl)
+  if (apiUrl.startsWith('/')) sameOriginApiPath(apiUrl, { basePath })
   else connectSrcFor(apiUrl)
   return apiUrl
 }
@@ -676,7 +770,7 @@ export function renderIndexHtml(current, { apiUrl, headers, env, runtimeConfig =
 function targetsFor(options) {
   return [
     { path: 'public/_headers', needs: 'public', render: () => renderHeadersFile(options) },
-    { path: 'docker/nginx.conf', needs: 'docker', render: () => renderNginxConf() },
+    { path: 'docker/nginx.conf', needs: 'docker', render: () => renderNginxConf(options) },
     {
       path: 'docker/runtime/security-headers.conf.template',
       needs: 'docker',
@@ -740,6 +834,8 @@ function readIfGenerated(fullPath) {
  * @param {Record<string, object>} [options.runtimeKeyFormats] `RUNTIME_KEY_FORMATS`.
  * @param {Record<string, string | undefined>} [options.env] The environment
  *   `connectSrcFromEnv` is read from; omit it for the committed targets.
+ * @param {string} [options.basePath] `VUESTRATA_BASE_PATH`: the prefix the app
+ *   is served under. The committed targets are for the root.
  * @param {boolean} [options.runtimeConfig] Render for an artifact whose API URL
  *   is set at start. Ignored by `check`: the committed targets are the form
  *   without it, and a check that honoured it would pass on a page whose policy
@@ -754,11 +850,15 @@ export function syncTargets({
   runtimeKeyFormats = {},
   env,
   runtimeConfig = false,
+  basePath,
   log = logger,
 } = {}) {
   const atStart = runtimeConfig && !check
   const options = {
     apiUrl,
+    // Validated here, once, whoever the caller is: every renderer below writes
+    // it into a file a server reads.
+    basePath: resolveBasePath(basePath),
     env,
     headers: deployConfig.headers,
     runtimeKeys: resolveRuntimeKeys(builtinRuntimeKeys, deployConfig.runtime ?? []),
@@ -845,12 +945,13 @@ export function syncTargets({
 
 // ─── Run ─────────────────────────────────────────────────────────────────────
 
-/** `--api-url=<value>`, or undefined when the flag is absent or empty. */
-function parseApiUrl(args) {
+/** `--<name>=<value>`, or undefined when the flag is absent or empty. */
+function parseFlag(args, name) {
+  const prefix = `--${name}=`
   return (
     args
-      .find((arg) => arg.startsWith('--api-url='))
-      ?.slice('--api-url='.length)
+      .find((arg) => arg.startsWith(prefix))
+      ?.slice(prefix.length)
       .trim() || undefined
   )
 }
@@ -862,7 +963,14 @@ async function run(args) {
 
   // Empty means the default, as it does for the app.
   const apiUrl =
-    parseApiUrl(args) ?? ((fromEnv && process.env[API_URL_KEY]?.trim()) || DEFAULT_API_URL)
+    parseFlag(args, 'api-url') ?? ((fromEnv && process.env[API_URL_KEY]?.trim()) || DEFAULT_API_URL)
+
+  // The base path follows the same two sources, and `--check` honours them: it
+  // compares with what a write given the same arguments would produce. Given
+  // none, both mean the root, which is what is committed.
+  const basePath =
+    parseFlag(args, 'base-path') ??
+    ((fromEnv && process.env[BASE_PATH_KEY]?.trim()) || DEFAULT_BASE_PATH)
 
   let result
   try {
@@ -875,6 +983,7 @@ async function run(args) {
       runtimeKeyFormats: runtime.formats,
       env: fromEnv ? process.env : undefined,
       runtimeConfig,
+      basePath,
     })
   } catch (error) {
     logger.error(error.message)
@@ -896,7 +1005,10 @@ async function run(args) {
     if (runtimeConfig) {
       logger.warn('--runtime-config has no effect on --check: the committed form is without it.')
     }
-  } else if ((fromEnv || runtimeConfig) && result.written.length > 0) {
+  } else if (
+    (fromEnv || runtimeConfig || basePath !== DEFAULT_BASE_PATH) &&
+    result.written.length > 0
+  ) {
     logger.info(
       'Rendered for this environment. Do not commit the result: it is specific to this ' +
         'deployment, and `sync-headers.mjs --check` would report it as drift.',

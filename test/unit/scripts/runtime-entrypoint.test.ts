@@ -135,6 +135,7 @@ function tempDir(): string {
 function sourceDir(
   deploy: { runtime?: string[]; headers?: object } = DEPLOY,
   buildApiUrl?: string,
+  basePath?: string,
 ): string {
   const dir = tempDir()
   const options = {
@@ -142,6 +143,7 @@ function sourceDir(
     runtimeKeys: headers.resolveRuntimeKeys(BUILTIN_KEYS, deploy.runtime ?? []),
     runtimeKeyFormats: RUNTIME_KEY_FORMATS,
     buildApiUrl,
+    basePath,
   }
   fs.writeFileSync(path.join(dir, 'keys'), sync.renderRuntimeKeys(options))
   fs.writeFileSync(
@@ -951,6 +953,47 @@ describe.each(SHELLS)('40-vuestrata-runtime.sh under %s', TIMEOUT, (shell) => {
         )
       },
     )
+  })
+
+  describe('an image built to serve the app under /apps/console/', () => {
+    // The base path is decided when the image is BUILT, so all the entrypoint
+    // knows of it is the list of paths the generator reserved.
+    const BASE = '/apps/console/'
+    const underBase = () => sourceDir(DEPLOY, undefined, BASE)
+
+    it.each(['/apps', '/apps/console', '/apps/console/', '/apps/console/assets', '/healthz'])(
+      'refuses the API at %s, which would take the app’s own requests',
+      (apiUrl) => {
+        const run = start(shell, { VUESTRATA_API_URL: apiUrl }, { source: underBase() })
+
+        expectRefused(run, 'Cannot route VUESTRATA_API_URL')
+        expect(() => headers.sameOriginApiPath(apiUrl, { basePath: BASE })).toThrow(
+          /answers itself/,
+        )
+      },
+    )
+
+    it.each(['/api', '/apps/console/api', '/apps/other', '/assets', '/index.html'])(
+      'routes the API at %s: beside the app, below it, or at a name only the root reserved',
+      (apiUrl) => {
+        const run = start(shell, { VUESTRATA_API_URL: apiUrl }, { source: underBase() })
+
+        expect(run.status).toBe(0)
+        expect(run.read('api-location.conf')).toContain(
+          sync.renderApiLocation(headers.sameOriginApiPath(apiUrl, { basePath: BASE })),
+        )
+      },
+    )
+
+    it('writes runtime-config.js where it always did: nginx maps the URL to it', () => {
+      const run = start(shell, { VUESTRATA_API_URL: '/api' }, { source: underBase() })
+
+      expect(run.status).toBe(0)
+      expect(run.files).toContain('runtime-config.js')
+      expect(sync.renderNginxConf({ basePath: BASE })).toMatch(
+        /location = \/apps\/console\/runtime-config\.js \{\s+alias \/tmp\/vuestrata\/runtime-config\.js;/,
+      )
+    })
   })
 
   describe('a value of unreasonable length', () => {

@@ -80,8 +80,10 @@ test.describe('served under a base path', () => {
     )
     expect(outside).toEqual([])
 
-    // And none of it is missing.
-    expect(seen.filter((entry) => entry.status >= 400)).toEqual([])
+    // And none of the app's own files is missing. (The API is somebody
+    // else's: against the production image, which has no backend behind it,
+    // its calls are answered 502 at the root, as they are without a base.)
+    expect(seen.filter((entry) => entry.path.startsWith(BASE) && entry.status >= 400)).toEqual([])
   })
 
   test('serves the files nothing on the page links to under the base as well', async ({
