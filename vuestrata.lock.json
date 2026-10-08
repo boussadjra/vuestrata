@@ -622,7 +622,7 @@
     },
     "src/modules/app/composables/useRbac.ts": {
       "class": "managed",
-      "hash": "sha256-df603c80d2d3bb7b1ea5534504b9ebe47173f5e4b0d8a688c749c21dd9a030e4",
+      "hash": "sha256-b0811cec9e054e41eacbae70307812b0b123bef405b6eb2cf4be0caed5034765",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/config/api.overrides.ts": {
@@ -689,7 +689,7 @@
     },
     "src/modules/app/plugins/route-guard.ts": {
       "class": "managed",
-      "hash": "sha256-dea8155ab488d2895b542904da1f61e4e0985d4e8f693f24edb37bba6efeffb7",
+      "hash": "sha256-5266800d885225930914e4d228b1cce2676772cb46750358717f2523e062dd4a",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/plugins/session-restore.ts": {
@@ -709,7 +709,7 @@
     },
     "src/modules/app/state/runtime-backends.ts": {
       "class": "managed",
-      "hash": "sha256-7a96bd1e963ffb3d634d605abb97c9a3f5bb28f498226a152222f315393ef29a",
+      "hash": "sha256-e8265fe362b44f9ef28eca497ff0ca981901938d7eaa42605415179c9e247ef0",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/stores/api-runtime.ts": {
@@ -719,7 +719,7 @@
     },
     "src/modules/app/stores/auth.ts": {
       "class": "managed",
-      "hash": "sha256-81146a555213985e27d6d3df275523a6dd6e3467e1b81043e2ecfa4edbd0944e",
+      "hash": "sha256-f14485f73d45994b130f3256058fbd5ff46d2d6f2ed0b526bb889cda84736ab1",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/styles/brand.css": {
@@ -983,7 +983,7 @@
     },
     "src/modules/core/lib/auth/user.ts": {
       "class": "managed",
-      "hash": "sha256-efdd08d4af076a672581c2f3c7b6d2a584345e68507708425d2a286ae90fa718",
+      "hash": "sha256-0bea0ba342d7d81068dcfee35dd1c00f4cc48fb73681bef818b6463bdb2685b2",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/cn.ts": {
@@ -1071,19 +1071,24 @@
       "hash": "sha256-6d318a0e509122e8eea23e38ae8ac725fd0fbce799a1ca70ad9c9956b7486287",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/core/lib/rbac/identity-mappers.ts": {
+      "class": "managed",
+      "hash": "sha256-d410615c36df451e7f55f5bf3b3a7ab46537150187e053b62e4cffbecde50b92",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/core/lib/rbac/identity.ts": {
       "class": "managed",
-      "hash": "sha256-c702037dee7bee32ef385249f2a0621279ce4c0716c35e31897b3752138c48a2",
+      "hash": "sha256-5ba7affaa40f4838049e66d767dda2074a0cabf528ab767e23415fb275b8ee29",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/rbac/index.ts": {
       "class": "managed",
-      "hash": "sha256-95e8eba07db4f28469ca4a2ef1d9d9ff24b025e815608934c4b2cdb4acc99d4d",
+      "hash": "sha256-c91d09b20364dbf9cd2e52c1df76aaf49af575fe114a5f07416e84092272d185",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/rbac/inheritance.ts": {
       "class": "managed",
-      "hash": "sha256-4053a4b6c2d3c6cc8b13cf60276c4df24d076121da7005fab5a33697c900a81a",
+      "hash": "sha256-434e2ba332fd64e00817cac1c63f7fda9715cd8d940a8c5a46372f2902a39614",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/rbac/namespace.ts": {
@@ -1093,7 +1098,7 @@
     },
     "src/modules/core/lib/rbac/overrides.ts": {
       "class": "managed",
-      "hash": "sha256-1fc563489694700bab8b79930f240a5eefff604ec186afd13c7e36b022326f1c",
+      "hash": "sha256-3396a844b2832d8ffeec0fb15f438130df889ca8443a6c22adc9e5006dcdd8a7",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/rbac/predicates.ts": {
@@ -1106,14 +1111,29 @@
       "hash": "sha256-bb9c5b60e41bc3f796fad579bf7db50fa87a4457e6638890164412cff4ed2fa4",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/core/lib/rbac/role-graph.ts": {
+      "class": "managed",
+      "hash": "sha256-15651e8933405f4e1d4cf63e2452ba2e23d834e57575591bc89b0c9f67a76f3e",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/core/lib/rbac/roles.ts": {
+      "class": "managed",
+      "hash": "sha256-bec79a67afe1f0d075d53871807744aa93d324aaef4f9a5df9ba81abe523a4ff",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/core/lib/rbac/types.ts": {
       "class": "merged",
-      "hash": "sha256-e4c8718cb327f5044a3a542b88eafd80e9fe78a1b84601417457d467511e1c01",
+      "hash": "sha256-90d45e71c6121f6a79d085b06de9ea12291973c677b91a3bb294d7d0c9951ce0",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/core/lib/rbac/unknown-names.ts": {
+      "class": "managed",
+      "hash": "sha256-bfd5311ae29878c4033f33104b91cabe62b2b1a736bf6c4135d6470f3108d75b",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/runtime.ts": {
       "class": "managed",
-      "hash": "sha256-a7e8c9287d08348f907fd6d4f262f23e1b98c016374485e3e9e97e880b1580bd",
+      "hash": "sha256-33604a2358a201c07038af3432750ce3cec5d6f2cc1e9341c8a09ddf610a847c",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/validation/adapters/zod.ts": {
