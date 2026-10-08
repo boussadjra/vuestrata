@@ -507,3 +507,19 @@ describe('permissions granted to a project role alone', () => {
     expect(holders).toEqual(['super_admin', 'admin', 'auditor', 'billing_admin'])
   })
 })
+
+describe('what the e2e helpers can load without a bundler', () => {
+  // `e2e/helpers/auth.ts` imports `inheritance.ts` straight into Node, to give
+  // a test user what a role holds. There `import.meta.env` is undefined, so a
+  // module that reads it while loading (the logger does) cannot be in the graph.
+  it('inheritance.ts and role-graph.ts import the runtime slots and types, and nothing else', async () => {
+    const fs = await import('node:fs')
+    const imports = (file: string) =>
+      [...fs.readFileSync(`src/modules/core/lib/rbac/${file}`, 'utf8').matchAll(/from '([^']+)'/g)]
+        .map((match) => match[1])
+        .sort()
+
+    expect(imports('role-graph.ts')).toEqual(['./types', '~/lib/runtime'])
+    expect(imports('inheritance.ts')).toEqual(['./role-graph', './types', '~/lib/runtime'])
+  })
+})

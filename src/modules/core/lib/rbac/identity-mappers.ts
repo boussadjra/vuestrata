@@ -2,8 +2,9 @@ import { tryGetRbacConfig } from '~/lib/runtime'
 
 import { resolvePrimaryRole } from './identity'
 import { tryGetRegisteredPermissions } from './registry'
-import { isKnownRole, reportRbacOnce, reportUnknownName } from './role-graph'
+import { isKnownRole } from './role-graph'
 import type { Permission, Role } from './types'
+import { reportRbacOnce, reportUnknownName } from './unknown-names'
 
 /**
  * From an identity provider's claims to this app's roles and permissions.

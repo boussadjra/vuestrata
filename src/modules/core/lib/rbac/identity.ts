@@ -1,8 +1,9 @@
 import { tryGetRbacConfig } from '~/lib/runtime'
 
 import { resolveRolePermissions } from './inheritance'
-import { includedRoles, isKnownRole, reportUnknownName } from './role-graph'
+import { includedRoles, isKnownRole } from './role-graph'
 import type { Permission, Role } from './types'
+import { reportUnknownName } from './unknown-names'
 
 /** The fields of a user that decide what they may do. */
 export interface PermissionSubject {
