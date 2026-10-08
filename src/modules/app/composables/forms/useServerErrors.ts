@@ -52,8 +52,27 @@ function emptyFieldErrors(): FieldErrors {
   return Object.create(null) as FieldErrors
 }
 
-/** A bare segment, or a bracketed one: `[0]`, `['key']`, `["key"]`. */
-const SEGMENT = /[^.[\]]+|\[(?:'([^']*)'|"([^"]*)"|([^\]]*))\]/g
+/**
+ * A bare segment, or a bracketed one: `[0]`, `['key']`, `["key"]`.
+ *
+ * The key is the server's, so it is read in linear time whatever it holds: no
+ * bracket body may contain a bracket, or a key of nothing but `[` would have
+ * each one scan to the end of the string for a `]` that is not there.
+ */
+const SEGMENT = /[^.[\]]+|\[(?:'([^'[\]]*)'|"([^"[\]]*)"|([^[\]]*))\]/g
+
+/**
+ * Limits on what one response may put on the form. A field key is a property
+ * name, and an API that names a field in more than a couple of hundred
+ * characters does not exist; a body that does is malformed or hostile, and
+ * the page must stay responsive either way.
+ */
+const MAX_KEY_LENGTH = 200
+const MAX_KEYS = 100
+const MAX_MESSAGES_PER_KEY = 10
+const MAX_FORM_MESSAGES = 50
+/** How much of an over-long key is repeated to the user. */
+const KEY_PREVIEW_LENGTH = 40
 
 /**
  * The segments of a backend field key. `$` is where ASP.NET roots a path into
@@ -113,19 +132,36 @@ function describesFields(error: AppError): boolean {
   return error.status >= 400 && error.status < 500
 }
 
-/** The messages in a value that came off the wire: strings, and nothing else. */
-function messagesOf(value: unknown): string[] {
+/**
+ * The messages in a value that came off the wire: strings, and nothing else,
+ * and no more of them than `limit`.
+ */
+function messagesOf(value: unknown, limit = MAX_MESSAGES_PER_KEY): string[] {
   const candidates: unknown[] = Array.isArray(value) ? value : [value]
-  return candidates.filter(
-    (candidate): candidate is string => typeof candidate === 'string' && candidate.trim() !== '',
-  )
+  const messages: string[] = []
+  for (const candidate of candidates) {
+    if (messages.length >= limit) break
+    if (typeof candidate === 'string' && candidate.trim() !== '') messages.push(candidate)
+  }
+  return messages
 }
 
-function addUnique(target: string[], messages: string[]): void {
-  for (const message of messages) if (!target.includes(message)) target.push(message)
+function addUnique(target: string[], messages: string[], limit = Infinity): void {
+  for (const message of messages) {
+    if (target.length >= limit) return
+    if (!target.includes(message)) target.push(message)
+  }
+}
+
+/** A key as it is shown beside a form-level message: never a wall of text. */
+function shownKey(key: string): string {
+  return key.length > MAX_KEY_LENGTH ? `${key.slice(0, KEY_PREVIEW_LENGTH)}…` : key
 }
 
 function fieldPathFor(key: string, options: ServerErrorOptions): string | undefined {
+  // Not a field name, whatever it is: it is not parsed, only reported.
+  if (key.length > MAX_KEY_LENGTH) return undefined
+
   const hasField = options.hasField ?? (() => true)
   const { fieldMap, fieldPath } = options
 
@@ -154,21 +190,25 @@ export function mapServerErrors(
   const mapping: ServerErrorMapping = { fields: emptyFieldErrors(), form: [] }
   if (!describesFields(failure)) return mapping
 
-  addUnique(mapping.form, messagesOf(failure.formErrors))
+  addUnique(mapping.form, messagesOf(failure.formErrors, MAX_FORM_MESSAGES))
 
   const details: unknown = failure.details
   if (typeof details !== 'object' || details === null) return mapping
 
   // `Object.entries`, never an index: see `fieldPathFor`.
+  let read = 0
   for (const [key, value] of Object.entries(details)) {
+    if (read++ >= MAX_KEYS) break
     const messages = messagesOf(value)
     if (messages.length === 0) continue
 
     const path = fieldPathFor(key, options)
     if (path === undefined) {
+      const label = shownKey(key)
       addUnique(
         mapping.form,
-        messages.map((message) => (key ? `${key}: ${message}` : message)),
+        messages.map((message) => (label ? `${label}: ${message}` : message)),
+        MAX_FORM_MESSAGES,
       )
       continue
     }

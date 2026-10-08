@@ -652,12 +652,12 @@ async function onSaved() {
             <UiButton to="/dashboard/${n.moduleId}" variant="ghost">
               {{ t('common_cancel') }}
             </UiButton>
-            <UiButton
-              type="submit"
-              variant="primary"
-              :loading="isSubmitting"
-              :disabled="isSubmitting"
-            >
+            <!--
+              \`loading\`, not \`disabled\`: a disabled button drops focus to the page
+              while the save is in flight, and a keyboard user is then nowhere when
+              it fails. A loading button keeps focus and ignores a second press.
+            -->
+            <UiButton type="submit" variant="primary" :loading="isSubmitting">
               {{ t('common_save') }}
             </UiButton>
           </div>

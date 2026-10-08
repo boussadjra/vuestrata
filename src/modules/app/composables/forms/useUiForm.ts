@@ -1,11 +1,12 @@
 import { FormKey, useForm } from '@formwerk/core'
+import { useI18n } from 'vue-i18n'
 
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import { normalizeError, reportError, type AppError } from '~/lib/errors'
 import { logger } from '~/lib/logger'
 import type { FormProps } from '~/types/forms'
 
-import { toDotPath, useServerErrors } from './useServerErrors'
+import { toDotPath, useServerErrors, type ServerErrorMapping } from './useServerErrors'
 import { useUnsavedChangesGuard } from './useUnsavedChangesGuard'
 
 /**
@@ -90,12 +91,14 @@ function dotted(path: string): string {
 }
 
 /**
- * A request the server refused, or one the app cancelled itself: an outcome
- * the form shows or ignores, and nobody has to fix. Everything else (a 5xx,
- * a response that broke its contract, a bug in the action) is a defect.
+ * A request the server refused, one that never reached it (the network is
+ * down, the request timed out), or one the app cancelled itself: an outcome
+ * the form shows or ignores, and nobody has to fix. A user on a train would
+ * otherwise file a defect with every tap on Save. Everything else (a 5xx, a
+ * response that broke its contract, a bug in the action) is a defect.
  */
 function isExpectedFailure(error: AppError): boolean {
-  if (error.kind === 'aborted') return true
+  if (error.kind === 'aborted' || error.kind === 'network' || error.kind === 'timeout') return true
   if (error.kind !== undefined && error.kind !== 'http') return false
   return error.status >= 400 && error.status < 500
 }
@@ -113,8 +116,58 @@ function resolveErrorMessage(): (error: unknown) => string {
   }
 }
 
+/**
+ * Run `onChange` when the reader switches language. Where vue-i18n was never
+ * installed there is no language to switch.
+ */
+function onLanguageChange(onChange: () => void): void {
+  try {
+    watch(useI18n({ useScope: 'global' }).locale, onChange)
+  } catch {
+    // No i18n: see resolveErrorMessage.
+  }
+}
+
+/** What can take focus inside a field, in the order a field draws it. */
+const FOCUSABLE = [
+  'input:not([type="hidden"]):not([disabled])',
+  'textarea:not([disabled])',
+  'select:not([disabled])',
+  'button:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+/**
+ * Bring the user to what the server refused: the first field, in document
+ * order, that is showing one of its messages, or failing a field the first
+ * alert in the form, which is where a page puts the form-level ones.
+ *
+ * A refusal is easy to miss otherwise. The submit button is at the bottom of
+ * the form, the field the server objected to may be a screen above it, and
+ * nothing moved: Formwerk scrolls to the first field its own validation
+ * rejects, but it never hears what the server said.
+ */
+function revealRefusal(form: Element, mapping: ServerErrorMapping): void {
+  const fieldMessages = new Set(Object.values(mapping.fields).flat())
+  const alerts = [...form.querySelectorAll<HTMLElement>('[role="alert"]')]
+  const ofField = alerts.find((alert) => fieldMessages.has(alert.textContent?.trim() ?? ''))
+
+  // A field is its label, its control and its message, side by side.
+  const control = ofField?.parentElement?.querySelector<HTMLElement>(FOCUSABLE)
+  const target = control ?? ofField ?? alerts[0]
+  if (!target) return
+
+  // An alert is not a control; it can still be the place focus goes.
+  if (target !== control && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
+  target.focus({ preventScroll: true })
+
+  const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+  target.scrollIntoView?.({ behavior: still ? 'auto' : 'smooth', block: 'center' })
+}
+
 export function useUiForm(props: FormProps, emit: UiFormEmit) {
   const formLogger = logger.withTag('form')
+  const instance = getCurrentInstance()
 
   const formOptions = props.schema
     ? {
@@ -333,6 +386,11 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
       const mapping = server.apply(error)
       submitError.value = error
       summaryOnly.value = mapping.form.length === 0 && Object.keys(mapping.fields).length > 0
+      // Once the messages are drawn. The form is the component's one root.
+      void nextTick(() => {
+        const root: unknown = instance?.proxy?.$el
+        if (root instanceof Element && submitError.value === error) revealRefusal(root, mapping)
+      })
     }
 
     if (!isExpectedFailure(error)) {
@@ -358,7 +416,6 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
       return
     }
 
-    clearErrors()
     const saved = context.getValues() as FormValues
 
     let result: unknown
@@ -383,8 +440,23 @@ export function useUiForm(props: FormProps, emit: UiFormEmit) {
       event?.preventDefault()
       return Promise.resolve()
     }
+    // What the server said was about the last attempt. It goes now, not once
+    // validation has passed: a submit the schema stops would otherwise leave
+    // the old refusal on screen beside the new complaint.
+    clearErrors()
     return submitValid(event)
   }
+
+  // ─── Language ────────────────────────────────────────────
+  //
+  // A schema's message is a string made when the field was validated, so the
+  // ones on screen stay in the language they were made in. Validating again
+  // makes them again. Nothing new appears: the same fields are invalid, what
+  // is shown is still decided by `showErrors`, and nothing becomes touched.
+  // The server's messages are the backend's text and are left as they are.
+  onLanguageChange(() => {
+    if (context.getErrors().length > 0) void form.validate()
+  })
 
   // ─── Leaving ─────────────────────────────────────────────
 
