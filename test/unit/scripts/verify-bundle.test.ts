@@ -435,7 +435,9 @@ describe('eagerFiles', () => {
   })
 })
 
-describe('verify-bundle.mjs', () => {
+// Each test starts node, and a run that reaches the budgets loads tsx to read
+// deploy.config.ts: slow on a busy machine, as for the header generator's CLI.
+describe('verify-bundle.mjs', { timeout: 60_000 }, () => {
   let base: string
   let dist: string
 
