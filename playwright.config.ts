@@ -9,7 +9,7 @@ const env = (globalThis as { process?: { env?: RuntimeEnv } }).process?.env ?? {
  *
  *   preview  — `vp build` then `vp preview` over dist/. This is the gate: it is
  *              the ONLY configuration that exercises the real bundle, the
- *              manualChunks split, the `__VUESTRATA_DEMO__` compile-out, and MSW
+ *              vendor chunk groups, the `__VUESTRATA_DEMO__` compile-out, and MSW
  *              starting from a built artifact rather than the dev server.
  *   dev      — `vp dev`. Fast feedback while writing tests. Proves nothing about
  *              what actually ships.

@@ -13,7 +13,7 @@
     },
     "scripts/build/verify-bundle.mjs": {
       "class": "managed",
-      "hash": "sha256-8577f5e914daee32db4023a8a7cdb5ed03c3a37042dd5acc7cf5464bbf66dc36",
+      "hash": "sha256-e59cd8e61cfb407b9791fd862d1b85e4a59794ce47e04e8ceeb5e49b526e8591",
       "since": "1.1.0-alpha.0"
     },
     "scripts/build/write-version.mjs": {
@@ -23,7 +23,7 @@
     },
     "scripts/security/deploy-config.mjs": {
       "class": "managed",
-      "hash": "sha256-a91942ccb7ff39999a03f0e751022d5fbf1ab06cb7eac3e4997eca9bc09b7c2a",
+      "hash": "sha256-24df524d2532ec356572575f76f3e43229daa0ed0482753d04a987a05f5b0e9b",
       "since": "1.1.0-alpha.0"
     },
     "scripts/security/headers.mjs": {
@@ -147,7 +147,7 @@
     },
     "src/modules/app/components/ui/BaseChart.vue": {
       "class": "managed",
-      "hash": "sha256-20ce26f8c06ad326b905faa40dcf54951f061ff0767f7a7967e8a4f4704b4c1b",
+      "hash": "sha256-ab7d56ce2b0b079d3582385146c1405a85bc32efac96caafbcf36a6889afe58f",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/components/ui/index.ts": {
@@ -998,7 +998,7 @@
     },
     "src/modules/core/lib/config/deploy.ts": {
       "class": "managed",
-      "hash": "sha256-c723ca33c8e87521995feaf3f7adaf6b9ad427c58914e0fa7a2eb13b150b22d5",
+      "hash": "sha256-9df013ad1b8fc608601515ccb04a067f1400ef50bc811a22c895ea20b2aba8c1",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/config/env.schema.ts": {

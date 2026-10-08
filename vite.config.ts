@@ -350,10 +350,19 @@ export default defineConfig({
 
             // ── On demand ──────────────────────────────────────────────────
             // Charting — large; fetched by the first chart a page renders.
+            //
+            // It takes the library's own modules and not what they import.
+            // By default a group also takes its modules' dependencies, here
+            // tslib, and one eager import of that package anywhere in the
+            // app (many libraries import it) would put the whole engine back
+            // on every page. Left out, it gets a small chunk of its own.
+            // Check the build before copying this to another group: on
+            // docs-vendor it produced a circular import between two chunks.
             {
               name: 'charts-vendor',
               test: /node_modules[\\/](?:echarts|vue-echarts|zrender)[\\/]/,
               priority: 10,
+              includeDependenciesRecursively: false,
             },
             // Markdown rendering + syntax highlighting (docs surface only)
             {

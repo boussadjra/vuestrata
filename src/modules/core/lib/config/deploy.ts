@@ -1,8 +1,8 @@
 /**
  * What a project declares about its own deployment, in
  * `app/config/deploy.config.ts`: environment variables of its own, which of
- * them a deployment may set at runtime, and what the security headers allow
- * beyond the defaults.
+ * them a deployment may set at runtime, what the security headers allow
+ * beyond the defaults, and the size budgets its bundle is held to.
  *
  * Like `env.schema.ts`, this module has no value import at all — not even a
  * relative one. The Vite plugin loads it in Node before aliases exist, and the
@@ -63,6 +63,40 @@ export interface DeployHeaders {
   frameAncestors?: readonly string[]
 }
 
+/**
+ * What `scripts/build/verify-bundle.mjs` holds a build of this project to,
+ * where that differs from the defaults in the script. Sizes are in KB of 1024
+ * bytes, as the script prints them.
+ *
+ * Build tooling reads this and the app never does: it is validated by
+ * `resolveDeployBundle` in `scripts/security/deploy-config.mjs`, in Node, when
+ * the bundle is verified. Every value set here is printed by each run beside
+ * the default it replaces, so a raised budget stays visible in CI.
+ */
+export interface DeployBundle {
+  /** Everything the page loads before it renders, gzipped. */
+  initialPayloadGzipKb?: number
+  /** The largest JavaScript chunk loaded with the page, raw. */
+  largestEagerChunkKb?: number
+  /** The largest stylesheet loaded with the page, raw. */
+  largestEagerStylesheetKb?: number
+  /** Every emitted .js file combined, raw. */
+  totalJsKb?: number
+  /**
+   * The chunks that must not be loaded with the page, by name: the list in
+   * `verify-bundle.mjs` (`ON_DEMAND_CHUNKS`), changed.
+   */
+  onDemandChunks?: {
+    /** A group of your own that pages fetch with `import()`: its `name`. */
+    add?: readonly string[]
+    /**
+     * A chunk from the default list that this app loads with every page by
+     * design, such as `charts-vendor` where every page has a chart.
+     */
+    remove?: readonly string[]
+  }
+}
+
 export interface DeployConfig<Env extends AppEnvShape = AppEnvShape> {
   /**
    * The project's own variables, each with the schema that validates it. Names
@@ -76,6 +110,8 @@ export interface DeployConfig<Env extends AppEnvShape = AppEnvShape> {
    */
   runtime?: readonly (keyof Env & string)[]
   headers?: DeployHeaders
+  /** The bundle budgets of this project, for `verify-bundle.mjs`. */
+  bundle?: DeployBundle
 }
 
 /** The validated values of a config's `env`, keyed by variable name. */
