@@ -1,5 +1,6 @@
 import process from 'node:process'
 
+import { explainCiProblem, planCi } from '../generators/ci.mjs'
 import { planComponent } from '../generators/component.mjs'
 import { planIconSet } from '../generators/icon-set.mjs'
 import { planModule } from '../generators/module.mjs'
@@ -47,6 +48,15 @@ export const GENERATORS = {
     usage: 'add icon-set <name> [--prefix <iconify-prefix>]',
     summary: 'An icon map covering every IconName, registered as a provider.',
   },
+  ci: {
+    plan: planCi,
+    usage: 'add ci [--branch <default-branch>] [--force]',
+    summary:
+      'The CI workflow of a project: check, tests, a verified production build, e2e, and the image when there is a Dockerfile.',
+    // Nothing to name: a project has one.
+    label: 'the CI workflow',
+    explain: explainCiProblem,
+  },
 }
 
 export function runAdd({ kind, positional, flags, root, version }) {
@@ -89,6 +99,7 @@ export function runAdd({ kind, positional, flags, root, version }) {
         kind: flags.kind,
         label: flags.label,
         prefix: flags.prefix,
+        branch: flags.branch,
         nav: Boolean(flags.nav),
         field: Boolean(flags.field),
       },
@@ -102,7 +113,11 @@ export function runAdd({ kind, positional, flags, root, version }) {
     process.exit(1)
   }
 
-  const problems = plan.validate({ force: Boolean(flags.force) })
+  // A generator may know more about a problem than the plan does: what the file
+  // in the way is, and what replacing it would cost.
+  const problems = plan
+    .validate({ force: Boolean(flags.force) })
+    .map((problem) => generator.explain?.(problem, { root }) ?? problem)
 
   if (flags.json) {
     process.stdout.write(
@@ -129,6 +144,14 @@ export function runAdd({ kind, positional, flags, root, version }) {
     return
   }
 
+  // What is there is already what this would write. Say so and stop: a run that
+  // wrote nothing and reported "Generated" would misdescribe the tree.
+  if (plan.files.length === 0 && plan.edits.length === 0) {
+    for (const note of plan.notes) logger.info(note)
+    logger.log('')
+    return
+  }
+
   const result = plan.apply()
 
   // Record what landed, so a later `upgrade` can tell these files apart from
@@ -140,7 +163,7 @@ export function runAdd({ kind, positional, flags, root, version }) {
 
   if (!flags['no-format']) formatTouchedFiles([...result.written, ...result.edited], root)
 
-  logger.success(`Generated ${kind} "${positional[0]}"`)
+  logger.success(`Generated ${generator.label ?? `${kind} "${positional[0]}"`}`)
   for (const rel of result.written) logger.log(`  create  ${rel}`)
   for (const rel of result.edited) logger.log(`  edit    ${rel}`)
 

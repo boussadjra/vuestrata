@@ -3,6 +3,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import {
+  CI_WORKFLOW,
+  ciFacts,
+  ciNotes,
+  renderCiWorkflow,
+  workflowOrigin,
+} from '../generators/ci.mjs'
 import { isGitClean, logger } from '../lib/cli.mjs'
 import { pruneSpec, removedRoutePrefixes } from '../lib/eject/e2e.mjs'
 import {
@@ -19,6 +26,7 @@ import { driftedFiles, LOCKFILE_NAME, readLock, writeLock } from '../lib/lockfil
 import { collectManaged, DOCS_DIR } from '../lib/managed.mjs'
 import { inSlot, loadManifest, slot, slotPath } from '../lib/manifest.mjs'
 import { createPayloadSource } from '../lib/payload.mjs'
+import { hashContents } from '../lib/plan.mjs'
 import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
 
 /**
@@ -35,6 +43,10 @@ import { insertBeforeSentinel, SENTINELS } from '../lib/registry.mjs'
  *
  * Every removed path is recorded in the lockfile's `ejected` list, or the next
  * release would restore all of it, and the one after that would do it again.
+ *
+ * The template's CI workflow is replaced by a project's, the file `vuestrata
+ * add ci` writes, because most of what it runs is the template's maintenance.
+ * A workflow somebody already took in hand is left as it is.
  */
 
 /**
@@ -91,7 +103,6 @@ const HOME_PAGE = 'src/modules/app/pages/index.vue'
 const HOME_SECTIONS = 'src/modules/app/components/layout/home'
 const ROUTER_FILE = 'src/modules/app/plugins/router.ts'
 const NOT_FOUND_PAGE = 'src/modules/app/pages/[...notfound].vue'
-const CI_WORKFLOW = '.github/workflows/ci.yml'
 const PALETTE_RULE = 'scripts/lint/plugins/no-raw-palette.plugin.mjs'
 const DOC_LINK_FILES = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md']
 
@@ -433,14 +444,40 @@ export function planEject({ root, manifest, flags, source }) {
     }
   }
 
-  if (isRemoved('packages/cli') && fs.existsSync(path.join(root, CI_WORKFLOW))) {
-    const contents = dropCliRoundtrip(readOf(root, CI_WORKFLOW))
-    if (contents !== undefined) {
+  // ── The CI workflow ──────────────────────────────────────────────────────
+  // The template's is replaced by a project's. They are told apart by the job
+  // that round-trips the CLI: a workflow without it is one somebody has
+  // already rewritten, and that is not this command's to undo. A project with
+  // no workflow at all chose not to have one here.
+  if (fs.existsSync(path.join(root, CI_WORKFLOW))) {
+    const origin = workflowOrigin(readOf(root, CI_WORKFLOW))
+
+    if (origin === 'template' && !flags['keep-ci']) {
+      // The container job opens the image with a spec, and one this run
+      // deletes is not there to open it with.
+      const facts = ciFacts(root, {
+        exists: (rel) => fs.existsSync(path.join(root, rel)) && !isRemoved(rel),
+      })
+      edits.set(CI_WORKFLOW, {
+        path: CI_WORKFLOW,
+        reason: "the project pipeline in place of the template's, as `vuestrata add ci` writes it",
+        contents: renderCiWorkflow(facts),
+        seeded: true,
+      })
+      notes.push(...ciNotes(facts))
+    } else if (origin === 'template' && isRemoved('packages/cli')) {
+      // --keep-ci: the template's pipeline stays, without the one job that
+      // cannot run once the CLI is gone.
       edits.set(CI_WORKFLOW, {
         path: CI_WORKFLOW,
         reason: 'drop the cli-roundtrip job, which runs the removed CLI',
-        contents,
+        contents: dropCliRoundtrip(readOf(root, CI_WORKFLOW)),
       })
+    } else if (origin === 'custom') {
+      notes.push(
+        `${CI_WORKFLOW} is your own workflow, so it was left alone. ` +
+          '`vuestrata add ci --force` replaces it with the project pipeline.',
+      )
     }
   }
 
@@ -495,6 +532,17 @@ function applyPlan({ root, manifest, plan, format }) {
     if (rel.startsWith('packages/')) continue
     if (!lock.ejected.includes(rel)) lock.ejected.push(rel)
     delete lock.files[rel]
+  }
+
+  // The project workflow is the project's from the moment it lands, exactly as
+  // when `add ci` writes it: seeded, so no upgrade and no `doctor` compares it.
+  for (const entry of plan.edits) {
+    if (!entry.seeded) continue
+    lock.files[entry.path] = {
+      class: 'seeded',
+      hash: hashContents(entry.contents),
+      since: lock.files[entry.path]?.since ?? lock.template,
+    }
   }
 
   // Recomputed rather than trusted, so a path that was already gone still ends

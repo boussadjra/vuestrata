@@ -30,9 +30,14 @@
  * a `vercel.json`, a workflow or a `.node-version` that is not there is
  * skipped, not reported.
  *
+ * Every workflow is read, not three by name: the one `vuestrata add ci` writes
+ * for a project carries the same `NODE_VERSION` pin as the template's, and so
+ * may a workflow the project wrote beside it. One that pins nothing and reads
+ * no pin has nothing to drift either.
+ *
  * Wired into `vpr lint` and CI.
  */
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -128,11 +133,23 @@ export function checkToolchainPins(root = repoRoot) {
     expectAll('vercel.json', 'Vite+', /vite-plus@([\d.]+)/g, vitePlusVersion)
   }
 
-  // Workflows. `eject` removes deploy-demo.yml and release.yml, and a project may
-  // delete any of them, so one that is not there has nothing to drift.
-  for (const workflow of ['ci.yml', 'deploy-demo.yml', 'release.yml']) {
-    if (!has(`.github/workflows/${workflow}`)) continue
-    expectAll(`.github/workflows/${workflow}`, 'Node', /NODE_VERSION: '(\d+)'/g, nodeMajor)
+  // Workflows. `eject` removes deploy-demo.yml and release.yml and replaces
+  // ci.yml with the project's, and a project may delete or rename any of them,
+  // so they are found, not listed. One with a pin is held to it. One that
+  // reads `env.NODE_VERSION` and no longer says what it is has lost its pin,
+  // which is the "did the file change shape?" case. Any other workflow gets its
+  // Node some other way, and that is not this check's to judge.
+  const workflowsDir = '.github/workflows'
+  const workflows = has(workflowsDir)
+    ? readdirSync(resolve(root, workflowsDir))
+        .filter((name) => /\.ya?ml$/.test(name))
+        .sort((a, b) => a.localeCompare(b))
+    : []
+  for (const workflow of workflows) {
+    const file = `${workflowsDir}/${workflow}`
+    const source = read(file)
+    if (!/NODE_VERSION: '\d+'/.test(source) && !source.includes('env.NODE_VERSION')) continue
+    expectAll(file, 'Node', /NODE_VERSION: '(\d+)'/g, nodeMajor)
   }
 
   // .node-version: what `vp` runs locally. Its major must be the one CI and

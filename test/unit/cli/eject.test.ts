@@ -6,6 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 // @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
 import { planEject, runEject } from '../../../packages/cli/src/commands/eject.mjs'
+import {
+  ciFacts,
+  renderCiWorkflow,
+  workflowOrigin,
+  // @ts-expect-error - see above.
+} from '../../../packages/cli/src/generators/ci.mjs'
 // @ts-expect-error - see above.
 import { logger } from '../../../packages/cli/src/lib/cli.mjs'
 // @ts-expect-error - see above.
@@ -17,6 +23,7 @@ import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
 // @ts-expect-error - see above.
 import { loadManifest } from '../../../packages/cli/src/lib/manifest.mjs'
 import { createFixture, type Fixture } from './fixture'
+import { readWorkflow, TEMPLATE_CI } from './workflow'
 
 const { driftedFiles, emptyLock, hashFor, readLock, writeLock } = lockfile
 
@@ -186,7 +193,7 @@ function seed() {
   f.write('vendor/README.md', '# vendor\n')
   f.write('vendor/comark-1.0.0.tgz', 'tarball')
 
-  f.write('.github/workflows/ci.yml', real('.github/workflows/ci.yml'))
+  f.write('.github/workflows/ci.yml', TEMPLATE_CI)
   f.write('.github/workflows/deploy-demo.yml', 'name: demo\n')
   f.write('.github/workflows/release.yml', 'name: release\n')
   f.write('packages/cli/src/index.mjs', '// the CLI\n')
@@ -487,15 +494,118 @@ describe('eject and the maintainer-only files', () => {
       expect(scripts, name).not.toHaveProperty(name)
     }
   })
+})
 
-  it('drops the cli-roundtrip job, and its entry in the gate that waits on it', () => {
+describe('eject and the CI workflow', () => {
+  const CI = '.github/workflows/ci.yml'
+  const OWN = 'name: Ours\n\non: push\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n'
+
+  it('puts the project workflow in place of the template’s', () => {
     eject()
 
-    const workflow = fixture.read('.github/workflows/ci.yml')
+    const workflow = readWorkflow(fixture.read(CI))
+    expect(workflowOrigin(fixture.read(CI))).toBe('project')
+    expect(workflow.accounts).toBe(true)
+    expect(Object.keys(workflow.jobs)).toEqual(['check', 'test', 'build', 'e2e', 'ci-ok'])
+    expect(fixture.read(CI)).not.toContain('cli-roundtrip')
+    expect(fixture.read(CI)).not.toContain('packages/cli')
+    expect(fixture.read(CI)).not.toContain('lint:maintainer')
+    // The fixture has no .nvmrc: the pin is the one the template's workflow carried.
+    expect(fixture.read(CI)).toContain(
+      `NODE_VERSION: '${/NODE_VERSION: '(\d+)'/.exec(TEMPLATE_CI)?.[1]}'`,
+    )
+  })
+
+  it('is exactly the file `add ci` writes for the project eject leaves', () => {
+    eject()
+
+    expect(fixture.read(CI)).toBe(renderCiWorkflow(ciFacts(fixture.project)))
+  })
+
+  it('records it as the project’s, so no upgrade or doctor ever compares it', () => {
+    eject()
+    expect(readLock(fixture.project).files[CI]).toMatchObject({ class: 'seeded' })
+
+    fixture.write(CI, OWN)
+    expect(driftedFiles(fixture.project, readLock(fixture.project))).toEqual([])
+  })
+
+  it('writes the container job when the project keeps a Dockerfile and its smoke spec', () => {
+    fixture.write(
+      'e2e/production-artifact.spec.ts',
+      "import { test } from '@playwright/test'\n\ntest('healthz', async ({ request }) => {\n  await request.get('/healthz')\n})\n",
+    )
+    eject()
+
+    const { jobs, job } = readWorkflow(fixture.read(CI))
+    expect(Object.keys(jobs)).toContain('docker')
+    expect(job('ci-ok').needs).toContain('docker')
+  })
+
+  it('leaves it out, and says why, when the spec that opens the image is not there', () => {
+    const out = said()
+    eject()
+
+    expect(fixture.exists('Dockerfile')).toBe(true)
+    expect(fixture.read(CI)).not.toMatch(/docker/i)
+    expect(out.join('\n')).toContain('No docker job was written')
+  })
+
+  it('names the replacement in a dry run, and writes nothing', () => {
+    const files = snapshot(fixture.project)
+    const out = said()
+    eject({ 'dry-run': true })
+
+    expect(out.join('\n')).toMatch(/edit\s+\.github\/workflows\/ci\.yml\s+\(the project pipeline/)
+    expect(out.join('\n')).toContain('VUESTRATA_API_URL')
+    expect(snapshot(fixture.project)).toEqual(files)
+  })
+
+  it('leaves a workflow the project already wrote alone, and says so', () => {
+    fixture.write(CI, OWN)
+    const out = said()
+    eject()
+
+    expect(fixture.read(CI)).toBe(OWN)
+    expect(readLock(fixture.project).files).not.toHaveProperty([CI])
+    expect(out.join('\n')).toContain(`${CI} is your own workflow, so it was left alone`)
+    expect(out.join('\n')).toContain('vuestrata add ci --force')
+  })
+
+  it('counts the template’s workflow with its round trip already cut as somebody’s own', () => {
+    // What `eject` left before it wrote a workflow: somebody may have built on it.
+    const earlier = dropCliRoundtrip(TEMPLATE_CI) as string
+    fixture.write(CI, earlier)
+    eject()
+
+    expect(fixture.read(CI)).toBe(earlier)
+  })
+
+  it('keeps the template’s with --keep-ci, without the job that runs the removed CLI', () => {
+    eject({ 'keep-ci': true })
+
+    const workflow = fixture.read(CI)
+    expect(workflowOrigin(workflow)).toBe('custom')
     expect(workflow).not.toContain('cli-roundtrip')
     expect(workflow).not.toContain('packages/cli')
     expect(workflow).toContain('ci-ok:')
     expect(workflow).toMatch(/needs: \[[^\]]*\bdocker\b[^\]]*\]/)
+    expect(readLock(fixture.project).files).not.toHaveProperty([CI])
+  })
+
+  it('says nothing about a project workflow on a later run', () => {
+    eject()
+    fixture.write(
+      'src/modules/orders/index.ts',
+      barrel('orders', 'demo', [], ['/dashboard/orders']),
+    )
+    fixture.write('src/modules/setup.ts', SETUP)
+    const before = fixture.read(CI)
+    const out = said()
+    eject()
+
+    expect(fixture.read(CI)).toBe(before)
+    expect(out.join('\n')).not.toContain('ci.yml')
   })
 })
 

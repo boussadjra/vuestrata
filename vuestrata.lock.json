@@ -1203,6 +1203,7 @@
     "docs/7.testing/2.accessibility.md",
     "docs/8.deployment/1.vercel-demo.md",
     "docs/8.deployment/2.real-production.md",
+    "docs/8.deployment/3.ci-for-your-project.md",
     "docs/9.readiness.md",
     "docs/9.recipes/1.add-a-module.md",
     "docs/9.recipes/10.write-your-own-auth-adapter.md",

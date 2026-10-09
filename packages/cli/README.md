@@ -13,17 +13,58 @@ vp add -D @vuestrata/cli
 
 ## Commands
 
-| Command                       | What it does                                                                       |
-| ----------------------------- | ---------------------------------------------------------------------------------- |
-| `vuestrata doctor`            | Can this project still be upgraded, and what will an upgrade skip?                 |
-| `vuestrata diff`              | Show exactly what an upgrade would change. Writes nothing.                         |
-| `vuestrata upgrade`           | Run migrations and install this release, preserving files you edited.              |
-| `vuestrata add <kind> <name>` | Scaffold a module, page, component, theme or icon set — and its registries.        |
-| `vuestrata adopt <path>`      | After merging a file from `.vuestrata/incoming/` by hand, count it as clean.       |
-| `vuestrata eject`             | Remove the demo, showcase, docs site and maintainer-only files; keeps `customers`. |
-| `vuestrata init`              | Start tracking a project that predates the CLI.                                    |
+| Command                       | What it does                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `vuestrata doctor`            | Can this project still be upgraded, and what will an upgrade skip?                                                        |
+| `vuestrata diff`              | Show exactly what an upgrade would change. Writes nothing.                                                                |
+| `vuestrata upgrade`           | Run migrations and install this release, preserving files you edited.                                                     |
+| `vuestrata add <kind> <name>` | Scaffold a module, page, component, theme or icon set — and its registries.                                               |
+| `vuestrata add ci`            | Write the CI workflow of a project to `.github/workflows/ci.yml`.                                                         |
+| `vuestrata adopt <path>`      | After merging a file from `.vuestrata/incoming/` by hand, count it as clean.                                              |
+| `vuestrata eject`             | Remove the demo, showcase, docs site and maintainer-only files, and install the project's CI workflow; keeps `customers`. |
+| `vuestrata init`              | Start tracking a project that predates the CLI.                                                                           |
 
 Every command takes `--dry-run` and `--json`.
+
+## The CI workflow
+
+The workflows a project inherits from the template maintain the template: they
+test this CLI, publish a release and deploy the hosted demo. `vuestrata add ci`
+writes the one a project needs.
+
+```bash
+vuestrata add ci                    # writes .github/workflows/ci.yml
+vuestrata add ci --dry-run          # prints the plan, writes nothing
+vuestrata add ci --branch trunk     # a default branch other than main
+vuestrata add ci --force            # replace the workflow that is there
+```
+
+It runs on pull requests and on pushes to the default branch, with read-only
+permissions: `vp check` and `vp run lint`, the tests with coverage, a production
+build verified by `verify-bundle`, the end-to-end suite in Chromium, and the
+Docker image built and opened in a browser when the project has a `Dockerfile`.
+There is no deploy job.
+
+The production build reads two repository variables, and passes without either:
+
+| Variable                 | Default                         |
+| ------------------------ | ------------------------------- |
+| `VUESTRATA_API_URL`      | `https://api.vuestrata.invalid` |
+| `VUESTRATA_AUTH_ADAPTER` | `jwt`                           |
+
+The file is recorded as yours: `upgrade` never rewrites it and `doctor` never
+compares it. A second run writes nothing. When another workflow is in the way,
+the command says whether it is the template's, your own, or this one edited,
+and writes over it only with `--force`.
+
+`vuestrata eject` installs the same file in place of the template's `ci.yml`,
+leaves a workflow you already rewrote alone, and keeps the template's with
+`--keep-ci`. A project that does not eject keeps the template's pipeline, whose
+maintainer steps are skipped outside the template's repository; `add ci --force`
+is how it takes this one.
+
+[CI for Your Project](https://github.com/boussadjra/vuestrata/blob/main/docs/8.deployment/3.ci-for-your-project.md)
+describes each job and where a deploy job goes.
 
 ## How an upgrade decides
 

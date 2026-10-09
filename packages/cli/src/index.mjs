@@ -36,7 +36,7 @@ const COMMANDS = {
   },
   add: {
     usage: 'add <kind> <name> [options]',
-    summary: 'Scaffold a module, page, component, theme or icon set.',
+    summary: 'Scaffold a module, page, component, theme, icon set or CI workflow.',
   },
   diff: {
     usage: 'diff [--json]',
@@ -55,7 +55,7 @@ const COMMANDS = {
     summary: 'After merging a file from .vuestrata/incoming/ by hand, record it as clean.',
   },
   eject: {
-    usage: 'eject [--keep <ids>] [--no-keep-customers] [--keep-docs] [--dry-run]',
+    usage: 'eject [--keep <ids>] [--no-keep-customers] [--keep-docs] [--keep-ci] [--dry-run]',
     summary:
       'Remove the demo modules, showcase, docs site and maintainer-only files, and stop tracking them. Keeps customers, the reference module, unless --no-keep-customers.',
   },

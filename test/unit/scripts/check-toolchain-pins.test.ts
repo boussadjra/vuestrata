@@ -120,6 +120,69 @@ describe('check-toolchain-pins', () => {
     ])
   })
 
+  describe('the workflows of a project', () => {
+    // The shape `vuestrata add ci` writes: the pin, and the step that reads it.
+    const PROJECT_CI = [
+      'name: CI',
+      'env:',
+      "  NODE_VERSION: '22'",
+      'jobs:',
+      '  check:',
+      '    steps:',
+      '      - uses: voidzero-dev/setup-vp@v1',
+      '        with:',
+      '          node-version: ${{ env.NODE_VERSION }}',
+      '',
+    ].join('\n')
+
+    it('passes the project workflow, and a project that has none', () => {
+      expect(check(project({ '.github/workflows/ci.yml': PROJECT_CI })).problems).toEqual([])
+      expect(check(project()).problems).toEqual([])
+      expect(check(project({ '.github/dependabot.yml': 'version: 2\n' })).problems).toEqual([])
+    })
+
+    it('fails the project workflow when .nvmrc moved and it did not', () => {
+      const root = project({ '.nvmrc': '24\n', '.github/workflows/ci.yml': PROJECT_CI })
+
+      expect(check(root).problems).toEqual([
+        expect.stringContaining(
+          '.github/workflows/ci.yml: Node pinned to 22, but the repo uses 24',
+        ),
+      ])
+    })
+
+    it('holds a pinned workflow to .nvmrc whatever it is called', () => {
+      const root = project({
+        '.github/workflows/ci.yml': PROJECT_CI,
+        '.github/workflows/deploy.yaml': PROJECT_CI.replace("'22'", "'20'"),
+      })
+
+      expect(check(root).problems).toEqual([
+        expect.stringContaining('.github/workflows/deploy.yaml: Node pinned to 20'),
+      ])
+    })
+
+    it('fails a workflow that still reads the pin and no longer has one', () => {
+      const root = project({
+        '.github/workflows/ci.yml': PROJECT_CI.replace("  NODE_VERSION: '22'\n", ''),
+      })
+
+      expect(check(root).problems).toEqual([
+        expect.stringContaining('.github/workflows/ci.yml: no Node pin found'),
+      ])
+    })
+
+    it('leaves alone a workflow the project wrote that gets its Node another way', () => {
+      const own = 'name: CI\njobs:\n  build:\n    steps:\n      - run: vp check\n'
+      const root = project({
+        '.github/workflows/ci.yml': own,
+        '.github/workflows/codeql.yml': 'name: CodeQL\n',
+      })
+
+      expect(check(root).problems).toEqual([])
+    })
+  })
+
   describe('.node-version, which is what vp runs locally', () => {
     it.each(['22', '22.23.2', 'v22.1.0', '22\r\n'])('accepts %j beside .nvmrc 22', (pinned) => {
       expect(check(project({ '.node-version': pinned })).problems).toEqual([])
