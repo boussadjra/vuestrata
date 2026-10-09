@@ -104,6 +104,9 @@ const BECOMES: Record<string, string> = {
     'sha256-b5af2e988f7a886ac265a3b9958786b3875c2791933a8126bcf46b09fa39e8a1',
   'src/modules/app/plugins/stale-chunk.ts':
     'sha256-fcb5e00e0064205e5b64ec5393db49aafd956ae4f98935e4aed3ad1cf57c6f9f',
+  'src/modules/app/types/index.ts':
+    'sha256-a487526984a308f84ddedb5c53676df71f8e93092d7cb4e8dd41a6109ab63cb7',
+  'src/env.d.ts': 'sha256-24cf06a0d56695b2a1add20294423a7f5f770dfaac9dd352bd003bcade520e82',
   // After its two codemods: the expired-session notice, and the demo account
   // shown only with the mock adapter (hybrid-mocks.mjs).
   'src/modules/auth/pages/login.vue':
@@ -155,6 +158,8 @@ const SYNC = 'scripts/security/sync-headers.mjs'
 const SPEC = 'e2e/production-artifact.spec.ts'
 const CI = '.github/workflows/ci.yml'
 const JWT = 'src/modules/auth/adapters/jwt.ts'
+const APP_TYPES = 'src/modules/app/types/index.ts'
+const ENV_DTS = 'src/env.d.ts'
 
 const HANDLERS = 'src/modules/app/mocks/handlers/index.ts'
 
@@ -1435,6 +1440,148 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       const report = await upgrade()
 
       for (const rel of [...READERS, MANIFEST]) expect(fixture.exists(rel), rel).toBe(false)
+      expect(report.notes).toEqual([])
+    })
+  })
+
+  describe('app/types/index.ts and src/env.d.ts', () => {
+    const OLD_LINE = "  authProvider: 'jwt' | 'oauth' | 'mock'\n"
+    const OLD_IMPORT = "import type { SessionPersistence } from '~/lib/config/env.schema'\n"
+    const NEW_IMPORT =
+      "import type { AuthAdapterName, SessionPersistence } from '~/lib/config/env.schema'\n"
+    const NOTE = /app\/types\/index\.ts is yours.*authProvider: AuthAdapterName/s
+
+    it('types the configured adapter by AuthAdapterName in an unedited file, and changes nothing else', async () => {
+      seed([APP_TYPES])
+      expect(released(APP_TYPES)).toContain(OLD_LINE)
+      expect(released(APP_TYPES)).toContain(OLD_IMPORT)
+
+      const report = await upgrade()
+
+      const result = fixture.read(APP_TYPES)
+      expect(hash(result)).toBe(BECOMES[APP_TYPES])
+      expect(result).toContain(NEW_IMPORT)
+      expect(result).toContain('\n  authProvider: AuthAdapterName\n')
+      expect(result).not.toContain(OLD_LINE)
+      // The two shipped lines, and the comment that says what the type admits.
+      const [before, after] = released(APP_TYPES).replace(OLD_IMPORT, NEW_IMPORT).split(OLD_LINE)
+      expect(result.startsWith(before!)).toBe(true)
+      expect(result.endsWith(after!)).toBe(true)
+      expect(changed(report)).toEqual([APP_TYPES])
+      expect(report.notes).toEqual([])
+
+      const again = await upgrade({}, { version: '1.1.0-alpha.1' })
+      expect(changed(again)).toEqual([])
+      expect(again.notes).toEqual([])
+    })
+
+    it('does the same for a file the project extended elsewhere, in the line endings it has', async () => {
+      seed([APP_TYPES])
+      const own = released(APP_TYPES)
+        .replace('  useMocks: boolean\n', '  useMocks: boolean\n  tenant: string\n')
+        .replaceAll('\n', '\r\n')
+      fixture.write(APP_TYPES, own)
+
+      const report = await upgrade()
+
+      const result = fixture.read(APP_TYPES)
+      expect(result).toContain('  tenant: string\r\n')
+      expect(result).toContain('  authProvider: AuthAdapterName\r\n')
+      expect(result).toContain(NEW_IMPORT.replace('\n', '\r\n'))
+      expect(result.replaceAll('\r\n', '')).not.toContain('\n')
+      expect(report.notes).toEqual([])
+    })
+
+    it.each([
+      [
+        'lists a name of its own',
+        (source: string) =>
+          source.replace(OLD_LINE, "  authProvider: 'jwt' | 'oauth' | 'mock' | 'acme'\n"),
+      ],
+      [
+        'imports something else from env.schema too',
+        (source: string) =>
+          source.replace(
+            OLD_IMPORT,
+            "import type { RuntimeMode, SessionPersistence } from '~/lib/config/env.schema'\n",
+          ),
+      ],
+      [
+        'declares an AuthAdapterName of its own',
+        (source: string) =>
+          source.replace(OLD_IMPORT, `${OLD_IMPORT}type AuthAdapterName = 'jwt' | 'oauth'\n`),
+      ],
+    ])('leaves a file that %s, and gives the line to write', async (_what, edit) => {
+      seed([APP_TYPES])
+      const own = edit(released(APP_TYPES))
+      expect(own).not.toBe(released(APP_TYPES))
+      fixture.write(APP_TYPES, own)
+
+      const report = await upgrade()
+
+      // Not half of it, and not a second binding of the name.
+      expect(fixture.read(APP_TYPES)).toBe(own)
+      expect(changed(report)).toEqual([])
+      expect(texts(report)).toEqual([expect.stringMatching(NOTE)])
+      expect(fixture.exists(incoming(APP_TYPES))).toBe(false)
+    })
+
+    it.each([
+      ['already uses the type', '  authProvider: AuthAdapterName\n'],
+      ['accepts any name', '  authProvider: string\n'],
+      ['already lists session', "  authProvider: 'jwt' | 'oauth' | 'mock' | 'session'\n"],
+      [
+        'only mentions the old union in a comment',
+        "  // authProvider: 'jwt' | 'oauth' | 'mock'\n  authProvider: string\n",
+      ],
+    ])('is quiet for a file that %s', async (_what, line) => {
+      seed([APP_TYPES])
+      fixture.write(APP_TYPES, released(APP_TYPES).replace(OLD_LINE, line))
+
+      const report = await upgrade()
+
+      expect(changed(report)).toEqual([])
+      expect(report.notes).toEqual([])
+    })
+
+    it('ships the property typed that way, so a new project needs nothing', () => {
+      const shipped = inRepo(APP_TYPES)
+
+      expect(shipped).toContain('  authProvider: AuthAdapterName\n')
+      expect(shipped).toMatch(
+        /import type \{[^}]*\bAuthAdapterName\b[^}]*\} from '~\/lib\/config\/env\.schema'/,
+      )
+    })
+
+    it('adds session to the names src/env.d.ts lists, where the line is the shipped one', async () => {
+      seed([ENV_DTS])
+
+      const report = await upgrade()
+
+      const result = fixture.read(ENV_DTS)
+      expect(hash(result)).toBe(BECOMES[ENV_DTS])
+      expect(result).toContain(
+        "  readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'session' | 'mock' | (string & {})\n",
+      )
+      expect(lf(inRepo(ENV_DTS))).toContain(
+        "  readonly VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'session' | 'mock' | (string & {})\n",
+      )
+      expect(changed(report)).toEqual([ENV_DTS])
+      expect(report.notes).toEqual([])
+    })
+
+    it('says nothing about an env.d.ts the project typed its own way', async () => {
+      seed([ENV_DTS])
+      const own = released(ENV_DTS).replace(
+        "VUESTRATA_AUTH_ADAPTER: 'jwt' | 'oauth' | 'mock'",
+        'VUESTRATA_AUTH_ADAPTER: string',
+      )
+      fixture.write(ENV_DTS, own)
+
+      const report = await upgrade()
+
+      expect(fixture.read(ENV_DTS)).toBe(own)
+      expect(changed(report)).toEqual([])
       expect(report.notes).toEqual([])
     })
   })

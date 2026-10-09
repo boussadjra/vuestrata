@@ -977,3 +977,77 @@ describe('VUESTRATA_BASE_PATH: the app under a path prefix', () => {
     expect(parseRuntimeEnv({ ...demoEnv, [ENV_KEYS.basePath]: '/console/' }).apiUrl).toBe('/api')
   })
 })
+
+describe('the built-in session adapter', () => {
+  const sessionEnv = (extra: Record<string, string> = {}) => ({
+    ...productionEnv,
+    [ENV_KEYS.authAdapter]: 'session',
+    ...extra,
+  })
+
+  it('is accepted in a production build, on a same-origin or another-origin API', () => {
+    for (const apiUrl of ['/api', 'https://api.acme.test/api']) {
+      const env = parseRuntimeEnv(
+        sessionEnv({ [ENV_KEYS.sessionPersistence]: 'none', [ENV_KEYS.apiUrl]: apiUrl }),
+      )
+
+      expect(env.authAdapter).toBe('session')
+      expect(env.sessionPersistence).toBe('none')
+      expect(env.useMocks).toBe(false)
+    }
+  })
+
+  it('uses cookie transport, so a bearer persistence mode is refused, as it is for oauth', () => {
+    // `refresh-cookie` is the production default: leaving the variable unset
+    // is the common way to get here, and the message says what to set.
+    expect(() => parseRuntimeEnv(sessionEnv())).toThrow(
+      'VUESTRATA_SESSION_PERSISTENCE="refresh-cookie" has no meaning with ' +
+        'VUESTRATA_AUTH_ADAPTER="session": that adapter uses cookie transport and resumes from ' +
+        'its session cookie. Set it to "none".',
+    )
+    for (const mode of ['session', 'local']) {
+      expect(() => parseRuntimeEnv(sessionEnv({ [ENV_KEYS.sessionPersistence]: mode }))).toThrow(
+        /has no meaning with VUESTRATA_AUTH_ADAPTER="session"/,
+      )
+    }
+  })
+
+  it('is forced to persistence "none" in the browser, whatever the variable says', () => {
+    for (const mode of [undefined, 'refresh-cookie', 'session', 'local']) {
+      const onWarn = vi.fn()
+      const env = resolveRuntimeEnv(
+        sessionEnv(mode ? { [ENV_KEYS.sessionPersistence]: mode } : {}),
+        { onWarn },
+      )
+
+      expect(env.authAdapter).toBe('session')
+      expect(env.sessionPersistence).toBe('none')
+      expect(onWarn).toHaveBeenCalledWith(expect.stringMatching(/cookie transport/))
+    }
+  })
+
+  it('agrees between the strict and the lenient parser once persistence is "none"', () => {
+    const raw = sessionEnv({ [ENV_KEYS.sessionPersistence]: 'none' })
+
+    expect(resolveRuntimeEnv(raw)).toEqual(parseRuntimeEnv(raw))
+  })
+
+  it('is not a demo adapter: a demo build still requires mock', () => {
+    expect(() => parseRuntimeEnv({ ...demoEnv, [ENV_KEYS.authAdapter]: 'session' })).toThrow(
+      /must be "mock".*received "session"/,
+    )
+  })
+
+  it('is named among the built-in adapters when a name is unknown, and as an alternative to mock', () => {
+    expect(() => parseRuntimeEnv(sessionEnv({ [ENV_KEYS.authAdapter]: 'sesion' }))).toThrow(
+      /unknown auth adapter "sesion"\. Built in: mock, jwt, oauth, session\./,
+    )
+    expect(() => parseRuntimeEnv({ ...productionEnv, [ENV_KEYS.authAdapter]: 'mock' })).toThrow(
+      /Use "jwt", "oauth" or "session"/,
+    )
+  })
+
+  it('is a valid value on its own, for whoever checks one variable', () => {
+    expect(describeEnvValueIssue(ENV_KEYS.authAdapter, 'session')).toBeNull()
+  })
+})

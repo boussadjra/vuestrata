@@ -1,0 +1,32 @@
+/**
+ * What a Laravel project writes in `src/modules/app/config/auth.config.ts` to
+ * sign in through Sanctum's SPA authentication. `e2e/integration/build.mjs`
+ * builds the app with this file in that place.
+ *
+ * The `.txt` keeps it out of every program that would read it as source here:
+ * it only means something at that path.
+ */
+import { defineAuthConfig, endpointPresets } from '~/lib/auth'
+
+/** The user as Laravel serializes it. */
+interface LaravelUser {
+  id: number
+  name: string
+  email: string
+  email_verified_at: string | null
+  role: string
+}
+
+export default defineAuthConfig({
+  endpoints: endpointPresets.sanctum,
+  mapUser: (raw) => {
+    const user = raw as LaravelUser
+    return {
+      id: String(user.id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      emailVerified: user.email_verified_at !== null,
+    }
+  },
+})

@@ -68,6 +68,19 @@ const AUTH_ADAPTER_NAME = /^[a-z][a-z0-9-]*$/
 const DEV_API_TARGET = 'DEV_API_TARGET'
 
 /**
+ * Paths beside the API that `vp dev` forwards to `DEV_API_TARGET` as well: a
+ * comma-separated list such as `/login,/logout,/sanctum`. Unprefixed for the
+ * same reason.
+ *
+ * A backend that keeps a server session usually serves its session routes at
+ * the root of its origin while the API lives under a path: Laravel answers
+ * `POST /login` and `GET /sanctum/csrf-cookie` there, with the API under
+ * `/api`. Proxying the API path alone leaves those requests with the dev
+ * server, which answers them with the app's own index.html.
+ */
+const DEV_PROXY_PATHS = 'DEV_PROXY_PATHS'
+
+/**
  * The script every page loads before the app bundle. It assigns
  * `window.__VUESTRATA_RUNTIME__`, the values a deployment sets when the app
  * STARTS rather than when it is built (see core/lib/config/runtime-overlay.ts).
@@ -307,7 +320,12 @@ export function vuestrataEnv(options = {}) {
       // reach `define` — and `envPrefix` never matches it, so it never reaches
       // `import.meta.env` either.
       const proxy = devServer
-        ? devApiProxy(env.apiUrl, readDevApiTarget(mode, envDir), (message) => this.warn(message))
+        ? devApiProxy(
+            env.apiUrl,
+            readDevApiTarget(mode, envDir),
+            (message) => this.warn(message),
+            readDevProxyPaths(mode, envDir),
+          )
         : undefined
 
       return {
@@ -327,6 +345,13 @@ export function vuestrataEnv(options = {}) {
           // (lenient) parse in core/lib/config: it must accept the adapter
           // names this build accepted, and it cannot import the app's file.
           __VUESTRATA_AUTH_ADAPTERS__: JSON.stringify(authAdapters),
+          // The adapter is chosen when the app is built, so a bundle made for
+          // another one has no use for the cookie-session adapter. A literal
+          // `false` lets rolldown drop it, as `__VUESTRATA_DEMO__` drops the
+          // mock one (see auth/adapters/registry.ts). Not forced on under
+          // test: the registry is tested as the build it describes, and a
+          // test of that adapter says so.
+          __VUESTRATA_SESSION_ADAPTER__: JSON.stringify(env.authAdapter === 'session'),
         },
         build: {
           // 'hidden' emits .map files without the `//# sourceMappingURL=`
@@ -881,6 +906,37 @@ function readDevApiTarget(mode, envDir) {
   return loadEnv(mode, envDir, DEV_API_TARGET)[DEV_API_TARGET]?.trim() || undefined
 }
 
+/** `DEV_PROXY_PATHS`, read the way `DEV_API_TARGET` is, or undefined. */
+function readDevProxyPaths(mode, envDir) {
+  return loadEnv(mode, envDir, DEV_PROXY_PATHS)[DEV_PROXY_PATHS]?.trim() || undefined
+}
+
+/**
+ * The paths in a `DEV_PROXY_PATHS` value, each without its trailing slash.
+ *
+ * Each has to be a path of its own under the site root. Anything else fails
+ * `vp dev` at startup, like a target that is not a URL: `/` would send the app
+ * itself to the backend, and a value with a host, a query or a pattern in it
+ * is a mistake that would otherwise surface as requests going nowhere.
+ */
+function parseDevProxyPaths(value) {
+  const paths = value
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((path) => (path.length > 1 ? path.replace(/\/+$/, '') : path))
+
+  for (const path of paths) {
+    if (!/^\/[\w~.-]+(?:\/[\w~.-]+)*$/.test(path)) {
+      throw new Error(
+        `[vuestrata:env] ${DEV_PROXY_PATHS} must be a comma-separated list of paths such as ` +
+          `/login,/logout,/sanctum: each one rooted, with a name after the "/", and no host, ` +
+          `query or pattern (received "${path}").`,
+      )
+    }
+  }
+  return [...new Set(paths)]
+}
+
 /**
  * `server.proxy` sending the API path to `DEV_API_TARGET`, or undefined.
  *
@@ -889,9 +945,26 @@ function readDevApiTarget(mode, envDir) {
  * Seen from the browser, that is the reverse-proxy deployment `/api` stands for
  * — first-party cookies, no CORS. An absolute API URL sends the browser
  * straight to that origin, so the dev server never sees the request.
+ *
+ * `extraPaths` (`DEV_PROXY_PATHS`) are forwarded the same way, with the same
+ * options: they are the backend's own routes beside its API, and a session
+ * cookie set by `/login` has to land on the dev server's host exactly as one
+ * set under the API path does. They need the API proxy to mean anything, so
+ * without one they are reported and left out.
  */
-function devApiProxy(apiUrl, target, warn) {
-  if (!target) return undefined
+function devApiProxy(apiUrl, target, warn, extraPaths) {
+  // Checked first, so a list that cannot be meant fails wherever it is set.
+  const extra = extraPaths ? parseDevProxyPaths(extraPaths) : []
+
+  if (!target) {
+    if (extra.length > 0) {
+      warn(
+        `[vuestrata:env] ${DEV_PROXY_PATHS} is set, but ${DEV_API_TARGET} is not: there is no ` +
+          'backend to forward those paths to, so nothing is proxied.',
+      )
+    }
+    return undefined
+  }
 
   const path = sameOriginPath(apiUrl)
   if (path === undefined) {
@@ -911,23 +984,31 @@ function devApiProxy(apiUrl, target, warn) {
     return undefined
   }
 
-  return {
-    // A RegExp key (Vite treats one starting with `^` as a pattern) that stops
-    // at a segment boundary: `/api` and `/api/users`, but not `/api-docs`.
-    [`^${escapeRegExp(path)}(?=[/?]|$)`]: {
-      target: parseDevApiTarget(target),
-      // The backend sees its own host in `Host`, as it would behind a real
-      // proxy; `xfwd` passes the browser-facing one in `X-Forwarded-Host`,
-      // which framework CSRF checks compare `Origin` against.
-      changeOrigin: true,
-      xfwd: true,
-      ws: true,
-      // Drop any `Domain` from `Set-Cookie`, so a session cookie lands on the
-      // host the browser is actually talking to — the dev server — rather
-      // than being rejected for naming the backend's.
-      cookieDomainRewrite: '',
-    },
+  const backend = parseDevApiTarget(target)
+  const rule = () => ({
+    target: backend,
+    // The backend sees its own host in `Host`, as it would behind a real
+    // proxy; `xfwd` passes the browser-facing one in `X-Forwarded-Host`,
+    // which framework CSRF checks compare `Origin` against.
+    changeOrigin: true,
+    xfwd: true,
+    ws: true,
+    // Drop any `Domain` from `Set-Cookie`, so a session cookie lands on the
+    // host the browser is actually talking to — the dev server — rather
+    // than being rejected for naming the backend's.
+    cookieDomainRewrite: '',
+  })
+  // A RegExp key (Vite treats one starting with `^` as a pattern) that stops
+  // at a segment boundary: `/api` and `/api/users`, but not `/api-docs`.
+  const key = (prefix) => `^${escapeRegExp(prefix)}(?=[/?]|$)`
+
+  const proxy = { [key(path)]: rule() }
+  for (const extraPath of extra) {
+    // Already forwarded: the API path itself, or something under it.
+    if (extraPath === path || extraPath.startsWith(`${path}/`)) continue
+    proxy[key(extraPath)] = rule()
   }
+  return proxy
 }
 
 /**

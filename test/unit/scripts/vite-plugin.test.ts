@@ -101,7 +101,9 @@ async function transformHtml(
 beforeEach(() => {
   // A developer's shell may export any of these; the tests must not see them.
   for (const key of Object.keys(process.env)) {
-    if (key.startsWith('VUESTRATA_') || key === 'DEV_API_TARGET') vi.stubEnv(key, undefined)
+    if (key.startsWith('VUESTRATA_') || key === 'DEV_API_TARGET' || key === 'DEV_PROXY_PATHS') {
+      vi.stubEnv(key, undefined)
+    }
   }
 })
 
@@ -249,6 +251,166 @@ describe('the dev API proxy', () => {
   })
 })
 
+describe('the backend routes beside the API (DEV_PROXY_PATHS)', () => {
+  const RULE = {
+    target: TARGET,
+    changeOrigin: true,
+    xfwd: true,
+    ws: true,
+    cookieDomainRewrite: '',
+  }
+
+  /** The proxy rule a request URL falls under, by the key Vite would match. */
+  function ruleFor(proxy: Record<string, unknown> | undefined, url: string): string | undefined {
+    return Object.keys(proxy ?? {}).find((key) => new RegExp(key).test(url))
+  }
+
+  it('forwards each listed path to DEV_API_TARGET, with the options the API path gets', async () => {
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        DEV_API_TARGET: TARGET,
+        DEV_PROXY_PATHS: '/login,/logout, /sanctum/',
+      },
+    })
+
+    const { result, warn } = await runConfig(root, serve())
+    const proxy = result.server?.proxy as Record<string, unknown>
+
+    expect(Object.values(proxy)).toEqual([RULE, RULE, RULE, RULE])
+    for (const url of ['/api/user', '/login', '/logout', '/sanctum/csrf-cookie', '/login?next=1']) {
+      expect(ruleFor(proxy, url), url).toBeDefined()
+    }
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('matches each path at a segment boundary, so the app keeps its own routes', async () => {
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        DEV_API_TARGET: TARGET,
+        DEV_PROXY_PATHS: '/login',
+      },
+    })
+
+    const { result } = await runConfig(root, serve())
+    const proxy = result.server?.proxy as Record<string, unknown>
+
+    for (const url of [
+      '/',
+      '/auth/login',
+      '/login-help',
+      '/loginx',
+      '/src/login.ts',
+      '/dashboard',
+    ]) {
+      expect(ruleFor(proxy, url), url).toBeUndefined()
+    }
+  })
+
+  it('adds no rule for a path the API proxy already covers', async () => {
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        DEV_API_TARGET: TARGET,
+        DEV_PROXY_PATHS: '/api,/api/auth,/login,/login',
+      },
+    })
+
+    const { result } = await runConfig(root, serve())
+
+    expect(Object.values(result.server?.proxy ?? {})).toEqual([RULE, RULE])
+  })
+
+  it('reads the list from the shell as well as from .env files', async () => {
+    vi.stubEnv('DEV_PROXY_PATHS', '/login')
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        DEV_API_TARGET: TARGET,
+      },
+    })
+
+    const { result } = await runConfig(root, serve())
+
+    expect(ruleFor(result.server?.proxy as Record<string, unknown>, '/login')).toBeDefined()
+  })
+
+  it('says so, and proxies nothing, when there is no DEV_API_TARGET to forward to', async () => {
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        DEV_PROXY_PATHS: '/login',
+      },
+    })
+
+    const { result, warn } = await runConfig(root, serve())
+
+    expect(result.server).toBeUndefined()
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringMatching(/DEV_PROXY_PATHS is set, but DEV_API_TARGET is not/),
+    )
+  })
+
+  it('proxies nothing for an absolute API URL, which the browser calls directly', async () => {
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: 'http://localhost:8000/api',
+        DEV_API_TARGET: TARGET,
+        DEV_PROXY_PATHS: '/login',
+      },
+    })
+
+    const { result, warn } = await runConfig(root, serve())
+
+    expect(result.server).toBeUndefined()
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    '/',
+    'login',
+    '//evil.example/login',
+    '/login?x=1',
+    '/log*',
+    'http://localhost:8000/login',
+  ])('refuses %s, which is not a path of its own under the site root', async (value) => {
+    const root = project({
+      '.env.development.local': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        DEV_API_TARGET: TARGET,
+        DEV_PROXY_PATHS: value,
+      },
+    })
+
+    await expect(runConfig(root, serve())).rejects.toThrow(/DEV_PROXY_PATHS must be/)
+  })
+
+  it('configures nothing in a build, and never reaches the bundle', async () => {
+    const root = project({
+      '.env': {
+        ...production,
+        VUESTRATA_API_URL: '/api',
+        DEV_API_TARGET: TARGET,
+        DEV_PROXY_PATHS: '/login,/sanctum',
+      },
+    })
+
+    const { result, warn } = await runConfig(root, build())
+
+    expect(result.server).toBeUndefined()
+    expect(JSON.stringify(result.define)).not.toMatch(/DEV_PROXY_PATHS|sanctum/)
+    expect(warn).not.toHaveBeenCalled()
+  })
+})
+
 describe('DEV_API_TARGET never reaches the bundle', () => {
   it('is not part of the define the plugin returns', async () => {
     const root = project({
@@ -336,10 +498,43 @@ describe('the build target', () => {
         __VUESTRATA_DEMO__: demo,
         // No auth.config.ts in this root, so no adapter of the project's own.
         __VUESTRATA_AUTH_ADAPTERS__: '{}',
+        // None of these builds selected the cookie-session adapter.
+        __VUESTRATA_SESSION_ADAPTER__: 'false',
       })
       expect(result.build).toEqual({ sourcemap })
     },
   )
+
+  it.each([
+    ['a build', build()],
+    ['vp dev', serve()],
+  ])('compiles the session adapter in for %s that selects it, and only then', async (_, env) => {
+    const selected = project({
+      '.env': {
+        ...production,
+        VUESTRATA_AUTH_ADAPTER: 'session',
+        VUESTRATA_SESSION_PERSISTENCE: 'none',
+        VUESTRATA_API_URL: '/api',
+      },
+    })
+    const other = project({
+      // The default build: the jwt adapter.
+      '.env': { ...production, VUESTRATA_API_URL: '/api' },
+    })
+
+    expect((await runConfig(selected, env)).result.define?.__VUESTRATA_SESSION_ADAPTER__).toBe(
+      'true',
+    )
+    expect((await runConfig(other, env)).result.define?.__VUESTRATA_SESSION_ADAPTER__).toBe('false')
+  })
+
+  it('leaves it out under test, where the registry is tested as the build it describes', async () => {
+    const root = project({ '.env': {} })
+
+    const { result } = await runConfig(root, serve('test'))
+
+    expect(result.define?.__VUESTRATA_SESSION_ADAPTER__).toBe('false')
+  })
 
   it('accepts a local backend URL under vp dev but still fails a build with it', async () => {
     const root = project({

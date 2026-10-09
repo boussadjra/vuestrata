@@ -20,7 +20,7 @@ export type {
 } from '~/lib/auth/adapter'
 
 /** The adapters Vuestrata ships. A project registers its own in `app/config/auth.config.ts`. */
-export const SUPPORTED_AUTH_ADAPTERS = ['mock', 'jwt', 'oauth'] as const
+export const SUPPORTED_AUTH_ADAPTERS = ['mock', 'jwt', 'oauth', 'session'] as const
 export type SupportedAuthAdapter = (typeof SUPPORTED_AUTH_ADAPTERS)[number]
 
 /**

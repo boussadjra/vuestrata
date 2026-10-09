@@ -96,7 +96,7 @@ Server state follows a single TanStack Query convention with typed
 of letting every feature invent its own loading, caching and invalidation model.
 `ofetch` stays the low-level client. Environment configuration is validated by
 one zod schema. Auth is one explicit contract with declared transport and
-capability flags across the `mock`, `jwt` and `oauth` adapters, so the UI hides
+capability flags across the `mock`, `jwt`, `oauth` and `session` adapters, so the UI hides
 what the configured adapter cannot do rather than discovering it at click time.
 
 ### 5. Testing, security and accessibility guardrails

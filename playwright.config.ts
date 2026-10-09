@@ -67,6 +67,9 @@ const webServerCommand = isPreview
 
 export default defineConfig({
   testDir: './e2e',
+  // `e2e/integration/` runs against a build of its own and a stub backend, from
+  // its own config: `e2e/integration/playwright.config.ts`. Not part of this suite.
+  testIgnore: ['integration/**'],
   fullyParallel: false,
   forbidOnly: !!env.CI,
   retries: env.CI ? 2 : 0,

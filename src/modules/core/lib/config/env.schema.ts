@@ -47,7 +47,7 @@ export const RUNTIME_MODES = ['production', 'demo'] as const
  * any name a project registers under `adapters` in
  * `src/modules/app/config/auth.config.ts`; see `ResolveOptions.authAdapters`.
  */
-export const AUTH_ADAPTERS = ['mock', 'jwt', 'oauth'] as const
+export const AUTH_ADAPTERS = ['mock', 'jwt', 'oauth', 'session'] as const
 
 /** How an auth adapter proves identity. Mirrors `AuthTransport` in the auth module. */
 export type AuthAdapterTransport = 'bearer' | 'cookie'
@@ -62,11 +62,15 @@ export type RegisteredAuthAdapters = Readonly<Record<string, AuthAdapterTranspor
 /** Where a project registers an adapter. Named in the message for an unknown one. */
 const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
 
-/** The transport of the built-in adapters. `oauth` is a cookie session by design. */
+/**
+ * The transport of the built-in adapters. `oauth` is a cookie session by design,
+ * and `session` is one by definition: the backend's own session cookie.
+ */
 const BUILTIN_TRANSPORTS: Record<BuiltinAuthAdapterName, AuthAdapterTransport> = {
   mock: 'bearer',
   jwt: 'bearer',
   oauth: 'cookie',
+  session: 'cookie',
 }
 
 /**
@@ -625,7 +629,7 @@ function collectCombinationIssues(
     issues.push({
       message:
         `${ENV_KEYS.authAdapter}="mock" is not valid in production: the mock adapter's endpoints only exist inside MSW. ` +
-        `Use "jwt" or "oauth", or set ${ENV_KEYS.runtimeMode}="demo".`,
+        `Use "jwt", "oauth" or "session", or set ${ENV_KEYS.runtimeMode}="demo".`,
       apply: (draft) => {
         draft.authAdapter = 'jwt'
       },

@@ -35,8 +35,17 @@ import { readAuthConfig } from '../../../scripts/vite/vuestrata-plugin.mjs'
  * empty interface would fail its `vp check` and its build the moment it did.
  * In the template `Declared` is `never`, and each line then says exactly "the
  * union it always was" — a widening to `string` fails it in either checkout.
+ *
+ * `session` joined the built-in adapters in 1.1.0, which widens the union for
+ * every project, declared or not. That is the one change this file exists to
+ * make deliberate: the 1.1.0 migration rewrites the `authProvider` line of an
+ * upgraded project's `app/types/index.ts` to `AuthAdapterName`
+ * (`appConfigAdapterName` in packages/cli/migrations/1.1.0/project-files.mjs),
+ * and a file it does not recognise gets a note with the line to write. A
+ * built-in adapter added later needs nothing more: the project's type then
+ * follows this one.
  */
-type ReleasedUnion = 'mock' | 'jwt' | 'oauth'
+type ReleasedUnion = 'mock' | 'jwt' | 'oauth' | 'session'
 
 /** The adapter names this checkout declares from `auth.config.ts`. */
 type Declared = keyof RegisteredAuthAdapterNames
@@ -56,8 +65,8 @@ describe('the type of the configured auth adapter', () => {
   })
 
   it('still fits what a project’s own AppConfig declares', () => {
-    // `ReleasedUnion` is what `app/types/index.ts` says in a project created
-    // before this, and all there is to fit while nothing is declared.
+    // `AppConfig['authProvider']` is `AuthAdapterName` in a project created
+    // from 1.1.0 and in one its migration reached; this is that file here.
     expectTypeOf(authAdapter).toExtend<Expected>()
     expectTypeOf<RuntimeEnv['authAdapter']>().toExtend<AppConfig['authProvider']>()
     expectTypeOf(appConfig.authProvider).toExtend<AuthAdapterName>()
