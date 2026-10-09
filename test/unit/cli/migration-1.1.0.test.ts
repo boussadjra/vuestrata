@@ -87,7 +87,9 @@ async function upgrade(
 }
 
 const texts = (report: Report) => report.notes.map((note) => note.text)
-const changed = (report: Report) => report.migrations.flatMap((entry) => entry.changed)
+const changed = (report: Report) => [
+  ...new Set(report.migrations.flatMap((entry) => entry.changed)),
+]
 const incoming = (rel: string) => `.vuestrata/incoming/${rel}`
 
 /**
@@ -104,8 +106,9 @@ const BECOMES: Record<string, string> = {
     'sha256-b5af2e988f7a886ac265a3b9958786b3875c2791933a8126bcf46b09fa39e8a1',
   'src/modules/app/plugins/stale-chunk.ts':
     'sha256-fcb5e00e0064205e5b64ec5393db49aafd956ae4f98935e4aed3ad1cf57c6f9f',
+  // Adapter-name and multiple-role additions compose in the same declaration.
   'src/modules/app/types/index.ts':
-    'sha256-a487526984a308f84ddedb5c53676df71f8e93092d7cb4e8dd41a6109ab63cb7',
+    'sha256-c356628e0b38a379cd42ef2544b4de82273012dcc910900803a95340d52589d2',
   'src/env.d.ts': 'sha256-24cf06a0d56695b2a1add20294423a7f5f770dfaac9dd352bd003bcade520e82',
   // After its two codemods: the expired-session notice, and the demo account
   // shown only with the mock adapter (hybrid-mocks.mjs).
@@ -691,6 +694,19 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
   describe('plugins/i18n.ts', () => {
     const MERGES = 'isGroup(shipped) && isGroup(value) ? withOverrides(shipped, value) : value'
     const SHALLOW = '  return { ...base, ...overrides }\n'
+    // The independent base-path migration still applies while a project's
+    // merge function is kept. Its expected changes are included explicitly.
+    const withBasePath = (source: string) =>
+      source
+        .replace(
+          "import { useAppStore } from '@/stores/app'\n",
+          "import { useAppStore } from '@/stores/app'\nimport { appPathname } from '~/lib/config'\n",
+        )
+        .replace(
+          "function readPathname(): string {\n  return typeof window === 'undefined' ? '/' : window.location.pathname\n}\n",
+          '/** The path inside the app, without the base path it may be served under. */\n' +
+            'function readPathname(): string {\n  return appPathname()\n}\n',
+        )
 
     it('makes an unedited file merge groups, which is the file this release ships', async () => {
       seed([I18N])
@@ -771,7 +787,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       // Not the shipped spread any more, so not recognised as shallow either:
       // nothing is written and nothing is said about a function that is theirs.
-      expect(fixture.read(I18N)).toBe(edited)
+      expect(fixture.read(I18N)).toBe(withBasePath(edited))
       expect(report.notes).toEqual([])
     })
 
@@ -787,7 +803,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       const report = await upgrade()
 
-      expect(fixture.read(I18N)).toBe(edited)
+      expect(fixture.read(I18N)).toBe(withBasePath(edited))
       expect(texts(report)).toEqual([
         expect.stringMatching(
           /validation.*replaces the whole group.*withOverrides\(base\[key\], value\)/s,
@@ -1175,6 +1191,16 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
     const HISTORY_11 = '  history: createWebHistory(import.meta.env.BASE_URL),\n'
     const RAW_PATHNAME = "typeof window === 'undefined' ? '/' : window.location.pathname"
     const PATHNAME_IMPORT = "import { appPathname } from '~/lib/config'\n"
+    // Preservation cases start with the independent locale-merge upgrade
+    // already present. The unedited cases above still exercise both upgrades.
+    const readerSource = (rel: string) => {
+      const source = released(rel)
+      if (rel !== I18N) return source
+      const block = /\/\*\*\n \* Shell copy,[\s\S]*?\n}\n/
+      const merged = lf(inRepo(I18N)).match(block)?.[0]
+      expect(merged).toBeDefined()
+      return source.replace(block, merged!)
+    }
 
     it('starts from files that still name the root of the origin, at both releases', () => {
       for (const tag of TAGS) {
@@ -1221,7 +1247,11 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
 
       await upgrade()
 
-      expect(fixture.read(ROUTER)).toBe(lf(inRepo(ROUTER)))
+      // This fixture has no auth store, so the roles migration cannot add a
+      // reference to userRoles. Its own cases below supply the store.
+      expect(fixture.read(ROUTER)).toBe(
+        lf(inRepo(ROUTER)).replace('    roles: authStore.userRoles,\n', ''),
+      )
       expect(fixture.read(LOCALE)).toBe(lf(inRepo(LOCALE)))
       for (const rel of READERS) {
         const written = fixture
@@ -1347,7 +1377,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
     describe('a file that reads the address bar in its own way', () => {
       it.each(READERS)('is left alone, with the call to write: %s', async (rel) => {
         seed([rel])
-        const own = released(rel).replace(
+        const own = readerSource(rel).replace(
           RAW_PATHNAME,
           "typeof window === 'undefined' ? '/' : window.location.pathname.toLowerCase()",
         )
@@ -1366,7 +1396,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       it.each(READERS)('never gets the name twice: %s', async (rel) => {
         seed([rel])
         // The shipped lines are intact, and the file has the name already.
-        const own = `${released(rel)}\nconst appPathname = () => '/'\nvoid appPathname\n`
+        const own = `${readerSource(rel)}\nconst appPathname = () => '/'\nvoid appPathname\n`
         fixture.write(rel, own)
 
         const report = await upgrade()
@@ -1450,8 +1480,10 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
     const NEW_IMPORT =
       "import type { AuthAdapterName, SessionPersistence } from '~/lib/config/env.schema'\n"
     const NOTE = /app\/types\/index\.ts is yours.*authProvider: AuthAdapterName/s
+    const withRoles = (source: string) =>
+      source.replace('  role: Role\n', '  role: Role\n  roles?: Role[]\n')
 
-    it('types the configured adapter by AuthAdapterName in an unedited file, and changes nothing else', async () => {
+    it('types the configured adapter and adds multiple roles together in an unedited file', async () => {
       seed([APP_TYPES])
       expect(released(APP_TYPES)).toContain(OLD_LINE)
       expect(released(APP_TYPES)).toContain(OLD_IMPORT)
@@ -1463,10 +1495,16 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       expect(result).toContain(NEW_IMPORT)
       expect(result).toContain('\n  authProvider: AuthAdapterName\n')
       expect(result).not.toContain(OLD_LINE)
-      // The two shipped lines, and the comment that says what the type admits.
+      expect(result).toContain('  roles?: Role[]\n')
+      // Outside the independent roles addition, only the adapter declarations
+      // and the comment that says what the type admits change.
+      const adapterOnly = result.replace(
+        /  \/\*\*\n   \* Every role the user holds,[\s\S]*?\n  roles\?: Role\[\]\n/,
+        '',
+      )
       const [before, after] = released(APP_TYPES).replace(OLD_IMPORT, NEW_IMPORT).split(OLD_LINE)
-      expect(result.startsWith(before!)).toBe(true)
-      expect(result.endsWith(after!)).toBe(true)
+      expect(adapterOnly.startsWith(before!)).toBe(true)
+      expect(adapterOnly.endsWith(after!)).toBe(true)
       expect(changed(report)).toEqual([APP_TYPES])
       expect(report.notes).toEqual([])
 
@@ -1513,7 +1551,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       ],
     ])('leaves a file that %s, and gives the line to write', async (_what, edit) => {
       seed([APP_TYPES])
-      const own = edit(released(APP_TYPES))
+      const own = edit(withRoles(released(APP_TYPES)))
       expect(own).not.toBe(released(APP_TYPES))
       fixture.write(APP_TYPES, own)
 
@@ -1536,7 +1574,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       ],
     ])('is quiet for a file that %s', async (_what, line) => {
       seed([APP_TYPES])
-      fixture.write(APP_TYPES, released(APP_TYPES).replace(OLD_LINE, line))
+      fixture.write(APP_TYPES, withRoles(released(APP_TYPES)).replace(OLD_LINE, line))
 
       const report = await upgrade()
 
@@ -2839,6 +2877,13 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('a user may hold several roles', () =>
   describe('app/types/index.ts', () => {
     const MEMBER = '  roles?: Role[]\n  permissions?: Permission[]\n'
     const DECLARED = /  role: Role\n[\s\S]*?  permissions\?: Permission\[\]\n/
+    // Keep the adapter type open in preservation cases, so the independent
+    // session-adapter migration has nothing left to change in this fixture.
+    const roleSource = () =>
+      released(APP_TYPES).replace(
+        "  authProvider: 'jwt' | 'oauth' | 'mock'\n",
+        '  authProvider: string\n',
+      )
 
     it('gives User the roles member, as this release declares it', async () => {
       seed([APP_TYPES])
@@ -2869,7 +2914,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('a user may hold several roles', () =>
 
     it('leaves a User the project already gave a roles member, of whatever type', async () => {
       seed([APP_TYPES])
-      const own = released(APP_TYPES).replace(
+      const own = roleSource().replace(
         '  role: Role\n',
         '  role: Role\n  roles: Array<{ id: number; name: string }>\n',
       )
@@ -2901,7 +2946,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('a user may hold several roles', () =>
 
     it('leaves a User the project reshaped, with the member to add', async () => {
       seed([APP_TYPES])
-      const reshaped = released(APP_TYPES).replace(
+      const reshaped = roleSource().replace(
         '  permissions?: Permission[]\n  emailVerified?: boolean\n',
         '  permissions?: Permission[]\n  tenantId: string\n  emailVerified?: boolean\n',
       )
@@ -2917,7 +2962,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('a user may hold several roles', () =>
 
     it('has nothing to say to a project that declares User somewhere else', async () => {
       seed([APP_TYPES])
-      const moved = released(APP_TYPES).replace(/export interface User \{[\s\S]*?\n\}\n/, '')
+      const moved = roleSource().replace(/export interface User \{[\s\S]*?\n\}\n/, '')
       expect(moved).not.toContain('interface User {')
       fixture.write(APP_TYPES, moved)
 

@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterAll, afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { defineComponent, h, onErrorCaptured, ref, type Component, type VNode } from 'vue'
 import { z } from 'zod'
 
@@ -53,6 +53,7 @@ import { MEASURED_AT_A22D396, type MeasuredCell } from './ui-form-field-matrix.b
  */
 
 const RECORD = process.env.FIELD_MATRIX_RECORD
+const NATIVE_DATE = Date
 
 const options = [
   { label: 'Alpha', value: 'a' },
@@ -409,7 +410,7 @@ interface Cell {
 /** JSON drops `undefined` and flattens dates; the pinned table must not. */
 function encode(value: unknown): unknown {
   if (value === undefined) return '<undefined>'
-  if (value instanceof Date) return `<Date ${value.toISOString()}>`
+  if (value instanceof NATIVE_DATE) return `<Date ${value.toISOString()}>`
   if (Array.isArray(value)) return value.map(encode)
   if (typeof value === 'object' && value !== null) {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, encode(item)]))
@@ -560,9 +561,16 @@ async function mountCell(field: FieldCase, initial: unknown, passed: unknown): P
   }
 }
 
+beforeEach(() => {
+  // Empty date fields expose today's segments. The recorded baseline was
+  // measured on this date; mock only Date so real settling timers still run.
+  vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'))
+})
+
 afterEach(() => {
   for (const wrapper of mounted.splice(0)) wrapper.unmount()
   document.body.innerHTML = ''
+  vi.useRealTimers()
 })
 
 // ─── The matrix ──────────────────────────────────────────────────────────────

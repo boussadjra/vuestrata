@@ -171,7 +171,7 @@ describe('the environment, with no VUESTRATA_MOCK_ONLY', () => {
       raw: { ...PRODUCTION, [ENV_KEYS.authAdapter]: 'mock' },
       message:
         'VUESTRATA_AUTH_ADAPTER="mock" is not valid in production: the mock adapter\'s endpoints only exist inside MSW. ' +
-        'Use "jwt" or "oauth", or set VUESTRATA_RUNTIME_MODE="demo".',
+        'Use "jwt", "oauth" or "session", or set VUESTRATA_RUNTIME_MODE="demo".',
       corrected: { runtimeMode: 'production', authAdapter: 'jwt' },
     },
     {

@@ -138,7 +138,7 @@
     },
     "src/modules/app/components/layout/SkipLink.vue": {
       "class": "managed",
-      "hash": "sha256-bdb1ea7ff2b1d3deecc72b4a56537541fe11ed6a87ae3ed0c3a2b97a557b8c01",
+      "hash": "sha256-e80b0e75c71f122f6c51aadf54f7031b35e8006299441247be03a49d177f011b",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/components/Logo.vue": {
@@ -232,7 +232,7 @@
     },
     "src/modules/app/components/ui/UiCommandPalette.vue": {
       "class": "managed",
-      "hash": "sha256-88687a567b1f9b913f31e812a9448b628599f3480ec6a42a6c1293292d9832d4",
+      "hash": "sha256-ed5943c929323fd0fa6286f52c42bd92243724beb19bd214857120b52b1708cb",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/components/ui/UiDataGrid.vue": {
@@ -1048,7 +1048,7 @@
     },
     "src/modules/core/lib/config/deploy.ts": {
       "class": "managed",
-      "hash": "sha256-07a4c1c017dee5e2630146d611fdd70f153c0390b72aee17c451efed652fc3f3",
+      "hash": "sha256-4b3c713cdd608a34fbf3cbe472b50ab8a4a189260c0e648c963acc3b583adfb4",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/config/env.schema.ts": {

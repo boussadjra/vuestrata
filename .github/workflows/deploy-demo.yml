@@ -82,7 +82,7 @@ jobs:
           fi
           # --prebuilt would need `vercel build`, which would re-run the build
           # without the env above. Deploy dist/ as a static artifact instead.
-          url=$(npx --yes vercel@latest deploy dist \
+          url=$(vp dlx vercel@latest deploy dist \
             --token "$VERCEL_TOKEN" \
             --prod \
             --yes \

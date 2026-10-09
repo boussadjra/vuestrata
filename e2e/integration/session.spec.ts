@@ -13,7 +13,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  *
  * The app is a production build made for `VUESTRATA_AUTH_ADAPTER=session`,
  * with the Sanctum presets selected in the two seeded files (`fixtures/`). Run
- * `node e2e/integration/build.mjs` first; see `playwright.config.ts` here.
+ * `vpr test:e2e:session`; see `playwright.config.ts` here.
  */
 
 // The stub's one account. Kept in step with `STUB_ACCOUNT` in the stub backend,

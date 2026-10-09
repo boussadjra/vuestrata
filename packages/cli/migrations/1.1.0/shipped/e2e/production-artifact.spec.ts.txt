@@ -16,7 +16,7 @@ import { test, expect, type ConsoleMessage, type Page } from '@playwright/test'
  *   docker build -t vuestrata .
  *   docker run -d -p 8080:8080 vuestrata
  *   E2E_TARGET=external E2E_BASE_URL=http://127.0.0.1:8080 \
- *     vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+ *     vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
  *
  * One image serves every environment, so the same suite runs against the same
  * image started differently. `E2E_API_URL` says what the container was given,
@@ -25,7 +25,7 @@ import { test, expect, type ConsoleMessage, type Page } from '@playwright/test'
  *   docker run -d -p 8081:8080 -e VUESTRATA_API_URL=https://api.staging.example.test vuestrata
  *   E2E_TARGET=external E2E_BASE_URL=http://127.0.0.1:8081 \
  *     E2E_API_URL=https://api.staging.example.test \
- *     vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+ *     vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
  *
  * `E2E_APP_TITLE` does the same for a title (`-e VUESTRATA_APP_TITLE="Acme
  * Console"`). An API URL on a placeholder host is a case of its own, because

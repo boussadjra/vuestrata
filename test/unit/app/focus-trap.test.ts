@@ -72,6 +72,19 @@ describe('useFocusTrap', () => {
     expect(document.activeElement?.id).toBe('first')
   })
 
+  it('visits links between buttons even when native Tab navigation omits them', async () => {
+    const wrapper = mountHarness()
+    await wrapper.vm.activate()
+
+    pressTab()
+    expect(document.activeElement?.id).toBe('middle')
+    pressTab()
+    expect(document.activeElement?.id).toBe('last')
+    pressTab(true)
+    expect(document.activeElement?.id).toBe('middle')
+    wrapper.unmount()
+  })
+
   it('wraps backward from the first element to the last', async () => {
     const wrapper = mountHarness()
     await wrapper.vm.activate()

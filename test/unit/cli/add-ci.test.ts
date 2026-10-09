@@ -471,21 +471,6 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
       text ?? '',
     )
 
-  /**
-   * A script's arguments, passed the way that reaches the script.
-   *
-   * The template writes `vpr test:e2e -- --project=chromium`. With Vite+ 0.2.9
-   * `vp run` hands that `--` on, the script becomes `playwright test --
-   * --project=chromium`, and Playwright reads everything after a `--` as a file
-   * filter: measured here, 420 tests in four browsers where 105 in Chromium
-   * were asked for. Without the separator the arguments arrive as arguments,
-   * whether or not a later `vp run` strips it. So the project workflow is held
-   * to the template's command WITHOUT the separator, and this is the one place
-   * the two strings are allowed to differ. When the template's workflow drops
-   * it, delete this function.
-   */
-  const forwarded = (command: string) => command.replace(/^(vpr \S+) -- /, '$1 ')
-
   const consumer = MAINTAINER ? runsOf(template, 'cli-roundtrip') : []
   const buildLeg = { target: 'production', runtime_mode: 'production', use_mocks: 'false' }
 
@@ -521,13 +506,12 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
     expect(runsOf(project, 'check')).toContain(typecheck)
   })
 
-  it('tests with the round trip’s command and the template’s coverage flag', () => {
+  it('runs the complete suite under the same coverage gate as the template', () => {
     const run = consumer.find((command) => /^vp run test\b/.test(command))
-    const [, flag] = /^vpr test:.+ -- (--\S+)$/.exec(runsOf(template, 'test')[0] ?? '') ?? []
 
     expect(run).toBeDefined()
-    expect(flag).toBeDefined()
-    expect(runsOf(project, 'test')).toEqual([`${run} ${flag}`])
+    expect(runsOf(template, 'test')).toEqual([`${run} --coverage`])
+    expect(runsOf(project, 'test')).toEqual(runsOf(template, 'test'))
   })
 
   it('builds with the template’s command and the variables of its production leg', () => {
@@ -562,7 +546,7 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
     const theirs = stepOf(template.job('e2e'), 'Run E2E against the production preview')
     const ours = stepOf(project.job('e2e'), 'Run E2E against the preview build')
 
-    expect(ours?.run).toBe(forwarded(leg(theirs?.run, { browser: 'chromium' })))
+    expect(ours?.run).toBe(leg(theirs?.run, { browser: 'chromium' }))
     expect(ours?.run).not.toContain(' -- ')
     expect(ours?.env).toEqual(theirs?.env)
     // The template installs per matrix leg; its docker job names Chromium outright.
@@ -576,10 +560,34 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
 
     const theirs = stepOf(template.job('docker'), name)
 
-    expect(stepOf(project.job('docker'), name)).toEqual({
-      ...theirs,
-      run: forwarded(theirs?.run ?? ''),
+    expect(stepOf(project.job('docker'), name)).toEqual(theirs)
+  })
+
+  it('gates the template and its release on browser session acceptance', () => {
+    const job = template.job('e2e-session')
+    const release = readWorkflow(inRepo('.github/workflows/release.yml'))
+    const run = 'vpr test:e2e:session'
+    const script = JSON.parse(inRepo('package.json')).scripts['test:e2e:session'] as string
+
+    expect(job.if).toBe("github.repository == 'boussadjra/vuestrata'")
+    expect(job.needs).toEqual(['build'])
+    expect(runsOf(template, 'e2e-session')).toEqual([
+      'vp exec playwright install --with-deps chromium',
+      run,
+    ])
+    expect(template.job('ci-ok').needs).toContain('e2e-session')
+    expect(release.accounts).toBe(true)
+    expect(
+      stepOf(release.job('smoke'), 'Session authentication against the stub backend'),
+    ).toMatchObject({
+      if: job.if,
+      run,
     })
+    expect(release.job('release').needs).toContain('smoke')
+    expect(script).toBe(
+      'node e2e/integration/build.mjs && playwright test --config e2e/integration/playwright.config.ts',
+    )
+    expect(project.jobs).not.toHaveProperty('e2e-session')
   })
 
   it('pins each action the template also uses to the version the template uses', () => {

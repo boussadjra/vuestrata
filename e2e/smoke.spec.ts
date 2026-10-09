@@ -105,7 +105,7 @@ test.describe('Built artifact smoke tests', () => {
     const requested = new Set<string>()
     page.on('request', (request: Request) => {
       const chunk = /\/assets\/(.+)-[\w-]{8}\.js$/.exec(new URL(request.url()).pathname)
-      if (chunk) requested.add(chunk[1])
+      if (chunk?.[1]) requested.add(chunk[1])
     })
 
     await page.goto('/auth/login')
@@ -194,6 +194,12 @@ test.describe('MSW in the demo build', () => {
 
 test.describe('When something fails', () => {
   test.skip(!isPreviewTarget, 'Route chunks only exist in a real build')
+  // In demo mode MSW forwards asset requests through its service worker.
+  // Playwright can intercept those worker requests only in Chromium:
+  // https://playwright.dev/docs/service-workers#network-events-and-routing
+  test.beforeEach(({ browserName }) => {
+    test.skip(browserName !== 'chromium', 'MSW worker fault injection requires Chromium')
+  })
 
   const CHUNKS = '**/assets/*.js'
   // The route whose chunk goes missing, and the link to it on the page the

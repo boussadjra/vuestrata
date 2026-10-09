@@ -44,6 +44,7 @@ const out = resolve(
 const SKIPPED = new Set([
   'dist',
   '.git',
+  '.scratch',
   '.vuestrata',
   'coverage',
   'playwright-report',
@@ -56,6 +57,8 @@ const SKIPPED = new Set([
 const BUILD_ENV = {
   VUESTRATA_RUNTIME_MODE: 'production',
   VUESTRATA_USE_MOCKS: 'false',
+  VUESTRATA_MOCK_ONLY: '',
+  VUESTRATA_BASE_PATH: '/',
   VUESTRATA_AUTH_ADAPTER: 'session',
   VUESTRATA_SESSION_PERSISTENCE: 'none',
   VUESTRATA_API_URL: '/api',

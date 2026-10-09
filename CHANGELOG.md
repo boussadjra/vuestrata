@@ -6,6 +6,57 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 
 ## Unreleased
 
+### Added
+
+- Forms await asynchronous saves, map backend validation errors to fields,
+  localise schema messages in English, French and Arabic, and expose defaults,
+  reset and dirty state. The customer example and module generator use the same
+  workflow, including a guard against leaving with unsaved changes.
+- A built-in `session` authentication adapter for credentials-based HttpOnly
+  cookie sessions, with Sanctum endpoint and CSRF presets. Authentication
+  endpoints can use the API origin independently of its path prefix, and the
+  development proxy can forward the session and CSRF routes.
+- Custom and multiple roles, configurable inheritance and identity-provider
+  claim mappers. Route access, permissions and the Users screens use the same
+  role definitions; the existing single-role behavior remains the default.
+- `vuestrata add ci` generates a consumer workflow; `eject` installs it in place
+  of the template workflow. The demo deployment runs only in the upstream
+  repository, and toolchain checks inspect every workflow.
+- A separate browser acceptance gate for cookie sessions and CSRF, using a
+  production build and a Sanctum-style stub backend, in CI and release checks.
+
+### Fixed
+
+- CI and release test commands forward coverage and browser options directly,
+  so the test runners interpret them as options. Coverage runs across the full
+  suite, matching the global thresholds and the generated consumer workflow.
+- The combined upgrade migration retains forms, adapter types, multiple roles,
+  hybrid mocks and subpath support together with the current bundle budgets.
+- Mobile navigation exposes a touch-sized command search button, and the
+  results list scrolls within the viewport. The drawer visits every control
+  with Tab even when the browser's default order omits links.
+- Missing-chunk browser tests run in Chromium, where Playwright supports
+  intercepting the demo service worker's requests. WebKit and Firefox retain
+  the normal build, navigation, form and accessibility checks.
+
+### Fork impact
+
+**Handled by `vuestrata upgrade`**
+
+- Updated managed forms, authentication and RBAC infrastructure, and new files.
+- Guarded changes to shipped adapter types and route-guard inputs. Edited files
+  are kept and receive migration notes or incoming copies for manual merging.
+
+**Needs you**
+
+- Select the session and CSRF presets in `auth.config.ts` and `api.overrides.ts`
+  for your backend; configure its cookies, CORS and endpoint authorization.
+- Declare custom roles and grants in `rbac.overrides.ts`, and map your identity
+  provider's claims in `auth.config.ts` when its names differ.
+- Use `vuestrata add ci` for your project's workflow and add your own deploy
+  job. The upstream session fixture verifies the template contract; acceptance
+  against your deployed backend remains a project responsibility.
+
 ## 1.1.0-alpha.0 - 2026-10-02
 
 The first release a project that has already been changed can take through

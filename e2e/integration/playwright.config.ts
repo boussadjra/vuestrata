@@ -6,10 +6,9 @@ import { defineConfig, devices } from '@playwright/test'
  *
  * They run against a PRODUCTION build made for the `session` adapter, served
  * by `e2e/helpers/stub-backend/server.mjs`, which is also the API that build
- * talks to, on the same origin. This config builds nothing. Build first:
+ * talks to, on the same origin. The script builds before starting Playwright:
  *
- *   node e2e/integration/build.mjs
- *   vp exec playwright test -c e2e/integration/playwright.config.ts
+ *   vpr test:e2e:session
  *
  * It is a config of its own so that `vpr test:e2e`, the demo suite, neither
  * runs these nor needs that build: the root config ignores this folder.

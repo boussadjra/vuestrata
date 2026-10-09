@@ -79,19 +79,19 @@ function navigate(path: string) {
     One root so the dialog is not a second flex item in the header toolbar —
     that is what sat the search field off the locale select's baseline.
   -->
-  <div class="hidden h-[var(--control-height)] items-stretch md:inline-flex">
+  <div class="inline-flex h-11 shrink-0 items-stretch md:h-[var(--control-height)]">
     <button
       type="button"
-      class="border-surface-300 dark:border-surface-600 bg-card text-muted-foreground hover:text-foreground hover:border-surface-400 dark:hover:border-surface-500 shaped-border shaped-radius-sm inline-flex h-full w-56 items-center gap-2 border px-3 text-sm leading-5 transition-colors lg:w-72"
+      class="border-surface-300 dark:border-surface-600 bg-card text-muted-foreground hover:text-foreground hover:border-surface-400 dark:hover:border-surface-500 shaped-border shaped-radius-sm inline-flex h-full w-11 items-center justify-center gap-2 border px-3 text-sm leading-5 transition-colors md:w-56 lg:w-72"
       :aria-label="t('command_palette_open')"
       :aria-keyshortcuts="'Meta+K Control+K'"
       data-testid="command-palette-trigger"
       @click="open = true"
     >
       <span :class="[resolveIcon('search'), 'h-4 w-4 shrink-0']" aria-hidden="true" />
-      <span class="flex-1 text-start">{{ t('command_palette_placeholder') }}</span>
+      <span class="hidden flex-1 text-start md:inline">{{ t('command_palette_placeholder') }}</span>
       <kbd
-        class="border-border bg-muted ms-auto shrink-0 rounded border px-1.5 py-0.5 font-sans text-[11px]"
+        class="border-border bg-muted ms-auto hidden shrink-0 rounded border px-1.5 py-0.5 font-sans text-[11px] md:inline"
         aria-hidden="true"
       >
         ⌘K

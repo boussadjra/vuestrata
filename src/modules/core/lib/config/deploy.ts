@@ -4,11 +4,11 @@
  * them a deployment may set at runtime, what the security headers allow
  * beyond the defaults, and the size budgets its bundle is held to.
  *
- * Like `env.schema.ts`, this module has no value import at all — not even a
- * relative one. The Vite plugin loads it in Node before aliases exist, and the
+ * Like `env.schema.ts`, this module depends only on zod, including its English
+ * diagnostic locale. The Vite plugin loads it in Node before aliases exist, and the
  * seeded file that calls `defineDeployConfig` is read by the header generator
- * the same way. The schemas are the project's, so `zod` is only named as a
- * type here.
+ * the same way. The schemas are the project's; bundle budgets are types here
+ * and are read and validated only by build tooling.
  *
  * Two entry points, as for the built-in variables:
  *   - `parseAppEnv`   — strict. Throws. The build runs it.

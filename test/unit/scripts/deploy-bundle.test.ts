@@ -123,8 +123,11 @@ describe('the bundle key and the browser', () => {
 
     expect(deploy).toMatch(/export interface DeployBundle \{/)
     expect(deploy).toMatch(/bundle\?: DeployBundle/)
-    // Still no value import at all: the schemas, zod included, are the project's.
-    expect(code('src/modules/core/lib/config/deploy.ts')).not.toMatch(/^import (?!type )/m)
+    // The runtime parser uses zod's English diagnostics. No bundle validator
+    // or other runtime dependency may reach the browser through this file.
+    expect(code('src/modules/core/lib/config/deploy.ts').match(/^import (?!type ).*/gm)).toEqual([
+      "import en from 'zod/v4/locales/en.js'",
+    ])
     expect(code('src/modules/core/lib/config/deploy.ts')).not.toMatch(/\.bundle\b/)
   })
 

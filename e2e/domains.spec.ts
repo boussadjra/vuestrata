@@ -306,8 +306,10 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
       await expect(page.locator('input[name="company"]')).toHaveValue('Hopper Systems')
       await expect(page).toHaveURL(/\/dashboard\/customers\/new$/)
 
-      // Asked again, and this time the changes are discarded.
-      await cancel.click()
+      // Reopen with the keyboard after Escape; cover both ways of leaving.
+      await cancel.focus()
+      await cancel.press('Enter')
+      await expect(dialog).toBeVisible()
       await leave.click()
       await expect(page).toHaveURL(/\/dashboard\/customers$/)
     })
@@ -332,14 +334,25 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
       const submit = page.locator('form button[type="submit"]')
       await submit.scrollIntoViewIfNeeded()
       const email = page.locator('input[name="email"]')
-      await expect(email).not.toBeInViewport()
+      // Mobile browsers can pan their visual viewport without changing the
+      // layout viewport IntersectionObserver uses. Check what the user sees.
+      async function emailIsOnScreen(): Promise<boolean> {
+        return email.evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          const viewport = window.visualViewport
+          const top = viewport?.offsetTop ?? 0
+          const bottom = top + (viewport?.height ?? window.innerHeight)
+          return box.bottom > top && box.top < bottom
+        })
+      }
+      await expect.poll(emailIsOnScreen).toBe(false)
 
       await submit.focus()
       await page.keyboard.press('Enter')
 
       await expect(errorOf(page, 'email')).toBeVisible({ timeout: 15_000 })
       await expect(email).toBeFocused()
-      await expect(email).toBeInViewport()
+      await expect.poll(emailIsOnScreen).toBe(true)
       // While it saved, the button kept focus instead of handing it to <body>;
       // afterwards it is an ordinary button again.
       await expect(submit).not.toHaveAttribute('aria-busy', 'true')

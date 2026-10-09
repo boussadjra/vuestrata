@@ -77,14 +77,8 @@ jobs:
       - run: vp exec tsc --noEmit -p tsconfig.e2e.json
 
   test:
-    name: Tests (${{ matrix.suite }})
+    name: Tests and coverage
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # All three suites now run. Previously only `unit` did, so the component
-        # and integration suites could rot without anyone noticing.
-        suite: [unit, component, integration]
     env:
       # Turns on test/unit/architecture/public-surface.test.ts, which snapshots
       # this repository's own modules and permissions. Empty in a project built
@@ -101,11 +95,13 @@ jobs:
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
-      - run: vpr test:${{ matrix.suite }} -- --coverage
+      # The coverage floors describe the complete suite. Collect unit,
+      # component and integration coverage together, as consumer CI does.
+      - run: vp run test --run --coverage
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-${{ matrix.suite }}
+          name: coverage
           path: coverage/
 
   build:
@@ -188,13 +184,36 @@ jobs:
       - name: Run E2E against the production preview
         env:
           E2E_TARGET: preview
-        run: vpr test:e2e -- --project=${{ matrix.browser }}
+        run: vpr test:e2e --project=${{ matrix.browser }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report-${{ matrix.browser }}
           path: playwright-report/
+          retention-days: 7
+
+  # The demo suite cannot prove browser cookie or CSRF behavior. This fixture
+  # builds a separate production app and serves it with a Sanctum-style backend.
+  # It belongs to the template's own acceptance tests, not a consumer's backend.
+  e2e-session:
+    name: Session authentication (browser)
+    if: github.repository == 'boussadjra/vuestrata'
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      - run: vp exec playwright install --with-deps chromium
+      - run: vpr test:e2e:session
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: session-test-results
+          path: test-results/integration/
           retention-days: 7
 
   # The Docker image is the REAL production target, and nothing in CI had ever
@@ -241,7 +260,7 @@ jobs:
         env:
           E2E_TARGET: external
           E2E_BASE_URL: http://127.0.0.1:8080
-        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+        run: vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
 
       # Build once, deploy many: the SAME image, started for another
       # environment. Its API URL, its CSP and its unrouted-API answer are all
@@ -270,7 +289,7 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:8081
           E2E_API_URL: https://api.staging.example.test
           E2E_APP_TITLE: Acme Staging
-        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+        run: vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
 
       # An API URL on a placeholder host. A BUILD pointing at localhost is
       # refused; a container started with one was told so on purpose, and the
@@ -298,7 +317,7 @@ jobs:
           E2E_TARGET: external
           E2E_BASE_URL: http://127.0.0.1:8082
           E2E_API_URL: http://localhost:8000
-        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+        run: vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
 
       # A value that could change the meaning of the nginx configuration or of
       # runtime-config.js must stop the container, not be written out. The
@@ -464,7 +483,7 @@ jobs:
     name: CI OK
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint, typecheck, test, build, e2e, docker, cli-roundtrip]
+    needs: [lint, typecheck, test, build, e2e, e2e-session, docker, cli-roundtrip]
     steps:
       - name: Fail if any dependency failed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')

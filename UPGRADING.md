@@ -385,6 +385,19 @@ prerelease after the first: every step looks for what is still to do.
 
 #### What it leaves in `.vuestrata/incoming/`, and why
 
+The integration additions use the same ownership rules. The `session` adapter
+widens the shipped adapter types to `AuthAdapterName`; multiple roles add
+`roles?: Role[]` to `User` and pass `authStore.userRoles` to the route guard.
+These changes are applied only to the shipped declarations. If yours differ,
+the upgrade explains what to merge. A route guard is held back while an edited
+auth store still lacks `userRoles`.
+
+Existing seeded configuration stays yours. Select session and CSRF presets in
+`auth.config.ts` and `api.overrides.ts`, and declare custom roles and grants in
+`rbac.overrides.ts`. Forms infrastructure updates with managed files; review
+your feature forms against the customer example to adopt asynchronous saves,
+field errors and unsaved-change protection.
+
 A file you edited is never overwritten. The release's version is written to
 `.vuestrata/incoming/<path>`, and a note says what it carries:
 

@@ -139,7 +139,9 @@ test.describe('Mobile navigation drawer', () => {
 
     // Target the mobile toggle explicitly — both toggles carry the same
     // accessible name, and only one is rendered at this viewport.
-    await page.getByTestId('mobile-sidebar-toggle').click()
+    const toggle = page.getByTestId('mobile-sidebar-toggle')
+    await toggle.focus()
+    await toggle.press('Enter')
 
     const sidebar = page.locator('aside[role="navigation"]')
     await expect(sidebar).toHaveAttribute('aria-modal', 'true')
@@ -157,6 +159,7 @@ test.describe('Mobile navigation drawer', () => {
     // Esc is the conventional dismissal, and the only exit once focus is trapped.
     await page.keyboard.press('Escape')
     await expect(sidebar).not.toHaveAttribute('aria-modal', 'true')
+    await expect(toggle).toBeFocused()
   })
 
   test('is removed from the tab order while closed', async ({ page }) => {

@@ -47,9 +47,10 @@ vpr version:prerelease -- --preid beta
 Every release, in order.
 
 1. `vp check`
-2. `vpr lint` and `vpr lint:maintainer -- --tests`
+2. `vpr lint` and `vpr lint:maintainer --tests`
 3. `vpr test --run`
-4. `vpr test:e2e` — for a user-visible or routing change
+4. `vpr test:e2e` — for a user-visible or routing change; also
+   `vpr test:e2e:session` for the cookie-session adapter and its browser fixture
 5. **Write the migration**, if the change touches any contract in the table
    below, or the `UPGRADING.md` entry when it genuinely cannot be automated. If
    the release changed a file a migration installs a copy of, refresh the copies
@@ -115,12 +116,12 @@ Checks that describe a _release_ of the template do not, and run for maintainers
 only. `vpr lint:maintainer` (`scripts/release/maintainer-gates.mjs`) runs them
 all and reports each, whether or not an earlier one failed:
 
-| Gate               | What it checks                                                                                                                                                                                                     |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `template-lock`    | `vuestrata.lock.json` records every managed and merged file, every region baseline and the `docs/` list as this checkout has them, at this version                                                                 |
-| `payload`          | `packages/cli/payload` is what `build-payload.mjs` would build from this checkout (it builds one first when there is none)                                                                                         |
-| `migration-files`  | the copies of project-owned files a migration installs (`migrations/<version>/shipped/`) are the files this checkout ships                                                                                         |
-| `maintainer-tests` | with `-- --tests`: `public-surface.test.ts` and `test/unit/cli`, under `VUESTRATA_MAINTAINER=1`. They hold the snapshots of the public names, the payload built from this repository and what the migrations write |
+| Gate               | What it checks                                                                                                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `template-lock`    | `vuestrata.lock.json` records every managed and merged file, every region baseline and the `docs/` list as this checkout has them, at this version                                                              |
+| `payload`          | `packages/cli/payload` is what `build-payload.mjs` would build from this checkout (it builds one first when there is none)                                                                                      |
+| `migration-files`  | the copies of project-owned files a migration installs (`migrations/<version>/shipped/`) are the files this checkout ships                                                                                      |
+| `maintainer-tests` | with `--tests`: `public-surface.test.ts` and `test/unit/cli`, under `VUESTRATA_MAINTAINER=1`. They hold the snapshots of the public names, the payload built from this repository and what the migrations write |
 
 `test/unit/architecture/public-surface.test.ts` snapshots this repository's
 modules and permissions, and three payload tests build from the working tree, so

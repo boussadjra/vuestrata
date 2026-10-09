@@ -10,6 +10,7 @@ import {
   seedDemoUsers,
   signOut,
 } from './helpers/auth'
+import { openSidebar } from './helpers/navigation'
 
 test.describe.configure({ mode: 'serial', timeout: 60_000 })
 
@@ -136,6 +137,7 @@ test.describe('Auth flows', () => {
     const acceptSessionsAgain = await expireSession(page)
 
     // The first request the next page makes is the one that finds out.
+    await openSidebar(page)
     await page
       .getByRole('navigation', { name: /sidebar/i })
       .getByRole('link', { name: 'Users', exact: true })

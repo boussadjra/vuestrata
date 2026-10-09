@@ -579,6 +579,7 @@ describe('a build that mocks some modules beside a real backend', () => {
       expect(result.define).toEqual({
         __VUESTRATA_DEMO__: 'true',
         __VUESTRATA_AUTH_ADAPTERS__: '{}',
+        __VUESTRATA_SESSION_ADAPTER__: 'false',
       })
       expect(result.build).toEqual({ sourcemap: 'hidden' })
       expect(warn).not.toHaveBeenCalled()

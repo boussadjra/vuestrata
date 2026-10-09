@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url'
  * A project's equivalent is `vuestrata doctor`.
  *
  *     vpr lint:maintainer               # the first three
- *     vpr lint:maintainer -- --tests    # and the maintainer-only tests
+ *     vpr lint:maintainer --tests       # and the maintainer-only tests
  *
  * The template's CI and `release:verify` run it. The same tests also run inside
  * CI's test job, where VUESTRATA_MAINTAINER=1 is set for the run.

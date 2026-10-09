@@ -62,7 +62,9 @@ test.describe('Dashboard navigation', () => {
     await page.goto('/dashboard/tables')
     await expect(page).toHaveURL(/\/dashboard\/tables/)
     await page.getByRole('link', { name: /data table docs and examples/i }).click()
-    await expect(page).toHaveURL(/\/docs\/components\/data-tables/)
+    // Docs load their renderer on demand; a cold chunk can outlast the default
+    // assertion window while WebKit is running the accessibility matrix.
+    await expect(page).toHaveURL(/\/docs\/components\/data-tables/, { timeout: 15_000 })
   })
 })
 

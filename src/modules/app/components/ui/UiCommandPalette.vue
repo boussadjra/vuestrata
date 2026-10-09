@@ -63,7 +63,7 @@ const emptyStateText = computed(() => props.emptyText ?? t('common_no_results'))
       />
     </div>
 
-    <ul v-if="filtered.length" class="space-y-1">
+    <ul v-if="filtered.length" class="max-h-[min(24rem,50dvh)] space-y-1 overflow-y-auto">
       <li v-for="item in filtered" :key="item.id">
         <button
           class="shaped-radius-sm text-surface-700 hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800/80 flex w-full items-start justify-between px-2.5 py-2 text-start transition-colors"

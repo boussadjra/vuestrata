@@ -5,6 +5,7 @@
 dist
 .git
 .github
+.scratch
 *.md
 *.log
 e2e

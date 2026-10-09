@@ -62,7 +62,17 @@ jobs:
       - name: E2E against the production preview
         env:
           E2E_TARGET: preview
-        run: vpr test:e2e -- --project=chromium
+        run: vpr test:e2e --project=chromium
+
+      - name: Session authentication against the stub backend
+        if: github.repository == 'boussadjra/vuestrata'
+        run: vpr test:e2e:session
+
+      - uses: actions/upload-artifact@v4
+        if: failure() && github.repository == 'boussadjra/vuestrata'
+        with:
+          name: release-session-test-results
+          path: test-results/integration/
 
       - uses: actions/upload-artifact@v4
         if: always()
