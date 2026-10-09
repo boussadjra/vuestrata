@@ -14,16 +14,16 @@ that is never registered in `setup.ts`, a theme imported after `semantic.css`, a
 nav item pointing at a group that does not exist — none of these throw. They
 produce an app that builds, passes types, and quietly does the wrong thing.
 
-| Task                                               | Command                        |
-| -------------------------------------------------- | ------------------------------ |
-| [Add a module](/docs/recipes/add-a-module)         | `vpr gen:module <name>`        |
-| [Add a page](/docs/recipes/add-a-page)             | `vpr gen:page <module> <name>` |
-| [Add a theme](/docs/recipes/add-a-theme)           | `vpr gen:theme <name>`         |
-| [Add a component](/docs/recipes/add-a-component)   | `vpr gen:component <Name>`     |
-| [Add an icon set](/docs/recipes/add-an-icon-set)   | `vpr gen:icon-set <name>`      |
-| [Add a locale](/docs/recipes/add-a-locale)         | — by hand                      |
-| [Add a permission](/docs/recipes/add-a-permission) | — by hand                      |
-| [Add a nav group](/docs/recipes/add-a-nav-group)   | — by hand                      |
+| Task                                                         | Command                        |
+| ------------------------------------------------------------ | ------------------------------ |
+| [Add a module](/docs/recipes/add-a-module)                   | `vpr gen:module <name>`        |
+| [Add a page](/docs/recipes/add-a-page)                       | `vpr gen:page <module> <name>` |
+| [Add a theme](/docs/recipes/add-a-theme)                     | `vpr gen:theme <name>`         |
+| [Add a component](/docs/recipes/add-a-component)             | `vpr gen:component <Name>`     |
+| [Add an icon set](/docs/recipes/add-an-icon-set)             | `vpr gen:icon-set <name>`      |
+| [Add a locale](/docs/recipes/add-a-locale)                   | — by hand                      |
+| [Add a permission or a role](/docs/recipes/add-a-permission) | — by hand                      |
+| [Add a nav group](/docs/recipes/add-a-nav-group)             | — by hand                      |
 
 One more is about the backend rather than the app:
 [Write your own auth adapter](/docs/recipes/write-your-own-auth-adapter) covers

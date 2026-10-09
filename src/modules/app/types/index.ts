@@ -237,6 +237,11 @@ export interface User {
   name: string
   avatar?: string
   role: Role
+  /**
+   * Every role the user holds, when the backend sends more than one. `role`
+   * stays the primary one: what to show, and what single-role code reads.
+   */
+  roles?: Role[]
   permissions?: Permission[]
   emailVerified?: boolean
   mfaEnabled?: boolean

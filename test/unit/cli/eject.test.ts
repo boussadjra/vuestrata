@@ -22,6 +22,8 @@ import { dropCliRoundtrip, rewriteDocLinks } from '../../../packages/cli/src/lib
 import * as lockfile from '../../../packages/cli/src/lib/lockfile.mjs'
 // @ts-expect-error - see above.
 import { loadManifest } from '../../../packages/cli/src/lib/manifest.mjs'
+// @ts-expect-error - see above.
+import { blankRegions } from '../../../packages/cli/src/lib/registry.mjs'
 import { createFixture, type Fixture } from './fixture'
 import { readWorkflow, TEMPLATE_CI } from './workflow'
 
@@ -372,6 +374,47 @@ describe('eject and the files Vuestrata owns', () => {
     expect(lock.ejected.some((rel: string) => rel.startsWith('packages/'))).toBe(false)
     expect(lock.files['src/modules/app/config/comark.ts']).toBeUndefined()
     expect(lock.files[OVERRIDES]).toEqual({ class: 'seeded', since: '1.0.0' })
+  })
+
+  // Eject retires permissions, which belong to the modules it removes. A role
+  // belongs to no module, so there is nothing of a role to withdraw: the ones
+  // a project declared stay exactly as written.
+  it('leaves the roles a project declared as they are, and still drifts nothing', () => {
+    // From the file with its regions emptied: a project that has declared a
+    // role of its own already would otherwise get this one twice.
+    const declared = (blankRegions(real(OVERRIDES)) as string)
+      .replace('    // app:roles-start\n', '    // app:roles-start\n    auditor: true\n')
+      .replace(
+        '    // app:role-definitions-start\n',
+        "    // app:role-definitions-start\n    auditor: { inherits: ['viewer'] },\n",
+      )
+      .replace(
+        '    // app:grants-start\n',
+        "    // app:grants-start\n    auditor: ['orders:read', 'audit:read'],\n",
+      )
+    expect(declared).toContain("auditor: { inherits: ['viewer'] },")
+    fixture.write(OVERRIDES, declared)
+
+    eject()
+
+    const overrides = fixture.read(OVERRIDES)
+    const region = (name: string) =>
+      overrides
+        .slice(overrides.indexOf(`// app:${name}-start`), overrides.indexOf(`// app:${name}-end`))
+        .split('\n')
+        .slice(1)
+        .map((line) => line.trim())
+        .filter(Boolean)
+
+    expect(region('roles')).toEqual(['auditor: true'])
+    expect(region('role-definitions')).toEqual(["auditor: { inherits: ['viewer'] },"])
+    // The grant is the project's line and is not rewritten; the withdrawal is
+    // what takes `orders:read` away from the role, as from every other.
+    expect(region('grants')).toEqual(["auditor: ['orders:read', 'audit:read'],"])
+    expect(region('withdrawn')).toContain("'orders:read',")
+    expect(fixture.read(TYPES)).toBe(before.types)
+    expect(fixture.read(INHERITANCE)).toBe(before.inheritance)
+    expect(driftedFiles(fixture.project, readLock(fixture.project))).toEqual([])
   })
 
   it('refuses, touching nothing, when rbac.overrides.ts is missing', () => {

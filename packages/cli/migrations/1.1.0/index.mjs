@@ -8,6 +8,7 @@ import notes from './notes.mjs'
 import projectFiles from './project-files.mjs'
 import promotions from './promotions.mjs'
 import rbacEject from './rbac-eject.mjs'
+import roles from './roles.mjs'
 
 /**
  * Give every registry two sentinel regions instead of one.
@@ -48,6 +49,7 @@ const regionSplit = {
 //   hybridMocks     the same, for what VUESTRATA_MOCK_ONLY reads in two of them
 //   basePath        the same, for what VUESTRATA_BASE_PATH needs in five of them
 //   deployment      the container and CI files, replaced when nobody edited them
+//   roles           the router and the User type learn that a user may hold several roles
 //   notes           what only a person can act on
 export default [
   regionSplit,
@@ -57,5 +59,6 @@ export default [
   ...hybridMocks,
   ...basePath,
   deployment,
+  roles,
   notes,
 ]

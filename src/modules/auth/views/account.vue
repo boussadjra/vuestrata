@@ -21,7 +21,7 @@ import {
 } from '@/components/ui'
 import { useFormatters } from '@/composables/useFormatters'
 import { resolveIcon } from '@/config/icon-provider'
-import { getRolePermissions } from '@/lib/rbac'
+import { resolveSubjectPermissions } from '@/lib/rbac/identity'
 import { useAuthStore } from '@/stores/auth'
 
 import AccountGrantsGrid from '../components/AccountGrantsGrid.vue'
@@ -57,7 +57,8 @@ const capabilities = computed(() => adapter.capabilities)
 const grantedTokens = computed(() => {
   const current = user.value
   if (!current) return []
-  return current.permissions ?? getRolePermissions(current.role)
+  // Every role the user holds counts, as it does for the guard and the sidebar.
+  return resolveSubjectPermissions(current)
 })
 </script>
 

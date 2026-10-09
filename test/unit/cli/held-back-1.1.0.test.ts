@@ -375,17 +375,34 @@ describe.skipIf(!CLI_PRESENT || !hasTags || !MAINTAINER)(
     })
 
     // The one that does not, and the reason the migration has a note of its own
-    // for it (rbac-eject.mjs): the release's rbac barrel and overrides.ts import
-    // types that a 1.0 types.ts does not declare. When this starts to pass, the
-    // note is out of date.
+    // for it (rbac-eject.mjs): the release's rbac files import types that a 1.0
+    // types.ts does not declare. When this starts to pass, the note is out of
+    // date.
+    //
+    // The list grew when roles became declarable (`BuiltinRole`, `AppRoles` and
+    // the types of the role table are new too). It is still one mistake with
+    // one remedy, the one the note gives: take the release's types.ts. What is
+    // asserted is that nothing OUTSIDE the RBAC layer and its two readers
+    // breaks, and that the findings start from names the 1.0 file lacks.
     it('does not type-check beside a kept core/lib/rbac/types.ts, which the migration says', () => {
       const found = newFindings([RBAC_TYPES])
 
-      expect(found.map((entry) => entry.file).toSorted()).toEqual([
+      expect([...new Set(found.map((entry) => entry.file))].toSorted()).toEqual([
+        'src/modules/app/composables/useRbac.ts',
         'src/modules/core/lib/rbac/index.ts',
+        'src/modules/core/lib/rbac/inheritance.ts',
         'src/modules/core/lib/rbac/overrides.ts',
+        'src/modules/core/lib/rbac/role-graph.ts',
+        'src/modules/core/lib/rbac/roles.ts',
+        'src/modules/core/lib/runtime.ts',
       ])
-      for (const entry of found) expect(entry.message).toContain('RbacOverrides')
+      const missing = found
+        .filter((entry) => /has no exported member/.test(entry.message))
+        .map((entry) => entry.message)
+        .join('\n')
+      for (const name of ['RbacOverrides', 'BuiltinRole', 'ResolvedProjectRole']) {
+        expect(missing).toContain(`'${name}'`)
+      }
     })
   },
 )

@@ -46,6 +46,10 @@ export const REGIONS = {
   withdrawn: 'withdrawn',
   /** Permissions handed to a role, in `rbac.overrides.ts`. */
   grants: 'grants',
+  /** The names of a project's own roles: the members of `AppRoles`, in `rbac.overrides.ts`. */
+  roles: 'roles',
+  /** What each of those roles is: the entries of `roles`, in `rbac.overrides.ts`. */
+  roleDefinitions: 'role-definitions',
 }
 
 /**
@@ -103,6 +107,23 @@ export const ANCHORED_REGISTRIES = [
   {
     slot: 'rbacOverrides',
     region: REGIONS.withdrawn,
+    comment: '//',
+    hadLegacyMarker: false,
+    upstream: false,
+  },
+  // A project's own roles, in the same file: the name is declared in one
+  // region and the role defined in the other, and a tool that writes one
+  // writes both (a declared role that is not defined does not compile).
+  {
+    slot: 'rbacOverrides',
+    region: REGIONS.roles,
+    comment: '//',
+    hadLegacyMarker: false,
+    upstream: false,
+  },
+  {
+    slot: 'rbacOverrides',
+    region: REGIONS.roleDefinitions,
     comment: '//',
     hadLegacyMarker: false,
     upstream: false,

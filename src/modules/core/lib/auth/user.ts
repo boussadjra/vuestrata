@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 import { AppError, ERROR_MESSAGE_KEYS } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
+import { resolvePrimaryRole } from '~/lib/rbac/identity'
+import type { Role } from '~/lib/rbac/types'
 import { safeParseForDiagnostics } from '~/lib/validation/diagnostics'
 import type { User } from '~/types'
 
@@ -35,6 +37,12 @@ const optional = <T extends z.ZodType>(schema: T) =>
  *   says anything about who the user is, and the result matches the type.
  * - **`role` is any string.** Which roles exist is the RBAC layer's question,
  *   and it fails closed on one it does not know.
+ * - **`roles` is passed through as sent.** A user may hold several roles: an
+ *   array of role names, beside `role` or instead of it. It is not validated
+ *   here, because before roles were read a backend could send anything under
+ *   that name and its users signed in; the RBAC layer reads it defensively and
+ *   a value of any other shape grants nothing. See `parseUser` for how `role`
+ *   is settled when only `roles` came.
  * - **A user with no `role`, or no `name`, still signs in.** The app worked
  *   with both before identity was validated, and a release must not end every
  *   sign-in of a deployment whose backend never sent them. A missing (or
@@ -44,8 +52,8 @@ const optional = <T extends z.ZodType>(schema: T) =>
  *   what there is to show in the header.
  *
  * What is rejected is what cannot be made safe: no `id` (nothing to tell two
- * users apart by), no `email`, a `role` that is not a string (an array of
- * roles is a different model, and guessing which one applies is how a user
+ * users apart by), no `email`, a `role` that is not a string (several roles
+ * go in `roles`; guessing which member of an array is "the" role is how a user
  * gets the wrong one), a `name` that is not a string, `permissions` that are
  * not an array of strings. A backend with a different shape maps it with
  * `mapUser` in `app/config/auth.config.ts`.
@@ -61,6 +69,8 @@ export const userSchema = z.looseObject({
     .string()
     .nullish()
     .transform((value) => value || undefined),
+  // Typed, never refused: see the note on `roles` above.
+  roles: z.custom<readonly string[] | null>(() => true).optional(),
   permissions: optional(z.array(z.string())),
   emailVerified: optional(z.boolean()),
   mfaEnabled: optional(z.boolean()),
@@ -124,6 +134,17 @@ export function parseUser(raw: unknown, source = 'The user'): User {
   }
   // A backend that sends no name: the email is what there is to show.
   user.name ??= result.data.email
+  // `role` stays the one role to show, and the one code written for a single
+  // role reads. A backend that sent it, and the app has it, is taken at its
+  // word. One that sent only `roles` (or a `role` the app does not have beside
+  // roles it does) gets the primary of those: see `resolvePrimaryRole`. With no
+  // role the app has, nothing is changed: a role nobody knows stays as named,
+  // and an absent one stays absent.
+  const primary = resolvePrimaryRole({
+    role: result.data.role as Role | undefined,
+    roles: user.roles,
+  })
+  if (primary !== undefined) user.role = primary
   // `role` and `permissions` are checked as strings; narrowing them to the
   // unions is the RBAC layer's job, and it does not trust them either. A user
   // the backend gave no role has none here: see the schema.

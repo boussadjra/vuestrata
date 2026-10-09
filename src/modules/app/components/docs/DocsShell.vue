@@ -225,9 +225,10 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description: 'Add a language across the shell catalog, every module, and the RTL plumbing.',
   },
   '/docs/9.recipes/7.add-a-permission.md': {
-    navTitle: 'Add a permission',
-    title: 'Add a Permission',
-    description: 'Declare a permission, grant it to roles, and guard routes and UI with it.',
+    navTitle: 'Add a permission or a role',
+    title: 'Add a Permission or a Role',
+    description:
+      'Declare a permission or a role of your own, grant, guard and label it, and map the roles your identity provider sends.',
   },
   '/docs/9.recipes/8.add-a-nav-group.md': {
     navTitle: 'Add a nav group',

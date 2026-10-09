@@ -108,6 +108,7 @@ router.beforeEach((to) => {
   const decision = resolveRouteAccess(to as GuardedRoute, {
     isAuthenticated: authStore.isAuthenticated,
     role: authStore.userRole,
+    roles: authStore.userRoles,
     permissions: authStore.userPermissions as Permission[] | undefined,
   })
 

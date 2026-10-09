@@ -73,6 +73,20 @@ const unionLiterals = (text) =>
     .map((line) => UNION_MEMBER.exec(line)?.[1])
     .filter(Boolean)
 
+/**
+ * The names in `export type Role = …`, on one line as 1.0 shipped it or one
+ * member to a line as the formatter writes it once it no longer fits.
+ */
+function roleNames(text) {
+  const lines = text.split('\n')
+  const start = lines.findIndex((line) => /^export\s+type\s+Role\s*=/.test(line))
+  if (start === -1) return []
+
+  const union = [lines[start]]
+  for (let i = start + 1; i < lines.length && UNION_MEMBER.test(lines[i]); i++) union.push(lines[i])
+  return [...union.join(' ').matchAll(/'([^']+)'/g)].map((match) => match[1])
+}
+
 /** `unwirePermissions` of 1.0.1-alpha.6, the half that edits the union. */
 function strikeFromUnion(text, literals) {
   return text
@@ -178,8 +192,14 @@ function compareWith10(ws, manifest) {
   const union10 = spliceRegions(released10('rbac-types.ts'), union).contents
   const grants10 = released10('rbac-inheritance.ts')
 
+  // A `Role` union the formatter wrapped is written like the permission union,
+  // one member to a line: its names are roles, not permissions the project added.
+  const roles = roleNames(union)
+  const roles10 = new Set(roleNames(released10('rbac-types.ts')))
+  const addedRoles = roles.filter((name) => !roles10.has(name))
+
   const shipped = unionLiterals(released10('rbac-types.ts'))
-  const held = new Set(unionLiterals(union))
+  const held = new Set(unionLiterals(union).filter((literal) => !roles.includes(literal)))
   const removed = shipped.filter((literal) => !held.has(literal))
   const known = new Set(unionLiterals(union10))
   const added = [...held].filter((literal) => !known.has(literal))
@@ -190,7 +210,7 @@ function compareWith10(ws, manifest) {
     sameUnion(strikeFromUnion(union10, struck), union) &&
     sameGrants(strikeFromGrants(grants10, struck), grants)
 
-  return { files, removed, added, ejected, union: union10, grants: grants10 }
+  return { files, removed, added, addedRoles, ejected, union: union10, grants: grants10 }
 }
 
 /**
@@ -267,6 +287,7 @@ function heldBackNote(source, manifest, ws) {
     files,
     removed = [],
     added = [],
+    addedRoles = [],
   } = compareWith10(ws, manifest) ?? {
     files: rbacFiles(manifest),
   }
@@ -274,9 +295,19 @@ function heldBackNote(source, manifest, ws) {
 
   const steps = [
     `take ${incomingPath(files.union)} and ${incomingPath(files.grants)} whole, over your copies ` +
-      `(permissions are no longer edited in core/lib/rbac/: a grant you made there goes under ` +
-      `\`grants\` in ${files.overrides})`,
+      `(permissions and roles are no longer edited in core/lib/rbac/: a grant you made there ` +
+      `goes under \`grants\` in ${files.overrides})`,
   ]
+  if (addedRoles.length > 0) {
+    steps.push(
+      `declare the roles you added to \`Role\` in \`AppRoles\` in ${files.overrides}, and define ` +
+        'each under `roles` there, with the roles it holds the permissions of in `inherits` ' +
+        '(for a role you placed in ROLE_HIERARCHY, the role that came right after it) and what ' +
+        `you gave it in ROLE_DELTA_DEFINITIONS under \`grants\`: ${quoted(addedRoles)}. No ` +
+        'built-in role inherits from a role of yours, so one you had placed above a built-in ' +
+        'role is no longer held by the roles above it',
+    )
+  }
   if (removed.length > 0) {
     steps.push(
       `list the built-in permissions your union no longer has under \`withdrawn\` in ` +
@@ -290,10 +321,11 @@ function heldBackNote(source, manifest, ws) {
         `${files.overrides}, and give them to a role under \`grants\`: ${quoted(added)}`,
     )
   }
-  if (removed.length === 0 && added.length === 0) {
+  if (removed.length === 0 && added.length === 0 && addedRoles.length === 0) {
     steps.push(
       `move what you changed into ${files.overrides}: permissions of your own under ` +
-        '`permissions` and `grants`, built-in ones you do not use under `withdrawn`',
+        '`permissions` and `grants`, built-in ones you do not use under `withdrawn`, roles of ' +
+        'your own under `roles`',
     )
   }
   steps.push(`run \`vuestrata adopt ${files.union} ${files.grants}\``)

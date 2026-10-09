@@ -21,12 +21,12 @@ import {
   defineRbacOverrides,
   resolveRbacOverrides,
 } from '@/lib/rbac'
-import type { AuthorizationEvent } from '@/lib/rbac/types'
+import type { AuthorizationEvent, BuiltinRole } from '@/lib/rbac/types'
 import { installRbacConfig, tryGetRbacConfig } from '@/lib/runtime'
-import type { Role, Permission } from '@/types'
+import type { Permission } from '@/types'
 
 describe('RBAC - Role Definitions', () => {
-  const allRoles: Role[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
+  const allRoles: BuiltinRole[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
 
   it('should define all 6 roles', () => {
     expect(Object.keys(ROLE_DEFINITIONS)).toHaveLength(6)
@@ -151,7 +151,7 @@ describe('RBAC - isRoleAtLeast', () => {
   })
 
   it('role hierarchy is strictly ordered', () => {
-    const roles: Role[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
+    const roles: BuiltinRole[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
     for (let i = 0; i < roles.length; i++) {
       for (let j = i; j < roles.length; j++) {
         expect(isRoleAtLeast(roles[i]!, roles[j]!)).toBe(true)
@@ -209,7 +209,7 @@ describe('RBAC - Permission Registry', () => {
 // ─── Role Inheritance (US2) ──────────────────────────────
 
 describe('RBAC - Role Inheritance', () => {
-  const allRoles: Role[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
+  const allRoles: BuiltinRole[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
 
   it('guest should have only dashboard:read', () => {
     const perms = resolveRolePermissions('guest')
@@ -237,7 +237,7 @@ describe('RBAC - Role Inheritance', () => {
   it('permissions accumulate monotonically up the hierarchy', () => {
     // The property the delta model is supposed to guarantee, and the one that
     // breaks silently if a delta is added to the wrong role.
-    const ordered: Role[] = ['guest', 'viewer', 'member', 'manager', 'admin', 'super_admin']
+    const ordered: BuiltinRole[] = ['guest', 'viewer', 'member', 'manager', 'admin', 'super_admin']
     for (let index = 1; index < ordered.length; index += 1) {
       const lower = new Set(resolveRolePermissions(ordered[index - 1]!))
       const higher = new Set(resolveRolePermissions(ordered[index]!))
@@ -396,7 +396,7 @@ describe('RBAC - Permission Predicates', () => {
 // must not change what is asserted here.
 
 describe('RBAC - project overrides: grants and withdrawn', () => {
-  const allRoles: Role[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
+  const allRoles: BuiltinRole[] = ['super_admin', 'admin', 'manager', 'member', 'viewer', 'guest']
 
   it('changes nothing when the overrides are empty', () => {
     for (const role of allRoles) {
@@ -465,6 +465,11 @@ declare module '~/lib/rbac/types' {
   }
 }
 
+// What these tests are about is permissions. Once a project declares a role of
+// its own, `defineRbacOverrides` requires its `roles` table too; naming a
+// declaration with no role keeps them about permissions in that project.
+type NoProjectRoles = Record<never, never>
+
 describe('RBAC - project overrides: declared permissions', () => {
   it('widens Permission with what AppPermissions declares', () => {
     expectTypeOf<'widened-by-test:read'>().toExtend<Permission>()
@@ -477,13 +482,13 @@ describe('RBAC - project overrides: declared permissions', () => {
   })
 
   it('accepts a declared permission in grants and withdrawn, and rejects an undeclared one', () => {
-    const overrides = defineRbacOverrides({
+    const overrides = defineRbacOverrides<NoProjectRoles>({
       grants: { manager: ['widened-by-test:read'] },
       withdrawn: ['widened-by-test:read'],
     })
     expect(overrides.grants?.manager).toEqual(['widened-by-test:read'])
 
-    defineRbacOverrides({
+    defineRbacOverrides<NoProjectRoles>({
       // @ts-expect-error -- not declared in AppPermissions
       grants: { manager: ['never-declared:read'] },
     })

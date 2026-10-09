@@ -17,18 +17,27 @@ import { useI18n } from 'vue-i18n'
 import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
-import { ROLE_DEFINITIONS } from '@/lib/rbac'
+import { roleLabel } from '@/lib/rbac'
 import type { User } from '@/types'
 
 import { useUserRoleEditor } from '../composables/useUserRoleEditor'
 import { useUsersTable } from '../composables/useUsersTable'
-import { providerIcon, providerLabel, roleBadgeClass } from '../presentation'
+import {
+  assignableRoles,
+  listedRoles,
+  providerIcon,
+  providerLabel,
+  roleBadgeClass,
+} from '../presentation'
 import InviteUserDialog from './InviteUserDialog.vue'
 import RolePermissionMatrix from './RolePermissionMatrix.vue'
 import UserPermissionsPanel from './UserPermissionsPanel.vue'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { can } = useRbac()
+
+/** A role's name on screen: its translation, or the label the project gave it. */
+const labelOf = (role: string) => roleLabel(role, { t, te })
 
 const showInviteDialog = ref(false)
 const selectedUser = ref<User | null>(null)
@@ -39,11 +48,13 @@ const canAssignRoles = can('roles:assign')
 const canUpdateUsers = can('users:update')
 const showActionsColumn = canAssignRoles || canUpdateUsers
 
+// What a user can be given: the roles a picker offers.
 const roleOptions = computed(() =>
-  Object.values(ROLE_DEFINITIONS).map((role) => ({
-    value: role.name,
-    label: t(`role_${role.name}`),
-  })),
+  assignableRoles().map((role) => ({ value: role.name, label: labelOf(role.name) })),
+)
+// What a user can already have: every role, assignable here or not.
+const roleFilterOptions = computed(() =>
+  listedRoles().map((role) => ({ value: role.name, label: labelOf(role.name) })),
 )
 
 const columnHelper = createColumnHelper<User>()
@@ -76,12 +87,12 @@ const columns = [
             'rounded-full px-2.5 py-1 text-xs font-semibold',
           ],
         },
-        t(`role_${row.original.role}`),
+        labelOf(row.original.role),
       )
     },
     meta: {
       label: t('users_col_role'),
-      filter: { variant: 'select', options: roleOptions.value },
+      filter: { variant: 'select', options: roleFilterOptions.value },
       width: '10rem',
     },
   }),
@@ -190,11 +201,11 @@ const { table, meta, isLoading } = useUsersTable(columns)
     <!-- Role legend -->
     <div class="flex flex-wrap gap-2">
       <span
-        v-for="roleDef in Object.values(ROLE_DEFINITIONS)"
+        v-for="roleDef in listedRoles()"
         :key="roleDef.name"
         :class="[roleBadgeClass(roleDef.name), 'rounded-full px-3 py-1 text-xs font-semibold']"
       >
-        {{ t(`role_${roleDef.name}`) }}
+        {{ labelOf(roleDef.name) }}
         ·
         {{ t('users_perm_count', { count: roleDef.permissions.length }) }}
       </span>

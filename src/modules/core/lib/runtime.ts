@@ -15,7 +15,13 @@
 import type { ApiIntegration } from './api/integration'
 import type { ApiAuthProvider } from './api/types'
 import type { ResolvedAuthConfig } from './auth/config'
-import type { AuthorizationHookFn, Permission, PredicateFn, Role } from './rbac/types'
+import type {
+  AuthorizationHookFn,
+  Permission,
+  PredicateFn,
+  ResolvedProjectRole,
+  Role,
+} from './rbac/types'
 
 /** Backend that owns API-auth runtime state (provider, refresh, CSRF cache). */
 export interface ApiAuthBackend {
@@ -39,6 +45,12 @@ export interface RbacBackend {
   permissions: Set<string>
   predicates: Map<string, PredicateFn>
   hooks: Set<AuthorizationHookFn>
+  /**
+   * Role and permission names the app was handed and does not declare, already
+   * reported once. Optional: a backend built before it existed has none, and
+   * then nothing is reported.
+   */
+  reportedNames?: Set<string>
   /** Reset to seeded built-in state. */
   resetPermissions(): void
   reset(): void
@@ -52,6 +64,16 @@ export interface RbacBackend {
 export interface RbacConfig {
   grants: Partial<Record<Role, readonly Permission[]>>
   withdrawn: readonly Permission[]
+  /**
+   * The project's own roles, by name, each with its ancestry worked out.
+   * Absent when it defines none.
+   */
+  roles?: ReadonlyMap<string, ResolvedProjectRole>
+  /**
+   * What is wrong with the roles in `rbac.overrides.ts`, one message each.
+   * Absent when nothing is. A role named here is not in `roles`.
+   */
+  problems?: readonly string[]
 }
 
 /** Backend that owns the lazy validation-adapter cache. */
