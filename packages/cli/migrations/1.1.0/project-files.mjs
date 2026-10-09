@@ -237,6 +237,97 @@ const routerAfterEach = {
     'file needs that condition.',
 }
 
+// ─── plugins/i18n.ts ─────────────────────────────────────────────────────────
+
+/**
+ * The comment and the function as 1.0.1-alpha.5 and 1.0.1-alpha.6 shipped them.
+ */
+const WITH_OVERRIDES_DOC_OLD = `/**
+ * Shell copy, with your overrides applied on top.
+ *
+ * \`<locale>.json\` is Vuestrata's and is replaced wholesale by an upgrade; the
+ * \`.overrides.json\` beside it is yours and is never written to. Rewording a
+ * label therefore means adding one key to a file nobody upstream touches,
+ * rather than editing a 665-key catalog that a future release will also edit.
+ *
+ * Shallow by design: the shell catalog is flat, and a deep merge would invite
+ * partial overrides of a nested object that then disagree about shape.
+ */
+`
+
+const WITH_OVERRIDES_OLD = `function withOverrides<T extends object>(base: T, overrides: object): T {
+  return { ...base, ...overrides }
+}
+`
+
+const WITH_OVERRIDES_DOC_NEW = `/**
+ * Shell copy, with your overrides applied on top.
+ *
+ * \`<locale>.json\` is the catalog Vuestrata ships and keeps changing; the
+ * \`.overrides.json\` beside it is yours and nothing upstream ever writes to it.
+ * Rewording a label therefore means adding one key to a file nobody upstream
+ * touches, rather than editing a 665-key catalog that a future release will
+ * also edit.
+ *
+ * A group is merged, not replaced: \`{ "validation": { "required": "…" } }\`
+ * rewords that one message and leaves the rest of \`validation\` as shipped. A
+ * message, an array, or anything else that is not a group on both sides takes
+ * the place of what was there.
+ */
+`
+
+const WITH_OVERRIDES_NEW = `function withOverrides<T extends object>(base: T, overrides: object): T {
+  // A build compiles each message to a syntax tree, which is an object too.
+  // It is a message, not a group: told apart the way vue-i18n tells them.
+  const isGroup = (value: unknown): value is Record<string, unknown> => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+    const node = value as Record<string, unknown>
+    const compiled = (node.type ?? node.t) === 0 && ('body' in node || 'b' in node)
+    return !compiled
+  }
+
+  const merged = { ...base } as Record<string, unknown>
+  for (const [key, value] of Object.entries(overrides)) {
+    const shipped = merged[key]
+    merged[key] = isGroup(shipped) && isGroup(value) ? withOverrides(shipped, value) : value
+  }
+  return merged as T
+}
+`
+
+/** A `withOverrides` that still spreads one object over the other. */
+const SHALLOW_OVERRIDES =
+  /function\s+withOverrides\b[^{]*\{\s*return\s*\{\s*\.\.\.\s*base\s*,\s*\.\.\.\s*overrides\s*,?\s*\}\s*;?\s*\}/
+
+/**
+ * 1.0's catalogs were flat, and a shallow merge was all they needed. 1.1.0
+ * ships a group, `validation`, and an override of one key in it replaced the
+ * whole group: every other validation message then rendered as its raw key.
+ *
+ * The function is replaced where it is the one a release shipped, with its
+ * comment when that is untouched too. It declares nothing outside itself (the
+ * helper is a local), so there is no name it could collide with.
+ */
+const mergedOverrides = {
+  file: inApp('plugins/i18n.ts'),
+  pending: (source) => SHALLOW_OVERRIDES.test(withoutComments(source)),
+  apply: (source) =>
+    replaceBlocks(source, [
+      { from: WITH_OVERRIDES_OLD, to: WITH_OVERRIDES_NEW },
+      { from: WITH_OVERRIDES_DOC_OLD, to: WITH_OVERRIDES_DOC_NEW, optional: true },
+    ]),
+  note:
+    'plugins/i18n.ts is yours, and its withOverrides() is not the one 1.0.1-alpha.6 shipped, so ' +
+    'it was left alone. It still spreads the overrides over the catalog one level deep, and ' +
+    'this release ships a nested group, `validation`: a `<locale>.overrides.json` that ' +
+    'rewords one message in it, `{ "validation": { "required": "…" } }`, replaces the whole ' +
+    'group, and every other validation message is then shown as its key. Either copy the whole ' +
+    '`validation` object into the overrides file, or make the function merge groups: for each ' +
+    '[key, value] of Object.entries(overrides), when both value and base[key] are plain objects ' +
+    '(not arrays, not null) set the result to withOverrides(base[key], value), and otherwise ' +
+    'to value.',
+}
+
 // ─── plugins/stale-chunk.ts ──────────────────────────────────────────────────
 
 const MARK_OLD = `function markReloadAttempted(): void {
@@ -1275,6 +1366,10 @@ export default [
   {
     description: 'a stale chunk reloads the page only when the attempt can be recorded',
     steps: [staleChunkReload, staleChunkExport],
+  },
+  {
+    description: 'an override of one message in a group no longer replaces the rest of the group',
+    steps: [mergedOverrides],
   },
   {
     description: 'the login page says when a session expired',

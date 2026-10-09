@@ -2,6 +2,8 @@ import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
+import { useOwnDefault } from './useOwnDefault'
+
 export interface RatingFieldProps extends FieldProps {
   modelValue?: number
   max?: number
@@ -10,11 +12,13 @@ export interface RatingFieldProps extends FieldProps {
 }
 
 export function useUiRatingField(props: RatingFieldProps) {
+  const ownDefault = useOwnDefault(props)
+
   const formwerk = useCustomField<number>({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
-    modelValue: () => props.modelValue ?? 0,
+    modelValue: () => props.modelValue ?? ownDefault(0),
     disabled: () => props.disabled,
     schema: props.schema as undefined,
   })

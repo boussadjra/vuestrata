@@ -17,6 +17,15 @@
  * never disagree about what a valid configuration is.
  */
 import { z } from 'zod'
+import en from 'zod/v4/locales/en.js'
+
+/**
+ * What this file tells a developer is in zod's own English, whatever error map
+ * the app installed for its forms and whatever language it is showing. The
+ * same options as `~/lib/validation/diagnostics`, which this file cannot
+ * import: it is loaded by Node before any alias exists.
+ */
+const IN_ZODS_OWN_WORDS = { error: en().localeError } as const
 
 // ─── Allowlists ───────────────────────────────────────────────────────────────
 
@@ -786,7 +795,7 @@ export function describeEnvValueIssue(
   const field = (envSchema.shape as Record<string, z.ZodType | undefined>)[key]
   if (!field) return null
 
-  const parsed = field.safeParse(value)
+  const parsed = field.safeParse(value, IN_ZODS_OWN_WORDS)
   if (!parsed.success) return parsed.error.issues.map((issue) => issue.message).join('; ')
 
   return key === ENV_KEYS.apiUrl ? (describeApiUrlIssue(value, true)?.message ?? null) : null
@@ -911,7 +920,7 @@ export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Runt
   const { isDev = false, serving = false, authAdapters = {} } = options
 
   const values = normalize(raw)
-  const parsed = createEnvSchema(authAdapters).safeParse(values)
+  const parsed = createEnvSchema(authAdapters).safeParse(values, IN_ZODS_OWN_WORDS)
   if (!parsed.success) {
     throw new Error(
       `[vuestrata:env] Invalid environment configuration:\n  - ${formatFieldIssues(parsed.error, values).join('\n  - ')}`,
@@ -954,7 +963,7 @@ export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Ru
   const envSchema = createEnvSchema(authAdapters)
 
   // Drop individually-invalid values so their defaults apply, warning per field.
-  const parsed = envSchema.safeParse(normalized)
+  const parsed = envSchema.safeParse(normalized, IN_ZODS_OWN_WORDS)
   let data: ParsedEnv
   if (parsed.success) {
     data = parsed.data
@@ -964,7 +973,7 @@ export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Ru
       warn(`Ignoring invalid ${key}: ${issue.message}. Falling back to the default.`)
       if (key) delete normalized[key]
     }
-    const retry = envSchema.safeParse(normalized)
+    const retry = envSchema.safeParse(normalized, IN_ZODS_OWN_WORDS)
     // Deleting every offending key cannot fail: all fields are optional.
     data = retry.success ? retry.data : {}
   }

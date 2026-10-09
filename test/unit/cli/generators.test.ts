@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { compileTemplate, parse as parseSfc } from '@vue/compiler-sfc'
+import ts from 'typescript'
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 // @ts-expect-error - the CLI is plain ESM JavaScript with no type declarations.
@@ -23,7 +25,7 @@ import { createFixture, type Fixture } from './fixture'
 
 const { driftedFiles, emptyLock, hashFor, readLock, recordProvenance, writeLock } = lockfile
 const { DEFAULT_SLOTS, loadManifest, missingSlots, SEEDED_SLOTS } = manifests
-const { ANCHORED_REGISTRIES, hasSentinel, readRegion } = registry
+const { ANCHORED_REGISTRIES, blankRegions, hasSentinel, readRegion } = registry
 
 /**
  * What a generator may and may not touch.
@@ -40,7 +42,16 @@ const UI_BARREL = 'src/modules/app/components/ui/index.ts'
 const FORMS_BARREL = 'src/modules/app/composables/forms/index.ts'
 const REGISTRY = 'src/modules/setup.ts'
 
-const real = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
+/**
+ * A file as the template ships it: its `app:` regions empty.
+ *
+ * Read from this checkout, which may be one a generator has already run in:
+ * the CLI round trip in CI runs `add module payments` and then this suite.
+ * Seeding the fixture with what that left behind made "declares exactly these
+ * two permissions" fail on a generator that had done its job.
+ */
+const real = (rel: string): string =>
+  blankRegions(fs.readFileSync(path.join(process.cwd(), rel), 'utf8')) as string
 
 const SETUP = `import customersModule from './customers'
 import usersModule from './users'
@@ -164,6 +175,124 @@ describe('add module', () => {
 
     expect(() => planFor('module', 'invoices')).toThrow(
       /rbac\.overrides\.ts does not exist.*upgrade/s,
+    )
+  })
+})
+
+describe('the form `add module` writes', () => {
+  const MODULE = 'src/modules/invoices'
+
+  /** Syntax errors in a generated TypeScript file. Types are the real generation's to check. */
+  function syntaxErrors(source: string): string[] {
+    const { diagnostics = [] } = ts.transpileModule(source, {
+      reportDiagnostics: true,
+      compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
+    })
+    return diagnostics.map((diagnostic) =>
+      ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+    )
+  }
+
+  beforeEach(() => {
+    generate(planFor('module', 'invoices'))
+  })
+
+  it('is a UiForm with the draft schema, an action, the error alert and the leave guard', () => {
+    const page = fixture.read(`${MODULE}/pages/form.vue`)
+    const { descriptor, errors } = parseSfc(page, { filename: 'form.vue' })
+
+    expect(errors).toEqual([])
+    expect(syntaxErrors(descriptor.scriptSetup!.content)).toEqual([])
+    const compiled = compileTemplate({
+      source: descriptor.template!.content,
+      filename: 'form.vue',
+      id: 'generated-form',
+    })
+    expect(compiled.errors).toEqual([])
+
+    const template = descriptor.template!.content
+    expect(template).toContain('<UiForm')
+    expect(template).toContain(':schema="schema"')
+    expect(template).toContain(':action="save"')
+    expect(template).toContain('show-errors="touched"')
+    expect(template).toContain('confirm-leave')
+    expect(template).toContain('@success="onSaved"')
+    // The form-level messages, already localized by UiForm.
+    expect(template).toMatch(/<UiAlert v-if="formErrors\.length > 0"[^>]*variant="error"/)
+    // A submit button that is pending for the whole save.
+    expect(template).toMatch(/type="submit"[\s\S]*:loading="isSubmitting"/)
+    // Fields are bound by name. A server message for `name` lands under it
+    // because UiForm knows the field, which a v-model'd one outside a form
+    // context never told anyone.
+    expect(template).toContain('<UiTextField name="name"')
+    expect(template).toContain('<UiSelect name="status"')
+    expect(template).not.toMatch(/<form[\s>]/)
+    expect(template).not.toContain('v-model')
+  })
+
+  it('keeps the page thin: the mutation is in the module composable', () => {
+    const page = fixture.read(`${MODULE}/pages/form.vue`)
+    const composable = fixture.read(`${MODULE}/composables/useInvoiceForm.ts`)
+
+    expect(page).toContain("import { useInvoiceForm } from '../composables/useInvoiceForm'")
+    expect(page).not.toContain('mutateAsync')
+    expect(page).not.toContain('@tanstack/vue-query')
+    expect(page).not.toContain('useNotificationStore')
+
+    expect(syntaxErrors(composable)).toEqual([])
+    expect(composable).toContain('export function useInvoiceForm(id: Ref<string | undefined>)')
+    expect(composable).toContain('invoiceDraftSchema.parse(values)')
+    expect(composable).toContain('updateMutation.mutateAsync({ id: editing, patch: draft })')
+    expect(composable).toContain('createMutation.mutateAsync(draft)')
+    expect(composable).toContain("t('invoices_saved')")
+    expect(composable).toContain("t('invoices_created')")
+    // It lets a failure reject: UiForm is what catches it.
+    expect(composable).not.toMatch(/\bcatch\b/)
+  })
+
+  it('validates: the draft schema has real rules, and the mock uses the same schema', () => {
+    const types = fixture.read(`${MODULE}/types.ts`)
+    const handlers = fixture.read(`${MODULE}/mocks/invoices.handlers.ts`)
+
+    expect(syntaxErrors(types)).toEqual([])
+    expect(types).toContain('name: z.string().trim().min(1).max(120)')
+    expect(types).toContain('notes: z.string().max(2000)')
+    expect(types).toContain('export type InvoiceDraft = z.infer<typeof invoiceDraftSchema>')
+    expect(handlers).toContain('invoiceDraftSchema.safeParse(body)')
+    expect(handlers).toContain('invoiceDraftSchema.partial().safeParse(body)')
+  })
+
+  it('ships every key the form uses, in all three locales', () => {
+    const keys = (locale: string) =>
+      Object.keys(JSON.parse(fixture.read(`${MODULE}/i18n/${locale}.json`)) as object)
+
+    expect(keys('en')).toEqual(expect.arrayContaining(['invoices_created', 'invoices_saved']))
+    expect(keys('fr')).toEqual(keys('en'))
+    expect(keys('ar')).toEqual(keys('en'))
+
+    // Every module key the generated files translate exists in the catalog;
+    // the rest (`common_*`) are the shell's.
+    const used = new Set<string>()
+    for (const file of ['pages/form.vue', 'composables/useInvoiceForm.ts']) {
+      for (const [, key] of fixture.read(`${MODULE}/${file}`).matchAll(/t\('(invoices_\w+)'\)/g)) {
+        used.add(key!)
+      }
+    }
+    expect(used.size).toBeGreaterThan(0)
+    expect(keys('en')).toEqual(expect.arrayContaining([...used]))
+  })
+
+  it('names itself after the entity, whatever the module is called', () => {
+    generate(planFor('module', 'purchase-orders'))
+
+    const composable = fixture.read(
+      'src/modules/purchase-orders/composables/usePurchaseOrderForm.ts',
+    )
+    expect(syntaxErrors(composable)).toEqual([])
+    expect(composable).toContain('export function usePurchaseOrderForm(')
+    expect(composable).toContain('const NEW_PURCHASE_ORDER: PurchaseOrderDraft')
+    expect(fixture.read('src/modules/purchase-orders/pages/form.vue')).toContain(
+      "router.push('/dashboard/purchase-orders')",
     )
   })
 })

@@ -246,6 +246,12 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description:
       'Point the app at your auth backend, or put an SDK behind the adapter contract, from one file that is yours.',
   },
+  '/docs/9.recipes/11.submit-a-form-to-your-api.md': {
+    navTitle: 'Submit a form to your API',
+    title: 'Submit a Form to Your API',
+    description:
+      "A form that validates in the user's language, awaits the save, shows the server's refusal under the right field, and asks before unsaved changes are lost.",
+  },
 }
 
 const markdownModules = import.meta.glob('/docs/**/*.md', {

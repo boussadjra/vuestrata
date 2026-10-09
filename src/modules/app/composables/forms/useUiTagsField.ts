@@ -2,6 +2,8 @@ import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
+import { useOwnDefault } from './useOwnDefault'
+
 export interface TagsFieldProps extends FieldProps {
   modelValue?: string[]
   hint?: string
@@ -11,6 +13,8 @@ export interface TagsFieldProps extends FieldProps {
 }
 
 export function useUiTagsField(props: TagsFieldProps) {
+  const ownDefault = useOwnDefault(props)
+
   const formwerk = useCustomField<string[]>({
     name: () => props.name,
     label: () => props.label ?? '',
@@ -18,7 +22,7 @@ export function useUiTagsField(props: TagsFieldProps) {
     disabled: () => props.disabled,
     required: () => props.required,
     schema: props.schema as undefined,
-    modelValue: () => props.modelValue ?? [],
+    modelValue: () => props.modelValue ?? ownDefault<string[]>([]),
   })
 
   const inputText = ref('')

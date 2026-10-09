@@ -2,6 +2,8 @@ import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
+import { useOwnDefault } from './useOwnDefault'
+
 export interface MentionsFieldProps extends FieldProps {
   modelValue?: string
   placeholder?: string
@@ -17,11 +19,13 @@ export interface MentionItem {
 }
 
 export function useUiMentionsField(props: MentionsFieldProps) {
+  const ownDefault = useOwnDefault(props)
+
   const formwerk = useCustomField<string>({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
-    modelValue: () => props.modelValue ?? '',
+    modelValue: () => props.modelValue ?? ownDefault(''),
     disabled: () => props.disabled,
     schema: props.schema as undefined,
   })

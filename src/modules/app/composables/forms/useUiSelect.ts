@@ -2,6 +2,8 @@ import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
+import { useOwnDefault } from './useOwnDefault'
+
 export interface SelectOption {
   label: string
   value: string | number
@@ -22,6 +24,8 @@ export interface SelectProps extends FieldProps {
 }
 
 export function useUiSelect(props: SelectProps) {
+  const ownDefault = useOwnDefault(props)
+
   const formwerk = useCustomField<string | number | Array<string | number>>({
     name: () => props.name,
     label: () => props.label ?? '',
@@ -30,7 +34,7 @@ export function useUiSelect(props: SelectProps) {
     readonly: () => props.readonly,
     required: () => props.required,
     schema: props.schema as undefined,
-    modelValue: () => props.modelValue ?? (props.multiple ? [] : ''),
+    modelValue: () => props.modelValue ?? ownDefault(props.multiple ? [] : ''),
   })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)

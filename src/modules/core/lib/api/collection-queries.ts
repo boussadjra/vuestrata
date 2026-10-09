@@ -32,6 +32,7 @@ import { z, type ZodType } from 'zod'
 
 import { AppError, ERROR_MESSAGE_KEYS, listErrorMessageKeys, normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
+import { safeParseForDiagnostics } from '~/lib/validation/diagnostics'
 
 import { apiFetch, apiGet } from './client'
 import {
@@ -697,7 +698,7 @@ function encodedParent(parent: Record<string, unknown>): Record<string, string> 
 
 /** Validate a value against a schema, or fail as a contract mismatch. */
 function parseAs<S>(resource: string, target: ZodType<S>, body: unknown): S {
-  const result = target.safeParse(body)
+  const result = safeParseForDiagnostics(target, body)
   if (result.success) return result.data
   throw contractMismatch(resource, result.error.issues)
 }
@@ -896,7 +897,7 @@ function defineAction<TInput, TOutput, TPath extends string | ((id: string) => s
 
         const body: { value?: unknown } = {}
         if (config.input) {
-          const checked = config.input.safeParse(given?.input)
+          const checked = safeParseForDiagnostics(config.input, given?.input)
           if (!checked.success) throw invalidInput(runtime.resource, checked.error.issues)
           body.value = inputCase(dialect).toWire(checked.data)
         }
@@ -1129,7 +1130,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
         // Not this dialect's envelope at all. The issues are those of reading
         // the body as the app's own, which for a body that is not even an
         // object says exactly that.
-        const outcome = envelope.safeParse(raw)
+        const outcome = safeParseForDiagnostics(envelope, raw)
         throw contractMismatch(
           resource,
           outcome.success ? [notAListIssue(spoken.name)] : outcome.error.issues,
@@ -1212,7 +1213,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
      */
     async function writtenRecord(response: FetchResponse<unknown>, updatedId?: string): Promise<T> {
       const spoken = dialect()
-      const parsed = schema.safeParse(record(response._data, spoken))
+      const parsed = safeParseForDiagnostics(schema, record(response._data, spoken))
       if (parsed.success) return parsed.data
 
       const path = followUpPath(response, updatedId)
@@ -1332,7 +1333,7 @@ export function createCollectionApi<T, TFilters extends CollectionFilters, TCrea
 
     /** The record a write produced, read back when the source answered without it. */
     async function writtenRecord(answer: unknown, id: string | undefined): Promise<T> {
-      const parsed = schema.safeParse(answer)
+      const parsed = safeParseForDiagnostics(schema, answer)
       if (parsed.success) return parsed.data
 
       const written = id ?? idOnlyBody(answer)

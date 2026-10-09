@@ -30,11 +30,27 @@ function toSupportedLocale(locale: string): SupportedLocale {
  * touches, rather than editing a 665-key catalog that a future release will
  * also edit.
  *
- * Shallow by design: the shell catalog is flat, and a deep merge would invite
- * partial overrides of a nested object that then disagree about shape.
+ * A group is merged, not replaced: `{ "validation": { "required": "…" } }`
+ * rewords that one message and leaves the rest of `validation` as shipped. A
+ * message, an array, or anything else that is not a group on both sides takes
+ * the place of what was there.
  */
 function withOverrides<T extends object>(base: T, overrides: object): T {
-  return { ...base, ...overrides }
+  // A build compiles each message to a syntax tree, which is an object too.
+  // It is a message, not a group: told apart the way vue-i18n tells them.
+  const isGroup = (value: unknown): value is Record<string, unknown> => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+    const node = value as Record<string, unknown>
+    const compiled = (node.type ?? node.t) === 0 && ('body' in node || 'b' in node)
+    return !compiled
+  }
+
+  const merged = { ...base } as Record<string, unknown>
+  for (const [key, value] of Object.entries(overrides)) {
+    const shipped = merged[key]
+    merged[key] = isGroup(shipped) && isGroup(value) ? withOverrides(shipped, value) : value
+  }
+  return merged as T
 }
 
 export const i18n = createI18n({

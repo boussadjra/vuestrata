@@ -139,6 +139,7 @@ exports[`public surface > exposes a stable set of Ui* components 1`] = `
   "UiTooltip",
   "UiTreeSelect",
   "UiTrendDelta",
+  "UiUnsavedChangesDialog",
   "UiYearPicker",
   "UiYearRangePicker",
 ]
@@ -754,13 +755,21 @@ exports[`public surface > exposes stable props and emits on every Ui* component 
   },
   "UiForm": {
     "emits": [
+      "error",
       "submit",
+      "success",
     ],
     "props": [
+      "action",
+      "confirmLeave",
       "disabled",
       "disableHtmlValidation",
+      "fieldMap",
+      "fieldPath",
       "initialValues",
+      "resetOnSuccess",
       "schema",
+      "showErrors",
     ],
   },
   "UiFormBuilder": {
@@ -1419,6 +1428,19 @@ exports[`public surface > exposes stable props and emits on every Ui* component 
       "direction",
       "isImprovement",
       "size",
+    ],
+  },
+  "UiUnsavedChangesDialog": {
+    "emits": [
+      "leave",
+      "stay",
+    ],
+    "props": [
+      "description",
+      "leaveLabel",
+      "open",
+      "stayLabel",
+      "title",
     ],
   },
   "UiYearPicker": {

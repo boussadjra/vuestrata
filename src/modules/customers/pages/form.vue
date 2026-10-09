@@ -6,8 +6,12 @@
  * is where the fields drift: a validation rule added to "create" and forgotten
  * on "edit" produces a record that could never have been created in the first
  * place.
+ *
+ * The page lays the fields out and decides where to go once a save has
+ * succeeded. What saving means is `useCustomerForm`'s, and the submit
+ * lifecycle (the pending button, the server's messages on the fields they are
+ * about, the question before unsaved changes are discarded) is `UiForm`'s.
  */
-import type { StandardSchemaV1 } from '@standard-schema/spec'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -22,85 +26,32 @@ import {
   UiTextarea,
 } from '@/components/ui'
 import { useBreadcrumbLabel } from '@/composables/useBreadcrumbs'
-import { useErrorMessage } from '@/composables/useErrorMessage'
 import { useRouteParam } from '@/composables/useRouteParam'
-import { useNotificationStore } from '@/stores/notification'
 
-import {
-  useCreateCustomerMutation,
-  useCustomerQuery,
-  useUpdateCustomerMutation,
-} from '../composables/useCustomers'
-import { CUSTOMER_PLANS, CUSTOMER_STATUSES, customerDraftSchema } from '../types'
+import { useCustomerForm } from '../composables/useCustomerForm'
+import type { Customer } from '../types'
 
 const { t } = useI18n()
-const { errorMessage } = useErrorMessage()
 const router = useRouter()
-const notifications = useNotificationStore()
 
 // `/customers/new` and `/customers/:id/edit` share this component. The create
 // route has no `:id` at all, so the absence of the param — not a magic "new"
 // value — is what distinguishes the two.
 const id = useRouteParam('id')
-const isEdit = computed(() => Boolean(id.value))
 
-const { item: existing, isPending } = useCustomerQuery(id)
+const { schema, isEdit, isLoading, initialValues, statusOptions, planOptions, save } =
+  useCustomerForm(id)
 
 useBreadcrumbLabel(() => (isEdit.value ? t('common_edit') : t('customers_new')))
 
-const createMutation = useCreateCustomerMutation()
-const updateMutation = useUpdateCustomerMutation()
-
-const isSaving = computed(() => createMutation.isPending.value || updateMutation.isPending.value)
-const saveError = computed(() => createMutation.error.value ?? updateMutation.error.value)
-
-// The same zod schema the mock backend validates against, so the form rejects
-// exactly what the server would. Cast because formwerk speaks Standard Schema.
-const schema = customerDraftSchema as unknown as StandardSchemaV1
-
-/**
- * `undefined` until the record arrives, so the form is not mounted with blank
- * values and then re-seeded — formwerk snapshots `initialValues` on mount, and
- * a later change would leave the fields empty while `isDirty` reported true.
- */
-const initialValues = computed<Record<string, unknown> | undefined>(() => {
-  if (!isEdit.value) {
-    return { status: 'prospect', plan: 'starter', country: 'US', notes: '' }
-  }
-  const record = existing.value
-  if (!record) return undefined
-  return {
-    company: record.company,
-    contactName: record.contactName,
-    email: record.email,
-    phone: record.phone,
-    status: record.status,
-    plan: record.plan,
-    city: record.city,
-    country: record.country,
-    notes: record.notes,
-  }
-})
-
-const statusOptions = computed(() =>
-  CUSTOMER_STATUSES.map((value) => ({ label: t(`customers_status_${value}`), value })),
-)
-const planOptions = computed(() =>
-  CUSTOMER_PLANS.map((value) => ({ label: t(`customers_plan_${value}`), value })),
+const backTo = computed(() =>
+  isEdit.value ? `/dashboard/customers/${id.value}` : '/dashboard/customers',
 )
 
-async function onSubmit(values: Record<string, unknown>) {
-  const draft = customerDraftSchema.parse(values)
-
-  const saved = isEdit.value
-    ? await updateMutation.mutateAsync({ id: id.value!, patch: draft })
-    : await createMutation.mutateAsync(draft)
-
-  notifications.add({
-    type: 'success',
-    message: isEdit.value ? t('customers_saved') : t('customers_created'),
-  })
-  await router.push(`/dashboard/customers/${saved.id}`)
+// By the time this runs the form has taken the saved values as its baseline,
+// so it is clean and the unsaved-changes guard lets the navigation through.
+async function onSaved(saved: unknown) {
+  await router.push(`/dashboard/customers/${(saved as Customer).id}`)
 }
 </script>
 
@@ -111,63 +62,77 @@ async function onSubmit(values: Record<string, unknown>) {
       :description="t('customers_form_subtitle')"
     >
       <template #actions>
-        <UiButton
-          :to="isEdit ? `/dashboard/customers/${id}` : '/dashboard/customers'"
-          variant="ghost"
-        >
+        <UiButton :to="backTo" variant="ghost">
           {{ t('common_cancel') }}
         </UiButton>
       </template>
     </UiPageHeader>
 
     <UiCard class="max-w-3xl p-5">
-      <div v-if="isEdit && isPending" class="space-y-4" aria-busy="true">
+      <div v-if="isLoading" class="space-y-4" aria-busy="true">
         <UiSkeleton v-for="index in 6" :key="index" class="h-11" />
       </div>
 
+      <!--
+        Keyed by the record: the form takes its initial values when it mounts,
+        so another customer in the same page needs another form.
+
+        `show-errors="touched"` keeps a new, empty form from opening with
+        "required" under every field. `confirm-leave` asks before a navigation
+        discards what was typed.
+      -->
       <UiForm
         v-else-if="initialValues"
+        :key="id ?? 'new'"
         :schema="schema"
         :initial-values="initialValues"
-        @submit="onSubmit"
+        :action="save"
+        show-errors="touched"
+        confirm-leave
+        @success="onSaved"
       >
-        <!--
-          The failure is announced where the user is looking, above the submit
-          button, not as a toast that may have vanished by the time they look
-          up. `UiAlert` carries role="alert", so it is read immediately.
+        <template #default="{ formErrors, isSubmitting }">
+          <!--
+            What the server said that belongs to no field, or failing that the
+            one line describing the failure, in the reader's language. It is
+            announced where the user is looking, above the submit button, not
+            as a toast that may have vanished by the time they look up:
+            `UiAlert` carries role="alert", so it is read immediately.
 
-          `errorMessage` rather than `saveError.message`: the message is the
-          backend's own when it refused the input, and otherwise a translation,
-          where `.message` is English for every reader.
-        -->
-        <UiAlert v-if="saveError" variant="error" :title="t('common_error_title')">
-          {{ errorMessage(saveError) }}
-        </UiAlert>
+            A message about one field is not here. `UiForm` puts it under that
+            field, where it stays until the field is edited.
+          -->
+          <UiAlert v-if="formErrors.length > 0" variant="error" :title="t('common_error_title')">
+            <p v-for="message in formErrors" :key="message">{{ message }}</p>
+          </UiAlert>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UiTextField name="company" :label="t('customers_col_company')" required />
-          <UiTextField name="contactName" :label="t('customers_col_contact')" required />
-          <UiTextField name="email" type="email" :label="t('common_email')" required />
-          <UiTextField name="phone" :label="t('customers_phone')" required />
-          <UiSelect name="status" :label="t('common_status')" :options="statusOptions" />
-          <UiSelect name="plan" :label="t('customers_col_plan')" :options="planOptions" />
-          <UiTextField name="city" :label="t('customers_city')" required />
-          <UiTextField name="country" :label="t('customers_country')" required />
-        </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UiTextField name="company" :label="t('customers_col_company')" required />
+            <UiTextField name="contactName" :label="t('customers_col_contact')" required />
+            <UiTextField name="email" type="email" :label="t('common_email')" required />
+            <UiTextField name="phone" :label="t('customers_phone')" required />
+            <UiSelect name="status" :label="t('common_status')" :options="statusOptions" />
+            <UiSelect name="plan" :label="t('customers_col_plan')" :options="planOptions" />
+            <UiTextField name="city" :label="t('customers_city')" required />
+            <UiTextField name="country" :label="t('customers_country')" required />
+          </div>
 
-        <UiTextarea name="notes" :label="t('customers_notes_title')" :rows="4" />
+          <UiTextarea name="notes" :label="t('customers_notes_title')" :rows="4" />
 
-        <div class="flex justify-end gap-2 pt-2">
-          <UiButton
-            :to="isEdit ? `/dashboard/customers/${id}` : '/dashboard/customers'"
-            variant="ghost"
-          >
-            {{ t('common_cancel') }}
-          </UiButton>
-          <UiButton type="submit" variant="primary" :loading="isSaving" :disabled="isSaving">
-            {{ isEdit ? t('common_save') : t('customers_create') }}
-          </UiButton>
-        </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <UiButton :to="backTo" variant="ghost">
+              {{ t('common_cancel') }}
+            </UiButton>
+            <!--
+              `loading`, not `disabled`: a disabled button drops focus to the page
+              while the save is in flight, and a keyboard user is then nowhere when
+              it fails. A loading button keeps focus and ignores a second press.
+            -->
+            <UiButton type="submit" variant="primary" :loading="isSubmitting">
+              {{ isEdit ? t('common_save') : t('customers_create') }}
+            </UiButton>
+          </div>
+        </template>
       </UiForm>
     </UiCard>
   </div>
