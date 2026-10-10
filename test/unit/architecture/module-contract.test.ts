@@ -266,7 +266,16 @@ describe('module contract', () => {
     })
 
     it.runIf(Boolean(mod.i18n))('ships the same keys in every locale it declares', () => {
-      const locales = Object.entries(mod.i18n!)
+      const messagesByLocale = { ...mod.i18n }
+      const catalogDir = path.join(MODULES_DIR, id, 'i18n')
+      if (fs.existsSync(catalogDir)) {
+        for (const file of fs.readdirSync(catalogDir).filter((name) => name.endsWith('.json'))) {
+          messagesByLocale[file.slice(0, -5)] ??= JSON.parse(
+            fs.readFileSync(path.join(catalogDir, file), 'utf8'),
+          )
+        }
+      }
+      const locales = Object.entries(messagesByLocale)
       const union = new Set(locales.flatMap(([, messages]) => Object.keys(messages)))
       for (const [locale, messages] of locales) {
         const missing = [...union].filter((key) => !(key in messages))

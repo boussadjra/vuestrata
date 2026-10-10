@@ -40,7 +40,7 @@ const NEEDS_THE_GENERATORS = {
 /** What each file gained, for the note. Short: the incoming copy has the rest. */
 const WHAT_CHANGED = {
   Dockerfile:
-    'Dockerfile builds for arm64 as well as amd64 (the vite-plus binding follows TARGETARCH), ' +
+    'Dockerfile builds for arm64 as well as amd64 (the web build and vite-plus binding follow the builder CPU), ' +
     'pins both base images by digest (nginx 1.30.5), writes a .gz beside each text asset for ' +
     'gzip_static, and its HEALTHCHECK probes /healthz',
   'docker-compose.yml': 'docker-compose.yml probes /healthz in its healthcheck',
@@ -69,7 +69,7 @@ const WHAT_CHANGED = {
 const family = [
   replaceWithShipped({
     file: DOCKERFILE,
-    carries: (source) => source.includes('/healthz') && source.includes('TARGETARCH'),
+    carries: (source) => source.includes('/healthz') && /(?:TARGETARCH|BUILDARCH)/.test(source),
     // It builds the image from what the 1.1.0 generators write (docker/runtime/).
     // Beside the 1.0 generators a project kept, the build stops at a missing
     // directory, where the 1.0 Dockerfile still builds the 1.0 image.

@@ -310,7 +310,7 @@ const columns = [
     header: () => t('tables_col_rating'),
     cell: ({ row }) =>
       h('div', { class: 'flex items-center justify-center gap-1' }, [
-        h('span', { class: [resolveIcon('star'), 'h-3.5 w-3.5 text-yellow-400'] }),
+        h('span', { class: [resolveIcon('star'), 'h-3.5 w-3.5 text-warning'] }),
         h('span', { class: 'tabular-nums' }, row.original.rating.toFixed(1)),
       ]),
     meta: {
@@ -345,8 +345,8 @@ const { table } = useDataTable<Product>({
 })
 
 const statusColors: Record<string, string> = {
-  active: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  draft: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  active: 'bg-success-subtle text-success',
+  draft: 'bg-warning-subtle text-warning',
   archived: 'bg-surface-100 text-surface-500 dark:bg-surface-700 dark:text-surface-400',
 }
 
@@ -404,22 +404,19 @@ function exportCSV() {
         class="bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 rounded-full px-3 py-1 text-xs font-semibold"
         >{{ t('tables_sortable') }}</span
       >
+      <span class="bg-info-subtle text-info rounded-full px-3 py-1 text-xs font-semibold">{{
+        t('tables_filterable')
+      }}</span>
+      <span class="bg-success-subtle text-success rounded-full px-3 py-1 text-xs font-semibold">{{
+        t('tables_row_selection')
+      }}</span>
       <span
-        class="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-        >{{ t('tables_filterable') }}</span
-      >
-      <span
-        class="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400"
-        >{{ t('tables_row_selection') }}</span
-      >
-      <span
-        class="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400"
+        class="bg-sidebar-accent text-sidebar-accent-foreground rounded-full px-3 py-1 text-xs font-semibold"
         >{{ t('tables_column_visibility') }}</span
       >
-      <span
-        class="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-        >{{ t('tables_paginated') }}</span
-      >
+      <span class="bg-warning-subtle text-warning rounded-full px-3 py-1 text-xs font-semibold">{{
+        t('tables_paginated')
+      }}</span>
       <span
         class="bg-secondary-100 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-400 rounded-full px-3 py-1 text-xs font-semibold"
         >{{ t('tables_csv_export') }}</span

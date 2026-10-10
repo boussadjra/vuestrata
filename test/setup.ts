@@ -4,6 +4,7 @@ import { beforeEach, vi } from 'vite-plus/test'
 import { loadModuleTranslations } from '@/modules/i18n'
 import { appModules } from '@/modules/setup'
 import { getI18n } from '@/plugins/i18n'
+import { useLocaleCatalogs } from '@/state/locale-catalogs'
 
 import { resetRuntimeState } from './utils/reset-runtime-state'
 
@@ -59,4 +60,7 @@ VTUConfig.global.plugins.push(getI18n())
 
 // Merge module-scoped translations (e.g. `src/modules/users/i18n/en.json`) into
 // the global i18n instance so components under test can `t()` module keys.
-loadModuleTranslations(appModules)
+await loadModuleTranslations(appModules)
+// General component tests exercise translated UI, independently of downloads.
+// The catalog-loading suite resets modules to exercise a cold start explicitly.
+await Promise.all(['fr', 'ar'].map((locale) => useLocaleCatalogs().ensure(locale)))

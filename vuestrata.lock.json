@@ -747,6 +747,11 @@
       "hash": "sha256-62e6a499c94248de3496e1788053095d1d68f6ba190629fbaf86d451e51c794e",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/app/state/locale-catalogs.ts": {
+      "class": "managed",
+      "hash": "sha256-d38436dc96620ac04e22216edc594f1aaee12da2e0e30ccc89bc8b45e6de9493",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/app/state/runtime-backends.ts": {
       "class": "managed",
       "hash": "sha256-e8265fe362b44f9ef28eca497ff0ca981901938d7eaa42605415179c9e247ef0",
@@ -1053,7 +1058,7 @@
     },
     "src/modules/core/lib/config/env.schema.ts": {
       "class": "managed",
-      "hash": "sha256-438fab9d189e4b31c82c1468ff44fcc5cb5b9bb6a41c65ea82497aa24deaee01",
+      "hash": "sha256-8ff4c753fd8729b97650e9e2311af411243ddb292ed7c9f2d48c72c509da4a31",
       "since": "1.1.0-alpha.0"
     },
     "src/modules/core/lib/config/index.ts": {

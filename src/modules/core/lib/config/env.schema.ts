@@ -19,6 +19,10 @@
 import { z } from 'zod'
 import en from 'zod/v4/locales/en.js'
 
+// This is the first application schema. Disable Zod's eval probe and JIT
+// before constructing it: a strict CSP reports even a caught eval attempt.
+z.config({ jitless: true })
+
 /**
  * What this file tells a developer is in zod's own English, whatever error map
  * the app installed for its forms and whatever language it is showing. The

@@ -63,4 +63,18 @@
  */
 import { defineDeployConfig } from '~/lib/config/deploy'
 
-export default defineDeployConfig({})
+export default defineDeployConfig({
+  bundle: {
+    onDemandChunks: {
+      // Feature queries load with their route, although the module registry
+      // reads metadata from the same public barrels.
+      add: [
+        'collection-queries',
+        'useCustomers',
+        'useMessages',
+        'useOrders',
+        'useDashboardQueries',
+      ],
+    },
+  },
+})

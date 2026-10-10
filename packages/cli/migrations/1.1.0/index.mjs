@@ -4,6 +4,7 @@ import { splitRegion } from '../split-regions.mjs'
 import basePath from './base-path.mjs'
 import deployment from './deployment.mjs'
 import hybridMocks from './hybrid-mocks.mjs'
+import localeLoading from './locale-loading.mjs'
 import notes from './notes.mjs'
 import projectFiles from './project-files.mjs'
 import promotions from './promotions.mjs'
@@ -60,5 +61,6 @@ export default [
   ...basePath,
   deployment,
   roles,
+  localeLoading,
   notes,
 ]

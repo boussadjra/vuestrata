@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vite-plus/test'
 
+import { getI18n } from '@/plugins/i18n'
+
 import usersModule, { usersModuleKeys } from '../index'
 
 describe('users module', () => {
@@ -22,11 +24,11 @@ describe('users module', () => {
       expect(usersModule.navItems![0]!.to).toBe('/dashboard/users')
     })
 
-    it('provides i18n for en, fr, and ar', () => {
+    it('provides English metadata and discovered French and Arabic messages', () => {
       expect(usersModule.i18n).toBeDefined()
       expect(usersModule.i18n!['en']).toBeDefined()
-      expect(usersModule.i18n!['fr']).toBeDefined()
-      expect(usersModule.i18n!['ar']).toBeDefined()
+      const key = Object.keys(usersModule.i18n!.en!)[0]!
+      for (const locale of ['en', 'fr', 'ar']) expect(getI18n().global.te(key, locale)).toBe(true)
     })
   })
 

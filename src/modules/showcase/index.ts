@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import showcaseI18nAr from './i18n/ar.json'
 import showcaseI18nEn from './i18n/en.json'
-import showcaseI18nFr from './i18n/fr.json'
 
 /**
  * Showcase Module
@@ -75,8 +73,6 @@ const showcaseModule: ModuleDefinition = {
 
   i18n: {
     en: showcaseI18nEn,
-    fr: showcaseI18nFr,
-    ar: showcaseI18nAr,
   },
 }
 

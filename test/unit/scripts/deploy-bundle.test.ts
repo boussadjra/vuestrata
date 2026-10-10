@@ -141,8 +141,10 @@ describe('the bundle key and the browser', () => {
     expect(readers).toEqual(['modules/core/lib/config/deploy.ts'])
   })
 
-  it('ships undeclared: the seeded file has it as a commented example only', () => {
-    expect(code(DEPLOY_CONFIG)).not.toContain('bundle')
-    expect(source(DEPLOY_CONFIG)).toContain('bundle: {')
+  it('ships additional chunk checks without changing size budgets', () => {
+    expect(code(DEPLOY_CONFIG)).toContain('onDemandChunks:')
+    expect(code(DEPLOY_CONFIG)).not.toMatch(
+      /(?:initialPayloadGzipKb|totalJsKb|largestEagerChunkKb):/,
+    )
   })
 })

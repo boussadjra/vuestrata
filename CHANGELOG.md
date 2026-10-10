@@ -27,6 +27,21 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 
 ### Fixed
 
+- Zod starts in its CSP-safe mode before the runtime schema is created, avoiding
+  eval probes that Firefox reports as policy violations. Browser acceptance
+  waits for route content and settled form layout instead of network idleness,
+  and customer-search checks wait for all three matching fixtures and their
+  footer instead of accepting a temporary loading row.
+- Multi-platform containers build their portable web assets on the builder's
+  native CPU, then package them in the selected nginx architecture. Vite+ uses
+  the builder's binding, and pin checks accept the explicit build platform.
+- The shell and module catalogs load French and Arabic on demand, with project
+  overrides, retryable failures and protection against stale selections. Boot
+  awaits the saved language. Shipped feature query entrypoints are excluded from
+  startup, reducing the measured production payload from 525 KB to 486 KB gzipped
+  without increasing budgets.
+- All 47 inherited raw-palette usages now use semantic theme tokens; the lint
+  allowance is zero.
 - CI and release test commands forward coverage and browser options directly,
   so the test runners interpret them as options. Coverage runs across the full
   suite, matching the global thresholds and the generated consumer workflow.
@@ -46,9 +61,17 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 - Updated managed forms, authentication and RBAC infrastructure, and new files.
 - Guarded changes to shipped adapter types and route-guard inputs. Edited files
   are kept and receive migration notes or incoming copies for manual merging.
+- The five language-loading files upgrade together. If one has project edits,
+  the whole group stays and incoming copies are offered for review.
 
 **Needs you**
 
+- Convert old raw colors in project-owned Users and showcase examples to semantic
+  tokens when taking the zero-baseline lint rule; upgrades preserve these files.
+- Existing modules may drop their non-English catalog imports once the loading
+  group is adopted; files under `i18n/` are discovered automatically. The audited
+  query entrypoint list in `vite.config.ts` and the added chunk checks in
+  `deploy.config.ts` are optional optimizations to merge into project-owned files.
 - Select the session and CSRF presets in `auth.config.ts` and `api.overrides.ts`
   for your backend; configure its cookies, CORS and endpoint authorization.
 - Declare custom roles and grants in `rbac.overrides.ts`, and map your identity

@@ -114,7 +114,7 @@ const columns = [
     header: () => t('users_col_verified'),
     cell: ({ row }) =>
       row.original.emailVerified
-        ? h('span', { class: [resolveIcon('check-circle'), 'h-5 w-5 text-green-500'] })
+        ? h('span', { class: [resolveIcon('check-circle'), 'h-5 w-5 text-success'] })
         : h('span', { class: [resolveIcon('close-circle'), 'text-surface-300 h-5 w-5'] }),
     meta: { label: t('users_col_verified'), align: 'center', width: '7rem' },
   }),

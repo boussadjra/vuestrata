@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 
 import { LOCKFILE_NAME } from '../../src/lib/lockfile.mjs'
+import { inSlot } from '../../src/lib/manifest.mjs'
 import { compareVersions, releaseCore } from '../../src/lib/migrations.mjs'
 import { adaptersBeingReplaced } from './promotions.mjs'
 import { listOf } from './text.mjs'
@@ -243,6 +244,35 @@ const nodePin = {
   },
 }
 
+// The lint rule is managed, but these example screens belong to the project.
+// Explain the required conversion without rewriting a project's styling.
+const paletteExamples = {
+  kind: 'note',
+  note: (_source, manifest, ws) => {
+    if (!comingFromBefore110(ws)) return false
+    const files = [
+      'users/presentation.ts',
+      'users/components/UsersScreen.vue',
+      'users/components/RolePermissionMatrix.vue',
+      'showcase/pages/tables.vue',
+    ]
+      .map((file) => inSlot(manifest, 'modulesDir', file))
+      .filter(
+        (file) =>
+          ws.exists(file) &&
+          /\b(?:bg|text|border)-(?:red|orange|green|blue|yellow|cyan)-\d{2,3}\b/.test(
+            ws.read(file),
+          ),
+      )
+    if (!files.length) return false
+    return (
+      `${listOf(files)} still use raw palette colors and are project-owned, so they were preserved. ` +
+      'The new lint rule has a zero baseline: convert these colors to semantic tokens before running `vpr lint`. ' +
+      'Use the current Users and showcase examples as a reference; UPGRADING.md lists the role, status and rating mappings.'
+    )
+  },
+}
+
 export default {
   description: 'what this release changes outside the project, for a person to act on',
   steps: [
@@ -254,5 +284,6 @@ export default {
     },
     inheritedCli,
     nodePin,
+    paletteExamples,
   ],
 }

@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import calendarI18nAr from './i18n/ar.json'
 import calendarI18nEn from './i18n/en.json'
-import calendarI18nFr from './i18n/fr.json'
 
 /**
  * Calendar Module
@@ -56,8 +54,6 @@ const calendarModule: ModuleDefinition = {
 
   i18n: {
     en: calendarI18nEn,
-    fr: calendarI18nFr,
-    ar: calendarI18nAr,
   },
 }
 

@@ -305,6 +305,17 @@ export default defineConfig({
     // resolved runtime mode.
 
     rolldownOptions: {
+      treeshake: {
+        // These shipped query entrypoints only construct schemas, query
+        // keys and the collection API; they perform no I/O or registration.
+        // The registry reads metadata from their barrels. Their API code must
+        // load with the feature that consumes it, rather than with that read.
+        // Keep the list explicit: a project's composable may have side effects.
+        moduleSideEffects: (id) =>
+          !/\/src\/modules\/(?:analytics\/composables\/useDashboardQueries|calendar\/composables\/useCalendar|catalog\/composables\/useCatalog|customers\/composables\/useCustomers|messages\/composables\/useMessages|orders\/composables\/useOrders|projects\/composables\/useProjects|reports\/composables\/useReports|team\/composables\/useTeam|users\/composables\/useUpdateRoleMutation)\.ts$/.test(
+            id.replaceAll('\\', '/'),
+          ),
+      },
       output: {
         /**
          * Named vendor chunks, and the order in which they claim modules.

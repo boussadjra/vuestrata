@@ -1,13 +1,13 @@
 import { getI18n } from '@/plugins/i18n'
 
-import analyticsAr from '../i18n/ar.json'
 import analyticsEn from '../i18n/en.json'
-import analyticsFr from '../i18n/fr.json'
 
 /**
  * Dashboard copy must go through the global catalog, not a component-local
  * `t()`. `@intlify/unplugin-vue-i18n` can compile an SFC against a partial
  * message map; keys then resolve to the key itself on the live board.
+ * English is the fallback here; the module catalog loader supplies the selected
+ * language before boot or a language switch completes.
  *
  * The merge is guarded per i18n instance rather than by a module-level
  * boolean. A boolean survives the instance it was set for, so a suite that
@@ -22,8 +22,6 @@ export function ensureDashboardMessages(): void {
   if (MERGED_I18N_INSTANCES.has(i18n)) return
   MERGED_I18N_INSTANCES.add(i18n)
   i18n.global.mergeLocaleMessage('en', analyticsEn)
-  i18n.global.mergeLocaleMessage('fr', analyticsFr)
-  i18n.global.mergeLocaleMessage('ar', analyticsAr)
 }
 
 export function dashboardT(key: string, params?: Record<string, unknown>): string {
@@ -34,7 +32,7 @@ export function dashboardT(key: string, params?: Record<string, unknown>): strin
 }
 
 if (import.meta.hot) {
-  import.meta.hot.accept(['../i18n/en.json', '../i18n/fr.json', '../i18n/ar.json'], () => {
+  import.meta.hot.accept('../i18n/en.json', () => {
     MERGED_I18N_INSTANCES.delete(getI18n())
     ensureDashboardMessages()
   })

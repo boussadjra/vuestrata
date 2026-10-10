@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import ordersI18nAr from './i18n/ar.json'
 import ordersI18nEn from './i18n/en.json'
-import ordersI18nFr from './i18n/fr.json'
 
 /**
  * Orders Module
@@ -103,8 +101,6 @@ const ordersModule: ModuleDefinition = {
 
   i18n: {
     en: ordersI18nEn,
-    fr: ordersI18nFr,
-    ar: ordersI18nAr,
   },
 }
 

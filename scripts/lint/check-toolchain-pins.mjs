@@ -120,7 +120,7 @@ export function checkToolchainPins(root = repoRoot) {
 
   // Dockerfile. A project that does not ship a container deletes it.
   if (present('Dockerfile')) {
-    expectAll('Dockerfile', 'Node', /^FROM node:(\d+)/gm, nodeMajor)
+    expectAll('Dockerfile', 'Node', /^FROM(?: --platform=\S+)? node:(\d+)/gm, nodeMajor)
     expectAll('Dockerfile', 'pnpm', /pnpm@([\d.]+)/g, pnpmVersion)
     // The digits matter: the platform bindings are named for their target
     // (`vite-plus-linux-x64-gnu`, `-linux-arm64-gnu`), and without them in the

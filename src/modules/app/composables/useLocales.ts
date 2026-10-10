@@ -1,3 +1,7 @@
+import { getI18n } from '@/plugins/i18n'
+import { useLocaleCatalogs } from '@/state/locale-catalogs'
+import { useNotificationStore } from '@/stores/notification'
+import { reportError } from '~/lib/errors'
 /**
  * The locale switcher's model.
  *
@@ -47,12 +51,31 @@ export function normalizeLocale(input: string | string[] | null | undefined): Su
 
 export function useLocales() {
   const appStore = useAppStore()
+  const catalogs = useLocaleCatalogs()
 
   const current = computed<SupportedLocale>({
     get: () => normalizeLocale(appStore.locale),
     set: (value) => {
       const normalized = normalizeLocale(value)
-      if (normalized !== appStore.locale) appStore.setLocale(normalized)
+      const isLatest = catalogs.beginSelection()
+      const commit = () => {
+        if (isLatest() && normalized !== appStore.locale) appStore.setLocale(normalized)
+      }
+      if (catalogs.isReady(normalized)) commit()
+      else
+        void catalogs
+          .ensure(normalized)
+          .then(commit)
+          .catch((error: unknown) => {
+            reportError(error, { source: 'locale:selection' })
+            if (!isLatest()) return
+            const { t } = getI18n().global
+            useNotificationStore().add({
+              type: 'error',
+              title: t('common_error'),
+              message: t('errors.network'),
+            })
+          })
     },
   })
 

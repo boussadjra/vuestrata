@@ -14,8 +14,8 @@ consumer of that spec — CI, the Docker image, a fresh clone — fails at
 dependency. That is a build-stopping single point of failure outside this
 project's control.
 
-The registry release (`comark@0.6.2` at the time of writing) is **not** a
-drop-in replacement. It exports only `.`, `./plugins/*`, `./utils`, `./parse`
+The registry release (`comark@0.7.0`, checked on 2026-10-10) is **not** a
+drop-in replacement. It exports only `.`, `./plugins/*`, `./utils`, `./utils/trace`, `./parse`
 and `./render`. This project imports `comark/vue` and `comark/ast`, which exist
 only in the unreleased 1.0 line. Downgrading would mean rewriting every docs
 rendering component against an older API.

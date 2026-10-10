@@ -15,7 +15,7 @@ import { expireSession, logInAsDemoAdmin, signOut } from './helpers/auth'
 
 async function open(page: Page, path: string): Promise<void> {
   await logInAsDemoAdmin(page)
-  await page.goto(path)
+  await page.goto(path, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
 }
 
@@ -43,10 +43,16 @@ test.describe('list pages render server data', () => {
       .first()
       .fill('Northwind')
 
-    // Server-side search, debounced — the assertion waits it out rather than
-    // sleeping a fixed amount.
-    await expect(page.locator('tbody tr')).toHaveCount(1, { timeout: 15_000 })
-    await expect(page.locator('tbody')).toContainText('Northwind')
+    // The 48 fixtures include three Northwind companies. Wait for the server
+    // result, rather than the single placeholder row shown while it loads.
+    const rows = page.locator('tbody tr')
+    await expect(rows).toHaveCount(3, { timeout: 15_000 })
+    await expect(rows).toContainText([
+      'Northwind Logistics',
+      'Northwind Logistics 2',
+      'Northwind Logistics 3',
+    ])
+    await expect(page.getByText('Showing 1-3 of 3 rows')).toBeVisible()
   })
 
   test('orders: rows are rendered', async ({ page }) => {
@@ -122,6 +128,9 @@ test.describe('detail pages resolve a record', () => {
  * and in a state a screen reader and axe can make sense of.
  */
 test.describe('customer form: validation, server errors and unsaved changes', () => {
+  // These cases include sign-in, two form visits, saves and a full axe audit.
+  // Keep each assertion's timeout while allowing the complete workflow to finish.
+  test.describe.configure({ timeout: 60_000 })
   const BLOCKING_IMPACTS = new Set(['critical', 'serious'])
 
   async function audit(page: Page): Promise<void> {
@@ -155,14 +164,14 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
 
   /** The email of a customer that exists, read from its own edit form. */
   async function takenEmail(page: Page): Promise<string> {
-    await page.goto('/dashboard/customers/CUS-1000/edit')
+    await page.goto('/dashboard/customers/CUS-1000/edit', { waitUntil: 'domcontentloaded' })
     const email = page.locator('input[name="email"]')
     await expect(email).not.toHaveValue('', { timeout: 15_000 })
     return email.inputValue()
   }
 
   async function fillNewCustomer(page: Page, email: string): Promise<void> {
-    await page.goto('/dashboard/customers/new')
+    await page.goto('/dashboard/customers/new', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('form')).toBeVisible({ timeout: 15_000 })
     await page.locator('input[name="company"]').fill('Hopper Systems')
     await page.locator('input[name="contactName"]').fill('Grace Hopper')
@@ -321,10 +330,12 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
   ] as const) {
     test(`a refusal brings the refused field into view and focuses it (${locale})`, async ({
       page,
+      isMobile,
     }) => {
       // Short enough that the email field is off screen once the submit
-      // button, at the foot of the form, has been scrolled to.
-      await page.setViewportSize({ width: 1024, height: 420 })
+      // button, at the foot of the form, has been scrolled to. Keep mobile
+      // devices at their narrow layout instead of resizing them to desktop.
+      await page.setViewportSize({ width: isMobile ? 393 : 1024, height: 300 })
       await logInAsDemoAdmin(page)
       await setLocale(page, locale)
       const taken = await takenEmail(page)
@@ -332,7 +343,10 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
       await fillNewCustomer(page, taken)
       await expect(page.locator('html')).toHaveAttribute('dir', dir)
       const submit = page.locator('form button[type="submit"]')
-      await submit.scrollIntoViewIfNeeded()
+      await animationsSettled(page)
+      await submit.evaluate((element) =>
+        element.scrollIntoView({ block: 'end', behavior: 'instant' }),
+      )
       const email = page.locator('input[name="email"]')
       // Mobile browsers can pan their visual viewport without changing the
       // layout viewport IntersectionObserver uses. Check what the user sees.
@@ -342,7 +356,10 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
           const viewport = window.visualViewport
           const top = viewport?.offsetTop ?? 0
           const bottom = top + (viewport?.height ?? window.innerHeight)
-          return box.bottom > top && box.top < bottom
+          const centerY = box.top + box.height / 2
+          if (centerY <= top || centerY >= bottom) return false
+          // A fixed header can cover a field whose box intersects the viewport.
+          return document.elementFromPoint(box.left + box.width / 2, centerY) === element
         })
       }
       await expect.poll(emailIsOnScreen).toBe(false)

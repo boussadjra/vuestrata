@@ -40,7 +40,28 @@ const SHIPPED_DIR = path.join(here, 'shipped')
  * one. The same at 1.0.1-alpha.5 and 1.0.1-alpha.6 for all of them.
  */
 export const SHIPPED = {
-  Dockerfile: ['sha256-a8caa2c60d04f683c88eded52be1dabee7bef040f0b9da0b44ff30fff83a2e3e'],
+  'src/modules/app/plugins/i18n.ts': [
+    'sha256-d5eba11ebc490039b36eed673ad4b1a44403164cd9276dc1fd15b8b6712f5db4',
+    'sha256-1f93bab2bf4a1060fbc8eb3a6113e94ace0a3367f818d5c5754d39115778045e',
+  ],
+  'src/modules/app/composables/useActiveLocale.ts': [
+    'sha256-fb0150f770b3d890ea499cd73e24f4875e44a8762e11bc8f09119e8080a81835',
+    'sha256-b4e6496a0219fdff431936f4d3edf764a1de473190c44adb936bd5cfd9fb5414',
+  ],
+  'src/modules/app/composables/useLocales.ts': [
+    'sha256-203ce66e7af9550d5ce772b933ab21e249c88c0014002b34725ebb67773760e5',
+  ],
+  'src/modules/i18n.ts': [
+    'sha256-36c37c188451f50b91135cf0eb6ffe85c053e9bc83725ce804000c41494ee7c3',
+  ],
+  'src/modules/index.ts': [
+    'sha256-444fb60e299008d781c82f8e1e4899844d683f987ae188a621e125e235e8ca0b',
+    'sha256-2ec980b65ed65ad7d1384fb2d48eb6954ce9c1301029e3a03a7145967eb0f384',
+  ],
+  Dockerfile: [
+    'sha256-a8caa2c60d04f683c88eded52be1dabee7bef040f0b9da0b44ff30fff83a2e3e',
+    'sha256-2ed5578db4a9a3f1669cfaf055822a52f81e8e777766653e35683581975c1d8d',
+  ],
   'docker-compose.yml': ['sha256-5cd91c944945f00b13cabf370ac9909693c2e037bfe6556250da56edd7028a97'],
   '.dockerignore': ['sha256-01ef496e39e7a2110a2bccc7c5ab39822c368dc980f0590676065524a5fee38f'],
   '.github/dependabot.yml': [
@@ -54,6 +75,7 @@ export const SHIPPED = {
   ],
   'scripts/lint/check-toolchain-pins.mjs': [
     'sha256-f6f6fcbc3f9cfc6c7b3864fdbeb4974da883d36ca740909f1ef03c53187cadcb',
+    'sha256-3ebe32bcde520a753c05dc80e0377ac58109bef3c4cc55b1a324dcaa955b31d5',
   ],
 }
 

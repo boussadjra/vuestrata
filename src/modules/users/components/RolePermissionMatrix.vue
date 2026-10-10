@@ -59,7 +59,7 @@ const permissions = matrixPermissions()
             <td v-for="roleDef in roles" :key="roleDef.name" class="px-3 py-2 text-center">
               <span
                 v-if="roleDef.permissions.includes(perm)"
-                :class="[resolveIcon('check-circle'), 'inline-block h-4 w-4 text-green-500']"
+                :class="[resolveIcon('check-circle'), 'text-success inline-block h-4 w-4']"
               />
               <span
                 v-else

@@ -71,6 +71,9 @@ export default defineConfig({
   // its own config: `e2e/integration/playwright.config.ts`. Not part of this suite.
   testIgnore: ['integration/**'],
   fullyParallel: false,
+  // A cold browser workflow can include sign-in, lazy engines and an axe audit.
+  // Individual assertion limits remain unchanged.
+  timeout: 60_000,
   forbidOnly: !!env.CI,
   retries: env.CI ? 2 : 0,
   workers: env.PLAYWRIGHT_WORKERS ? Number(env.PLAYWRIGHT_WORKERS) : 1,

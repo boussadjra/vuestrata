@@ -112,6 +112,14 @@ describe('check-toolchain-pins', () => {
     expect(check(root).problems).toEqual([expect.stringContaining('Dockerfile: Node pinned to 20')])
   })
 
+  it('checks a native build-stage pin when Docker declares its platform', () => {
+    const native = DOCKERFILE.replace('FROM node:', 'FROM --platform=$BUILDPLATFORM node:')
+    expect(check(project({ Dockerfile: native })).problems).toEqual([])
+    expect(check(project({ Dockerfile: native.replace('node:22', 'node:20') })).problems).toEqual([
+      expect.stringContaining('Dockerfile: Node pinned to 20'),
+    ])
+  })
+
   it('still fails a workflow that is there and has drifted', () => {
     const root = project({ '.github/workflows/ci.yml': CI.replace("'22'", "'20'") })
 

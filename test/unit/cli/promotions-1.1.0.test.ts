@@ -286,13 +286,16 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
     expect(fixture.read(MAIN)).toBe(MAIN_SHELL)
   })
 
-  it('imports the Vite plugin in place of the inline one, to the byte', async () => {
+  it('imports the Vite plugin while keeping optional query optimization project-owned', async () => {
     seedProject()
 
     await upgrade()
 
-    // The T0-8 result: what a fresh clone's vite.config.ts is.
-    expect(fixture.read(VITE)).toBe(inRepo(VITE))
+    const required = lf(inRepo(VITE)).replace(
+      /\n      treeshake: \{[\s\S]*?\n      \},(?=\n      output:)/,
+      '',
+    )
+    expect(lf(fixture.read(VITE))).toBe(required)
   })
 
   it('leaves a vite.config.ts whose inline plugin was edited, with a note', async () => {

@@ -102,6 +102,12 @@ function createChecker() {
   const rootNames: string[] = parsed.fileNames.filter(
     (file: string) => !posix(file).startsWith(inRoot('test/')),
   )
+  // These catalogs are dynamically discovered by import.meta.glob at runtime;
+  // explicitly include them in the independent kept-file type audit.
+  rootNames.push(
+    inRoot('src/modules/app/locales/fr.json'),
+    inRoot('src/modules/app/locales/ar.json'),
+  )
   const options = { ...parsed.options, noEmit: true }
 
   const key = (file: string) => posix(path.resolve(file)).toLowerCase()

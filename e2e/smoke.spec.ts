@@ -36,6 +36,16 @@ function collectConsoleErrors(page: Page): string[] {
   page.on('console', (message: ConsoleMessage) => {
     if (message.type() !== 'error') return
     const text = message.text()
+    // Hosted fonts may be unreachable in an isolated runner. The app has font
+    // fallbacks; keep policy violations and failures of its own assets visible.
+    if (
+      /https:\/\/fonts\.(?:googleapis|gstatic)\.com\//.test(text) &&
+      !/Content[- ]Security[- ]Policy/i.test(text) &&
+      /downloadable font|CORS request did not succeed|NetworkError when attempting to fetch resource/i.test(
+        text,
+      )
+    )
+      return
     if (IGNORED_CONSOLE_PATTERNS.some((pattern) => pattern.test(text))) return
     errors.push(text)
   })

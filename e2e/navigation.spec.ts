@@ -84,8 +84,9 @@ test.describe('Components page', () => {
     // and as the `# Form Builder` the markdown opens with, and the locator
     // above matched two elements as soon as the markdown had rendered: a test
     // that passed or failed on timing. Wait for the markdown, then hold the
-    // page to one level-one heading.
-    await expect(page.locator('article.docs-content h2').first()).toBeVisible()
+    // page to one level-one heading. A cold renderer and syntax highlighter
+    // can outlast five seconds alongside the WebKit accessibility matrix.
+    await expect(page.locator('article.docs-content h2').first()).toBeVisible({ timeout: 15_000 })
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
   })
 

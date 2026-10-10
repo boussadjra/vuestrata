@@ -64,6 +64,10 @@ export async function logInAsDemoAdmin(page: Page): Promise<void> {
   await page.getByRole('button', { name: /^sign in$/i }).click()
   await expect(page).toHaveURL(/\/dashboard(?:\/|$)/, { timeout: 10_000 })
   await waitForSignedInShell(page)
+  // The shell can render while the redirected route still downloads. A hard
+  // navigation at that point cancels its imports and can trigger chunk recovery.
+  await expect(page.locator('main h1').first()).toHaveText('Dashboard', { timeout: 30_000 })
+  await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 30_000 })
 }
 
 /**

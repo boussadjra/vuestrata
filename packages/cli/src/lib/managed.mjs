@@ -79,6 +79,7 @@ export const MANAGED_FILES = [
   'src/modules/app/stores/api-runtime.ts',
   'src/modules/app/state/runtime-backends.ts',
   'src/modules/app/state/build-info.ts',
+  'src/modules/app/state/locale-catalogs.ts',
   'src/modules/app/plugins/route-guard.ts',
   'src/modules/app/plugins/session-restore.ts',
   // Re-exports the query options from the bootstrap, which is where they live.

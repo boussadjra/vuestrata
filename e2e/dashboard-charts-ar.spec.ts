@@ -16,10 +16,9 @@ test('Arabic dashboard renders ECharts canvases', async ({ page }) => {
   await page.addInitScript(({ key }) => localStorage.setItem(key, 'ar'), {
     key: APPEARANCE_KEYS.locale,
   })
-  await page.goto('/dashboard')
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
   await expect(page.locator('main').first()).toBeVisible({ timeout: 20_000 })
-  await page.waitForLoadState('networkidle')
 
   const hosts = page.locator('.echarts-host canvas')
   await expect(hosts.first()).toBeVisible({ timeout: 15_000 })
@@ -63,14 +62,13 @@ test('switching to Arabic in-session keeps ECharts canvases', async ({ page }) =
   page.on('pageerror', (err) => errors.push(err.message))
 
   await logInAsDemoAdmin(page)
-  await page.goto('/dashboard')
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
   await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 15_000 })
 
   await page.getByRole('combobox', { name: /language|langue|اللغة/i }).click()
   await page.getByRole('option', { name: /العربية|Arabic/i }).click()
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
-  await page.waitForLoadState('networkidle')
 
   const hosts = page.locator('.echarts-host canvas')
   await expect(hosts.first()).toBeVisible({ timeout: 15_000 })

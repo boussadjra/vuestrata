@@ -36,10 +36,10 @@ ARG VUESTRATA_API_URL=/api
 ARG VUESTRATA_BASE_PATH=/
 
 # ─── Stage 1: build ──────────────────────────────────────────────────────────
-FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
+FROM --platform=$BUILDPLATFORM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
 
 # The architecture this stage runs on, set by BuildKit: amd64 or arm64.
-ARG TARGETARCH
+ARG BUILDARCH
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -48,9 +48,10 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 # The vite-plus CLI runs on a native binding for the platform it runs on. This
 # line used to install the linux-x64 one unconditionally, and npm refuses a
 # package built for another CPU, so the image could not be built on arm64
-# (Apple Silicon, Graviton) at all. The legacy builder sets no TARGETARCH;
-# dpkg reports the same names.
-RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}" \
+# (Apple Silicon, Graviton) at all. Web assets are portable, so the builder
+# stays native even for a different runtime target. This avoids emulating the
+# Node/Rolldown build; only dist/ crosses into the target's nginx image.
+RUN arch="${BUILDARCH:-$(dpkg --print-architecture)}" \
  && case "$arch" in \
       amd64) binding=@voidzero-dev/vite-plus-linux-x64-gnu@0.2.9 ;; \
       arm64) binding=@voidzero-dev/vite-plus-linux-arm64-gnu@0.2.9 ;; \

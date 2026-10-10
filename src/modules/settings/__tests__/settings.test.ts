@@ -1,6 +1,8 @@
 import { setActivePinia, createPinia } from 'pinia'
 import { describe, it, expect, beforeEach } from 'vite-plus/test'
 
+import { getI18n } from '@/plugins/i18n'
+
 import settingsModule, { useSettingsStore } from '../index'
 
 describe('settings module', () => {
@@ -26,11 +28,11 @@ describe('settings module', () => {
       expect(settingsModule.navItems![0]!.to).toBe('/dashboard/settings')
     })
 
-    it('provides i18n for en, fr, and ar', () => {
+    it('provides English metadata and discovered French and Arabic messages', () => {
       expect(settingsModule.i18n).toBeDefined()
       expect(settingsModule.i18n!['en']).toBeDefined()
-      expect(settingsModule.i18n!['fr']).toBeDefined()
-      expect(settingsModule.i18n!['ar']).toBeDefined()
+      const key = Object.keys(settingsModule.i18n!.en!)[0]!
+      for (const locale of ['en', 'fr', 'ar']) expect(getI18n().global.te(key, locale)).toBe(true)
     })
   })
 

@@ -671,9 +671,7 @@ async function onSaved() {
 
 function barrelTemplate(n, { nav, icon }) {
   return `import type { ModuleDefinition } from '../types'
-import ${n.entities}I18nAr from './i18n/ar.json'
 import ${n.entities}I18nEn from './i18n/en.json'
-import ${n.entities}I18nFr from './i18n/fr.json'
 
 ${header(
   n,
@@ -780,8 +778,6 @@ const ${n.entities}Module: ModuleDefinition = {
 
   i18n: {
     en: ${n.entities}I18nEn,
-    fr: ${n.entities}I18nFr,
-    ar: ${n.entities}I18nAr,
   },
 }
 

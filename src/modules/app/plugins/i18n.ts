@@ -2,15 +2,12 @@ import { storeToRefs } from 'pinia'
 import { type App, watch } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { useLocaleCatalogs, type LocaleCatalog } from '@/state/locale-catalogs'
 import { useAppStore } from '@/stores/app'
 import { appPathname } from '~/lib/config'
 
-import ar from '../locales/ar.json'
-import arOverrides from '../locales/ar.overrides.json'
 import en from '../locales/en.json'
 import enOverrides from '../locales/en.overrides.json'
-import fr from '../locales/fr.json'
-import frOverrides from '../locales/fr.overrides.json'
 // `appearance.ts` owns the locale list — it also holds LOCALE_METADATA and
 // RTL_LOCALES, so adding a language stays a single-file change. This module
 // used to re-declare the same tuple, which meant a fourth locale could be
@@ -59,9 +56,26 @@ export const i18n = createI18n({
   fallbackLocale: 'en',
   messages: {
     en: withOverrides(en, enOverrides),
-    fr: withOverrides(fr, frOverrides),
-    ar: withOverrides(ar, arOverrides),
-  },
+  } as Record<string, typeof en>,
+})
+
+// English is the fallback. Other catalogs and their project-owned overrides
+// are fetched only when needed, including locales a project adds later.
+const LOCALE_FILES = import.meta.glob<LocaleCatalog>('../locales/*.json', { import: 'default' })
+const SHELL_CATALOGS = SUPPORTED_LOCALES.flatMap((locale) => {
+  if (locale === 'en') return []
+  const catalog = LOCALE_FILES[`../locales/${locale}.json`]
+  const overrides = LOCALE_FILES[`../locales/${locale}.overrides.json`]
+  if (!catalog) return []
+  return [
+    {
+      locale,
+      load: async () => {
+        const [base, own] = await Promise.all([catalog(), overrides?.() ?? {}])
+        return withOverrides(base, own)
+      },
+    },
+  ]
 })
 
 /**
@@ -88,6 +102,9 @@ if (import.meta.hot) {
 }
 
 export function getI18n() {
+  // Register on access, after both modules initialize. The coordinator uses
+  // this getter too; registration at module evaluation creates an import cycle.
+  for (const { locale, load } of SHELL_CATALOGS) useLocaleCatalogs().register(locale, 'shell', load)
   return i18n
 }
 
@@ -107,12 +124,13 @@ function readPathname(): string {
  * stays English if Settings is mutated from another tab.
  */
 export function installI18n(app: App) {
+  getI18n()
   const { locale } = storeToRefs(useAppStore())
 
   watch(
     locale,
     (value) => {
-      i18n.global.locale.value = resolveActiveLocale(readPathname(), toSupportedLocale(value))
+      useLocaleCatalogs().sync(resolveActiveLocale(readPathname(), toSupportedLocale(value)))
     },
     { immediate: true },
   )

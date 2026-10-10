@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vite-plus/test'
 
+import { getI18n } from '@/plugins/i18n'
+
 import billingModule, { PLANS, billingModuleKeys as billingKeys } from '../index'
 
 describe('billing module', () => {
@@ -22,11 +24,11 @@ describe('billing module', () => {
       expect(billingModule.navItems![0]!.to).toBe('/dashboard/billing')
     })
 
-    it('provides i18n for en, fr, and ar', () => {
+    it('provides English metadata and discovered French and Arabic messages', () => {
       expect(billingModule.i18n).toBeDefined()
       expect(billingModule.i18n!['en']).toBeDefined()
-      expect(billingModule.i18n!['fr']).toBeDefined()
-      expect(billingModule.i18n!['ar']).toBeDefined()
+      const key = Object.keys(billingModule.i18n!.en!)[0]!
+      for (const locale of ['en', 'fr', 'ar']) expect(getI18n().global.te(key, locale)).toBe(true)
     })
   })
 

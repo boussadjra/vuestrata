@@ -107,10 +107,11 @@ describe('appEnv', () => {
 })
 
 describe('the seeded deploy.config.ts', () => {
-  it('declares nothing, so the app behaves exactly as it did without it', async () => {
+  it('adds build-only chunk checks without changing browser configuration', async () => {
     const { default: shipped } =
       await vi.importActual<typeof import('~/config/deploy.config')>('~/config/deploy.config')
 
-    expect(shipped).toEqual({})
+    expect(Object.keys(shipped)).toEqual(['bundle'])
+    expect(shipped.bundle?.onDemandChunks?.add).toContain('collection-queries')
   })
 })

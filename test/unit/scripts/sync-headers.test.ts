@@ -1100,8 +1100,8 @@ describe('reading the project from Node', () => {
     expect(committed.split('\n').filter((line) => line.startsWith('text '))).toHaveLength(1)
   })
 
-  it('loads the seeded deploy.config.ts, which declares nothing', () => {
-    expect(underNode('return loader.loadDeployConfig()')).toEqual({})
+  it('loads build-only chunk checks without changing headers or runtime variables', () => {
+    expect(underNode('return Object.keys(await loader.loadDeployConfig())')).toEqual(['bundle'])
   })
 
   it('loads a config that declares variables and headers, through the ~ alias', () => {

@@ -261,7 +261,7 @@ export const useModuleStore = defineStore('modules', () => {
    */
   async function initModules(definitions: ModuleDefinition[]): Promise<void> {
     registerModules(definitions)
-    loadModuleTranslations(definitions)
+    await loadModuleTranslations(definitions)
 
     // Validate that every permission referenced in built-in role definitions
     // is now registered. Running this AFTER module registration (rather than

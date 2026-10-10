@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import settingsI18nAr from './i18n/ar.json'
 import settingsI18nEn from './i18n/en.json'
-import settingsI18nFr from './i18n/fr.json'
 
 /**
  * Settings Module
@@ -59,8 +57,6 @@ const settingsModule: ModuleDefinition = {
 
   i18n: {
     en: settingsI18nEn,
-    fr: settingsI18nFr,
-    ar: settingsI18nAr,
   },
 }
 

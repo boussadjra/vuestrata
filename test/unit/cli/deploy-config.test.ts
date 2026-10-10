@@ -96,12 +96,12 @@ describe.skipIf(!CLI_PRESENT)('the deploy.config.ts seam', () => {
     expect(real(SEAM)).not.toMatch(/(?:app|vuestrata):[\w-]+-start/)
   })
 
-  it('ships empty, and holds data only', () => {
+  it('ships build-only chunk checks, and holds data only', () => {
     const source = real(SEAM)
     const code = source.replace(/\/\*[\s\S]*?\*\//g, '')
 
-    // The app behaves exactly as it did before the file existed.
-    expect(code).toMatch(/export default defineDeployConfig\(\{\}\)/)
+    expect(code).toContain('onDemandChunks:')
+    expect(code).not.toMatch(/^\s*(?:env|runtime|headers):/m)
     // Its types come from a managed module, so a release can add a field
     // without breaking a copy the project has since made its own. zod is the
     // only other value it may import: the header generator loads this file in

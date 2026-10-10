@@ -2,11 +2,16 @@
  * Loads and merges module translations into the global i18n instance.
  */
 import { createScopedLogger } from '~/lib/logger'
+import { SUPPORTED_LOCALES } from '~/plugins/appearance'
 import { getI18n } from '~/plugins/i18n'
+import { useLocaleCatalogs } from '~/state/locale-catalogs'
 
 import type { ModuleDefinition } from './types'
 
 const i18nLogger = createScopedLogger('modules:i18n')
+const CATALOG_FILES = import.meta.glob<Record<string, string>>('./*/i18n/*.json', {
+  import: 'default',
+})
 
 /**
  * Merge shared + per-module translations into the vue-i18n instance.
@@ -23,8 +28,9 @@ const i18nLogger = createScopedLogger('modules:i18n')
  * Reported in dev only. In production the app should render, not lecture, and
  * the report costs a full key-by-key scan of every locale.
  */
-export function loadModuleTranslations(modules: ModuleDefinition[]): void {
+export async function loadModuleTranslations(modules: ModuleDefinition[]): Promise<void> {
   let i18n: ReturnType<typeof getI18n> | null = null
+  const catalogs = useLocaleCatalogs()
 
   /** locale → key → module ids that defined it */
   const owners = new Map<string, Map<string, string[]>>()
@@ -48,10 +54,20 @@ export function loadModuleTranslations(modules: ModuleDefinition[]): void {
       }
 
       i18n.global.mergeLocaleMessage(locale, messages)
+      // Eager project catalogs remain supported. Reapply after the lazy shell
+      // so module precedence is the same regardless of download completion.
+      if (locale !== 'en')
+        catalogs.register(locale, `module/${mod.config.id}`, async () => messages)
+    }
+    for (const locale of SUPPORTED_LOCALES) {
+      if (mod.i18n[locale]) continue
+      const loader = CATALOG_FILES[`./${mod.config.id}/i18n/${locale}.json`]
+      if (loader) catalogs.register(locale, `module/${mod.config.id}`, loader)
     }
   }
 
   if (import.meta.env.DEV) reportCollisions(owners)
+  await catalogs.activate(catalogs.requested.value)
 }
 
 function reportCollisions(owners: Map<string, Map<string, string[]>>): void {

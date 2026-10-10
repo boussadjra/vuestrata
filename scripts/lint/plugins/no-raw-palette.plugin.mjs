@@ -5,7 +5,7 @@ import path from 'node:path'
  * Forbid raw Tailwind palette utilities where a semantic token exists.
  *
  * Vuestrata ships 12 themes. A component that hardcodes `bg-green-50` or
- * `text-red-500` renders identically on all ten, ignoring the theme's ramps,
+ * `text-red-500` renders identically on all twelve, ignoring the theme's ramps,
  * and needs a hand-written `dark:` twin that is easy to forget or get wrong.
  * The semantic layer in `src/modules/app/styles/semantic.css` exists precisely
  * so meaning ("this is a destructive action") is expressed once.
@@ -85,19 +85,9 @@ const INLINE_ALLOW_MARKER = 'lint-allow-raw-palette'
  * Lower a number when you migrate a file; delete the entry at zero. Never
  * raise one — that is what the rule exists to prevent.
  */
-/**
- * The users entries below used to be one line: `src/modules/users/pages/users.vue`
- * at 22. Splitting that page into a route adapter, a screen and a presentation
- * module moved the same 22 violations into three files without changing one of
- * them (20 + 1 + 1). Relocating a debt is not paying it — the total is
- * unchanged on purpose, and each file is still a migration waiting to happen.
- */
-const BASELINE = new Map([
-  ['src/modules/showcase/pages/tables.vue', 25],
-  ['src/modules/users/presentation.ts', 20],
-  ['src/modules/users/components/UsersScreen.vue', 1],
-  ['src/modules/users/components/RolePermissionMatrix.vue', 1],
-])
+// All inherited occurrences have been migrated. Keep the zero baseline so a
+// future raw utility fails rather than silently establishing a new allowance.
+const BASELINE = new Map()
 
 export function noRawPalettePlugin() {
   return {

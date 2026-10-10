@@ -19,18 +19,17 @@ import type { BuiltinPermission, IconName, Permission, Role } from '~/types'
 /**
  * Role badge tints.
  *
- * Deliberately a fixed ramp rather than theme tokens: the point is to tell six
- * roles apart at a glance in a legend and a table cell, and a themed ramp would
- * collapse several of them onto the same hue. The role name is always rendered
- * alongside, so the colour never carries the meaning alone.
+ * Distinct semantic families keep the legend readable in every theme and
+ * colour mode. The role name is always rendered alongside, so colour never
+ * carries the meaning alone.
  */
 const ROLE_BADGE_CLASS: Record<BuiltinRole, string> = {
-  super_admin: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  admin: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  manager: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  member: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  viewer: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  guest: 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400',
+  super_admin: 'bg-destructive-subtle text-destructive',
+  admin: 'bg-warning-subtle text-warning',
+  manager: 'bg-info-subtle text-info',
+  member: 'bg-success-subtle text-success',
+  viewer: 'bg-sidebar-accent text-sidebar-accent-foreground',
+  guest: 'bg-muted text-muted-foreground',
 }
 
 /**
