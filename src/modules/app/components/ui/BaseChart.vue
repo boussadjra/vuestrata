@@ -11,21 +11,52 @@ import { useI18n } from 'vue-i18n'
  * the entry graph, that in turn put `charts-vendor` — 778 KB raw, 264 KB
  * gzipped — into index.html's modulepreload list. Every visitor downloaded the
  * whole charting engine before first paint, including on the login page, which
- * has no chart on it. The manualChunks comment in vite.config.ts already said
- * charts are "almost never needed on the first paint"; the import made that
- * untrue.
+ * has no chart on it. The comment on the charts-vendor group in vite.config.ts
+ * says the engine is "fetched by the first chart a page renders"; this
+ * component loading it on demand is what makes that true.
  *
  * The type import above stays static: types are erased and cost nothing.
  */
-const VChart = defineAsyncComponent(async () => {
-  const [{ default: Chart }, { ensureEchartsRegistered }] = await Promise.all([
-    import('vue-echarts'),
-    import('~/lib/echarts-setup'),
-  ])
-  // Registration must happen before the first render, not at module scope of
-  // this file — that was the other half of the eager import.
-  ensureEchartsRegistered()
-  return Chart
+const VChart = defineAsyncComponent({
+  loader: async () => {
+    const [{ default: Chart }, { ensureEchartsRegistered }] = await Promise.all([
+      import('vue-echarts'),
+      import('~/lib/echarts-setup'),
+    ])
+    // Registration must happen before the first render, not at module scope of
+    // this file — that was the other half of the eager import.
+    ensureEchartsRegistered()
+    return Chart
+  },
+  // Without one, a charting chunk that cannot be fetched is a failed loader
+  // nobody handles, and the route error boundary replaces the whole page for
+  // it: a dashboard of tables and totals gone because one canvas could not be
+  // drawn. With one, the chart says so where it would have been, and the rest
+  // of the page stays (the boundary leaves a loader alone when the component
+  // shows an error of its own).
+  errorComponent: defineComponent({
+    name: 'BaseChartUnavailable',
+    // Declared so it is not rendered as an attribute. Reported by Vue's error
+    // handling before this component is shown, so nothing here reports it.
+    props: { error: { type: null, default: undefined } },
+    setup() {
+      const { t } = useI18n()
+      // No live region: a page of charts would announce the same sentence once
+      // for each of them. The figure's title and its data table are still there.
+      return () =>
+        h(
+          'div',
+          {
+            'data-testid': 'chart-load-error',
+            // The canvas host is pinned to LTR; this is a sentence, not a canvas.
+            dir: 'auto',
+            class:
+              'border-border bg-muted text-muted-foreground flex size-full items-center justify-center rounded-[var(--shape-radius)] border border-dashed p-4 text-center text-sm',
+          },
+          t('chart_load_error'),
+        )
+    },
+  }),
 })
 
 /** One row of the non-visual equivalent of the chart. */

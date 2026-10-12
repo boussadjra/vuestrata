@@ -5,6 +5,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { GENERATORS, runAdd } from './commands/add.mjs'
+import { runAdopt } from './commands/adopt.mjs'
 import { runDoctor } from './commands/doctor.mjs'
 import { runEject } from './commands/eject.mjs'
 import { runInit } from './commands/init.mjs'
@@ -35,7 +36,7 @@ const COMMANDS = {
   },
   add: {
     usage: 'add <kind> <name> [options]',
-    summary: 'Scaffold a module, page, component, theme or icon set.',
+    summary: 'Scaffold a module, page, component, theme, icon set or CI workflow.',
   },
   diff: {
     usage: 'diff [--json]',
@@ -49,9 +50,14 @@ const COMMANDS = {
     usage: 'doctor [--json]',
     summary: 'Check that slots resolve, anchors survive, and the lockfile agrees with disk.',
   },
+  adopt: {
+    usage: 'adopt <path...> [--dry-run] [--json]',
+    summary: 'After merging a file from .vuestrata/incoming/ by hand, record it as clean.',
+  },
   eject: {
-    usage: 'eject [--keep <ids>] [--keep-docs] [--dry-run]',
-    summary: 'Remove the demo modules, showcase and docs site, and stop tracking them.',
+    usage: 'eject [--keep <ids>] [--no-keep-customers] [--keep-docs] [--keep-ci] [--dry-run]',
+    summary:
+      'Remove the demo modules, showcase, docs site and maintainer-only files, and stop tracking them. Keeps customers, the reference module, unless --no-keep-customers.',
   },
 }
 
@@ -121,6 +127,9 @@ async function main() {
 
     case 'doctor':
       return runDoctor({ root, version, flags })
+
+    case 'adopt':
+      return runAdopt({ root, version, positional, flags })
 
     case 'eject':
       return runEject({ root, flags })

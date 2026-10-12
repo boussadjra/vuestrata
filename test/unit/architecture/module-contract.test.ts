@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vite-plus/test'
 
 import { solarIconMap } from '@/icons/maps/solar'
 import enShell from '@/locales/en.json'
+import enOverrides from '@/locales/en.overrides.json'
 import { NAV_GROUPS } from '@/modules/nav-groups'
 import { appModules } from '@/modules/setup'
 import type { ModuleDefinition, ModuleNavItem } from '@/modules/types'
@@ -39,7 +40,9 @@ const TYPED_ROUTER_FILE = path.join(ROOT, 'typed-router.d.ts')
 const ICON_NAMES = new Set(Object.keys(solarIconMap))
 const NAV_GROUP_IDS = new Set(NAV_GROUPS.map((group) => group.id))
 const PERMISSIONS = new Set<string>(BUILTIN_PERMISSIONS)
-const SHELL_KEYS = new Set(Object.keys(enShell))
+// The catalog and the project's overrides, which `plugins/i18n.ts` merges into
+// one: a shell key the project added lives in `en.overrides.json`.
+const SHELL_KEYS = new Set([...Object.keys(enShell), ...Object.keys(enOverrides)])
 
 /**
  * Layout names are read from the router source rather than imported: importing
@@ -263,7 +266,16 @@ describe('module contract', () => {
     })
 
     it.runIf(Boolean(mod.i18n))('ships the same keys in every locale it declares', () => {
-      const locales = Object.entries(mod.i18n!)
+      const messagesByLocale = { ...mod.i18n }
+      const catalogDir = path.join(MODULES_DIR, id, 'i18n')
+      if (fs.existsSync(catalogDir)) {
+        for (const file of fs.readdirSync(catalogDir).filter((name) => name.endsWith('.json'))) {
+          messagesByLocale[file.slice(0, -5)] ??= JSON.parse(
+            fs.readFileSync(path.join(catalogDir, file), 'utf8'),
+          )
+        }
+      }
+      const locales = Object.entries(messagesByLocale)
       const union = new Set(locales.flatMap(([, messages]) => Object.keys(messages)))
       for (const [locale, messages] of locales) {
         const missing = [...union].filter((key) => !(key in messages))

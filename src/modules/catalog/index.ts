@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import catalogI18nAr from './i18n/ar.json'
 import catalogI18nEn from './i18n/en.json'
-import catalogI18nFr from './i18n/fr.json'
 
 /**
  * Catalog Module
@@ -81,8 +79,6 @@ const catalogModule: ModuleDefinition = {
 
   i18n: {
     en: catalogI18nEn,
-    fr: catalogI18nFr,
-    ar: catalogI18nAr,
   },
 }
 

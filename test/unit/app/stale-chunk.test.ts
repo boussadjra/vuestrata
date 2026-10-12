@@ -109,4 +109,38 @@ describe('handleStaleChunkError', () => {
     expect(reload).not.toHaveBeenCalled()
     getItem.mockRestore()
   })
+
+  it('refuses to reload when the attempt cannot be recorded', () => {
+    // Reading works and writing does not: quota exceeded, some private modes.
+    // The failed write used to be swallowed and the reload went ahead, so every
+    // call reloaded, and for a first route that is a loop with no click in it.
+    const reload = vi.fn()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+    })
+    const error = new Error('Failed to fetch dynamically imported module')
+
+    try {
+      expect(handleStaleChunkError(error, reload)).toBe(false)
+      expect(handleStaleChunkError(error, reload)).toBe(false)
+      expect(handleStaleChunkError(error, reload)).toBe(false)
+      expect(reload).not.toHaveBeenCalled()
+    } finally {
+      setItem.mockRestore()
+    }
+  })
+
+  it('refuses to reload when the write is accepted and does not stick', () => {
+    const reload = vi.fn()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => undefined)
+
+    try {
+      expect(
+        handleStaleChunkError(new Error('Failed to fetch dynamically imported module'), reload),
+      ).toBe(false)
+      expect(reload).not.toHaveBeenCalled()
+    } finally {
+      setItem.mockRestore()
+    }
+  })
 })

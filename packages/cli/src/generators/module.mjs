@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { inSlot, slot } from '../lib/manifest.mjs'
 import { insertBeforeSentinel, insertImport, SENTINELS } from '../lib/registry.mjs'
 
@@ -18,17 +21,35 @@ import { insertBeforeSentinel, insertImport, SENTINELS } from '../lib/registry.m
  *   - grant the new permissions to any role. That is an access-control
  *     decision, and silently handing `super_admin` a new capability is not the
  *     generator's call to make.
+ *
+ * Nor does it edit anything Vuestrata owns: the module's permissions are
+ * declared in `app/config/rbac.overrides.ts`, a seeded file, never in
+ * `core/lib/rbac/`. An edit there would cost that file its upgrades.
  */
 export function planModule({ plan, names, options }) {
   const n = names
   const dir = inSlot(plan.manifest, 'modulesDir', n.moduleId)
   const nav = options.navGroup ?? 'work'
   const icon = options.icon ?? 'widget'
+  const overrides = slot(plan.manifest, 'rbacOverrides')
+
+  // Checked here rather than left to `plan.validate()`, whose "does not exist"
+  // says nothing about why a project that never moved the file lacks it.
+  if (!fs.existsSync(path.join(plan.root, overrides))) {
+    throw new Error(
+      `${overrides} does not exist. It is where this project declares its permissions, and a ` +
+        'release newer than yours adds it: run `vuestrata upgrade` first, or set ' +
+        'slots.rbacOverrides in vuestrata.config.json if you moved it.',
+    )
+  }
 
   plan.addFile(`${dir}/types.ts`, typesTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/query-keys.ts`, queryKeysTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/presentation.ts`, presentationTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/composables/use${n.Entities}.ts`, composablesTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/composables/use${n.Entity}Form.ts`, formComposableTemplate(n), {
+    own: 'seeded',
+  })
   plan.addFile(`${dir}/mocks/fixtures.ts`, fixturesTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/mocks/${n.moduleId}.handlers.ts`, handlersTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/pages/index.vue`, listPageTemplate(n), { own: 'seeded' })
@@ -52,19 +73,17 @@ export function planModule({ plan, names, options }) {
     (source) => insertBeforeSentinel(source, SENTINELS.modules, `${n.entities}Module,`),
   )
 
-  // `BuiltinPermission` is a closed union, so a module's own permissions must
-  // be declared there before its routes can reference them. Without this the
-  // module does not compile — which is the type system doing its job, but it
-  // is not something the generator should leave for a human to discover.
-  plan.addEdit(
-    slot(plan.manifest, 'permissions'),
-    `declare '${n.moduleId}:read' and '${n.moduleId}:manage'`,
-    (source) => {
-      let next = insertBeforeSentinel(source, SENTINELS.permissions, `| '${n.moduleId}:read'`)
-      next = insertBeforeSentinel(next, SENTINELS.permissions, `| '${n.moduleId}:manage'`)
-      return next
-    },
-  )
+  // `Permission` is a closed union, so a module's own permissions must be
+  // declared before its routes can reference them. Without this the module does
+  // not compile — which is the type system doing its job, but it is not
+  // something the generator should leave for a human to discover. They go in
+  // the project's own file, by declaration merging, so `core/lib/rbac/` stays
+  // exactly what Vuestrata shipped.
+  plan.addEdit(overrides, `declare '${n.moduleId}:read' and '${n.moduleId}:manage'`, (source) => {
+    let next = insertBeforeSentinel(source, SENTINELS.permissions, `'${n.moduleId}:read': true`)
+    next = insertBeforeSentinel(next, SENTINELS.permissions, `'${n.moduleId}:manage': true`)
+    return next
+  })
 
   plan.addNote(
     `Replace the placeholder fields in ${dir}/types.ts with the real ${n.EntityLabel} shape — ` +
@@ -72,8 +91,8 @@ export function planModule({ plan, names, options }) {
   )
   plan.addNote(
     `Grant '${n.moduleId}:read' / '${n.moduleId}:manage' to whichever roles should have them in ` +
-      'src/modules/core/lib/rbac/inheritance.ts. Until you do, only the permissions already ' +
-      'held by a role apply and the pages stay inaccessible.',
+      `the grants of ${overrides}, e.g. manager: ['${n.moduleId}:read', '${n.moduleId}:manage']. ` +
+      'Until you do, no role holds them and the pages stay inaccessible to everyone.',
   )
   plan.addNote(
     `Translate ${dir}/i18n/fr.json and ar.json — they ship with English copy so the ` +
@@ -128,11 +147,21 @@ export interface ${n.Entity}Filters extends CollectionFilters {
   status?: ${n.Entity}Status | 'all'
 }
 
-/** Fields a form may submit. Server-owned fields are deliberately absent. */
-export const ${n.entity}DraftSchema = ${n.entity}Schema.pick({
-  name: true,
-  status: true,
-  notes: true,
+/**
+ * Fields a form may submit. Server-owned fields are deliberately absent.
+ *
+ * The rules live here, not in ${n.entity}Schema: that one describes what the
+ * server sends, and a record written before a rule existed must still load.
+ * The form validates against this before it submits and the mock backend
+ * validates against it on arrival, so the two reject the same things.
+ *
+ * No messages: the validation catalog words each check in the reader's
+ * language. Give a check its own message only when the generic one would not
+ * say enough.
+ */
+export const ${n.entity}DraftSchema = ${n.entity}Schema.pick({ status: true }).extend({
+  name: z.string().trim().min(1).max(120),
+  notes: z.string().max(2000),
 })
 
 export type ${n.Entity}Draft = z.infer<typeof ${n.entity}DraftSchema>
@@ -195,6 +224,10 @@ const ${n.entities}Api = createCollectionApi<${n.Entity}, ${n.Entity}Filters, ${
   resource: '${n.moduleId}',
   schema: ${n.entity}Schema,
   keys: ${n.entities}ModuleKeys,
+  // Speaks the project's collection dialect: \`collection\` (or the \`backend\`
+  // preset) in app/config/api.overrides.ts, else Vuestrata's own contract. If
+  // this one resource is served differently, name its dialect here:
+  //   dialect: dialects.spring,   // from '~/lib/api/dialects'
 })
 
 export const use${n.Entities}Query = ${n.entities}Api.useList
@@ -426,6 +459,105 @@ const { item, isPending, isError } = use${n.Entity}Query(id)
 `
 }
 
+function formComposableTemplate(n) {
+  return `${header(
+    n,
+    `The ${n.EntityLabel.toLowerCase()} form's workflow: what it starts from, and what saving does.
+ *
+ * \`pages/form.vue\` only lays the fields out and decides where to go next. The
+ * mutation, the choice between create and update, and the confirmation toast
+ * are the feature's, so they live here.
+ *
+ * \`save\` is the \`UiForm\` action. It lets a failure reject: \`UiForm\` catches
+ * it, puts the server's messages on the fields they are about, and shows the
+ * rest above the submit button. Nothing here handles an error.`,
+  )}
+import type { Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import { useNotificationStore } from '@/stores/notification'
+
+import {
+  ${n.ENTITY}_STATUSES,
+  ${n.entity}DraftSchema,
+  type ${n.Entity},
+  type ${n.Entity}Draft,
+} from '../types'
+import {
+  useCreate${n.Entity}Mutation,
+  useUpdate${n.Entity}Mutation,
+  use${n.Entity}Query,
+} from './use${n.Entities}'
+
+/** What a new record starts as. Text starts empty, so emptying a box again is not a change. */
+const NEW_${n.ENTITY}: ${n.Entity}Draft = { name: '', status: 'draft', notes: '' }
+
+/** \`id\` is the record being edited, or \`undefined\` for a new one. */
+export function use${n.Entity}Form(id: Ref<string | undefined>) {
+  const { t } = useI18n()
+  const notifications = useNotificationStore()
+
+  const isEdit = computed(() => Boolean(id.value))
+
+  // \`useDetail\` stays idle while the id is undefined, so the create route
+  // issues no request.
+  const { item: existing, isPending } = use${n.Entity}Query(id)
+  const isLoading = computed(() => isEdit.value && isPending.value)
+
+  const createMutation = useCreate${n.Entity}Mutation()
+  const updateMutation = useUpdate${n.Entity}Mutation()
+
+  /**
+   * \`undefined\` until the record arrives, so the form is not mounted with blank
+   * values and then re-seeded: a form takes its \`initialValues\` when it mounts.
+   */
+  const initialValues = computed<${n.Entity}Draft | undefined>(() => {
+    if (!isEdit.value) return NEW_${n.ENTITY}
+    const record = existing.value
+    if (!record) return undefined
+    return { name: record.name, status: record.status, notes: record.notes }
+  })
+
+  // Rebuilt when the locale changes: a \`const\` computed once would keep the
+  // language the page first loaded in.
+  const statusOptions = computed(() =>
+    ${n.ENTITY}_STATUSES.map((status) => ({
+      value: status,
+      label: t(\`${n.moduleId}_status_\${status}\`),
+    })),
+  )
+
+  /** Create or update, then confirm. Resolves with the saved record. */
+  async function save(values: Record<string, unknown>): Promise<${n.Entity}> {
+    // The form has already validated against this schema; parsing again is
+    // what turns \`Record<string, unknown>\` into a typed, trimmed draft.
+    const draft = ${n.entity}DraftSchema.parse(values)
+    const editing = id.value
+
+    const saved = editing
+      ? await updateMutation.mutateAsync({ id: editing, patch: draft })
+      : await createMutation.mutateAsync(draft)
+
+    notifications.add({
+      type: 'success',
+      message: editing ? t('${n.moduleId}_saved') : t('${n.moduleId}_created'),
+    })
+    return saved
+  }
+
+  return {
+    /** The same schema the backend validates a draft against. */
+    schema: ${n.entity}DraftSchema,
+    isEdit,
+    isLoading,
+    initialValues,
+    statusOptions,
+    save,
+  }
+}
+`
+}
+
 function formPageTemplate(n) {
   return `<script setup lang="ts">
 ${header(
@@ -433,55 +565,40 @@ ${header(
   `Create and edit in one page.
  *
  * Both routes point here; the presence of an \`:id\` param is what distinguishes
- * them. Two nearly identical files drift — this one cannot.`,
+ * them. Two nearly identical files drift — this one cannot.
+ *
+ * The page lays the fields out and decides where to go once a save has
+ * succeeded. What saving means is \`use${n.Entity}Form\`'s, and the submit lifecycle
+ * (the pending button, the server's messages on the fields they are about, the
+ * question before unsaved changes are discarded) is \`UiForm\`'s.`,
 )}
 import { useI18n } from 'vue-i18n'
 
-import { UiButton, UiCard, UiPageHeader, UiSelect, UiTextField, UiTextarea } from '@/components/ui'
+import {
+  UiAlert,
+  UiButton,
+  UiCard,
+  UiForm,
+  UiPageHeader,
+  UiSelect,
+  UiSkeleton,
+  UiTextField,
+  UiTextarea,
+} from '@/components/ui'
 import { useRouteParam } from '@/composables/useRouteParam'
 
-import {
-  useCreate${n.Entity}Mutation,
-  useUpdate${n.Entity}Mutation,
-  use${n.Entity}Query,
-} from '../composables/use${n.Entities}'
-import { ${n.ENTITY}_STATUSES, type ${n.Entity}Draft } from '../types'
+import { use${n.Entity}Form } from '../composables/use${n.Entity}Form'
 
 const { t } = useI18n()
 const router = useRouter()
 
 const id = useRouteParam('id')
-const isEdit = computed(() => Boolean(id.value))
 
-// \`useDetail\` accepts \`string | undefined\` and stays idle while it is
-// undefined, so the create route issues no request.
-const { item: existing } = use${n.Entity}Query(id)
+const { schema, isEdit, isLoading, initialValues, statusOptions, save } = use${n.Entity}Form(id)
 
-const draft = ref<${n.Entity}Draft>({ name: '', status: 'draft', notes: '' })
-
-watch(existing, (record) => {
-  if (record) draft.value = { name: record.name, status: record.status, notes: record.notes }
-})
-
-const create = useCreate${n.Entity}Mutation()
-const update = useUpdate${n.Entity}Mutation()
-
-// Rebuilt when the locale changes: a \`const\` computed once would keep the
-// language the page first loaded in.
-const statusOptions = computed(() =>
-  ${n.ENTITY}_STATUSES.map((status) => ({
-    value: status,
-    label: t(\`${n.moduleId}_status_\${status}\`),
-  })),
-)
-
-async function handleSubmit() {
-  const currentId = id.value
-  if (currentId) {
-    await update.mutateAsync({ id: currentId, patch: draft.value })
-  } else {
-    await create.mutateAsync(draft.value)
-  }
+// By the time this runs the form has taken the saved values as its baseline,
+// so it is clean and the unsaved-changes guard lets the navigation through.
+async function onSaved() {
   await router.push('/dashboard/${n.moduleId}')
 }
 </script>
@@ -492,24 +609,60 @@ async function handleSubmit() {
       :title="isEdit ? t('${n.moduleId}_edit_title') : t('${n.moduleId}_new_title')"
     />
 
-    <UiCard class="p-6">
-      <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UiTextField v-model="draft.name" :label="t('common_name')" name="name" required />
-        <UiSelect
-          v-model="draft.status"
-          :label="t('common_status')"
-          :options="statusOptions"
-          name="status"
-        />
-        <UiTextarea v-model="draft.notes" :label="t('common_notes')" name="notes" />
+    <UiCard class="max-w-3xl p-6">
+      <div v-if="isLoading" class="space-y-4" aria-busy="true">
+        <UiSkeleton v-for="index in 3" :key="index" class="h-11" />
+      </div>
 
-        <div class="flex gap-3">
-          <UiButton type="submit">{{ t('common_save') }}</UiButton>
-          <UiButton :to="'/dashboard/${n.moduleId}'" variant="ghost">
-            {{ t('common_cancel') }}
-          </UiButton>
-        </div>
-      </form>
+      <!--
+        Keyed by the record: the form takes its initial values when it mounts.
+
+        \`show-errors="touched"\` keeps a new, empty form from opening with
+        "required" under its fields. \`confirm-leave\` asks before a navigation
+        discards what was typed.
+      -->
+      <UiForm
+        v-else-if="initialValues"
+        :key="id ?? 'new'"
+        :schema="schema"
+        :initial-values="initialValues"
+        :action="save"
+        show-errors="touched"
+        confirm-leave
+        @success="onSaved"
+      >
+        <template #default="{ formErrors, isSubmitting }">
+          <!--
+            What the server said that belongs to no field, or failing that the
+            one line describing the failure, in the reader's language. A message
+            about one field is not here: \`UiForm\` puts it under that field.
+
+            If your backend names a field differently from this form, tell the
+            form with \`:field-map="{ 'Backend.Key': 'fieldName' }"\`.
+          -->
+          <UiAlert v-if="formErrors.length > 0" variant="error" :title="t('common_error_title')">
+            <p v-for="message in formErrors" :key="message">{{ message }}</p>
+          </UiAlert>
+
+          <UiTextField name="name" :label="t('common_name')" required />
+          <UiSelect name="status" :label="t('common_status')" :options="statusOptions" />
+          <UiTextarea name="notes" :label="t('common_notes')" :rows="4" />
+
+          <div class="flex justify-end gap-3 pt-2">
+            <UiButton to="/dashboard/${n.moduleId}" variant="ghost">
+              {{ t('common_cancel') }}
+            </UiButton>
+            <!--
+              \`loading\`, not \`disabled\`: a disabled button drops focus to the page
+              while the save is in flight, and a keyboard user is then nowhere when
+              it fails. A loading button keeps focus and ignores a second press.
+            -->
+            <UiButton type="submit" variant="primary" :loading="isSubmitting">
+              {{ t('common_save') }}
+            </UiButton>
+          </div>
+        </template>
+      </UiForm>
     </UiCard>
   </div>
 </template>
@@ -518,9 +671,7 @@ async function handleSubmit() {
 
 function barrelTemplate(n, { nav, icon }) {
   return `import type { ModuleDefinition } from '../types'
-import ${n.entities}I18nAr from './i18n/ar.json'
 import ${n.entities}I18nEn from './i18n/en.json'
-import ${n.entities}I18nFr from './i18n/fr.json'
 
 ${header(
   n,
@@ -627,8 +778,6 @@ const ${n.entities}Module: ModuleDefinition = {
 
   i18n: {
     en: ${n.entities}I18nEn,
-    fr: ${n.entities}I18nFr,
-    ar: ${n.entities}I18nAr,
   },
 }
 
@@ -662,6 +811,8 @@ function localeTemplate(n, locale) {
     [`${n.moduleId}_description`]: `Manage ${n.Label.toLowerCase()}`,
     [`${n.moduleId}_new_title`]: `New ${n.EntityLabel}`,
     [`${n.moduleId}_edit_title`]: `Edit ${n.EntityLabel}`,
+    [`${n.moduleId}_created`]: `${n.EntityLabel} created.`,
+    [`${n.moduleId}_saved`]: `${n.EntityLabel} saved.`,
     [`${n.moduleId}_empty_title`]: `No ${n.Label.toLowerCase()} yet`,
     [`${n.moduleId}_empty_description`]: `Create your first ${n.EntityLabel.toLowerCase()} to get started.`,
     [`${n.moduleId}_empty`]: `No ${n.Label.toLowerCase()} match these filters.`,

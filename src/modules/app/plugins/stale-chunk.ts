@@ -107,11 +107,21 @@ function reloadAlreadyAttempted(): boolean {
   }
 }
 
-function markReloadAttempted(): void {
+/**
+ * Record the attempt, and say whether it was recorded.
+ *
+ * `false` when the write was refused (quota exceeded, some private modes) or
+ * did not stick. The caller must then not reload: a reload nothing remembers is
+ * the unguarded loop this file exists to prevent, and for a first route it
+ * starts by itself, with no click in between.
+ */
+function markReloadAttempted(): boolean {
   try {
-    sessionStorage.setItem(RELOAD_MARKER_KEY, String(Date.now()))
+    const at = String(Date.now())
+    sessionStorage.setItem(RELOAD_MARKER_KEY, at)
+    return sessionStorage.getItem(RELOAD_MARKER_KEY) === at
   } catch {
-    // If we cannot record the attempt we must not reload — see above.
+    return false
   }
 }
 
@@ -137,12 +147,20 @@ export function handleStaleChunkError(
     return false
   }
 
+  if (!markReloadAttempted()) {
+    staleChunkLogger.error(
+      'A route chunk is missing, and the reload that would fix it cannot be recorded in ' +
+        'sessionStorage. Not reloading — an attempt nothing remembers would repeat for ever.',
+      { err: error },
+    )
+    return false
+  }
+
   staleChunkLogger.warn(
     'A route chunk is missing, which usually means a new version was deployed while this tab ' +
       'was open. Reloading once to pick it up.',
     { err: error },
   )
-  markReloadAttempted()
   reload()
   return true
 }
@@ -170,10 +188,16 @@ export function installStaleChunkRecovery(): void {
 /**
  * Clear the marker once the app has demonstrably recovered.
  *
- * Called after the first successful navigation: at that point chunks are
- * loading again, so a later stale chunk (a second deploy in the same session)
- * should be allowed its own reload rather than being suppressed by an old
- * marker.
+ * Called after the first navigation the visitor makes that succeeds: at that
+ * point chunks are loading again, so a later stale chunk (a second deploy in
+ * the same session) should be allowed its own reload rather than being
+ * suppressed by an old marker.
+ *
+ * Not after the navigation a page load starts with. That one is the reload
+ * itself coming back to the page the visitor was already on, which says
+ * nothing about the chunk that was missing; clearing there let every click on
+ * a broken route reload the page again, and "one attempt, then surface the
+ * error" never got to its second half. `router.afterEach` makes the call.
  */
 export function clearStaleChunkMarker(): void {
   try {

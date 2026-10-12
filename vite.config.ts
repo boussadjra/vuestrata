@@ -1,5 +1,3 @@
-import { rm } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
@@ -8,79 +6,13 @@ import Vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import Layouts from 'vite-plugin-vue-layouts'
-import { defineConfig, loadEnv, type Plugin } from 'vite-plus'
+import { defineConfig } from 'vite-plus'
 import VueRouter from 'vue-router/vite'
 
-// Relative import, not an alias: this file runs in Node before `resolve.alias`
-// exists. `env.schema.ts` is dependency-free for exactly this reason.
-// Explicit .ts extension: the config is loaded as native ESM, which does not
-// do extensionless resolution.
-import { parseRuntimeEnv } from './src/modules/core/lib/config/env.schema.ts'
-
-/**
- * Resolves and validates the runtime environment, then feeds the result into
- * `define` and `build.sourcemap`.
- *
- * This lives in a plugin rather than a `defineConfig(({ mode }) => …)` callback
- * because Vite+ reads the `lint`/`fmt`/`staged` fields off a STATIC default
- * export — a function export breaks `vp fmt` and `vp lint`. The `config` hook
- * gets us the resolved mode while keeping the export static.
- */
-function vuestrataEnv(): Plugin {
-  let isDemoBuild = true
-  let outDir = 'dist'
-
-  return {
-    name: 'vuestrata:env',
-
-    configResolved(resolved) {
-      outDir = resolved.build.outDir
-    },
-
-    /**
-     * `public/mockServiceWorker.js` is a static asset, so Vite copies it into
-     * dist for BOTH targets. In a production build that publishes a service
-     * worker able to intercept every request in the app — dead weight at best,
-     * and a confusing artifact for anyone auditing the deployment. Nothing
-     * registers it there (the registration code is compiled out), so remove it.
-     *
-     * This runs in `closeBundle` rather than `generateBundle` because public-dir
-     * files are copied straight to disk and never enter the rollup bundle.
-     */
-    async closeBundle() {
-      if (isDemoBuild) return
-      await rm(resolve(process.cwd(), outDir, 'mockServiceWorker.js'), { force: true })
-    },
-
-    config(_config, { mode, command }) {
-      const isDev = command === 'serve' || mode !== 'production'
-
-      // Strict parse: an invalid or self-contradictory configuration fails the
-      // BUILD here rather than reaching a browser. The app-side counterpart in
-      // app.config.ts runs the same schema leniently.
-      const env = parseRuntimeEnv(loadEnv(mode, process.cwd(), 'VUESTRATA_'), { isDev })
-      isDemoBuild = env.runtimeMode === 'demo'
-
-      return {
-        define: {
-          // Compile-time switch that lets rolldown dead-code-eliminate every
-          // demo path (MSW, seeded IndexedDB users, demo credentials) out of a
-          // production bundle. `appConfig` cannot do this — it is a runtime
-          // value. Forced on under test so demo-state suites keep working.
-          __VUESTRATA_DEMO__: JSON.stringify(mode === 'test' ? true : isDemoBuild),
-        },
-        build: {
-          // 'hidden' emits .map files without the `//# sourceMappingURL=`
-          // comment — useful for uploading to an error tracker, but the files
-          // still ship and are fetchable by guessing the name. Emit them only
-          // for the demo build; a real production deploy uploads them
-          // out-of-band (see Dockerfile, which strips any that are generated).
-          sourcemap: isDemoBuild ? ('hidden' as const) : false,
-        },
-      }
-    },
-  }
-}
+// Vuestrata's own plugin: environment validation, the build-target defines,
+// and the dev-server proxy to `DEV_API_TARGET`. It lives in its own file so
+// that Vuestrata can own it while this config stays yours.
+import { vuestrataEnv } from './scripts/vite/vuestrata-plugin.mjs'
 
 export default defineConfig({
   lint: {
@@ -219,6 +151,10 @@ export default defineConfig({
       // every finding twice, and type-checking it fails outright: the copies
       // sit outside the alias roots, so `@/types` resolves to nothing.
       'packages/cli/payload/**',
+      // What `vuestrata upgrade` leaves beside a file it would not overwrite:
+      // the release's version, to compare and merge. Not part of the app, and
+      // outside the alias roots like the payload, so type-checking it fails.
+      '.vuestrata/**',
       '.agents/**',
       '*.d.ts',
       'auto-imports.d.ts',
@@ -242,6 +178,8 @@ export default defineConfig({
     sortTailwindcss: true,
     ignorePatterns: [
       '.agents/**',
+      // A release's files as that release formatted them, kept to be compared.
+      '.vuestrata/**',
       '*.d.ts',
       'auto-imports.d.ts',
       'components.d.ts',
@@ -367,47 +305,90 @@ export default defineConfig({
     // resolved runtime mode.
 
     rolldownOptions: {
+      treeshake: {
+        // These shipped query entrypoints only construct schemas, query
+        // keys and the collection API; they perform no I/O or registration.
+        // The registry reads metadata from their barrels. Their API code must
+        // load with the feature that consumes it, rather than with that read.
+        // Keep the list explicit: a project's composable may have side effects.
+        moduleSideEffects: (id) =>
+          !/\/src\/modules\/(?:analytics\/composables\/useDashboardQueries|calendar\/composables\/useCalendar|catalog\/composables\/useCatalog|customers\/composables\/useCustomers|messages\/composables\/useMessages|orders\/composables\/useOrders|projects\/composables\/useProjects|reports\/composables\/useReports|team\/composables\/useTeam|users\/composables\/useUpdateRoleMutation)\.ts$/.test(
+            id.replaceAll('\\', '/'),
+          ),
+      },
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return
-          // Core framework
-          if (
-            id.includes('node_modules/vue/') ||
-            id.includes('node_modules/vue-router/') ||
-            id.includes('node_modules/pinia/') ||
-            id.includes('node_modules/@vueuse/')
-          ) {
-            return 'vue-vendor'
-          }
-          // Reka headless UI primitives
-          if (id.includes('node_modules/reka-ui/') || id.includes('node_modules/@floating-ui/')) {
-            return 'ui-vendor'
-          }
-          // Charting — large; almost never needed on the first paint.
-          if (id.includes('node_modules/echarts/') || id.includes('node_modules/vue-echarts/')) {
-            return 'charts-vendor'
-          }
-          // Markdown rendering + syntax highlighting (docs surface only)
-          if (
-            id.includes('node_modules/comark') ||
-            id.includes('node_modules/shiki') ||
-            id.includes('node_modules/@shikijs/')
-          ) {
-            return 'docs-vendor'
-          }
-          // Tables / forms / data
-          if (
-            id.includes('node_modules/@tanstack/vue-table') ||
-            id.includes('node_modules/@tanstack/vue-query') ||
-            id.includes('node_modules/@formwerk/')
-          ) {
-            return 'data-vendor'
-          }
-          // MSW — only loaded when VUESTRATA_USE_MOCKS is true; isolate so
-          // production bundles can drop it cleanly.
-          if (id.includes('node_modules/msw/')) {
-            return 'msw-vendor'
-          }
+        /**
+         * Named vendor chunks, and the order in which they claim modules.
+         *
+         * A group takes the modules its `test` matches AND everything those
+         * modules import. A module two groups reach goes to the group with the
+         * higher `priority`, and that is what the numbers are for.
+         *
+         * This used to be a `manualChunks(id)` function, where every name has
+         * the same priority. `charts-vendor` reached Vue first (vue-echarts
+         * imports it) and kept the whole Vue runtime, so every chunk of the app
+         * imported the charting engine and index.html preloaded all of it, 778 KB,
+         * on the login page. Returning 'vue-vendor' for Vue did not prevent it.
+         *
+         * So what every page needs claims its dependencies first, and what a
+         * page asks for with `import()` takes only what is left. Keep it so when
+         * you add a group: a library loaded on demand gets the lowest priority,
+         * and anything it shares with the rest of the app must be matched by a
+         * group above it. `verify-bundle` fails a build in which index.html
+         * loads a chunk of an on-demand group.
+         */
+        codeSplitting: {
+          groups: [
+            // ── On every page ──────────────────────────────────────────────
+            // Core framework
+            {
+              name: 'vue-vendor',
+              test: /node_modules[\\/](?:vue|@vue|vue-router|pinia|@vueuse)[\\/]/,
+              priority: 30,
+            },
+            // Reka headless UI primitives
+            {
+              name: 'ui-vendor',
+              test: /node_modules[\\/](?:reka-ui|@floating-ui)[\\/]/,
+              priority: 20,
+            },
+            // Tables / forms / data
+            {
+              name: 'data-vendor',
+              test: /node_modules[\\/](?:@tanstack[\\/]vue-(?:table|query)|@formwerk[\\/])/,
+              priority: 20,
+            },
+
+            // ── On demand ──────────────────────────────────────────────────
+            // Charting — large; fetched by the first chart a page renders.
+            //
+            // It takes the library's own modules and not what they import.
+            // By default a group also takes its modules' dependencies, here
+            // tslib, and one eager import of that package anywhere in the
+            // app (many libraries import it) would put the whole engine back
+            // on every page. Left out, it gets a small chunk of its own.
+            // Check the build before copying this to another group: on
+            // docs-vendor it produced a circular import between two chunks.
+            {
+              name: 'charts-vendor',
+              test: /node_modules[\\/](?:echarts|vue-echarts|zrender)[\\/]/,
+              priority: 10,
+              includeDependenciesRecursively: false,
+            },
+            // Markdown rendering + syntax highlighting (docs surface only)
+            {
+              name: 'docs-vendor',
+              test: /node_modules[\\/](?:comark|shiki|@shikijs[\\/])/,
+              priority: 10,
+            },
+            // MSW — only loaded when VUESTRATA_USE_MOCKS is true; isolate so
+            // production bundles can drop it cleanly.
+            {
+              name: 'msw-vendor',
+              test: /node_modules[\\/]msw[\\/]/,
+              priority: 10,
+            },
+          ],
         },
       },
     },
@@ -423,6 +404,32 @@ export default defineConfig({
     globals: true,
 
     setupFiles: ['test/setup.ts'],
+
+    /**
+     * Three times Vitest's 5 s default.
+     *
+     * A test's clock also runs while the machine does work that has nothing to
+     * do with what the test asserts: the first dynamic `import()` in a file is
+     * transformed inside the test that makes it, a component test mounts a tree
+     * of Reka primitives in jsdom, and the script tests start a Node process.
+     * Idle, each takes well under a second. Beside a build, an e2e run or a
+     * second test run they crossed 5 s, a different handful of tests each time,
+     * and none of those failures said anything about the code. A test that
+     * hangs still fails; it takes ten seconds longer to say so.
+     */
+    testTimeout: 15_000,
+
+    /**
+     * Off CI, half the cores.
+     *
+     * Vitest starts one worker per core, each with its own jsdom, and gives a
+     * worker a fixed time to come up. On a machine that is also running an
+     * editor, a dev server and a browser, that many at once is what failed: a
+     * worker timed out before it ran a test. Half leaves room for the rest of
+     * what a developer runs. CI's runners do nothing else, so they keep the
+     * default; `--maxWorkers=<n>` on the command line overrides either.
+     */
+    ...(process.env.CI ? {} : { maxWorkers: '50%' }),
 
     coverage: {
       provider: 'v8',

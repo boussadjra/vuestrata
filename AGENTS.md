@@ -34,9 +34,9 @@ Everything below is project-specific and is not managed by Vite+.
 `CLAUDE.md` point here rather than repeating it, so there is one place to change
 when a rule changes.
 
-Highest authority above this file: `.specify/memory/constitution.md`. Read it
-before major implementation, and flag conflicts rather than silently violating
-them.
+It is also the highest authority: no other document in the repository
+overrides it. Where code or another document conflicts with it, flag the
+conflict rather than silently violating either.
 
 ## Who owns which file
 
@@ -45,16 +45,27 @@ which can only work because every file the tooling writes belongs to exactly one
 side. Before editing anything under `src/modules/app/` or `src/modules/core/`,
 know which of these it is.
 
-| Class     | Meaning                                   | On upgrade                                     |
-| --------- | ----------------------------------------- | ---------------------------------------------- |
-| `managed` | Vuestrata's                               | Replaced, unless the project edited it         |
-| `seeded`  | Written once, then the project's          | Never touched again                            |
-| `merged`  | The project's, except one anchored region | Only the region between the markers is written |
+| Class     | Meaning                                | On upgrade                                           |
+| --------- | -------------------------------------- | ---------------------------------------------------- |
+| `managed` | Vuestrata's                            | Replaced, unless the project edited it               |
+| `merged`  | Vuestrata's, except its `app:` regions | Replaced, with the project's `app:` entries kept     |
+| `seeded`  | Written once, then the project's       | Written if the project has none, never touched again |
 
 `packages/cli/src/lib/managed.mjs` is the list. In short: the `Ui*` layer,
 `composables/forms/`, `styles/themes/`, `core/lib/` and the layout components
-are `managed`; `brand.css`, `app.overrides.ts`, `Logo.vue` and the locale
-overrides are `seeded`; the registries are `merged`.
+are `managed`, and so is the plumbing they run on: the bootstrap, the auth store and
+adapters, the runtime backends, the route guard and session restore, the mock
+helpers, the locale catalogs and the deployment scripts. `src/main.ts` and
+`src/App.vue` are not: they are thin shells the project owns, calling `boot(App)`
+and rendering `<AppRoot />`. The `Ui*` barrel, the forms barrel and `core/lib/rbac/types.ts`
+are `merged`; `brand.css`, `app.overrides.ts`, `rbac.overrides.ts`, `api.overrides.ts`,
+`Logo.vue` and the locale overrides are `seeded`. A merged file is hashed with its `app:` regions emptied,
+so what a generator appends there is not an edit.
+
+The other registries — `setup.ts`, `nav-groups.ts`, `theme.config.ts`,
+`app.css`, `icons/index.ts`, `.env.example` — are the project's files. An
+upgrade only appends to their `vuestrata:` region, and leaves one the project
+has edited alone.
 
 **Every registry carries two sentinel regions**, and they must not be merged
 back into one:
@@ -67,12 +78,31 @@ back into one:
 ```
 
 Generators write to `app:`. If you are adding something Vuestrata ships, it goes
-in `vuestrata:`. `vuestrata doctor` reports any region that has gone missing.
+in `vuestrata:` — the payload build refuses a merged file with entries in `app:`.
+`vuestrata doctor` reports any region that has gone missing.
+
+A file an upgrade could not take over is left in `.vuestrata/incoming/`. Merge
+it by hand, then `vuestrata adopt <path>` records the result as clean.
 
 **Do not edit a `managed` file to change something a seam already covers.** A
 colour belongs in `brand.css`, a string in `<locale>.overrides.json`, the product
-name and footer links in `app.overrides.ts`. Editing the underlying file works,
-and costs that file its updates forever.
+name and footer links in `app.overrides.ts`, a request header, an error format or a
+CSRF convention of your backend in `api.overrides.ts`. Editing the underlying file
+works, and costs that file its updates forever.
+
+Deployment has a seam of its own, `src/modules/app/config/deploy.config.ts`
+(seeded): an origin the security headers must allow, a variable of the project's
+own, a variable a deployment may set at start. Change it there, never in
+`scripts/security/headers.mjs`, then run `vpr security:headers` and commit what
+it regenerates. The size budgets and the on-demand chunk list of
+`scripts/build/verify-bundle.mjs` are set there too, under `bundle`, never in
+the script: every run prints what a project changed beside the default.
+
+Authentication has the same kind of seam, also `seeded`:
+`src/modules/app/config/auth.config.ts`. Endpoint paths, response and user
+shapes, the social providers and an auth adapter of the project's own go there,
+never in `src/modules/auth/adapters/`. Recipe:
+`docs/9.recipes/10.write-your-own-auth-adapter.md`.
 
 Breaking any of the contracts in `RELEASE.md` requires a migration under
 `packages/cli/migrations/<version>/`. That is a release rule, not a preference.
@@ -104,23 +134,24 @@ you (domain fields, permission grants, translations).
 
 ## Repo map
 
-| Path                                 | What lives there                                                      |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| `src/modules/app/`                   | The application shell. Aliased `@` and `~`.                           |
-| `src/modules/app/components/ui/`     | `Ui*` wrappers — the public component surface.                        |
-| `src/modules/app/components/layout/` | App shell UI (header, sidebar, footer).                               |
-| `src/modules/app/composables/forms/` | Field behaviour behind the `Ui*` field wrappers.                      |
-| `src/modules/app/layouts/`           | Layout components. Must also be in `layoutMap` (`plugins/router.ts`). |
-| `src/modules/app/pages/`             | File-routed shell pages (home, docs, 403, showcase).                  |
-| `src/modules/app/state/`             | `createGlobalState` singletons.                                       |
-| `src/modules/app/stores/`            | App-level Pinia stores.                                               |
-| `src/modules/app/styles/`            | Tailwind entry, `semantic.css`, `themes/`.                            |
-| `src/modules/core/lib/`              | Framework-agnostic. Aliased `@/lib`, `~/lib`.                         |
-| `src/modules/<domain>/`              | Feature modules. `customers` is the reference implementation.         |
-| `src/modules/setup.ts`               | `appModules` — the module registry.                                   |
-| `src/modules/nav-groups.ts`          | Sidebar sections.                                                     |
-| `docs/`                              | Markdown, rendered in-app at `/docs`.                                 |
-| `test/{unit,component,integration}/` | Vitest. `e2e/` is Playwright.                                         |
+| Path                                 | What lives there                                                                                |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `src/modules/app/`                   | The application shell. Aliased `@` and `~`.                                                     |
+| `src/modules/app/bootstrap/`         | `boot()`, the boot sequence (managed). `src/main.ts` and `src/App.vue` are thin shells over it. |
+| `src/modules/app/components/ui/`     | `Ui*` wrappers — the public component surface.                                                  |
+| `src/modules/app/components/layout/` | App shell UI (header, sidebar, footer) and `AppRoot.vue`, the root component.                   |
+| `src/modules/app/composables/forms/` | Field behaviour behind the `Ui*` field wrappers.                                                |
+| `src/modules/app/layouts/`           | Layout components. Must also be in `layoutMap` (`plugins/router.ts`).                           |
+| `src/modules/app/pages/`             | File-routed shell pages (home, docs, 403, showcase).                                            |
+| `src/modules/app/state/`             | `createGlobalState` singletons.                                                                 |
+| `src/modules/app/stores/`            | App-level Pinia stores (`auth` and `api-runtime` are managed).                                  |
+| `src/modules/app/styles/`            | Tailwind entry, `semantic.css`, `themes/`.                                                      |
+| `src/modules/core/lib/`              | Framework-agnostic. Aliased `@/lib`, `~/lib`.                                                   |
+| `src/modules/<domain>/`              | Feature modules. `customers` is the reference implementation.                                   |
+| `src/modules/setup.ts`               | `appModules` — the module registry.                                                             |
+| `src/modules/nav-groups.ts`          | Sidebar sections.                                                                               |
+| `docs/`                              | Markdown, rendered in-app at `/docs`.                                                           |
+| `test/{unit,component,integration}/` | Vitest. `e2e/` is Playwright.                                                                   |
 
 Aliases: `@` and `~` are synonyms for `src/modules/app`. **`@/` is not `src/`.**
 `@/lib` → `core/lib`, `@/modules` → `src/modules`.
@@ -224,23 +255,26 @@ not more layers.
 ## What the gates catch
 
 `vp check` runs format, lint and types. `node scripts/lint/run-custom-rules.mjs`
-adds six project rules. `vpr test --run` includes `test/unit/architecture/`.
+adds six project rules. `vpr test --run` includes `test/unit/architecture/`,
+except `public-surface.test.ts`: its snapshots describe the template's own
+modules and permissions, so it is skipped unless `VUESTRATA_MAINTAINER=1`.
 
-| Check                   | Catches                                                                                                     |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `no-restricted-imports` | deep cross-module imports; Vue in `core/lib`; data layer in pages                                           |
-| `module-scope-state`    | module-scope mutable state                                                                                  |
-| `no-raw-palette`        | raw palette utilities (ratcheted)                                                                           |
-| `inline-vue-handlers`   | multi-line inline `@event` handlers under `app/`                                                            |
-| `i18n-parity`           | a key in `en` but not `fr`/`ar`                                                                             |
-| `icon-parity`           | an `IconName` a provider does not implement                                                                 |
-| `theme-registry`        | a theme wired in 3 of 4 files, or imported after `semantic.css`                                             |
-| `module-contract` test  | bad layout, nav group, icon or i18n key; dynamic route shadowing a static one; unconditional `mockHandlers` |
-| `registry-drift` test   | a module never added to `setup.ts`                                                                          |
-| `verify-bundle.mjs`     | MSW reaching a production bundle; the bundle size budgets (demo credentials too, behind `--strict-demo`)    |
-| `check-toolchain-pins`  | Node/pnpm/Vite+ pinned differently in the Dockerfile, `vercel.json` and CI                                  |
-| `module-contract` test  | (also) a module that declares no `origin`, which `eject` cannot classify                                    |
-| `sync-headers --check`  | the security headers drifting between their four generated targets                                          |
+| Check                                        | Catches                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no-restricted-imports`                      | deep cross-module imports; Vue in `core/lib`; data layer in pages                                                                                                                                                                                                                                                             |
+| `module-scope-state`                         | module-scope mutable state                                                                                                                                                                                                                                                                                                    |
+| `no-raw-palette`                             | raw palette utilities (ratcheted)                                                                                                                                                                                                                                                                                             |
+| `inline-vue-handlers`                        | multi-line inline `@event` handlers under `app/`                                                                                                                                                                                                                                                                              |
+| `i18n-parity`                                | a key in `en` but not `fr`/`ar`                                                                                                                                                                                                                                                                                               |
+| `icon-parity`                                | an `IconName` a provider does not implement                                                                                                                                                                                                                                                                                   |
+| `theme-registry`                             | a theme wired in 3 of 4 files, or imported after `semantic.css`                                                                                                                                                                                                                                                               |
+| `module-contract` test                       | bad layout, nav group, icon or i18n key; dynamic route shadowing a static one; unconditional `mockHandlers`                                                                                                                                                                                                                   |
+| `registry-drift` test                        | a module never added to `setup.ts`                                                                                                                                                                                                                                                                                            |
+| `verify-bundle.mjs`                          | MSW or the demo account and state reaching a production bundle, in-app docs included; a chunk a page fetches on demand (charts, docs, MSW) loaded with every page; an `index.html` whose scripts are not in the build; the size budgets, which a project changes under `bundle` in `deploy.config.ts` and never in the script |
+| `check-toolchain-pins`                       | Node/pnpm/Vite+ pinned differently in the Dockerfile, `vercel.json` and CI                                                                                                                                                                                                                                                    |
+| `check-template-lock`, `public-surface` test | maintainer-only (`vpr lint:maintainer`, `VUESTRATA_MAINTAINER=1`): a stale shipped lockfile or CLI payload; a migration's copy of a project file that fell behind the repository; a changed public name. Not run in a project                                                                                                 |
+| `module-contract` test                       | (also) a module that declares no `origin`, which `eject` cannot classify                                                                                                                                                                                                                                                      |
+| `sync-headers --check`                       | the security headers drifting between their generated targets, or from `deploy.config.ts`                                                                                                                                                                                                                                     |
 
 If a rule blocks you, fix the cause. Reach for an escape hatch only with a
 written justification — every one of these exists because the failure it
@@ -290,3 +324,10 @@ a **conditional spread**:
 Declaring the property unconditionally keeps the dynamic `import()` in the
 barrel's graph and ships an MSW chunk to real users. `verify-bundle.mjs` is the
 only check that can see this — types and tests cannot.
+
+A demo build is not always the self-contained demo. With `VUESTRATA_MOCK_ONLY`
+set to module ids and a real auth adapter, MSW answers for those modules alone
+and a real backend for the rest. `__VUESTRATA_DEMO__` is `true` there too, so
+anything that belongs to the demo ACCOUNT (its credentials, the seeded admin,
+its session) is decided by `__VUESTRATA_DEMO__ && authAdapter === 'mock'`, never
+by the constant alone. A production build refuses the variable.

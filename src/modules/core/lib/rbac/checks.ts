@@ -1,5 +1,5 @@
 import { emitAuthorizationEvent } from './hooks'
-import { resolveRolePermissions } from './inheritance'
+import { resolveSubjectPermissions } from './identity'
 import { evaluatePredicate } from './predicates'
 import type { Role, Permission } from './types'
 import type { AuthorizationEvent } from './types'
@@ -8,12 +8,13 @@ import type { AuthorizationEvent } from './types'
  * Resolve the effective permission set for a user. Centralised so the three
  * public check helpers below all use identical fallback semantics: an
  * explicit user-permission array takes precedence over the role-derived set.
+ * The rule itself lives in `identity.ts`, where the auth store shares it.
  */
 function effectivePermissions(
   userRole: Role,
   userPermissions: Permission[] | undefined,
 ): Permission[] {
-  return userPermissions ?? resolveRolePermissions(userRole)
+  return resolveSubjectPermissions({ role: userRole, permissions: userPermissions })
 }
 
 /**

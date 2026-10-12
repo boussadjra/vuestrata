@@ -101,7 +101,9 @@ type ProfileForm = z.infer<typeof profileSchema>
 const profileData = reactive<ProfileForm>({
   firstName: 'Demo',
   lastName: 'User',
-  email: 'demo@vuestrata.dev',
+  // Not the demo account's address: this page ships in production builds,
+  // where verify-bundle.mjs rejects that address anywhere in the bundle.
+  email: 'demo.user@example.com',
   phone: '+1 555-0123',
   company: 'Vuestrata Labs',
   role: 'developer',

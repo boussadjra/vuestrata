@@ -76,7 +76,7 @@ Every field follows the same visual structure. Understanding this pattern makes 
 
 ### UiForm
 
-Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and reactive state via slot props.
+Wraps Formwerk's `useForm`. Provides schema validation, an awaited submit with the server's errors put on the fields they are about, an unsaved-changes guard, and reactive state via slot props.
 
 ```html
 <template>
@@ -90,10 +90,6 @@ Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and rea
         placeholder="john@example.com"
         required
       />
-
-      <UiAlert v-if="!isValid && wasSubmitted" variant="error">
-        Please fix the errors above before submitting.
-      </UiAlert>
 
       <UiAlert v-if="isTouched && !isValid" variant="warning">
         Some fields still need attention.
@@ -111,27 +107,414 @@ Wraps Formwerk's `useForm`. Provides schema validation, submit handling, and rea
 
 #### Props
 
-| Prop                    | Type                      | Default | Description                                          |
-| ----------------------- | ------------------------- | ------- | ---------------------------------------------------- |
-| `schema`                | `StandardSchemaV1`        | —       | Validation schema (Zod)                              |
-| `initialValues`         | `Record<string, unknown>` | —       | Starting values; establishes dirty-tracking baseline |
-| `disabled`              | `boolean`                 | `false` | Disables every field in the form                     |
-| `disableHtmlValidation` | `boolean`                 | `true`  | Suppresses browser-native validation popups          |
+| Prop                    | Type                      | Default    | Description                                                                                                         |
+| ----------------------- | ------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `schema`                | `StandardSchemaV1`        | —          | Validation schema (Zod)                                                                                             |
+| `initialValues`         | `Record<string, unknown>` | —          | Starting values; establishes dirty-tracking baseline. Read once, when the form mounts                               |
+| `disabled`              | `boolean`                 | `false`    | Disables every field in the form                                                                                    |
+| `disableHtmlValidation` | `boolean`                 | `true`     | Suppresses browser-native validation popups                                                                         |
+| `action`                | `(values) => unknown`     | —          | Awaited on a valid submit, instead of the `submit` event. See [The submit lifecycle](#the-submit-lifecycle)         |
+| `resetOnSuccess`        | `boolean`                 | `false`    | After the action succeeds, go back to the initial values rather than keeping what was saved                         |
+| `confirmLeave`          | `boolean`                 | `false`    | Ask before a navigation, a reload or a closed tab discards unsaved changes. See [Unsaved changes](#unsaved-changes) |
+| `fieldMap`              | `Record<string, string>`  | —          | Backend field key → form field path, for the keys the default cannot match                                          |
+| `fieldPath`             | `(key: string) => string` | —          | Replaces the default way a backend field key becomes a field path                                                   |
+| `showErrors`            | `'always' \| 'touched'`   | `'always'` | When a field shows what the schema says is wrong with it. See [When errors appear](#when-errors-appear)             |
+
+#### Events
+
+| Event     | Payload                   | When                                                                 |
+| --------- | ------------------------- | -------------------------------------------------------------------- |
+| `submit`  | `values`                  | A valid submit, on a form with no `action`. Not awaited              |
+| `success` | `result, values`          | The `action` resolved. `result` is what it resolved with             |
+| `error`   | `error: AppError, values` | The `action` rejected. The error is normalized and already on screen |
 
 #### Default slot props
 
-| Prop           | Type                      | Description                                  |
-| -------------- | ------------------------- | -------------------------------------------- |
-| `values`       | `Record<string, unknown>` | Live reactive copy of all field values       |
-| `isSubmitting` | `boolean`                 | `true` while the submit handler is running   |
-| `wasSubmitted` | `boolean`                 | `true` after the first submit attempt        |
-| `isDirty`      | `boolean`                 | Any field value differs from `initialValues` |
-| `isTouched`    | `boolean`                 | Any field has been interacted with           |
-| `isValid`      | `boolean`                 | All fields pass validation                   |
+| Prop           | Type                      | Description                                                                             |
+| -------------- | ------------------------- | --------------------------------------------------------------------------------------- |
+| `values`       | `Record<string, unknown>` | Live reactive copy of all field values                                                  |
+| `isSubmitting` | `boolean`                 | `true` from the submit until validation and the `action` have both finished             |
+| `wasSubmitted` | `boolean`                 | `true` once a valid submit has run its handler                                          |
+| `isDirty`      | `boolean`                 | Any field value differs from the baseline: `initialValues`, or the last successful save |
+| `isTouched`    | `boolean`                 | Any field has been interacted with                                                      |
+| `isValid`      | `boolean`                 | The schema accepts the current values. A server message does not make it `false`        |
+| `formErrors`   | `string[]`                | What to show for the form as a whole after a failed save. Empty when nothing failed     |
+| `submitError`  | `AppError \| null`        | The error the last `action` rejected with                                               |
 
-For full step-by-step form management usage, open [Form Builder guide](/docs/components/forms/form-builder).
+#### Exposed through a template ref
+
+Everything in the slot is exposed too (`isDirty`, `isTouched` and `isValid` as
+functions that take an optional field path), plus:
+
+| Member              | Description                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `setErrors(map)`    | Show messages by field path: `{ email: 'Already registered.' }`. The empty key is the form itself   |
+| `clearErrors()`     | Remove every message `setErrors` or a failed `action` put there                                     |
+| `setValues(values)` | Set some values. The baseline is untouched, so the form becomes dirty where a value differs from it |
+| `reset(values?)`    | Back to the baseline; with `values`, those become the baseline. Clears the server's messages        |
+| `formErrors`        | As in the slot                                                                                      |
+| `submitError`       | As in the slot                                                                                      |
+
+`context`, Formwerk's own form context, is still exposed for the cases above do
+not cover. Formwerk is pre-1.0 and its API moves; prefer the members in the
+table, which do not.
+
+#### Which value a field opens on
+
+One rule, for every `Ui*` field inside a `UiForm`:
+
+1. **You passed the field a value** (`v-model` or `model-value`, an explicit
+   `''`, `[]`, `false` or `0` included): that value wins over
+   `initialValues`, and a bound ref stays in step with the form.
+2. **You passed none, and `initialValues` holds a value for the field's
+   path**: the form's value is shown. This is what an edit form wants: give
+   `UiForm` the record and name the fields.
+3. **You passed none, and the form holds nothing, `undefined` or `null` for
+   it**: the field's own empty value applies, where it has one.
+
+```html
+<UiForm :schema="schema" :initial-values="customer">
+  <!-- Opens on customer.status and customer.active. -->
+  <UiSelect name="status" label="Status" :options="statuses" />
+  <UiSwitch name="active" label="Active" />
+
+  <!-- Opens blank although the record has a plan: an explicit empty value. -->
+  <UiSelect name="plan" label="Plan" :options="plans" model-value="" />
+</UiForm>
+```
+
+To make a field open blank although the record has a value, pass it an
+explicit empty model value, as the last field does.
+
+The empty values of rule 3:
+
+| Field                                                    | Its own empty value                      |
+| -------------------------------------------------------- | ---------------------------------------- |
+| `UiSelect`, `UiComboBox`, `UiTreeSelect`                 | `''`, or `[]` with `multiple`            |
+| `UiTagsField`                                            | `[]`                                     |
+| `UiCheckbox`, `UiSwitch`, `UiToggle`                     | `false`                                  |
+| `UiRatingField`                                          | `0`                                      |
+| `UiColorPicker`                                          | `#000000`                                |
+| `UiMentionsField`, `UiEditable`                          | `''`                                     |
+| `UiTextField`, `UiTextarea`, `UiNumberField`,            | none: the form's value is kept as it is, |
+| `UiRadioGroup`, `UiSlider`, `UiDateField`, `UiTimeField` | `undefined` and `null` included          |
+
+The last row matters for a backend with nullable columns. A `UiTextField`
+over `notes: null` holds `null`, and `z.string()` reports it the moment the
+form opens. Say what the column is in the schema (`z.string().nullable()`), or
+map the record once before handing it over (`notes: customer.notes ?? ''`).
+
+`reset()` returns to the state the form opened in, the fields' own empty
+values and the values you bound included.
+
+Two fields are not there yet. `UiOTPField` draws its cells from its
+`model-value` alone and does not write a typed code to the form, so it neither
+shows nor edits a form value: drive it with `v-model` outside a form, as the
+sign-in flow does. `UiRadioGroup` holds the form's value but does not mark the
+matching option as checked until the user picks one.
+
+For config-driven forms, open the [Form Builder guide](/docs/components/forms/form-builder).
 
 Find it in the sidebar: Components > Forms > Form Builder.
+
+---
+
+## The submit lifecycle
+
+A form that saves to a backend has more states than "valid" and "invalid". The
+save takes time, it can be refused, the refusal is usually about one field, and
+the user may try to leave halfway through. Give `UiForm` an `action` and it
+runs that lifecycle:
+
+```html
+<script setup lang="ts">
+  import { customerDraftSchema } from '../types'
+  import { useCustomerForm } from '../composables/useCustomerForm'
+
+  const { initialValues, save } = useCustomerForm(id)
+</script>
+
+<template>
+  <UiForm
+    :schema="customerDraftSchema"
+    :initial-values="initialValues"
+    :action="save"
+    show-errors="touched"
+    confirm-leave
+    @success="onSaved"
+  >
+    <template #default="{ formErrors, isSubmitting }">
+      <UiAlert v-if="formErrors.length > 0" variant="error" title="Could not save">
+        <p v-for="message in formErrors" :key="message">{{ message }}</p>
+      </UiAlert>
+
+      <UiTextField name="company" label="Company" required />
+      <UiTextField name="email" label="Email" type="email" required />
+
+      <UiButton type="submit" variant="primary" :loading="isSubmitting">Save</UiButton>
+    </template>
+  </UiForm>
+</template>
+```
+
+What happens on submit, in order:
+
+1. **Validate.** The schema runs. If it rejects the values, the messages appear
+   under their fields and the action is not called.
+2. **Await the action.** `isSubmitting` is `true` until it settles, so a pending
+   button stays pending for the whole save. A second submit in that time is
+   ignored.
+3. **On success**, the saved values become the baseline the form is compared
+   against: `isDirty` is `false`, and the unsaved-changes guard lets a
+   navigation through. A field the user edited while the request was in flight
+   stays dirty. `success` is emitted with what the action resolved with.
+4. **On failure**, the rejection is caught. The server's messages go under the
+   fields they are about, `formErrors` carries the rest, and `error` is emitted.
+   Focus moves to the first field the server refused, in document order, and
+   the page scrolls to it (without animation for a reader who asked for reduced
+   motion); when the refusal names no field, to the first `role="alert"` in the
+   form, which is where the example above puts `formErrors`. The form is ready
+   to be submitted again, and the next submit clears what the server said
+   before it validates.
+
+Mark the submit button `:loading="isSubmitting"` and leave `disabled` off. A
+disabled button drops focus to the page for the length of the save, and a
+keyboard user is then nowhere when it fails. A loading `UiButton` keeps focus,
+announces `aria-busy` and ignores a second press; `UiForm` ignores a second
+submit as well.
+
+`action` is usually a mutation's `mutateAsync`, wrapped in a module composable
+so the page stays a thin adapter (see `src/modules/customers/composables/useCustomerForm.ts`).
+It should let a failure reject: catching it there hides it from the form.
+
+### What is reported
+
+A request the server refused (any `4xx`) is an answer, not a crash, and so is
+one that never arrived: the network is down, or the request timed out. Both are
+shown to the user in their language and **not** sent to the error reporter.
+Anything else, a `5xx`, a response that broke its contract, a bug in the
+action, is reported once (source `form:action`) and shown as the generic
+localized message; a `5xx`'s own text never reaches the user.
+
+Without an `action` the form emits `submit` and waits for nothing, exactly as
+before. In that mode a handler that throws, or returns a promise that rejects,
+is an unhandled error: Vue reports it, and the form shows nothing.
+
+### Server errors on fields
+
+The API client reads a refused request's body into `AppError.details`, keyed by
+the **backend's** field path, exactly as it was sent:
+
+| Backend               | A key it sends      |
+| --------------------- | ------------------- |
+| ASP.NET               | `Items[0].Quantity` |
+| Laravel               | `contact_name`      |
+| Django REST Framework | `items.1.qty`       |
+| Vuestrata's own shape | `email`             |
+
+`UiForm` finds the field each key belongs to by trying, in order:
+
+1. the form's `fieldMap`, by the exact key;
+2. the key as sent, with bracket indices written as dots (`Items.0.Quantity`),
+   for a form that names its fields the way the backend does;
+3. every segment in camelCase (`items.0.quantity`, `contactName`), which is what
+   a form written in TypeScript uses.
+
+The first candidate that is a field **this form is showing** wins. So most
+forms need no configuration, and the `fieldMap` is for the names only a person
+can match:
+
+```html
+<UiForm :action="save" :field-map="{ 'Address.City': 'city', primary_contact: 'contactName' }" />
+```
+
+If your backend's convention is regular but not one of the above, give the form
+a function instead. It replaces steps 2 and 3:
+
+```html
+<UiForm :action="save" :field-path="(key) => key.replace(/^data\./, '')" />
+```
+
+Both are per form. There is no project-wide setting: wrap the function in a
+composable of your own and pass it where you need it.
+
+A key that matches no field is **not dropped**. Its messages go to `formErrors`,
+prefixed with the key (`vat_number: The VAT number is not valid.`), so the user
+still sees them and you see which mapping is missing. The same happens for a
+field that exists in `initialValues` but is not rendered.
+
+Other things worth knowing:
+
+- Only a `4xx` is mapped. A contract mismatch also carries `details`, but they
+  are paths into the response, not form fields.
+- A server message clears when the user edits **that** field. Editing another
+  field leaves it alone, even though the schema is validated again.
+- A server message never blocks a resubmit, and `isValid` ignores it: the server
+  refused what was sent, and what is in the field now may be different.
+- Messages are text. Markup in a message is displayed, never rendered.
+- The body is the server's, so what one response can put on a form is bounded:
+  100 keys, 10 messages a key, 50 form-level messages. A key longer than 200
+  characters is not read as a field path; its messages go to `formErrors`
+  behind the first 40 characters of it.
+- `formErrors` is never empty after a failed save. With no form-level message
+  from the server it holds the one line `describeError()` gives for the error
+  (the backend's own message for a `4xx`, otherwise a translation), so render it
+  and the failure is always visible.
+
+To show errors you obtained some other way, call `setErrors` on a template ref.
+For a form built without `UiForm`, `useServerErrors()` from
+`@/composables/forms` holds the same state: pass `errorsFor('email')[0]` to the
+field's `error` prop.
+
+### When errors appear
+
+By default a field shows what the schema says the moment it is wrong, which for
+an empty required field is the moment the form opens. That suits a form
+pre-filled with data to correct. For a form that starts empty, set
+`show-errors="touched"`: a field's message is held back until the user has left
+that field, or has tried to submit. What the server said is shown either way.
+
+### Unsaved changes
+
+`confirm-leave` asks before changes are thrown away:
+
+- **A navigation inside the app** is held, and `UiUnsavedChangesDialog` asks
+  "Discard unsaved changes?". Keep editing cancels the navigation; Discard
+  changes lets it through. Escape and the overlay mean keep editing. A change of
+  query or hash on the same page is not a navigation away, and is not asked
+  about.
+- **A reload, a closed tab or a typed address** gets the browser's own prompt.
+  No page can put its own dialog there. The `beforeunload` listener exists only
+  while the form is dirty.
+
+Nothing is asked when the form is clean, which includes right after a successful
+`action`. So `@success="router.push(...)"` navigates without a prompt.
+
+**A session that ended is never held.** When the session expires the app sends
+the user to the login page, and "keep editing" there would leave them on a
+protected page with no session and changes that can no longer be saved. So the
+guard stands down while a session that existed is gone: the redirect goes
+through, a question already on screen is answered and closed, and the browser's
+prompt is withdrawn. A form on a page nobody was signed in on is guarded as
+usual.
+
+A sign-out the user asks for is different, because there is still time to ask:
+`useAuth().logout()` asks first, and "keep editing" cancels the sign-out. If
+your project kept its own copy of `useAuth.ts` from 1.0, add the question to
+its `logout()`:
+
+```ts
+import { confirmDiscardingChanges } from '@/composables/forms'
+
+async function logout() {
+  if (!(await confirmDiscardingChanges())) return
+  // …sign out
+}
+```
+
+`confirmDiscardingChanges()` is for any action that loses the page without
+navigating first. It resolves `true` at once when nothing is unsaved.
+
+Two guarded forms on one page ask once: the answer is for the navigation, not
+for a form.
+
+The guard is also a composable, for a form that is not a `UiForm`:
+
+```html
+<script setup lang="ts">
+  import { UiUnsavedChangesDialog } from '@/components/ui'
+  import { useUnsavedChangesGuard } from '@/composables/forms'
+
+  const guard = useUnsavedChangesGuard(() => isDirty.value, { enabled: () => !isReadOnly.value })
+</script>
+
+<template>
+  <UiUnsavedChangesDialog :open="guard.isPrompting.value" @stay="guard.stay" @leave="guard.leave" />
+</template>
+```
+
+Render the dialog whenever you use the composable. A held navigation with
+nothing on screen to answer it is a link that silently does nothing.
+
+The composable takes an `allow(to, from)` option for a navigation of your own
+that must not be held (a forced redirect to a maintenance page, the next step
+of the same wizard): return `true` and it goes through unasked.
+
+```ts
+const guard = useUnsavedChangesGuard(() => isDirty.value, {
+  allow: (to) => to.name === 'maintenance',
+})
+```
+
+### Localized validation messages
+
+A schema needs no messages of its own. Zod's issues are answered from the
+`validation.*` keys of the locale catalog, in the active language, with limits
+interpolated and plural forms chosen:
+
+| Schema                         | English                            | French                                      |
+| ------------------------------ | ---------------------------------- | ------------------------------------------- |
+| `z.string()` left empty        | This field is required             | Ce champ est requis                         |
+| `z.string().min(1)` on `''`    | This field is required             | Ce champ est requis                         |
+| `z.string().min(3)`            | Must be at least 3 characters      | Doit contenir au moins 3 caractères         |
+| `z.string().max(1)`            | Must be at most 1 character        | Doit contenir au plus 1 caractère           |
+| `z.email()`                    | Please enter a valid email address | Veuillez saisir une adresse e-mail valide   |
+| `z.number().min(5)`            | Value must be at least 5           | La valeur doit être supérieure ou égale à 5 |
+| `z.array(…).min(2)`            | Must contain at least 2 items      | Doit contenir au moins 2 éléments           |
+| `z.enum([…])` with a bad value | Please select a valid option       | Veuillez sélectionner une option valide     |
+
+The map is installed once at boot (`installValidationMessages()` in
+`src/modules/app/bootstrap/`), and reads the active locale each time it is
+asked, so switching language changes the next validation with no reload. A
+`UiForm` that is showing schema messages validates again when the language
+changes, so the ones on screen follow at once; what the server said stays in
+the server's words.
+
+Zod has one global error map, so it applies to every `schema.safeParse()` in
+the app, not only to forms. What the template itself checks with zod for a
+developer's eyes (a response that broke its contract, the user a backend sent,
+the deployment's configuration) is parsed through `safeParseForDiagnostics()`
+from `~/lib/validation/diagnostics`, and reads in zod's own English whatever
+the language. Use it for a parse of your own whose issues are logged or
+reported rather than shown.
+
+**In tests.** `test/setup.ts` does not install the map, so a component test
+sees zod's English (`Invalid input: expected string, received undefined`). That
+is deliberate: most tests assert that a message appears, not how it reads. A
+test that asserts the wording installs the map itself and removes it afterwards:
+
+```ts
+import { installValidationMessages } from '@/bootstrap/validation-messages'
+
+let removeMessages: () => void
+beforeEach(() => (removeMessages = installValidationMessages()))
+afterEach(() => removeMessages())
+```
+
+And test a form against the real Formwerk. A suite that mocks `@formwerk/core`
+proves only that the test agrees with itself; if yours does, its mock needs a
+`FormKey` export (`FormKey: Symbol('FormKey')`), which the fields read to
+learn whether they are inside a form.
+
+- **To reword a message for every form**, override it in
+  `<locale>.overrides.json`: `{ "validation": { "required": "{field} is missing" } }`.
+  `validation` is a group, and `plugins/i18n.ts` merges a group key by key, so
+  the other messages stay as shipped.
+
+  That file is yours, and this holds for the `withOverrides()` in it that
+  1.1.0 ships. A project upgraded from 1.0 has it too unless it had rewritten
+  the function, in which case `vuestrata upgrade` left it alone and said so:
+  a `withOverrides()` that still returns `{ ...base, ...overrides }` replaces
+  the whole group, and every message you did not repeat is shown as its key
+  (`validation.email`). Until you change the function, copy the whole
+  `validation` object from the catalog into the overrides file and edit the
+  entries you want.
+
+- **A message set in the schema wins**: `z.string().min(2, t('profile_name_short'))`
+  says what it says. Build the schema in a `computed` when its messages are
+  translated, so they follow the locale.
+- **In a test**, the map is not installed unless the test installs it:
+  `installValidationMessages()` returns the function that removes it again.
 
 ---
 
@@ -143,10 +526,10 @@ Groups related fields under a `<fieldset>` with a shared legend, optional group-
 <UiForm :initial-values="{ address: { street: '', city: '', zip: '' } }">
   <UiFormGroup name="address" label="Shipping address">
     <template #default="{ errors }">
-      <UiTextField name="address.street" label="Street" placeholder="123 Main St" required />
+      <UiTextField name="street" label="Street" placeholder="123 Main St" required />
       <div class="grid grid-cols-2 gap-4">
-        <UiTextField name="address.city" label="City" placeholder="New York" required />
-        <UiTextField name="address.zip" label="ZIP code" placeholder="10001" />
+        <UiTextField name="city" label="City" placeholder="New York" required />
+        <UiTextField name="zip" label="ZIP code" placeholder="10001" />
       </div>
       <p v-if="errors.length" class="text-sm text-red-500">{{ errors[0] }}</p>
     </template>
@@ -163,6 +546,8 @@ Groups related fields under a `<fieldset>` with a shared legend, optional group-
 | `schema`   | `StandardSchemaV1` | —            | Group-level cross-field validation           |
 | `disabled` | `boolean`          | `false`      | Disables all fields within this group        |
 
+Fields inside a group are named relative to it: `name="street"` above is `address.street` in the form's values. The same holds inside `UiFormRepeater`, where `name="email"` in the second row is `contacts.1.email`. That full path is also where a server error for the field is looked up.
+
 ---
 
 ### UiFormRepeater
@@ -174,13 +559,8 @@ Renders a dynamic list of repeated field groups with add, remove, and reorder co
   <UiFormRepeater name="contacts" add-button-label="Add contact" :min="1" :max="5">
     <template #default="{ index, removeButtonProps, moveUpButtonProps, moveDownButtonProps }">
       <div class="flex gap-2 items-end">
-        <UiTextField :name="`contacts[${index}].name`" label="Name" placeholder="Contact name" />
-        <UiTextField
-          :name="`contacts[${index}].email`"
-          label="Email"
-          type="email"
-          placeholder="contact@example.com"
-        />
+        <UiTextField name="name" label="Name" placeholder="Contact name" />
+        <UiTextField name="email" label="Email" type="email" placeholder="contact@example.com" />
         <button v-bind="removeButtonProps" class="btn-icon">✕</button>
       </div>
     </template>
@@ -223,11 +603,14 @@ Every `Ui*` field extends `BaseFieldProps`:
 
 ### Error display priority
 
-1. **`error` prop** — static string from parent, e.g. a server error
-2. **Formwerk validation** — errors surfaced by the field's own Formwerk composable
-3. **Form schema** — errors propagated from the parent `UiForm` schema
+1. **`error` prop** — a string from the parent. It stays until the parent removes it
+2. **The server's message** — what a failed `UiForm` `action` said about this field. It stays until the user edits the field
+3. **Formwerk validation** — errors surfaced by the field's own Formwerk composable
+4. **Form schema** — errors propagated from the parent `UiForm` schema
 
-The first non-empty error renders in a `<p role="alert">` below the field. When an error is showing, hint/description is hidden.
+The first non-empty error renders in a `<p role="alert">` below the field, and the control gets `aria-invalid` and `aria-errormessage` pointing at it. When an error is showing, hint/description is hidden.
+
+You rarely need the `error` prop for server errors: give the form an `action` and they arrive on their fields by themselves. See [Server errors on fields](#server-errors-on-fields).
 
 ---
 

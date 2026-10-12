@@ -2,6 +2,8 @@ import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
+import { useOwnDefault } from './useOwnDefault'
+
 export interface TreeNode {
   label: string
   value: string
@@ -18,6 +20,8 @@ export interface TreeSelectProps extends FieldProps {
 }
 
 export function useUiTreeSelect(props: TreeSelectProps) {
+  const ownDefault = useOwnDefault(props)
+
   const formwerk = useCustomField<string | string[]>({
     name: () => props.name,
     label: () => props.label ?? '',
@@ -25,7 +29,7 @@ export function useUiTreeSelect(props: TreeSelectProps) {
     disabled: () => props.disabled,
     required: () => props.required,
     schema: props.schema as undefined,
-    modelValue: () => props.modelValue ?? (props.multiple ? [] : ''),
+    modelValue: () => props.modelValue ?? ownDefault(props.multiple ? [] : ''),
   })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)

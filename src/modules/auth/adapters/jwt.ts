@@ -1,15 +1,16 @@
 import { jwtDecode } from 'jwt-decode'
 
+import { getAuthConfig } from '~/lib/auth/config'
 import {
+  persistRefreshToken,
   readPersistedRefreshToken,
   usesRefreshCookie,
   usesWebStorage,
 } from '~/lib/auth/session-persistence'
 import { normalizeError } from '~/lib/errors'
-import type { User } from '~/types'
 
 import { authEndpoints, authLogger } from './base'
-import type { AuthAdapter, ResumedSession } from './types'
+import type { AuthAdapter, RefreshedSession, ResumedSession } from './types'
 
 /**
  * Clock-skew margin. A token that expires in under 30 seconds is treated as
@@ -46,39 +47,102 @@ export function isJwtExpired(token: string): boolean {
  * code path, so the documented "checks expiry per call" behaviour did not
  * happen. `getUser` now actually uses it.
  *
- * Backend contract:
- *   POST /auth/login            → { user, token, refreshToken, expiresIn }
+ * Backend contract, as shipped:
+ *   POST /auth/login            → { user, token, refreshToken?, expiresIn }
  *   POST /auth/register         → same
  *   POST /auth/logout           → 204
  *   GET  /auth/me               → User            (Authorization: Bearer …)
- *   POST /auth/refresh          → { token, refreshToken, expiresIn }
+ *   POST /auth/refresh          → { token, refreshToken?, expiresIn }   (no `user`)
  *   POST /auth/magic-link       → { message }
  *   POST /auth/magic-link/verify→ { user, token, … }
  *   POST /auth/mfa/{setup,verify,disable}
+ *
+ * A backend that differs is described in `app/config/auth.config.ts`: other
+ * paths, other response shapes, a differently shaped user. An endpoint it
+ * switches off takes its capability with it, and so does a capability it
+ * disclaims; the method behind a capability this adapter does not have is left
+ * off, so nothing can call it by mistake.
  */
-export function createJwtAdapter(getToken: () => string | null = () => null): AuthAdapter {
+export function createJwtAdapter(
+  getToken: () => string | null = () => null,
+  getRefreshToken: () => string | null = () => null,
+): AuthAdapter {
+  const { endpoints, capabilities: disclaimed } = getAuthConfig()
+  const has = (...names: (keyof typeof endpoints.spec)[]) =>
+    names.every((name) => endpoints.spec[name] !== null)
+
+  const canRegister = has('register') && disclaimed.register !== false
+  const canMagicLink = has('magicLink', 'magicLinkVerify') && disclaimed.magicLink !== false
+  const canMfa = has('mfaSetup', 'mfaVerify', 'mfaDisable') && disclaimed.mfa !== false
+  const canRefresh = has('refresh') && disclaimed.refresh !== false
+
+  /**
+   * The refresh token this deployment can present as a body, or null. Memory
+   * first (it is the freshest, and the only source under `none`), then the
+   * persisted copy. Under `refresh-cookie` there is none by design.
+   */
+  function heldRefreshToken(): string | null {
+    const inMemory = getRefreshToken()
+    if (inMemory) return inMemory
+    return usesWebStorage() ? readPersistedRefreshToken() : null
+  }
+
+  /**
+   * One refresh request, shaped by `VUESTRATA_SESSION_PERSISTENCE`. Rejects
+   * on an HTTP failure; resolves to null only when there is nothing to present.
+   */
+  async function requestRefresh(): Promise<RefreshedSession | null> {
+    // A backend with no refresh endpoint: the session lasts as long as its
+    // access token, and a reload ends it.
+    if (!canRefresh) return null
+
+    if (usesRefreshCookie()) {
+      // The cookie is the credential, and a backend built for this mode never
+      // puts a refresh token in a body. One that did is a body-token backend
+      // running under the default setting: its refresh worked mid-session
+      // before the cookie path existed, so it gets its token back rather than
+      // an empty request it would refuse. Cookies are attached either way, and
+      // nothing is stored, so a reload still depends on the cookie alone.
+      const inMemory = getRefreshToken()
+      return inMemory
+        ? authEndpoints.refreshWithToken(inMemory)
+        : authEndpoints.resumeWithRefreshCookie()
+    }
+
+    const held = heldRefreshToken()
+    return held ? authEndpoints.refreshWithToken(held) : null
+  }
+
   return {
     name: 'jwt',
     transport: 'bearer',
     capabilities: {
-      register: true,
+      register: canRegister,
       // Social sign-in is a redirect flow; use the `oauth` adapter for it.
       social: false,
-      magicLink: true,
-      mfa: true,
-      refresh: true,
+      magicLink: canMagicLink,
+      mfa: canMfa,
+      refresh: canRefresh,
       codeExchange: false,
     },
 
     login: authEndpoints.login,
-    register: authEndpoints.register,
     logout: authEndpoints.logout,
-    refreshToken: authEndpoints.refreshToken,
-    sendMagicLink: authEndpoints.sendMagicLink,
-    verifyMagicLink: authEndpoints.verifyMagicLink,
-    setupMfa: authEndpoints.setupMfa,
-    verifyMfa: authEndpoints.verifyMfa,
-    disableMfa: authEndpoints.disableMfa,
+    ...(canRegister ? { register: authEndpoints.register } : {}),
+    ...(canRefresh ? { refreshToken: authEndpoints.refreshToken } : {}),
+    ...(canMagicLink
+      ? {
+          sendMagicLink: authEndpoints.sendMagicLink,
+          verifyMagicLink: authEndpoints.verifyMagicLink,
+        }
+      : {}),
+    ...(canMfa
+      ? {
+          setupMfa: authEndpoints.setupMfa,
+          verifyMfa: authEndpoints.verifyMfa,
+          disableMfa: authEndpoints.disableMfa,
+        }
+      : {}),
 
     /**
      * Recover a session after a reload dropped the in-memory access token.
@@ -94,18 +158,33 @@ export function createJwtAdapter(getToken: () => string | null = () => null): Au
      * the app; the user simply lands on the login page.
      */
     async resumeSession(): Promise<ResumedSession | null> {
+      if (!canRefresh) return null
+
+      let strategy: string
       if (usesRefreshCookie()) {
-        return callResume(() => authEndpoints.resumeWithRefreshCookie(), 'refresh cookie')
+        strategy = 'refresh cookie'
+      } else if (usesWebStorage() && readPersistedRefreshToken()) {
+        strategy = 'persisted refresh token'
+      } else {
+        return null
       }
 
-      if (usesWebStorage()) {
-        const stored = readPersistedRefreshToken()
-        if (!stored) return null
-        return callResume(() => authEndpoints.refreshToken(stored), 'persisted refresh token')
-      }
-
-      return null
+      const refreshed = await callResume(() => requestRefresh(), strategy)
+      if (!refreshed) return null
+      // A rotating backend has just spent the stored token. Keep its
+      // replacement before asking for the user: the store only writes it once
+      // the resume succeeds, and if `/auth/me` fails first the next reload
+      // would present a token the backend reads as replayed. A no-op outside
+      // the Web Storage modes.
+      if (refreshed.refreshToken) persistRefreshToken(refreshed.refreshToken)
+      return withUser(refreshed)
     },
+
+    refreshSession: requestRefresh,
+
+    // Kept even without a refresh endpoint, answering "no": with it absent the
+    // API client would fall back to its own refresh request, at a fixed path.
+    canRefreshSession: () => canRefresh && (usesRefreshCookie() || heldRefreshToken() !== null),
 
     async getUser() {
       // Skip a request that is guaranteed to 401. Returning null lets the
@@ -122,17 +201,48 @@ export function createJwtAdapter(getToken: () => string | null = () => null): Au
 }
 
 /**
+ * Give a refreshed session the user it needs.
+ *
+ * `/auth/refresh` is documented to return tokens and no `user`, so most
+ * backends leave the app to ask `/auth/me`. The fresh token is passed
+ * explicitly — the store has none yet, which is the whole reason a resume is
+ * happening. A backend that does return a user is taken at its word. When the
+ * user cannot be fetched there is no session to resume, and a session without
+ * a user is worse than none. The caller has already kept a rotated refresh
+ * token by then, so the next boot can try again.
+ */
+async function withUser(refreshed: RefreshedSession): Promise<ResumedSession | null> {
+  const { user, ...tokens } = refreshed
+  if (user) return { user, ...tokens }
+
+  try {
+    return { user: await authEndpoints.getUserAs(refreshed.token), ...tokens }
+  } catch (err) {
+    const appErr = normalizeError(err)
+    authLogger.warn('Refreshed the session but could not load the user from /auth/me.', {
+      code: appErr.code,
+      status: appErr.status,
+    })
+    return null
+  }
+}
+
+/**
  * Run one resume strategy, turning every failure into `null`.
  *
  * Split out so the two strategies cannot drift in how they classify errors —
  * the whole point is that NOTHING thrown here reaches the bootstrap.
  */
 async function callResume(
-  call: () => Promise<{ user: User; token: string; refreshToken: string; expiresIn: number }>,
+  call: () => Promise<RefreshedSession | null>,
   strategy: string,
-): Promise<ResumedSession | null> {
+): Promise<RefreshedSession | null> {
   try {
     const result = await call()
+    if (!result?.token) {
+      authLogger.warn(`The ${strategy} refresh answered without an access token.`)
+      return null
+    }
     authLogger.info(`Session resumed from ${strategy}.`)
     return result
   } catch (err) {

@@ -1,6 +1,6 @@
 {
   "name": "vuestrata",
-  "version": "1.0.1-alpha.6",
+  "version": "1.1.0-alpha.0",
   "private": true,
   "description": "Opinionated Vue application foundation with enforced architecture, generators, and 12 design personalities.",
   "keywords": [
@@ -39,8 +39,9 @@
     "gen:component": "node packages/cli/src/index.mjs add component",
     "gen:theme": "node packages/cli/src/index.mjs add theme",
     "gen:icon-set": "node packages/cli/src/index.mjs add icon-set",
-    "lint": "vp lint && node scripts/lint/run-custom-rules.mjs && node scripts/lint/check-toolchain-pins.mjs && node scripts/msw/check-worker-version.mjs && node scripts/security/sync-headers.mjs --check && node scripts/docs/check-links.mjs --quiet && node scripts/release/check-template-lock.mjs",
+    "lint": "vp lint && node scripts/lint/run-custom-rules.mjs && node scripts/lint/check-toolchain-pins.mjs && node scripts/msw/check-worker-version.mjs && node scripts/security/sync-headers.mjs --check && node scripts/docs/check-links.mjs --quiet",
     "lint:docs": "node scripts/docs/check-links.mjs",
+    "lint:maintainer": "node scripts/release/maintainer-gates.mjs",
     "lint:fix": "vp lint --fix",
     "lint:inline-handlers": "node scripts/lint/run-custom-rules.mjs",
     "lint:msw-worker": "node scripts/msw/check-worker-version.mjs",
@@ -53,6 +54,7 @@
     "test:component": "vp test --run test/component",
     "test:integration": "vp test --run test/integration",
     "test:e2e": "playwright test",
+    "test:e2e:session": "node e2e/integration/build.mjs && playwright test --config e2e/integration/playwright.config.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:smoke": "playwright test e2e/smoke.spec.ts",
     "verify:bundle": "node scripts/build/verify-bundle.mjs",
@@ -71,7 +73,7 @@
     "version:prerelease:alpha": "node scripts/release/version.mjs prerelease --preid alpha",
     "version:prerelease:beta": "node scripts/release/version.mjs prerelease --preid beta",
     "version:prerelease:rc": "node scripts/release/version.mjs prerelease --preid rc",
-    "release:verify": "vp check && vp test --run",
+    "release:verify": "vp check && vp run lint:maintainer --tests && vp test --run",
     "docker:build": "docker build -t vuestrata .",
     "docker:run": "docker run --rm -p 8080:8080 vuestrata",
     "prepare": "vp config",
@@ -154,7 +156,7 @@
     "vue-tsc": "^3.3.11"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "packageManager": "pnpm@11.20.0",
   "msw": {

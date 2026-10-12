@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 import { logInAsDemoAdmin } from './helpers/auth'
+import { openSidebar } from './helpers/navigation'
 
 /**
  * Sidebar, breadcrumb, and command-palette mechanism.
@@ -67,6 +68,7 @@ test.describe('sidebar structure', () => {
 
   test('a nested section discloses and its children navigate', async ({ page }) => {
     await gotoDashboard(page)
+    await openSidebar(page)
     const sidebar = sidebarOf(page)
 
     const trigger = sidebar.getByRole('button', { name: 'Orders' })
@@ -102,6 +104,7 @@ test.describe('sidebar structure', () => {
     const sidebar = sidebarOf(page)
 
     // Expand every disclosure so nested links are reachable.
+    await openSidebar(page)
     for (const trigger of await sidebar.getByRole('button').all()) {
       if ((await trigger.getAttribute('aria-expanded')) === 'false') await trigger.click()
     }
@@ -119,7 +122,7 @@ test.describe('sidebar structure', () => {
     // No sidebar link may point at a page that does not exist. A 404, or a
     // bounce to /403, is a broken promise.
     for (const href of targets) {
-      await page.goto(href)
+      await page.goto(href, { waitUntil: 'domcontentloaded' })
       await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
       await expect(page, `${href} redirected away`).toHaveURL(new RegExp(`${href}(\\?|$)`))
       await expect(page.locator('h1').first(), `${href} rendered no heading`).toBeVisible()
@@ -133,6 +136,15 @@ test.describe('breadcrumb', () => {
     await page.goto('/dashboard/customers/CUS-1000')
 
     const breadcrumb = page.getByRole('navigation', { name: /breadcrumb/i })
+    if ((page.viewportSize()?.width ?? 0) < 1024) {
+      // The compact header omits the breadcrumb; the screen still identifies
+      // the customer and offers a visible way back to its collection.
+      await expect(breadcrumb).toBeHidden()
+      await expect(page.locator('main h1').first()).not.toHaveText('CUS-1000')
+      await page.getByRole('link', { name: 'Back to customers' }).first().click()
+      await expect(page).toHaveURL(/\/dashboard\/customers$/)
+      return
+    }
     await expect(breadcrumb).toBeVisible()
 
     // The trailing crumb is replaced with the loaded entity, so it must not
@@ -167,7 +179,20 @@ test.describe('command palette', () => {
   test('opens from its button, for users who never learn the chord', async ({ page }) => {
     await gotoDashboard(page)
 
-    await page.getByTestId('command-palette-trigger').click()
-    await expect(page.getByRole('dialog')).toBeVisible()
+    const trigger = page.getByTestId('command-palette-trigger')
+    if ((page.viewportSize()?.width ?? 0) < 768) {
+      const box = await trigger.boundingBox()
+      expect(box?.width).toBeGreaterThanOrEqual(44)
+      expect(box?.height).toBeGreaterThanOrEqual(44)
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(overflow).toBeLessThanOrEqual(1)
+    }
+    await trigger.click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('textbox')).toBeInViewport()
+    await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport()
   })
 })

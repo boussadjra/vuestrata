@@ -1,0 +1,57 @@
+services:
+  app:
+    build: .
+    ports:
+      - '${APP_PORT:-8080}:8080'
+    # What THIS container is started with. The image is the same for every
+    # environment: these values are read at start, by the image's entrypoint,
+    # and win over the ones the build inlined. A variable that is not set keeps
+    # what the image was built with.
+    #
+    # They come from docker.env, a file of its own (copy docker.env.example),
+    # and from nowhere else. Not from `.env`: that file is the one Vite reads
+    # for development, and a dev setting in it (a localhost API URL,
+    # VUESTRATA_SESSION_PERSISTENCE=none) would silently configure this
+    # container, which is the production image. The file is optional; without
+    # it nothing is set.
+    #
+    # Variables your deploy.config.ts lists under `runtime`, `connectSrcFromEnv`
+    # or `websocketFromEnv` go in that file too. A value may hold only URL-safe
+    # characters, and the title spaces as well; the container refuses to start
+    # otherwise.
+    env_file:
+      - path: ./docker.env
+        required: false
+    restart: unless-stopped
+    read_only: true
+    # /tmp is the one path the container writes to: nginx-unprivileged keeps its
+    # pid and temp files there, and the entrypoint renders /tmp/vuestrata. The
+    # other two cost nothing and keep a stock nginx.conf working.
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    networks:
+      - vuestrata
+
+networks:
+  vuestrata:
+    driver: bridge

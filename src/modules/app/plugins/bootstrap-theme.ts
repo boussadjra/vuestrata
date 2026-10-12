@@ -4,7 +4,7 @@
  * Reads the persisted dark-mode, theme, locale, and shape preferences and
  * applies them to `<html>` synchronously, before Vue mounts. This is the first
  * frame the user will see, so doing it here (rather than waiting for
- * `useThemeSync` / `useLocaleSync` / `useShapeSync` inside `App.vue`)
+ * `useThemeSync` / `useLocaleSync` / `useShapeSync` inside `AppRoot.vue`)
  * prevents a flash of the wrong theme, colours, direction, or border
  * radius. Documentation URLs force English/LTR here too, so a first
  * paint on `/docs` is never RTL.
@@ -13,13 +13,17 @@
  * and storage keys are reused by the reactive post-mount sync.
  */
 
+import { appPathname } from '~/lib/config'
+
 import { applyAppearance, readPersistedAppearance, resolveActiveLocale } from './appearance'
 import { applyShape, readPersistedShape } from './shape'
 
 /** Apply persisted appearance and shape to `<html>` synchronously. */
 export function bootstrapTheme(): void {
   const appearance = readPersistedAppearance()
-  const pathname = typeof window === 'undefined' ? '/' : window.location.pathname
+  // The path inside the app: under a base path the address bar says
+  // `/console/docs/…`, and `/docs` is what the docs are called.
+  const pathname = appPathname()
   applyAppearance({
     ...appearance,
     locale: resolveActiveLocale(pathname, appearance.locale),

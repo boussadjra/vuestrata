@@ -1,6 +1,15 @@
 import { slot } from '../../src/lib/manifest.mjs'
 import { ANCHORED_REGISTRIES } from '../../src/lib/registry.mjs'
 import { splitRegion } from '../split-regions.mjs'
+import basePath from './base-path.mjs'
+import deployment from './deployment.mjs'
+import hybridMocks from './hybrid-mocks.mjs'
+import localeLoading from './locale-loading.mjs'
+import notes from './notes.mjs'
+import projectFiles from './project-files.mjs'
+import promotions from './promotions.mjs'
+import rbacEject from './rbac-eject.mjs'
+import roles from './roles.mjs'
 
 /**
  * Give every registry two sentinel regions instead of one.
@@ -20,7 +29,7 @@ import { splitRegion } from '../split-regions.mjs'
  * real and being aspirational.
  */
 
-export default {
+const regionSplit = {
   description: 'split each gen: sentinel into vuestrata: and app: regions',
   steps: ANCHORED_REGISTRIES.filter((registry) => registry.hadLegacyMarker).map((registry) => ({
     file: (manifest) => slot(manifest, registry.slot),
@@ -28,3 +37,30 @@ export default {
       splitRegion(source, registry.region, { comment: registry.comment, keepIn: 'app' }),
   })),
 }
+
+// One release, several changes, each with a line of its own in the upgrade report.
+//
+// The order is the order of the report, and of the codemods: the region split
+// first, because later steps look for the regions it creates. Ownership steps
+// (promote, reclassify) run after every codemod, whatever their place here.
+//
+//   promotions      files the project owned that Vuestrata maintains from now on
+//   rbacEject       core/lib/rbac/ as the 1.0 eject left it, taken back before it is judged
+//   projectFiles    changes this release needs in files that stay the project's
+//   hybridMocks     the same, for what VUESTRATA_MOCK_ONLY reads in two of them
+//   basePath        the same, for what VUESTRATA_BASE_PATH needs in five of them
+//   deployment      the container and CI files, replaced when nobody edited them
+//   roles           the router and the User type learn that a user may hold several roles
+//   notes           what only a person can act on
+export default [
+  regionSplit,
+  ...promotions,
+  rbacEject,
+  ...projectFiles,
+  ...hybridMocks,
+  ...basePath,
+  deployment,
+  roles,
+  localeLoading,
+  notes,
+]

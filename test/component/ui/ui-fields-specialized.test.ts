@@ -53,6 +53,8 @@ function createMockFieldReturn(overrides: Record<string, unknown> = {}) {
 }
 
 vi.mock('@formwerk/core', () => ({
+  // Read by useOwnDefault to learn whether a field sits inside a form; here none does.
+  FormKey: Symbol('FormKey'),
   useSlider: vi.fn(() => ({
     ...createMockFieldReturn(),
     groupProps: computed(() => ({ role: 'group', id: 'mock-slider-group' })),

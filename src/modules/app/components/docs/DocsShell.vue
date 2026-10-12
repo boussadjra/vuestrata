@@ -10,6 +10,8 @@ import {
   buildSidebarSections,
   findActiveSidebarGroup,
   getGroupKey,
+  showsDocHeader,
+  stripLeadingHeading,
   type DocEntry,
 } from './docsNavigation'
 import DocsSidebar from './DocsSidebar.vue'
@@ -38,13 +40,18 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Starting a Project',
     description: 'From the template to your own app, and how to keep taking updates afterwards.',
   },
+  '/docs/1.getting-started/4.develop-against-your-backend.md': {
+    title: 'Develop Against Your Backend',
+    description:
+      'Point the dev server at your real API — through its proxy, directly with CORS, or not at all.',
+  },
   '/docs/2.architecture/1.overview.md': {
     title: 'Architecture Overview',
     description: 'Current layered architecture, module ownership, and runtime flow.',
   },
   '/docs/2.architecture/2.adapters.md': {
     title: 'Adapter Systems',
-    description: 'UI, icon, validation, and auth adapter patterns.',
+    description: 'UI, icon, validation, auth and API adapter patterns.',
   },
   '/docs/2.architecture/3.routing.md': {
     title: 'Routing System',
@@ -166,6 +173,11 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description:
       'Deploying against a real backend, and every demo affordance that must be switched off first.',
   },
+  '/docs/8.deployment/3.ci-for-your-project.md': {
+    title: 'CI for Your Project',
+    description:
+      'The GitHub Actions workflow of a project built from the template: what it runs, the two variables it reads, and where a deploy job goes.',
+  },
   '/docs/9.readiness.md': {
     title: 'Readiness',
     description: 'What is production-ready, what is a demo affordance, and what is still missing.',
@@ -213,14 +225,33 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     description: 'Add a language across the shell catalog, every module, and the RTL plumbing.',
   },
   '/docs/9.recipes/7.add-a-permission.md': {
-    navTitle: 'Add a permission',
-    title: 'Add a Permission',
-    description: 'Declare a permission, grant it to roles, and guard routes and UI with it.',
+    navTitle: 'Add a permission or a role',
+    title: 'Add a Permission or a Role',
+    description:
+      'Declare a permission or a role of your own, grant, guard and label it, and map the roles your identity provider sends.',
   },
   '/docs/9.recipes/8.add-a-nav-group.md': {
     navTitle: 'Add a nav group',
     title: 'Add a Nav Group',
     description: 'Add a sidebar section — and why modules cannot define their own.',
+  },
+  '/docs/9.recipes/9.connect-your-backend-api.md': {
+    navTitle: 'Connect your backend API',
+    title: 'Connect Your Backend API',
+    description:
+      "Teach the API client your backend's headers, session signals, error format and CSRF handshake, without editing the client.",
+  },
+  '/docs/9.recipes/10.write-your-own-auth-adapter.md': {
+    navTitle: 'Write an auth adapter',
+    title: 'Write Your Own Auth Adapter',
+    description:
+      'Point the app at your auth backend, or put an SDK behind the adapter contract, from one file that is yours.',
+  },
+  '/docs/9.recipes/11.submit-a-form-to-your-api.md': {
+    navTitle: 'Submit a form to your API',
+    title: 'Submit a Form to Your API',
+    description:
+      "A form that validates in the user's language, awaits the save, shows the server's refusal under the right field, and asks before unsaved changes are lost.",
   },
 }
 
@@ -263,12 +294,17 @@ function getFallbackDocTitle(parts: string[]): string {
   return parts[parts.length - 1]!.replace(/^\d+\./, '').replace(/-/g, ' ')
 }
 
-function createMarkdownDocComponent(loadMarkdown: (() => Promise<string>) | undefined) {
+function createMarkdownDocComponent(
+  loadMarkdown: (() => Promise<string>) | undefined,
+  // The header above the content shows the title as the page's `<h1>`.
+  { underHeader }: { underHeader: boolean },
+) {
   if (!loadMarkdown) return undefined
 
   return defineAsyncComponent({
     loader: async () => {
-      const markdown = stripFrontmatter(await loadMarkdown())
+      const body = stripFrontmatter(await loadMarkdown())
+      const markdown = underHeader ? stripLeadingHeading(body) : body
 
       return defineComponent({
         name: 'DocsMarkdownContent',
@@ -349,17 +385,22 @@ for (const path of Object.keys(markdownModules)) {
       sections.set(section, { label: section.replace(/-/g, ' '), order: sectionOrder })
   }
 
+  const description = metadata.description || ''
+
   docs.push({
     slug: buildSlug(path),
     title: metadata.navTitle || metadata.title || getFallbackDocTitle(parts),
-    description: metadata.description || '',
+    heading: metadata.title,
+    description,
     content: '',
     order,
     section,
     sectionOrder,
     subsection,
     subsectionOrder,
-    component: createMarkdownDocComponent(markdownModules[path]),
+    component: createMarkdownDocComponent(markdownModules[path], {
+      underHeader: showsDocHeader({ description, section }),
+    }),
   })
 }
 
@@ -381,6 +422,8 @@ for (const demo of COMPONENT_DEMO_DOCS) {
     subsectionLabel: demo.groupLabel,
     subsectionOrder: demo.groupOrder,
     component,
+    // A demo page opens with its own `<h1>` and introduction.
+    ownHeading: true,
   })
 }
 

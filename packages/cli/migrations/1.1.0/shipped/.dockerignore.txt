@@ -1,0 +1,25 @@
+# Every node_modules, not only the root one: a workspace package's own
+# (packages/cli/node_modules) holds links into this machine's store, which
+# resolve to nothing inside the image.
+**/node_modules
+dist
+.git
+.github
+.scratch
+*.md
+*.log
+e2e
+test
+coverage
+playwright-report
+test-results
+
+# Never bake local environment files into the image. Vite inlines
+# import.meta.env at build time, so a stray .env would silently override the
+# build args in the Dockerfile and could leak local configuration into the
+# bundle. Previously only .env.local was excluded.
+.env
+.env.*
+!.env.example
+# What a container is started with, never what an image is built from.
+docker.env

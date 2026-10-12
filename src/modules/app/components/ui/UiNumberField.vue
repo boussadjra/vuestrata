@@ -17,7 +17,23 @@ const props = withDefaults(defineProps<NumberFieldProps & { provider?: 'reka' }>
 
 const emit = defineEmits<{ 'update:modelValue': [value: number] }>()
 
-const { labelProps, errorMessageProps, descriptionProps, displayError } = useUiNumberField(props)
+const { labelProps, errorMessageProps, descriptionProps, displayError, fieldValue, setValue } =
+  useUiNumberField(props)
+
+/**
+ * The bound value, or failing one the field's: inside a form with no
+ * `v-model` the input drew nothing, over a record that had a number.
+ */
+const shownValue = computed(() => {
+  if (props.modelValue !== undefined) return props.modelValue
+  return typeof fieldValue.value === 'number' ? fieldValue.value : undefined
+})
+
+/** And what is typed reaches the form, which a bare emit never did. */
+function onValueChange(value: number) {
+  setValue(value)
+  emit('update:modelValue', value)
+}
 
 const sizeClasses: Record<string, string> = {
   xs: 'px-2 py-1 text-xs',
@@ -50,7 +66,7 @@ const buttonClasses =
     </label>
     <div class="relative">
       <NumberFieldRoot
-        :model-value="modelValue"
+        :model-value="shownValue"
         :name="name"
         :disabled="disabled"
         :readonly="readonly"
@@ -63,7 +79,7 @@ const buttonClasses =
         class="relative"
         :data-provider="provider"
         data-ui="numberfield"
-        @update:model-value="emit('update:modelValue', $event)"
+        @update:model-value="onValueChange"
       >
         <NumberFieldDecrement :class="[buttonClasses, 'left-1']">
           <span :class="[resolveIcon('minus-circle'), 'h-4 w-4']" />

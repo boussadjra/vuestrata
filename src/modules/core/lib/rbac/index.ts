@@ -7,6 +7,14 @@ export type {
   Permission,
   RoleDefinition,
   BuiltinPermission,
+  AppPermissions,
+  BuiltinRole,
+  AppRoles,
+  RoleOf,
+  ProjectRole,
+  ProjectRoles,
+  ResolvedRoleDefinition,
+  RbacOverrides,
   RbacUserSource,
   AuthorizationEvent,
   AuthorizationHookFn,
@@ -24,6 +32,14 @@ export {
   clearRegistry,
 } from './registry'
 
+// Project overrides
+export { defineRbacOverrides, resolveRbacOverrides, assertRbacConfig } from './overrides'
+
+// Which roles exist: the built-in six and the project's own
+export { BUILTIN_ROLES, isBuiltinRole, isKnownRole, knownRoles } from './role-graph'
+export { getRoleDefinitions, getAssignableRoles, roleLabel } from './roles'
+export type { RoleLabelTranslator } from './roles'
+
 // Inheritance & role hierarchy
 export {
   ROLE_HIERARCHY,
@@ -34,6 +50,15 @@ export {
 
 // Permission checks
 export { hasPermission, hasAnyPermission, hasAllPermissions } from './checks'
+
+// One rule for "what does this user hold", shared by the guard, `useRbac` and the auth store
+export {
+  resolveSubjectPermissions,
+  resolveSubjectRoles,
+  resolvePrimaryRole,
+  anyRoleAtLeast,
+} from './identity'
+export type { PermissionSubject } from './identity'
 
 // Namespace checks
 export { hasNamespacePermission } from './namespace'
@@ -49,9 +74,14 @@ export { registerPredicate, evaluatePredicate, clearPredicates } from './predica
 
 import { buildRoleDefinitions, resolveRolePermissions } from './inheritance'
 import { validatePermissions as _validatePermissions } from './registry'
-import type { Role, Permission, RoleDefinition } from './types'
+import type { BuiltinRole, Role, Permission, RoleDefinition } from './types'
 
-export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = buildRoleDefinitions()
+/**
+ * The built-in roles. Built when this barrel is first imported, which is before
+ * the project's `rbac.overrides.ts` is installed, so a role the project defines
+ * is not in it: `getRoleDefinitions()` lists every role.
+ */
+export const ROLE_DEFINITIONS: Record<BuiltinRole, RoleDefinition> = buildRoleDefinitions()
 
 /**
  * Validate that every permission referenced by the built-in role definitions

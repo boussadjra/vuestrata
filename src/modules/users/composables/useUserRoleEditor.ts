@@ -9,6 +9,7 @@
  */
 import { useI18n } from 'vue-i18n'
 
+import { roleLabel } from '~/lib/rbac'
 import { useNotificationStore } from '~/stores/notification'
 import type { Role, User } from '~/types'
 
@@ -18,7 +19,8 @@ import { useUpdateRoleMutation } from './useUpdateRoleMutation'
 const FALLBACK_ROLE: Role = 'member'
 
 export function useUserRoleEditor() {
-  const { t } = useI18n()
+  const i18n = useI18n()
+  const { t } = i18n
   const notifications = useNotificationStore()
   const { updateRole, isPending } = useUpdateRoleMutation()
 
@@ -57,7 +59,10 @@ export function useUserRoleEditor() {
       notifications.add({
         type: 'success',
         title: t('users_role_updated'),
-        message: t('users_role_updated_detail', { name: user.name, role: t(`role_${role}`) }),
+        message: t('users_role_updated_detail', {
+          name: user.name,
+          role: roleLabel(role, { t, te: (key) => i18n.te(key) }),
+        }),
       })
     } catch {
       notifications.add({

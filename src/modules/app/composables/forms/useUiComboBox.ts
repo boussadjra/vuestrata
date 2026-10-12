@@ -2,6 +2,8 @@ import { useCustomField } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
+import { useOwnDefault } from './useOwnDefault'
+
 export interface ComboBoxOption {
   label: string
   value: string
@@ -17,11 +19,13 @@ export interface ComboBoxProps extends FieldProps {
 }
 
 export function useUiComboBox(props: ComboBoxProps) {
+  const ownDefault = useOwnDefault(props)
+
   const formwerk = useCustomField<string | string[]>({
     name: () => props.name,
     label: () => props.label ?? '',
     description: () => props.description ?? props.hint,
-    modelValue: () => props.modelValue ?? '',
+    modelValue: () => props.modelValue ?? ownDefault(''),
     disabled: () => props.disabled,
     required: () => props.required,
     schema: props.schema as undefined,

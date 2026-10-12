@@ -6,6 +6,7 @@ import { getI18n, installI18n } from '@/plugins/i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
+import { getRolePermissions } from '~/lib/rbac'
 
 describe('Auth Store', () => {
   beforeEach(() => {
@@ -103,9 +104,21 @@ describe('Auth Store', () => {
     expect(store.userPermissions).toEqual(permissions)
   })
 
-  it('userPermissions is empty array when user has no permissions field', () => {
+  it('userPermissions derives from the role when the user has no permissions field', () => {
     const store = useAuthStore()
     store.setAuth({ id: '1', name: 'NoPerms', email: 'np@example.com', role: 'member' }, 'tok')
+    // It used to be [] here, which the route guard read as "holds nothing"
+    // while the sidebar fell back to the role.
+    expect(store.userPermissions).toEqual(getRolePermissions('member'))
+    expect(store.userPermissions).toContain('users:read')
+  })
+
+  it('userPermissions is empty when the backend sent an empty list', () => {
+    const store = useAuthStore()
+    store.setAuth(
+      { id: '1', name: 'NoPerms', email: 'np@example.com', role: 'member', permissions: [] },
+      'tok',
+    )
     expect(store.userPermissions).toEqual([])
   })
 })

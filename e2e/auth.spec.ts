@@ -5,10 +5,12 @@ import {
   DEMO_ADMIN_EMAIL,
   DEMO_PASSWORD,
   expectLoggedOutTab,
+  expireSession,
   logInAsDemoAdmin,
   seedDemoUsers,
   signOut,
 } from './helpers/auth'
+import { openSidebar } from './helpers/navigation'
 
 test.describe.configure({ mode: 'serial', timeout: 60_000 })
 
@@ -126,6 +128,41 @@ test.describe('Auth flows', () => {
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/auth\/login.*redirect=/)
     await restoredPage.close()
+  })
+
+  test('sends an expired session to login with its destination, and returns there after signing in again', async ({
+    page,
+  }) => {
+    await logInAsDemoAdmin(page)
+    const acceptSessionsAgain = await expireSession(page)
+
+    // The first request the next page makes is the one that finds out.
+    await openSidebar(page)
+    await page
+      .getByRole('navigation', { name: /sidebar/i })
+      .getByRole('link', { name: 'Users', exact: true })
+      .click()
+
+    await expect(page).toHaveURL(/\/auth\/login\?/, { timeout: 15_000 })
+    const query = new URL(page.url()).searchParams
+    expect(query.get('redirect')).toBe('/dashboard/users')
+    expect(query.get('reason')).toBe('expired')
+    await expect(page.getByRole('status').filter({ hasText: /session expired/i })).toBeVisible()
+
+    await acceptSessionsAgain()
+    await page.locator('#email').fill(DEMO_ADMIN_EMAIL)
+    await page.locator('#password').fill(DEMO_PASSWORD)
+    await page.getByRole('button', { name: /^sign in$/i }).click()
+
+    await expect(page).toHaveURL(/\/dashboard\/users$/, { timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: /team members|users & rbac/i })).toBeVisible()
+  })
+
+  test('says nothing about an expired session on an ordinary visit to login', async ({ page }) => {
+    await page.goto('/auth/login?redirect=/dashboard/users', { waitUntil: 'domcontentloaded' })
+
+    await expect(page.locator('#email')).toBeVisible()
+    await expect(page.getByText(/session expired/i)).toHaveCount(0)
   })
 
   test('clears another tab when the demo session is logged out', async ({ page, context }) => {

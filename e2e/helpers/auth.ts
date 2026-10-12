@@ -64,6 +64,10 @@ export async function logInAsDemoAdmin(page: Page): Promise<void> {
   await page.getByRole('button', { name: /^sign in$/i }).click()
   await expect(page).toHaveURL(/\/dashboard(?:\/|$)/, { timeout: 10_000 })
   await waitForSignedInShell(page)
+  // The shell can render while the redirected route still downloads. A hard
+  // navigation at that point cancels its imports and can trigger chunk recovery.
+  await expect(page.locator('main h1').first()).toHaveText('Dashboard', { timeout: 30_000 })
+  await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 30_000 })
 }
 
 /**
@@ -82,6 +86,44 @@ export async function signOut(page: Page): Promise<void> {
   await waitForSignedInShell(page)
   await page.getByTestId('account-menu-trigger').click()
   await page.getByRole('menuitem', { name: /sign out/i }).click()
+}
+
+/**
+ * End the session the way a real backend does: from now on every API call —
+ * the token refresh included — answers 401.
+ *
+ * Done at `fetch`, in front of the mock service worker, because the demo
+ * backend has no notion of an access token running out. The session the demo
+ * keeps in IndexedDB is left alone, so the demo's own cross-tab sign-out never
+ * fires and what the test observes is the app's reaction to the 401s.
+ *
+ * Returns the way back: call it before signing in again.
+ */
+export async function expireSession(page: Page): Promise<() => Promise<void>> {
+  await page.evaluate(() => {
+    const original = window.fetch
+    const host = window as typeof window & { __restoreFetch?: () => void }
+    host.__restoreFetch = () => {
+      window.fetch = original
+    }
+    window.fetch = (input, init) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (!new URL(url, window.location.origin).pathname.startsWith('/api/')) {
+        return original(input, init)
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ message: 'Unauthorized', code: 'UNAUTHORIZED' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    }
+  })
+
+  return () =>
+    page.evaluate(() => {
+      ;(window as typeof window & { __restoreFetch?: () => void }).__restoreFetch?.()
+    })
 }
 
 export async function expectLoggedOutTab(page: Page): Promise<void> {

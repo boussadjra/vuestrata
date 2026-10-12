@@ -1,6 +1,65 @@
-import { describe, it, expect } from 'vite-plus/test'
+import { createFetchError } from 'ofetch'
+import { afterEach, describe, it, expect, vi } from 'vite-plus/test'
 
-import { AppError, isNotFoundError, normalizeError, getStatusMessage } from '@/lib/errors'
+import {
+  AppError,
+  describeError,
+  ERROR_MESSAGE_KEYS,
+  httpError,
+  installErrorHandlers,
+  installErrorReporter,
+  isNotFoundError,
+  listErrorMessageKeys,
+  normalizeError,
+  getStatusMessage,
+  readErrorBody,
+  reportError,
+  resetErrorReporter,
+  transportError,
+  wasReported,
+} from '@/lib/errors'
+
+/** A request that never got a response, the way ofetch reports it. */
+function noResponse(cause: unknown) {
+  return createFetchError({
+    request: 'https://api.test/customers?search=jane.doe%40example.test',
+    options: { method: 'GET', headers: new Headers() },
+    error: cause as Error,
+  })
+}
+
+/** A request the server answered with an error status, the way ofetch reports it. */
+function answered(status: number, body?: unknown) {
+  const response = Object.assign(new Response(null, { status }), { _data: body })
+  return createFetchError({
+    request: 'https://api.test/customers?search=jane.doe%40example.test',
+    options: { method: 'GET', headers: new Headers() },
+    response,
+  })
+}
+
+/** Every field of an `AppError`, so two of them can be compared whole. */
+function fieldsOf(error: AppError) {
+  return {
+    message: error.message,
+    code: error.code,
+    status: error.status,
+    details: error.details,
+    requestId: error.requestId,
+    kind: error.kind,
+    retryable: error.retryable,
+    retryAfterMs: error.retryAfterMs,
+    messageKey: error.messageKey,
+    formErrors: error.formErrors,
+    serverMessage: error.serverMessage,
+  }
+}
+
+function timeoutReason() {
+  const reason = new Error('The operation was aborted due to timeout')
+  reason.name = 'TimeoutError'
+  return reason
+}
 
 describe('AppError', () => {
   it('should create with default values', () => {
@@ -47,6 +106,53 @@ describe('AppError', () => {
       message: 'Not found',
       details: undefined,
       requestId: 'req-456',
+    })
+  })
+
+  // Optional, so every existing `new AppError({ … })` keeps its meaning: an
+  // error nothing classified claims no kind and no retry semantics.
+  it('leaves the classification fields unset by default', () => {
+    const err = new AppError({ message: 'x' })
+    expect(err.kind).toBeUndefined()
+    expect(err.retryable).toBeUndefined()
+    expect(err.retryAfterMs).toBeUndefined()
+    expect(err.messageKey).toBeUndefined()
+    expect(err.formErrors).toBeUndefined()
+  })
+
+  it('carries the classification fields it is given', () => {
+    const err = new AppError({
+      message: 'Slow down',
+      status: 429,
+      kind: 'http',
+      retryable: true,
+      retryAfterMs: 2_000,
+      messageKey: 'errors.status_429',
+      formErrors: ['Try again in a moment'],
+    })
+    expect(err).toMatchObject({
+      kind: 'http',
+      retryable: true,
+      retryAfterMs: 2_000,
+      messageKey: 'errors.status_429',
+      formErrors: ['Try again in a moment'],
+    })
+  })
+})
+
+describe('transportError', () => {
+  it.each([
+    ['network', 'NETWORK_ERROR', true],
+    ['timeout', 'TIMEOUT', true],
+    ['aborted', 'ABORTED', false],
+  ] as const)('builds the %s error', (kind, code, retryable) => {
+    expect(transportError(kind)).toMatchObject({
+      kind,
+      code,
+      retryable,
+      // No HTTP status: 500 would make an offline laptop look like an outage.
+      status: 0,
+      messageKey: `errors.${kind}`,
     })
   })
 })
@@ -101,6 +207,247 @@ describe('normalizeError', () => {
     expect(normalizeError(null).code).toBe('UNKNOWN_ERROR')
     expect(normalizeError(undefined).code).toBe('UNKNOWN_ERROR')
   })
+
+  it('marks what it cannot classify as unknown, and not retryable', () => {
+    for (const err of [new Error('bug'), 'oops', 42]) {
+      const normalized = normalizeError(err)
+      expect(normalized.kind).toBe('unknown')
+      expect(normalized.retryable).toBeUndefined()
+      expect(normalized.messageKey).toBe('errors.unknown')
+    }
+  })
+})
+
+describe('normalizeError on a request without a response', () => {
+  // ofetch's own message is `[GET] "https://…/customers?search=…": <no
+  // response> Failed to fetch`: the endpoint and the user's search. It used to
+  // reach the user verbatim, as a RUNTIME_ERROR with status 500.
+  it('classifies a failed fetch as a network error, without the URL', () => {
+    const err = noResponse(new TypeError('Failed to fetch'))
+    expect(err.message).toContain('jane.doe')
+
+    const normalized = normalizeError(err)
+
+    expect(normalized).toMatchObject({
+      code: 'NETWORK_ERROR',
+      kind: 'network',
+      retryable: true,
+      status: 0,
+    })
+    expect(normalized.message).not.toMatch(/api\.test|customers|jane/)
+  })
+
+  it('classifies a timeout', () => {
+    expect(normalizeError(noResponse(timeoutReason()))).toMatchObject({
+      code: 'TIMEOUT',
+      kind: 'timeout',
+      retryable: true,
+    })
+  })
+
+  it('classifies an abort, which is not retryable', () => {
+    expect(
+      normalizeError(noResponse(new DOMException('The operation was aborted.', 'AbortError'))),
+    ).toMatchObject({ code: 'ABORTED', kind: 'aborted', retryable: false })
+  })
+
+  it('classifies what native fetch rejects with directly', () => {
+    expect(normalizeError(new DOMException('aborted', 'AbortError')).kind).toBe('aborted')
+    expect(normalizeError(new DOMException('signal timed out', 'TimeoutError')).kind).toBe(
+      'timeout',
+    )
+  })
+})
+
+describe('normalizeError on a request the server answered', () => {
+  it('classifies an HTTP error, whatever its body', () => {
+    const normalized = normalizeError(answered(404, '<html>Not Found</html>'))
+
+    expect(normalized).toMatchObject({
+      status: 404,
+      code: 'API_ERROR',
+      kind: 'http',
+      retryable: false,
+      messageKey: 'errors.status_404',
+      message: getStatusMessage(404),
+    })
+    expect(normalized.message).not.toMatch(/api\.test|jane/)
+  })
+
+  it('keeps the message and details of a client error', () => {
+    const normalized = normalizeError(
+      answered(422, {
+        message: 'The email is already taken.',
+        code: 'VALIDATION_FAILED',
+        details: { email: ['Already taken'] },
+      }),
+    )
+
+    expect(normalized).toMatchObject({
+      status: 422,
+      code: 'VALIDATION_FAILED',
+      message: 'The email is already taken.',
+      details: { email: ['Already taken'] },
+      kind: 'http',
+      retryable: false,
+    })
+  })
+
+  it('never forwards the message of a server error', () => {
+    const normalized = normalizeError(
+      answered(500, { message: 'relation "users" does not exist at pg.internal:5432' }),
+    )
+
+    expect(normalized.message).toBe('An unexpected error occurred. Please try again.')
+    expect(normalized).toMatchObject({ kind: 'http', retryable: true })
+  })
+
+  it.each([
+    [408, true],
+    [425, true],
+    [429, true],
+    [502, true],
+    [503, true],
+    [504, true],
+    [501, false],
+    [505, false],
+    [400, false],
+    [403, false],
+    [409, false],
+  ])('marks a %i retryable: %s', (status, retryable) => {
+    expect(normalizeError(answered(status)).retryable).toBe(retryable)
+  })
+
+  it('keys a status it has no message for by its class', () => {
+    expect(normalizeError(answered(418)).messageKey).toBe('errors.request')
+    expect(normalizeError(answered(507)).messageKey).toBe('errors.server')
+  })
+})
+
+describe('deliberate aborts are never reported', () => {
+  afterEach(() => resetErrorReporter())
+
+  function spyReporter() {
+    const captureException = vi.fn()
+    installErrorReporter({ name: 'spy', captureException, setUser: () => {} })
+    return captureException
+  }
+
+  it('drops them in reportError, the choke point every sink goes through', () => {
+    const captureException = spyReporter()
+
+    reportError(transportError('aborted'), { source: 'vue:render' })
+    reportError(new DOMException('aborted', 'AbortError'), { source: 'vue:render' })
+    expect(captureException).not.toHaveBeenCalled()
+
+    reportError(transportError('network'), { source: 'vue:render' })
+    expect(captureException).toHaveBeenCalledOnce()
+  })
+
+  it('ignores an unhandled rejection that is an abort', () => {
+    const captureException = spyReporter()
+    const target = new EventTarget()
+    installErrorHandlers(target)
+
+    const rejection = (reason: unknown) =>
+      Object.assign(new Event('unhandledrejection', { cancelable: true }), { reason })
+
+    target.dispatchEvent(rejection(noResponse(new DOMException('aborted', 'AbortError'))))
+    expect(captureException).not.toHaveBeenCalled()
+
+    target.dispatchEvent(rejection(new Error('a real bug')))
+    expect(captureException).toHaveBeenCalledOnce()
+  })
+})
+
+describe('an error a sink already reported is not reported again as an unhandled rejection', () => {
+  afterEach(() => resetErrorReporter())
+
+  function spyReporter() {
+    const captureException = vi.fn()
+    installErrorReporter({ name: 'spy', captureException, setUser: () => {} })
+    return captureException
+  }
+
+  const rejection = (reason: unknown) =>
+    Object.assign(new Event('unhandledrejection', { cancelable: true }), { reason })
+
+  it('skips the rejection of a navigation the error boundary reported from router.onError', () => {
+    const captureException = spyReporter()
+    const target = new EventTarget()
+    installErrorHandlers(target)
+
+    // What vue-router does with one failed navigation: `onError` first, where
+    // the boundary reports it, then the promise `router.push()` returned
+    // rejects with the same object, and nobody is awaiting it.
+    const failure = new Error('guard threw')
+    reportError(failure, { source: 'vue:router', component: '/orders' })
+    const event = rejection(failure)
+    target.dispatchEvent(event)
+
+    expect(captureException).toHaveBeenCalledOnce()
+    expect(captureException.mock.calls[0]?.[1]).toMatchObject({ source: 'vue:router' })
+    // Still claimed, so the browser does not print it as uncaught either.
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('still reports a rejection nothing else saw, and marks it', () => {
+    const captureException = spyReporter()
+    const target = new EventTarget()
+    installErrorHandlers(target)
+
+    const failure = new Error('a real bug')
+    expect(wasReported(failure)).toBe(false)
+    target.dispatchEvent(rejection(failure))
+
+    expect(captureException).toHaveBeenCalledOnce()
+    expect(captureException.mock.calls[0]?.[1]).toMatchObject({
+      source: 'window:unhandledrejection',
+    })
+    expect(wasReported(failure)).toBe(true)
+  })
+
+  it('tells two errors with the same message apart: the mark is on the object', () => {
+    const captureException = spyReporter()
+    const target = new EventTarget()
+    installErrorHandlers(target)
+
+    reportError(new Error('Network down'), { source: 'vue:router' })
+    target.dispatchEvent(rejection(new Error('Network down')))
+
+    expect(captureException).toHaveBeenCalledTimes(2)
+  })
+
+  it('marks without a reporter installed, and leaves nothing to serialise or enumerate', () => {
+    const failure = new Error('boom')
+    reportError(failure, { source: 'vue:render' })
+
+    expect(wasReported(failure)).toBe(true)
+    expect(Object.keys(failure)).toEqual([])
+    expect(JSON.stringify(failure)).toBe('{}')
+    expect(Object.getOwnPropertySymbols(failure)).toHaveLength(1)
+    expect(Object.assign({}, failure)).toEqual({})
+  })
+
+  it('cannot mark a value that is not an object, or one that is frozen, and does not throw', () => {
+    const captureException = spyReporter()
+    const frozen = Object.freeze(new Error('frozen'))
+
+    expect(() => reportError('a rejected string', { source: 'vue:render' })).not.toThrow()
+    expect(() => reportError(frozen, { source: 'vue:render' })).not.toThrow()
+
+    expect(captureException).toHaveBeenCalledTimes(2)
+    expect(wasReported('a rejected string')).toBe(false)
+    expect(wasReported(frozen)).toBe(false)
+    expect(wasReported(null)).toBe(false)
+  })
+
+  it('does not mark a deliberate abort, which was never reported', () => {
+    const aborted = transportError('aborted')
+    reportError(aborted, { source: 'vue:render' })
+
+    expect(wasReported(aborted)).toBe(false)
+  })
 })
 
 describe('isNotFoundError', () => {
@@ -144,5 +491,237 @@ describe('getStatusMessage', () => {
   it('should return generic message for unknown status', () => {
     const msg = getStatusMessage(418)
     expect(msg).toContain('418')
+  })
+})
+
+describe('AppError.with', () => {
+  it('copies every field, replacing the ones it is given', () => {
+    const original = new AppError({
+      message: 'The email is already taken.',
+      code: 'VALIDATION_FAILED',
+      status: 422,
+      details: { email: ['Already taken'] },
+      requestId: 'req-1',
+      kind: 'http',
+      retryable: false,
+      retryAfterMs: 1000,
+      messageKey: 'errors.status_422',
+      formErrors: ['Fix the form.'],
+      serverMessage: 'The email is already taken.',
+    })
+
+    const copy = original.with({ requestId: 'req-2' })
+
+    expect(copy).not.toBe(original)
+    expect(copy).toBeInstanceOf(AppError)
+    expect(fieldsOf(copy)).toEqual({ ...fieldsOf(original), requestId: 'req-2' })
+    expect(original.requestId).toBe('req-1')
+  })
+})
+
+describe('readErrorBody', () => {
+  it('reads the Vuestrata shape', () => {
+    expect(
+      readErrorBody({
+        message: 'Nope',
+        code: 'BAD',
+        details: { email: ['Taken'] },
+        requestId: 'req-9',
+        extra: 'ignored',
+      }),
+    ).toEqual({ message: 'Nope', code: 'BAD', details: { email: ['Taken'] }, requestId: 'req-9' })
+  })
+
+  it.each([undefined, null, 'text', 42, ['a'], { message: '' }, { message: 7, details: 'x' }])(
+    'reports nothing for %j',
+    (body) => {
+      expect(readErrorBody(body)).toEqual({
+        message: undefined,
+        code: undefined,
+        details: undefined,
+        requestId: undefined,
+      })
+    },
+  )
+})
+
+describe('httpError', () => {
+  it('builds the error for a status from what a mapper read', () => {
+    const error = httpError(
+      422,
+      {
+        message: 'The email is already taken.',
+        code: 'VALIDATION_FAILED',
+        details: { email: ['Already taken'] },
+        formErrors: ['Passwords do not match.'],
+        requestId: 'req-1',
+      },
+      { retryAfterMs: 2000 },
+    )
+
+    expect(error).toMatchObject({
+      status: 422,
+      message: 'The email is already taken.',
+      serverMessage: 'The email is already taken.',
+      code: 'VALIDATION_FAILED',
+      details: { email: ['Already taken'] },
+      formErrors: ['Passwords do not match.'],
+      requestId: 'req-1',
+      kind: 'http',
+      retryable: false,
+      retryAfterMs: 2000,
+      messageKey: 'errors.status_422',
+    })
+  })
+
+  it('falls back to the status when the mapper read nothing', () => {
+    for (const mapped of [null, undefined, {}]) {
+      const error = httpError(404, mapped)
+
+      expect(error).toMatchObject({
+        status: 404,
+        code: 'API_ERROR',
+        message: getStatusMessage(404),
+        messageKey: 'errors.status_404',
+      })
+      expect(error.serverMessage).toBeUndefined()
+      expect(error.formErrors).toBeUndefined()
+    }
+  })
+
+  it('never carries what a 5xx said, as a message or as form errors', () => {
+    const error = httpError(500, {
+      message: 'relation "users" does not exist',
+      formErrors: ['at pg.internal:5432'],
+      code: 'DB_DOWN',
+    })
+
+    expect(error.message).toBe('An unexpected error occurred. Please try again.')
+    expect(error.serverMessage).toBeUndefined()
+    expect(error.formErrors).toBeUndefined()
+    // The code is for the log and the support ticket, not for the screen.
+    expect(error.code).toBe('DB_DOWN')
+  })
+
+  it('never carries the details of a 5xx either: a form would print them beside its fields', () => {
+    const mapped = {
+      code: 'DB_DOWN',
+      details: { trace: ['at Pool.connect (pg.internal:5432)'], Db: ['Password=hunter2'] },
+      requestId: 'req-7',
+    }
+
+    for (const status of [500, 502, 503, 599]) {
+      const error = httpError(status, mapped)
+      expect(error.details).toBeUndefined()
+      expect(error.toApiError().details).toBeUndefined()
+      expect(error).toMatchObject({ code: 'DB_DOWN', requestId: 'req-7' })
+    }
+    // A refused request keeps them: that is what they are for.
+    expect(httpError(422, mapped).details).toEqual(mapped.details)
+    expect(normalizeError(answered(500, { message: 'x', details: { a: ['b'] } })).details).toBe(
+      undefined,
+    )
+  })
+
+  it.each([
+    'https://errors.internal/db-unreachable',
+    'could not connect to server: Connection refused',
+    'urn:problem:db/7',
+    'x'.repeat(65),
+  ])('drops a 5xx code that is not an identifier: %s', (code) => {
+    expect(httpError(500, { code }).code).toBe('API_ERROR')
+    expect(httpError(503, { code }, { fallbackCode: 'UPSTREAM' }).code).toBe('UPSTREAM')
+    // A 4xx keeps whatever the backend called it.
+    expect(httpError(409, { code }).code).toBe(code)
+  })
+
+  it.each(['DB_POOL', 'not_authenticated', 'orders.locked', 'E-1042', 'P2002'])(
+    'keeps a 5xx code that is one: %s',
+    (code) => {
+      expect(httpError(500, { code }).code).toBe(code)
+    },
+  )
+
+  it('takes a message key and a fallback code from the caller', () => {
+    const error = httpError(419, null, {
+      messageKey: ERROR_MESSAGE_KEYS.csrf,
+      fallbackCode: 'CSRF_TOKEN_MISMATCH',
+    })
+
+    expect(error).toMatchObject({ messageKey: 'errors.csrf', code: 'CSRF_TOKEN_MISMATCH' })
+    expect(httpError(419, { code: 'TOKEN_MISMATCH' }, { fallbackCode: 'X' }).code).toBe(
+      'TOKEN_MISMATCH',
+    )
+  })
+
+  it('is what normalizeError builds for an answered request', () => {
+    const body = { message: 'Nope', code: 'BAD', details: { a: ['b'] }, requestId: 'r' }
+    const normalized = normalizeError(answered(409, body))
+    const built = httpError(409, readErrorBody(body))
+
+    expect(fieldsOf(normalized)).toEqual(fieldsOf(built))
+  })
+})
+
+describe('describeError', () => {
+  const catalog: Record<string, string> = {
+    'errors.network': 'Erreur réseau.',
+    'errors.status_404': 'Introuvable.',
+    'errors.status_422': 'La validation a échoué.',
+    'errors.status_500': 'Erreur interne.',
+    'errors.unknown': 'Un problème est survenu.',
+  }
+  // What a translate function does with a key it does not have.
+  const t = (key: string) => catalog[key] ?? key
+
+  it('prefers what the backend said about a request it refused', () => {
+    const refused = httpError(422, { message: 'Cet e-mail est déjà enregistré.' })
+
+    expect(describeError(refused, t)).toBe('Cet e-mail est déjà enregistré.')
+  })
+
+  it('translates the message key when the backend said nothing', () => {
+    expect(describeError(httpError(404), t)).toBe('Introuvable.')
+    expect(describeError(transportError('network'), t)).toBe('Erreur réseau.')
+  })
+
+  it('never shows what a 5xx said: the translation of its status instead', () => {
+    const outage = httpError(500, { message: 'relation "users" does not exist' })
+
+    expect(describeError(outage, t)).toBe('Erreur interne.')
+  })
+
+  it('falls back to the English message when the key has no translation', () => {
+    // 409 is not in this catalog.
+    expect(describeError(httpError(409), t)).toBe(getStatusMessage(409))
+    expect(describeError(httpError(409), () => '')).toBe(getStatusMessage(409))
+  })
+
+  it('normalizes whatever it is given', () => {
+    expect(describeError(new Error('[{"code":"invalid_type"}]'), t)).toBe(
+      'Un problème est survenu.',
+    )
+    expect(describeError('boom', t)).toBe('Un problème est survenu.')
+    expect(describeError(answered(404), t)).toBe('Introuvable.')
+    expect(describeError(answered(422, { message: 'Trop long.' }), t)).toBe('Trop long.')
+  })
+
+  it('keeps a message an error was created with when it has no key', () => {
+    expect(describeError(new AppError({ message: 'Pick a workspace first.' }), t)).toBe(
+      'Pick a workspace first.',
+    )
+  })
+})
+
+describe('listErrorMessageKeys', () => {
+  it('lists every named key and one per status with a message', () => {
+    const keys = listErrorMessageKeys()
+
+    for (const key of Object.values(ERROR_MESSAGE_KEYS)) expect(keys).toContain(key)
+    for (const status of [400, 401, 403, 404, 409, 422, 429, 500, 502, 503]) {
+      expect(keys).toContain(`errors.status_${status}`)
+      expect(normalizeError(answered(status)).messageKey).toBe(`errors.status_${status}`)
+    }
+    expect(new Set(keys).size).toBe(keys.length)
   })
 })

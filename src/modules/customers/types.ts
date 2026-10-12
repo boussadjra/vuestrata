@@ -47,17 +47,28 @@ export interface CustomerFilters extends CollectionFilters {
   plan?: CustomerPlan | 'all'
 }
 
-/** Fields a form may submit. Server-owned fields are deliberately absent. */
-export const customerDraftSchema = customerSchema.pick({
-  company: true,
-  contactName: true,
-  email: true,
-  phone: true,
-  status: true,
-  plan: true,
-  city: true,
-  country: true,
-  notes: true,
+/**
+ * Fields a form may submit. Server-owned fields are deliberately absent.
+ *
+ * This is where the rules live, not `customerSchema`: that one describes what
+ * the server sends, and a record written before a rule existed must still
+ * load. A draft is what a person is typing now, so it is held to today's
+ * rules, by the form before it is sent and by the backend when it arrives.
+ *
+ * No messages here. The validation catalog words every one of these checks in
+ * the reader's language (`core/lib/validation/zod-error-map.ts`); give a check
+ * a message of its own only when the generic one would not say enough.
+ */
+export const customerDraftSchema = customerSchema.pick({ status: true, plan: true }).extend({
+  company: z.string().trim().min(1).max(120),
+  contactName: z.string().trim().min(1).max(120),
+  // Trimmed and non-empty first, so an empty box reads "required" rather than
+  // "not a valid email address".
+  email: z.string().trim().min(1).max(254).pipe(z.email()),
+  phone: z.string().trim().min(1).max(40),
+  city: z.string().trim().min(1).max(80),
+  country: z.string().trim().min(2).max(56),
+  notes: z.string().max(2000),
 })
 
 export type CustomerDraft = z.infer<typeof customerDraftSchema>

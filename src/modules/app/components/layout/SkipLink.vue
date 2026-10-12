@@ -20,6 +20,7 @@ const { t } = useI18n()
 
 <template>
   <a
+    tabindex="0"
     :href="`#${targetId}`"
     class="bg-primary-600 text-primary-foreground focus:ring-ring sr-only rounded-lg px-4 py-2 text-sm font-semibold shadow-lg focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:ring-2 focus:ring-offset-2"
   >

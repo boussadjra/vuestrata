@@ -36,40 +36,35 @@ This includes:
 Documented here so nobody has to rediscover them, and so none of them can be
 mistaken for a security control that actually holds.
 
-### `comark` is pinned to a non-registry tarball
+### `comark` is a vendored pre-release, not a registry version
 
-`package.json` resolves `comark` from
-`https://pkg.pr.new/comarkdown/comark/comark@05679bb` — a continuous-release
-build, not an npm registry version.
+`package.json` resolves `comark` from `file:vendor/comark-1.0.0-05679bb.tgz`, a
+tarball committed to this repository. It holds the exact bytes of the `1.0.0`
+pre-release build that used to be fetched from `pkg.pr.new`, a host that does
+not retain its builds, so a clean checkout no longer depends on it.
+`pnpm-lock.yaml` records the tarball's `integrity` digest, as it does for a
+registry package.
 
-Two consequences:
+What remains is that it is not a registry release: no advisory feed covers it,
+and upgrading it is a manual step (`vendor/README.md`).
 
-1. **No integrity hash.** `pnpm-lock.yaml` records only
-   `resolution: {tarball: …}`. Registry dependencies carry an `integrity:` digest
-   that detects tampering or substitution; this one does not.
-2. **No availability guarantee.** pkg.pr.new artifacts are not permanent. If it
-   is garbage-collected, `vp install` fails and the project cannot be built from
-   a clean checkout.
+**Why it has not been replaced.** `comark` _is_ on npm, but the registry release
+(`0.6.2` when this was vendored) and the `1.0.0` pre-release have incompatible
+entry points:
 
-**Why it has not been replaced.** `comark` _is_ on npm, but the latest published
-version is `0.5.1` while the pinned build is a `1.0.0` pre-release, and the two
-have incompatible entry points:
+| Import used here   | In `1.0.0` (vendored) | In `0.6.2` (registry) |
+| ------------------ | --------------------- | --------------------- |
+| `comark/vue`       | yes                   | **no**                |
+| `comark/ast`       | yes                   | **no**                |
+| `comark/plugins/*` | yes                   | yes                   |
 
-| Import used here   | In `1.0.0` (pinned) | In `0.5.1` (registry) |
-| ------------------ | ------------------- | --------------------- |
-| `comark/vue`       | yes                 | **no**                |
-| `comark/ast`       | yes                 | **no**                |
-| `comark/plugins/*` | yes                 | yes                   |
-
-`comark/vue` and `comark/ast` do not exist in `0.5.1`, so moving to the registry
-version is not a version bump — it means rewriting the documentation rendering
-layer across the eight files that consume it (`app/config/comark*.ts` and the
+`comark/vue` and `comark/ast` do not exist in the registry release, so moving to
+it is not a version bump — it means rewriting the documentation rendering layer
+across the eight files that consume it (`app/config/comark*.ts` and the
 `components/docs/*` components).
 
-**Status.** Accepted risk for the demo and for template evaluation. It is a
-**blocker for real-application production readiness**: pin to a registry release
-before depending on this for a production build. Tracked in
-`docs/9.readiness.md`. Dependabot is configured to ignore the package so it does
+**Status.** A known gap, tracked in `docs/9.readiness.md`. It serves only the
+in-app documentation. Dependabot is configured to ignore the package so it does
 not generate PRs that cannot resolve.
 
 ### The demo integrity digest is not an authentication mechanism

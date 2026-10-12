@@ -4,7 +4,7 @@ Use to create a new spec for non-trivial work.
 
 ## Rules
 
-1. Read the constitution and spec template.
+1. Read `AGENTS.md` and the spec template.
 2. Scan `.specify/specs/` for the next `NNN-*` number.
 3. Create `.specify/specs/NNN-feature-name/spec.md`.
 4. Include prioritized user stories (P1, P2, P3), requirements, non-goals, and edge cases.

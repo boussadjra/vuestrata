@@ -16,6 +16,15 @@ For user-visible flow changes, also run:
 vpr test:e2e
 ```
 
+Changing the template itself (managed files, the CLI, the shipped lockfile)? Run
+the maintainer gates too. They describe a release of the template, so a project
+built from it does not run them:
+
+```bash
+vpr lint:maintainer -- --tests
+VUESTRATA_MAINTAINER=1 vpr test --run   # adds the public-surface snapshots
+```
+
 ## Pull Requests
 
 - Keep changes scoped and update docs when behavior changes.

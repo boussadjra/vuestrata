@@ -10,8 +10,9 @@
   // This config exists to close that gap. It is checked by `vpr typecheck:e2e`.
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    // Playwright's own types replace the Vite client/layout types the app uses.
-    "types": ["@playwright/test", "node"]
+    // Source helpers imported by specs still read import.meta.env. Keep the
+    // client environment declarations beside Playwright's Node-facing types.
+    "types": ["vite-plus/client", "@playwright/test", "node"]
   },
   "include": ["e2e/**/*.ts", "playwright.config.ts"],
   "exclude": ["dist", "node_modules"]

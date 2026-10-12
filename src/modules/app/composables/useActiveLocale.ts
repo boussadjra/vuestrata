@@ -10,17 +10,14 @@
 import { hasInjectionContext, inject } from 'vue'
 import { routeLocationKey } from 'vue-router'
 
-import {
-  applyAppearance,
-  isRtlLocale,
-  resolveActiveLocale,
-  type SupportedLocale,
-} from '@/plugins/appearance'
-import { getI18n } from '@/plugins/i18n'
+import { isRtlLocale, resolveActiveLocale, type SupportedLocale } from '@/plugins/appearance'
+import { useLocaleCatalogs } from '@/state/locale-catalogs'
 import { useAppStore } from '@/stores/app'
+import { appPathname } from '~/lib/config'
 
+/** The path inside the app, without the base path it may be served under. */
 function readWindowPathname(): string {
-  return typeof window === 'undefined' ? '/' : window.location.pathname
+  return appPathname()
 }
 
 /**
@@ -66,8 +63,7 @@ export function useLocaleSync() {
 
   const stop = watchEffect(() => {
     const locale = current.value
-    applyAppearance({ locale })
-    getI18n().global.locale.value = locale
+    useLocaleCatalogs().sync(locale)
   })
 
   if (getCurrentScope()) onScopeDispose(stop)

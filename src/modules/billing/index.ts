@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import billingI18nAr from './i18n/ar.json'
 import billingI18nEn from './i18n/en.json'
-import billingI18nFr from './i18n/fr.json'
 
 /**
  * Billing Module
@@ -58,8 +56,6 @@ const billingModule: ModuleDefinition = {
 
   i18n: {
     en: billingI18nEn,
-    fr: billingI18nFr,
-    ar: billingI18nAr,
   },
 }
 

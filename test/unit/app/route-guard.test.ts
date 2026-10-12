@@ -130,6 +130,42 @@ describe('route guard — permissions', () => {
     expect(decision).toEqual({ type: 'forbidden' })
   })
 
+  it('admits a user the backend described by role alone, through what the role grants', () => {
+    // `/auth/me` with a role and no `permissions`. The sidebar always derived
+    // the set from the role; the guard was handed `[]` and answered /403.
+    const decision = resolveRouteAccess(
+      route({ requiresAuth: true, requiredPermission: 'billing:read' }),
+      signedIn('manager'),
+    )
+
+    expect(decision).toEqual({ type: 'allow' })
+  })
+
+  it('rejects a role-only user for a permission the role does not grant', () => {
+    const decision = resolveRouteAccess(
+      route({ requiresAuth: true, requiredPermission: 'billing:manage' }),
+      signedIn('manager'),
+    )
+
+    expect(decision).toEqual({ type: 'forbidden' })
+  })
+
+  it('lets an explicitly empty set win over the role', () => {
+    const decision = resolveRouteAccess(
+      route({ requiresAuth: true, requiredPermission: 'billing:read' }),
+      signedIn('admin', []),
+    )
+
+    expect(decision).toEqual({ type: 'forbidden' })
+  })
+
+  it('grants a visitor who is not signed in nothing, whatever the guest role holds', () => {
+    // `guest` is granted `dashboard:read`; that is for a signed-in guest.
+    const decision = resolveRouteAccess(route({ requiredPermission: 'dashboard:read' }), anonymous)
+
+    expect(decision).toEqual({ type: 'forbidden' })
+  })
+
   it('requires every permission by default', () => {
     const decision = resolveRouteAccess(
       route({ requiresAuth: true, requiredPermissions: ['users:read', 'users:delete'] }),

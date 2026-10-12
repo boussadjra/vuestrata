@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, it, vi } from 'vite-plus/test'
 
 import { restoreSession, type SessionRestoreStore } from '@/plugins/session-restore'
 import type { User } from '@/types'
@@ -75,6 +75,42 @@ describe('cold boot (no token in memory)', () => {
     expect(store.setUser).toHaveBeenCalledWith(user)
     // Calling setAuth here would mean fabricating a token, which is precisely
     // what would make `isAuthenticated` lie.
+    expect(store.setAuth).not.toHaveBeenCalled()
+  })
+
+  it('rejects a resumed session that has no user, rather than storing undefined', async () => {
+    const store = createStore()
+
+    await restoreSession({
+      store,
+      getUser: vi.fn(),
+      // What an adapter returns when it forwards `/auth/refresh` as it is: the
+      // documented response carries tokens and no `user`.
+      resumeSession: vi.fn().mockResolvedValue({
+        token: 'access-1',
+        refreshToken: 'refresh-1',
+        expiresIn: 900,
+      }),
+    })
+
+    // A token with no user would leave the app holding a live credential
+    // while `isAuthenticated` says nobody is signed in.
+    expect(store.setAuth).not.toHaveBeenCalled()
+    expect(store.setUser).not.toHaveBeenCalled()
+    // Nothing was stored, so there is nothing to clear — and no session ended.
+    expect(store.clearAuth).not.toHaveBeenCalled()
+  })
+
+  it('rejects a userless cookie session too', async () => {
+    const store = createStore()
+
+    await restoreSession({
+      store,
+      getUser: vi.fn(),
+      resumeSession: vi.fn().mockResolvedValue({ user: null }),
+    })
+
+    expect(store.setUser).not.toHaveBeenCalled()
     expect(store.setAuth).not.toHaveBeenCalled()
   })
 

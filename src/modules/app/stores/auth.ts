@@ -7,10 +7,23 @@ import {
   persistRefreshToken,
   usesWebStorage,
 } from '~/lib/auth/session-persistence'
+import { appEvents } from '~/lib/events'
 import { createScopedLogger } from '~/lib/logger'
+import {
+  resolvePrimaryRole,
+  resolveSubjectPermissions,
+  resolveSubjectRoles,
+} from '~/lib/rbac/identity'
 import type { User, Role, Permission } from '~/types'
 
 const authStoreLogger = createScopedLogger('auth-store')
+
+/**
+ * The longest delay `setTimeout` can hold, about 24.8 days. It stores the delay
+ * as a signed 32-bit count of milliseconds, and a larger one overflows and
+ * fires at once.
+ */
+const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
 
 /**
  * Resolve a usable expiry (in seconds-from-now) by reconciling the explicit
@@ -75,8 +88,20 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(
     () => !!user.value && (!!token.value || getAuthTransport() === 'cookie'),
   )
-  const userRole = computed<Role>(() => user.value?.role ?? 'guest')
-  const userPermissions = computed<Permission[]>(() => user.value?.permissions ?? [])
+  // The primary role: the user's `role` when the app has it, else the first of
+  // their `roles` that it has. A role the app does not have is kept as named
+  // when there is nothing better (it holds nothing and is at least nothing),
+  // and no role at all reads as `guest`, as it always has.
+  const userRole = computed<Role>(
+    () => resolvePrimaryRole(user.value) ?? user.value?.role ?? 'guest',
+  )
+  // Every role the user holds that the app has. Usually one. Empty for a
+  // visitor, and for a user none of whose roles the app declares.
+  const userRoles = computed<Role[]>(() => resolveSubjectRoles(user.value))
+  // Resolved, never undefined: the explicit set when the backend sent one, else
+  // what the roles grant. The route guard reads this and `useRbac` resolves the
+  // same way, so a sidebar link and the route behind it cannot disagree.
+  const userPermissions = computed<Permission[]>(() => resolveSubjectPermissions(user.value))
 
   function clearRefreshTimer() {
     if (refreshTimer) {
@@ -89,13 +114,21 @@ export const useAuthStore = defineStore('auth', () => {
     clearRefreshTimer()
     const handler = onRefresh ?? refreshHandler
     if (!handler) return
-    // Refresh 60 seconds before expiry, minimum 5 seconds from now
-    const refreshInMs = Math.max((expiresIn - 60) * 1000, 5000)
+    // A lifetime that is not a number schedules nothing: `setTimeout` reads NaN
+    // as zero, and a refresh that answers with the same lifetime would then
+    // run in a tight loop.
+    if (!Number.isFinite(expiresIn)) return
+    // Refresh 60 seconds before expiry, minimum 5 seconds from now (which is
+    // also where a lifetime already in the past lands), and no later than a
+    // timer can count: refreshing a month-long token early costs one request.
+    const refreshInMs = Math.min(Math.max((expiresIn - 60) * 1000, 5000), MAX_TIMER_DELAY_MS)
     refreshTimer = setTimeout(() => {
       // Guard: the session may have been cleared between scheduling and firing
       // (logout, forced 401 from another request, tab restore, etc.). Running
-      // the handler in that state would try to refresh with stale tokens.
-      if (!token.value || !refreshToken.value) {
+      // the handler in that state would try to refresh a session that is gone.
+      // Deliberately NOT conditioned on a JavaScript-held refresh token: under
+      // `refresh-cookie` there is none, and the adapter presents the cookie.
+      if (!token.value) {
         refreshTimer = null
         return
       }
@@ -135,7 +168,20 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = u
   }
 
-  function clearAuth() {
+  /**
+   * End the session in this tab.
+   *
+   * Announces it on the event bus, so whatever holds the previous user's data
+   * (the query cache, a module store) can drop it. `reason` is optional so a
+   * caller that predates it keeps working; it distinguishes a sign-out from an
+   * expiry for subscribers that care.
+   *
+   * Only a session that existed is announced. The 401 path clears twice — when
+   * the refresh is refused, and again when the client reports the expiry — and
+   * a visitor who was never signed in has nothing to end.
+   */
+  function clearAuth(reason?: 'logout' | 'expired') {
+    const hadSession = user.value !== null || token.value !== null
     user.value = null
     token.value = null
     refreshToken.value = null
@@ -144,6 +190,7 @@ export const useAuthStore = defineStore('auth', () => {
     // a usable refresh token behind, including one written before the
     // deployment's persistence mode was changed.
     clearPersistedRefreshToken()
+    if (hadSession) appEvents.emit('auth.logout', reason ? { reason } : {})
   }
 
   /**
@@ -164,6 +211,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     isAuthenticated,
     userRole,
+    userRoles,
     userPermissions,
     setAuth,
     setUser,

@@ -1,7 +1,11 @@
-node_modules
+# Every node_modules, not only the root one: a workspace package's own
+# (packages/cli/node_modules) holds links into this machine's store, which
+# resolve to nothing inside the image.
+**/node_modules
 dist
 .git
 .github
+.scratch
 *.md
 *.log
 e2e
@@ -17,3 +21,5 @@ test-results
 .env
 .env.*
 !.env.example
+# What a container is started with, never what an image is built from.
+docker.env

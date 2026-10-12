@@ -1,15 +1,18 @@
+// From the file, not the forms barrel: that barrel is merged, and a project's
+// copy from before this export existed would not have it.
+import { confirmDiscardingChanges } from '~/composables/forms/useUnsavedChangesGuard'
 import { authAdapter as configuredAuthAdapter } from '~/config/app.config'
+// From core/lib, not '../adapters': a project that kept its adapters has the 1.0
+// types.ts behind that barrel, whose AuthAdapter is not the one the registry returns.
+import type { AuthAdapter, AuthProviderId } from '~/lib/auth/adapter'
+import { getAuthProviders } from '~/lib/auth/config'
 import { normalizeError } from '~/lib/errors'
 import { createScopedLogger } from '~/lib/logger'
 import { useAuthStore } from '~/stores/auth'
-import type { AuthCredentials, AuthProvider } from '~/types'
+import type { AuthCredentials } from '~/types'
 
-import {
-  createAuthAdapter,
-  OAuthRedirectError,
-  requireCapability,
-  type AuthAdapter,
-} from '../adapters'
+import { createAuthAdapter, OAuthRedirectError, requireCapability } from '../adapters'
+import { safeRedirectPath } from '../lib/safe-redirect'
 import { useAuthChallengeStore } from '../stores/challenge'
 
 const authLogger = createScopedLogger('auth')
@@ -38,10 +41,19 @@ const useAuthAdapterState = createGlobalState(() => {
   const cell: { adapter: AuthAdapter | null } = { adapter: null }
   return {
     get(): AuthAdapter {
-      cell.adapter ??= createAuthAdapter(configuredAuthAdapter, {
+      if (cell.adapter) return cell.adapter
+
+      // Named, not written into the call: an adapters/index.ts the project
+      // edited keeps the `createAuthAdapter` of 1.0, whose options have no
+      // `getRefreshToken`, and an object literal with a property the parameter
+      // does not know would not compile against it. That adapter ignores it.
+      const tokens = {
         // Threaded in so the JWT adapter can skip a request it knows will 401.
         getToken: () => useAuthStore().token,
-      })
+        // ...and can present a refresh token held in memory.
+        getRefreshToken: () => useAuthStore().refreshToken,
+      }
+      cell.adapter = createAuthAdapter(configuredAuthAdapter, tokens)
       return cell.adapter
     },
     reset(): void {
@@ -68,28 +80,6 @@ export async function exchangeOAuthCode(code: string, state: string) {
   return adapter.exchangeCode(code, state)
 }
 
-/**
- * Whitelist post-login redirects to internal paths only. An attacker-controlled
- * `?redirect=//evil.com` or `?redirect=https://evil.com` would otherwise send
- * the freshly-authenticated user off-site (open redirect). Same-origin absolute
- * URLs are accepted but normalised back to a path so vue-router treats them as
- * in-app navigations.
- */
-function safeRedirectPath(raw: unknown, fallback = '/dashboard'): string {
-  if (typeof raw !== 'string' || raw.length === 0) return fallback
-  // Reject protocol-relative (`//host`) and any path starting with a backslash,
-  // which some browsers normalise to `/`.
-  if (raw.startsWith('//') || raw.startsWith('\\')) return fallback
-  if (raw.startsWith('/')) return raw
-  try {
-    const url = new URL(raw, window.location.origin)
-    if (url.origin !== window.location.origin) return fallback
-    return url.pathname + url.search + url.hash
-  } catch {
-    return fallback
-  }
-}
-
 export function useAuth() {
   const store = useAuthStore()
   const challenge = useAuthChallengeStore()
@@ -101,6 +91,21 @@ export function useAuth() {
   const isAuthenticated = computed(() => store.isAuthenticated)
   const token = computed(() => store.token)
 
+  /**
+   * End the session, saying why.
+   *
+   * The reason is new in 1.1.0, and this file is replaced by an upgrade while a
+   * `stores/auth.ts` the project edited is not: its `clearAuth()` takes no
+   * argument, and calling it with one would not compile. Read through this
+   * type, such a store is still called, and ignores the reason (it announces no
+   * `auth.logout` either, until the project merges the new store).
+   * `bootstrap/auth-wiring.ts` reads the store the same way.
+   */
+  function endSession(reason: 'logout' | 'expired'): void {
+    const clearAuth: (reason?: 'logout' | 'expired') => void = store.clearAuth
+    clearAuth(reason)
+  }
+
   const remainingLockoutMs = computed(() => challenge.remainingLockoutMs)
 
   /**
@@ -109,6 +114,13 @@ export function useAuth() {
    * user find out it does nothing.
    */
   const capabilities = computed(() => getAuthAdapter().capabilities)
+
+  /**
+   * The social sign-in providers to offer, in order: the built-in three, or
+   * the list in `app/config/auth.config.ts`. Whether to offer any is
+   * `capabilities.social`.
+   */
+  const providers = computed(() => getAuthProviders())
 
   async function login(credentials: AuthCredentials) {
     if (challenge.isLockedOut()) {
@@ -171,11 +183,16 @@ export function useAuth() {
   }
 
   async function logout() {
+    // A form with unsaved changes asks first, while "keep editing" can still
+    // mean something: once the session is gone the guard stands down, because
+    // nobody may be kept on a protected page without one. Declined, nothing
+    // has happened and the user is where they were.
+    if (!(await confirmDiscardingChanges())) return
     // Backend logout failure is intentionally non-blocking: the user has
     // already decided to end their session, so client-side cleanup proceeds
     // regardless of network or backend availability. The adapter logs it.
     await getAuthAdapter().logout()
-    store.clearAuth()
+    endSession('logout')
     // The lockout counter and any half-completed MFA challenge belong to the
     // session that just ended — clear them so the next login starts clean.
     challenge.resetAttempts()
@@ -194,7 +211,7 @@ export function useAuth() {
       // Only clear auth on 401 (session truly expired). Transient errors
       // (network, 5xx) must not log the user out.
       if (appErr.status === 401) {
-        store.clearAuth()
+        endSession('expired')
       } else {
         authLogger.warn('fetchUser failed (session kept)', {
           code: appErr.code,
@@ -204,7 +221,7 @@ export function useAuth() {
     }
   }
 
-  async function socialLogin(provider: AuthProvider) {
+  async function socialLogin(provider: AuthProviderId) {
     isLoading.value = true
     error.value = null
     try {
@@ -312,6 +329,7 @@ export function useAuth() {
     isLoading,
     error,
     capabilities,
+    providers,
     mfaRequired: computed(() => challenge.mfaRequired),
     mfaToken: computed(() => challenge.mfaToken),
     loginAttempts: computed(() => challenge.loginAttempts),

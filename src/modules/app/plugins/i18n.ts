@@ -2,14 +2,12 @@ import { storeToRefs } from 'pinia'
 import { type App, watch } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { useLocaleCatalogs, type LocaleCatalog } from '@/state/locale-catalogs'
 import { useAppStore } from '@/stores/app'
+import { appPathname } from '~/lib/config'
 
-import ar from '../locales/ar.json'
-import arOverrides from '../locales/ar.overrides.json'
 import en from '../locales/en.json'
 import enOverrides from '../locales/en.overrides.json'
-import fr from '../locales/fr.json'
-import frOverrides from '../locales/fr.overrides.json'
 // `appearance.ts` owns the locale list — it also holds LOCALE_METADATA and
 // RTL_LOCALES, so adding a language stays a single-file change. This module
 // used to re-declare the same tuple, which meant a fourth locale could be
@@ -23,16 +21,33 @@ function toSupportedLocale(locale: string): SupportedLocale {
 /**
  * Shell copy, with your overrides applied on top.
  *
- * `<locale>.json` is Vuestrata's and is replaced wholesale by an upgrade; the
- * `.overrides.json` beside it is yours and is never written to. Rewording a
- * label therefore means adding one key to a file nobody upstream touches,
- * rather than editing a 665-key catalog that a future release will also edit.
+ * `<locale>.json` is the catalog Vuestrata ships and keeps changing; the
+ * `.overrides.json` beside it is yours and nothing upstream ever writes to it.
+ * Rewording a label therefore means adding one key to a file nobody upstream
+ * touches, rather than editing a 665-key catalog that a future release will
+ * also edit.
  *
- * Shallow by design: the shell catalog is flat, and a deep merge would invite
- * partial overrides of a nested object that then disagree about shape.
+ * A group is merged, not replaced: `{ "validation": { "required": "…" } }`
+ * rewords that one message and leaves the rest of `validation` as shipped. A
+ * message, an array, or anything else that is not a group on both sides takes
+ * the place of what was there.
  */
 function withOverrides<T extends object>(base: T, overrides: object): T {
-  return { ...base, ...overrides }
+  // A build compiles each message to a syntax tree, which is an object too.
+  // It is a message, not a group: told apart the way vue-i18n tells them.
+  const isGroup = (value: unknown): value is Record<string, unknown> => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+    const node = value as Record<string, unknown>
+    const compiled = (node.type ?? node.t) === 0 && ('body' in node || 'b' in node)
+    return !compiled
+  }
+
+  const merged = { ...base } as Record<string, unknown>
+  for (const [key, value] of Object.entries(overrides)) {
+    const shipped = merged[key]
+    merged[key] = isGroup(shipped) && isGroup(value) ? withOverrides(shipped, value) : value
+  }
+  return merged as T
 }
 
 export const i18n = createI18n({
@@ -41,9 +56,26 @@ export const i18n = createI18n({
   fallbackLocale: 'en',
   messages: {
     en: withOverrides(en, enOverrides),
-    fr: withOverrides(fr, frOverrides),
-    ar: withOverrides(ar, arOverrides),
-  },
+  } as Record<string, typeof en>,
+})
+
+// English is the fallback. Other catalogs and their project-owned overrides
+// are fetched only when needed, including locales a project adds later.
+const LOCALE_FILES = import.meta.glob<LocaleCatalog>('../locales/*.json', { import: 'default' })
+const SHELL_CATALOGS = SUPPORTED_LOCALES.flatMap((locale) => {
+  if (locale === 'en') return []
+  const catalog = LOCALE_FILES[`../locales/${locale}.json`]
+  const overrides = LOCALE_FILES[`../locales/${locale}.overrides.json`]
+  if (!catalog) return []
+  return [
+    {
+      locale,
+      load: async () => {
+        const [base, own] = await Promise.all([catalog(), overrides?.() ?? {}])
+        return withOverrides(base, own)
+      },
+    },
+  ]
 })
 
 /**
@@ -70,11 +102,15 @@ if (import.meta.hot) {
 }
 
 export function getI18n() {
+  // Register on access, after both modules initialize. The coordinator uses
+  // this getter too; registration at module evaluation creates an import cycle.
+  for (const { locale, load } of SHELL_CATALOGS) useLocaleCatalogs().register(locale, 'shell', load)
   return i18n
 }
 
+/** The path inside the app, without the base path it may be served under. */
 function readPathname(): string {
-  return typeof window === 'undefined' ? '/' : window.location.pathname
+  return appPathname()
 }
 
 /**
@@ -88,12 +124,13 @@ function readPathname(): string {
  * stays English if Settings is mutated from another tab.
  */
 export function installI18n(app: App) {
+  getI18n()
   const { locale } = storeToRefs(useAppStore())
 
   watch(
     locale,
     (value) => {
-      i18n.global.locale.value = resolveActiveLocale(readPathname(), toSupportedLocale(value))
+      useLocaleCatalogs().sync(resolveActiveLocale(readPathname(), toSupportedLocale(value)))
     },
     { immediate: true },
   )

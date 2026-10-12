@@ -26,9 +26,19 @@ jobs:
     runs-on: ubuntu-latest
     # `workflow_run` fires on failure too, so the result must be checked
     # explicitly — this is the actual gate.
+    #
+    # And only in the template's own repository. This job builds the DEMO (the
+    # mock backend and the mock sign-in) and deploys it with `--prod`. A project
+    # built from the template inherits this file, and the day it stored a
+    # VERCEL_TOKEN for its own application this job would have published the
+    # demo to that production project. The token being absent was the only
+    # thing in the way. `vuestrata eject` removes the file; a project that keeps
+    # it and wants the demo deployed changes the slug to its own. If the
+    # repository is renamed, update the slug here, as in ci.yml and release.yml.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      github.repository == 'boussadjra/vuestrata' &&
+      (github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success')
     environment:
       name: demo
       url: ${{ steps.deploy.outputs.url }}
@@ -72,7 +82,7 @@ jobs:
           fi
           # --prebuilt would need `vercel build`, which would re-run the build
           # without the env above. Deploy dist/ as a static artifact instead.
-          url=$(npx --yes vercel@latest deploy dist \
+          url=$(vp dlx vercel@latest deploy dist \
             --token "$VERCEL_TOKEN" \
             --prod \
             --yes \

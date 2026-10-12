@@ -58,17 +58,22 @@ async function applyAppearance(page: Page, appearance: Appearance) {
 }
 
 async function gotoAndSettle(page: Page, path: string): Promise<void> {
-  await page.goto(path)
+  await page.goto(path, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
   await expect(page.locator('main').first()).toBeVisible({ timeout: 20_000 })
-  // Formwerk wires label associations in a post-mount effect; let in-flight
-  // work settle before inspecting the DOM.
-  await page.waitForLoadState('networkidle')
+  // Formwerk wires label associations after mount. Wait for two rendered frames
+  // rather than network idleness, which the demo worker need not reach.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  )
 
   /*
    * Wait for entrance animations to finish before auditing.
    *
-   * `networkidle` says nothing about CSS animations. The home hero reveals its
+   * Mounting says nothing about CSS animations. The home hero reveals its
    * code lines with staggered `animation-delay`s running to 1.3s, fading
    * opacity 0 → 1, so an audit that starts earlier samples half-faded text and
    * reports colour-contrast failures for colours that exist for a few hundred
@@ -158,6 +163,13 @@ test.describe('Accessibility — authenticated pages', () => {
  * is the contrast trap.
  */
 test.describe('Accessibility — theme and colour-mode matrix', () => {
+  // The heaviest tests in the suite: each signs in, switches theme, loads the
+  // dashboard with its charts and has axe walk the whole page. On a machine
+  // that is also building or running another suite, one of them crossed
+  // Playwright's 30 s default in most runs, a different combination each time
+  // and with axe still analysing, which says nothing about the page.
+  test.describe.configure({ timeout: 60_000 })
+
   const combinations = [
     { theme: 'default', dark: false },
     { theme: 'default', dark: true },

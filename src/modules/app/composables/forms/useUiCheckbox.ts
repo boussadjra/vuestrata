@@ -2,6 +2,8 @@ import { useCheckbox } from '@formwerk/core'
 
 import type { FieldProps } from '@/types'
 
+import { useOwnDefault } from './useOwnDefault'
+
 export interface CheckboxProps extends Omit<FieldProps, 'size'> {
   modelValue?: boolean | 'indeterminate'
   checked?: boolean
@@ -12,6 +14,7 @@ export interface CheckboxProps extends Omit<FieldProps, 'size'> {
 }
 
 export function useUiCheckbox(props: CheckboxProps) {
+  const ownDefault = useOwnDefault(props)
   const externalValue = computed(() => props.modelValue ?? props.checked)
 
   const baseOptions = {
@@ -26,19 +29,13 @@ export function useUiCheckbox(props: CheckboxProps) {
     schema: props.schema as undefined,
   }
 
-  const formwerk =
-    externalValue.value === undefined
-      ? useCheckbox(baseOptions)
-      : useCheckbox({
-          ...baseOptions,
-          modelValue: () => externalValue.value as boolean | undefined,
-        })
-
-  if (externalValue.value === undefined && props.name) {
-    void nextTick(() => {
-      void formwerk.validate()
-    })
-  }
+  // Unchecked unless told otherwise, which is what an absent `checked` used to
+  // be cast to. Passed as the field's own default, so that inside a form it
+  // yields to the record's value instead of unchecking it.
+  const formwerk = useCheckbox({
+    ...baseOptions,
+    modelValue: () => (externalValue.value ?? ownDefault(false)) as boolean | undefined,
+  })
 
   const displayError = computed(() => props.error ?? formwerk.errorMessage.value)
 

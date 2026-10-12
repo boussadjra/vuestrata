@@ -3,8 +3,9 @@
  *
  * This module is deliberately dependency-free apart from `zod`: it imports no
  * Vue, no logger, and — critically — no path aliases. That is what allows it to
- * be imported from BOTH `vite.config.ts` (which runs in Node before aliases
- * exist) and from application code via `app.config.ts`.
+ * be imported from BOTH the Vite plugin in `scripts/vite/vuestrata-plugin.mjs`
+ * (which runs in Node before aliases exist) and from application code via
+ * `app.config.ts`.
  *
  * Two entry points, two failure modes:
  *   - `parseRuntimeEnv`   — strict. Throws. Used at build time so a misconfigured
@@ -16,19 +17,65 @@
  * never disagree about what a valid configuration is.
  */
 import { z } from 'zod'
+import en from 'zod/v4/locales/en.js'
+
+// This is the first application schema. Disable Zod's eval probe and JIT
+// before constructing it: a strict CSP reports even a caught eval attempt.
+z.config({ jitless: true })
+
+/**
+ * What this file tells a developer is in zod's own English, whatever error map
+ * the app installed for its forms and whatever language it is showing. The
+ * same options as `~/lib/validation/diagnostics`, which this file cannot
+ * import: it is loaded by Node before any alias exists.
+ */
+const IN_ZODS_OWN_WORDS = { error: en().localeError } as const
 
 // ─── Allowlists ───────────────────────────────────────────────────────────────
 
 /**
  * The build target. This is the single switch that decides which of the two
  * artifacts we are producing, and it is resolved at BUILD time — see the
- * `__VUESTRATA_DEMO__` define in vite.config.ts.
+ * `__VUESTRATA_DEMO__` define in scripts/vite/vuestrata-plugin.mjs.
  *
  *   demo       — public showcase. MSW intercepts everything; mock auth only.
  *   production — real deployment. No MSW, no demo state, real auth adapter.
+ *
+ * A demo build has one variation, which `VUESTRATA_MOCK_ONLY` selects: MSW
+ * answers for the modules that variable lists, and a real backend, signed in
+ * to through a real adapter, answers for everything else. See `isHybridRuntime`.
  */
 export const RUNTIME_MODES = ['production', 'demo'] as const
-export const AUTH_ADAPTERS = ['mock', 'jwt', 'oauth'] as const
+/**
+ * The auth adapters Vuestrata ships. `VUESTRATA_AUTH_ADAPTER` also accepts
+ * any name a project registers under `adapters` in
+ * `src/modules/app/config/auth.config.ts`; see `ResolveOptions.authAdapters`.
+ */
+export const AUTH_ADAPTERS = ['mock', 'jwt', 'oauth', 'session'] as const
+
+/** How an auth adapter proves identity. Mirrors `AuthTransport` in the auth module. */
+export type AuthAdapterTransport = 'bearer' | 'cookie'
+
+/**
+ * The project's own adapters, by name, with the transport each one declares.
+ * Passed in rather than imported: this module has no dependencies, and the
+ * file that registers them belongs to the app.
+ */
+export type RegisteredAuthAdapters = Readonly<Record<string, AuthAdapterTransport>>
+
+/** Where a project registers an adapter. Named in the message for an unknown one. */
+const AUTH_CONFIG_FILE = 'src/modules/app/config/auth.config.ts'
+
+/**
+ * The transport of the built-in adapters. `oauth` is a cookie session by design,
+ * and `session` is one by definition: the backend's own session cookie.
+ */
+const BUILTIN_TRANSPORTS: Record<BuiltinAuthAdapterName, AuthAdapterTransport> = {
+  mock: 'bearer',
+  jwt: 'bearer',
+  oauth: 'cookie',
+  session: 'cookie',
+}
 
 /**
  * How a bearer-transport session survives a page reload.
@@ -76,7 +123,42 @@ export const ICON_PROVIDERS = [
 ] as const
 
 export type RuntimeMode = (typeof RUNTIME_MODES)[number]
-export type AuthAdapterName = (typeof AUTH_ADAPTERS)[number]
+/** The adapters Vuestrata ships, as a closed union. */
+export type BuiltinAuthAdapterName = (typeof AUTH_ADAPTERS)[number]
+
+/**
+ * The names of the adapters a project registers itself.
+ *
+ * Empty here, filled by declaration merging from `app/config/auth.config.ts`,
+ * beside the `adapters` it registers:
+ *
+ *     declare module '~/lib/auth' {
+ *       interface RegisteredAuthAdapterNames {
+ *         acme: true
+ *       }
+ *     }
+ *
+ * The keys are what matter; the value type is not read. An interface rather
+ * than a wider `string` because the type of the configured adapter is a
+ * contract: a project that registers nothing must see exactly the union it
+ * always saw, so nothing it wrote against `'mock' | 'jwt' | 'oauth'` stops
+ * compiling when it takes a release. A project that registers `acme` widens
+ * the type itself, with the one declaration above.
+ *
+ * It lives in this file, which imports nothing, because `AuthAdapterName` is
+ * defined here; `~/lib/auth` re-exports it, and that is the name to augment.
+ */
+// oxlint-disable-next-line typescript/no-empty-object-type -- extended by declaration merging
+export interface RegisteredAuthAdapterNames {}
+
+/**
+ * Every name `VUESTRATA_AUTH_ADAPTER` can hold: the built-in adapters, plus
+ * whatever the project declared in `RegisteredAuthAdapterNames`.
+ */
+export type AuthAdapterName =
+  | BuiltinAuthAdapterName
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents -- `never` until a project augments it
+  | Extract<keyof RegisteredAuthAdapterNames, string>
 export type SessionPersistence = (typeof SESSION_PERSISTENCE_MODES)[number]
 export type IconProviderName = (typeof ICON_PROVIDERS)[number]
 
@@ -86,6 +168,7 @@ export const ENV_KEYS = {
   title: 'VUESTRATA_APP_TITLE',
   apiUrl: 'VUESTRATA_API_URL',
   useMocks: 'VUESTRATA_USE_MOCKS',
+  mockOnly: 'VUESTRATA_MOCK_ONLY',
   authAdapter: 'VUESTRATA_AUTH_ADAPTER',
   sessionPersistence: 'VUESTRATA_SESSION_PERSISTENCE',
   iconProvider: 'VUESTRATA_ICON_PROVIDER',
@@ -93,6 +176,7 @@ export const ENV_KEYS = {
   demoRetentionHours: 'VUESTRATA_DEMO_AUTH_RETENTION_HOURS',
   errorReportingDsn: 'VUESTRATA_ERROR_REPORTING_DSN',
   release: 'VUESTRATA_RELEASE',
+  basePath: 'VUESTRATA_BASE_PATH',
 } as const
 
 /** Kept for source compatibility with existing imports and tests. */
@@ -100,7 +184,8 @@ export const AUTH_ADAPTER_ENV_KEY = ENV_KEYS.authAdapter
 
 /**
  * `VUESTRATA_API_URL` values that are obviously scaffolding rather than a real
- * backend. Allowed in demo mode, rejected in production mode.
+ * backend. Allowed in demo mode and by the dev server (see
+ * `ResolveOptions.serving`), rejected in a production build.
  */
 const PLACEHOLDER_API_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', 'api.example.com'])
 
@@ -162,29 +247,183 @@ const retentionHours = z
   })
   .optional()
 
+/** A module id, as `ModuleConfig.id` and `vuestrata add module` write one. */
+const MODULE_ID = /^[a-z][a-z0-9-]*$/
+
+/**
+ * The module whose mock handlers answer `/auth/*`. A real adapter talks to
+ * those endpoints on the backend, so the two can never be combined.
+ */
+const AUTH_MODULE_ID = 'auth'
+
+/**
+ * A comma-separated list of module ids: trimmed, in the order given, each once.
+ *
+ * Only the form of an id is checked. Which modules exist is the app's to know,
+ * not this file's, so an id that names none is reported when the mocks start
+ * (`app/bootstrap/mocks.ts`), with the ids that do.
+ */
+const moduleIdList = z
+  .string()
+  .transform((value, ctx) => {
+    const ids = [
+      ...new Set(
+        value
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ]
+    const malformed = ids.filter((id) => !MODULE_ID.test(id))
+    if (malformed.length > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'expected module ids separated by commas (lowercase letters, digits and dashes, ' +
+          `starting with a letter), received ${malformed.map((id) => `"${id}"`).join(', ')}`,
+      })
+      return z.NEVER
+    }
+    return ids
+  })
+  .optional()
+
+/** `VUESTRATA_BASE_PATH` when nothing sets it: the app at the root of its origin. */
+export const DEFAULT_BASE_PATH = '/'
+
+/** `/`, or `/` followed by segments of unreserved characters, each closed by `/`. */
+const BASE_PATH = /^\/(?:[A-Za-z0-9._~-]+\/)*$/
+
+/**
+ * Whether `value` is a base path: `/`, or `/console/`. The rule itself, and
+ * all of it that runs in a browser; `describeBasePathIssue` says the same in
+ * words, for a build.
+ */
+export function isBasePath(value: string): boolean {
+  return (
+    BASE_PATH.test(value) &&
+    !value.split('/').some((segment) => segment === '.' || segment === '..')
+  )
+}
+
+/**
+ * What stops `value` from being a base path, or null when it is one.
+ *
+ * Only the strict parser and the Vite plugin call this, both in Node, so the
+ * explanations stay out of the browser bundle, as the ones for the API URL and
+ * for `VUESTRATA_MOCK_ONLY` do. There the rule is `isBasePath`, and a value
+ * that breaks it is dropped with one short sentence.
+ *
+ * A base path is the prefix the app is served under on its OWN origin:
+ * `/console/` for `https://portal.example.com/console/`. It ends up in every
+ * asset URL of the bundle, in the router's history, in redirect URIs and in
+ * the generated server configuration, so it is held to one spelling: it starts
+ * and ends with `/`, and holds only letters, digits and `._~-` in between. That
+ * leaves out everything that would turn it into something else: `//host/` is
+ * another origin to a browser, `..` walks out of the prefix, and a space, a
+ * quote or a `;` would end a directive in the nginx configuration.
+ *
+ * A missing slash is refused rather than added. The same value is given to the
+ * build, to the header generator and to the Docker build, and three places
+ * that each tidied it their own way could disagree; one spelling cannot.
+ *
+ * Assets on ANOTHER origin (a CDN) are not what this is for and are not
+ * supported: `script-src 'self'` and `runtime-config.js` both assume the app's
+ * files come from the origin that serves the page.
+ */
+export function describeBasePathIssue(value: string): string | null {
+  if (BASE_PATH.test(value)) {
+    return value.split('/').some((segment) => segment === '.' || segment === '..')
+      ? `"${value}" has a "." or ".." segment, which a browser resolves away.`
+      : null
+  }
+
+  if (/^[A-Za-z]:[\\/]/.test(value)) {
+    return (
+      `"${value}" is a file path. Git Bash rewrites a value that starts with "/" into one: ` +
+      'set MSYS_NO_PATHCONV=1 for the command, or put the variable in a .env file.'
+    )
+  }
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) || /^[/\\]{2}/.test(value)) {
+    return (
+      `"${value}" names another origin. A base path is a path on the app's own origin, such ` +
+      'as "/console/"; serving the assets from another host is not supported.'
+    )
+  }
+  if (/[?#]/.test(value)) return `"${value}" has a query or a fragment; a base path has neither.`
+  if (!value.startsWith('/') || !value.endsWith('/')) {
+    const suggestion = `/${value.replace(/^\/+|\/+$/g, '')}/`
+    return (
+      `"${value}" must start and end with "/".` +
+      (BASE_PATH.test(suggestion) ? ` Write "${suggestion}".` : '')
+    )
+  }
+  if (value.includes('//')) return `"${value}" has an empty segment ("//").`
+  return (
+    `"${value}" may hold only letters, digits and "._~-" between its slashes ` +
+    '(no spaces, no percent-encoding).'
+  )
+}
+
+const basePath = z
+  .string()
+  .refine(isBasePath, {
+    error: 'expected a path that starts and ends with "/", such as "/console/"',
+  })
+  .optional()
+
+/**
+ * An adapter name: a built-in one, or one the project registered.
+ *
+ * An unknown name is an error that says where adapters are registered. It is
+ * never replaced by `mock`: that adapter's endpoints exist only inside the
+ * demo's service worker, so a production app that fell back to it would fail
+ * every sign-in with nothing to say why.
+ */
+function authAdapterName(registered: RegisteredAuthAdapters) {
+  return z
+    .string()
+    .refine(
+      (name) =>
+        (AUTH_ADAPTERS as readonly string[]).includes(name) || Object.hasOwn(registered, name),
+      {
+        error: (issue) =>
+          `unknown auth adapter "${String(issue.input)}". Built in: ${AUTH_ADAPTERS.join(', ')}. ` +
+          `To use your own, register it under \`adapters\` in ${AUTH_CONFIG_FILE}.`,
+      },
+    )
+    .optional()
+}
+
 /**
  * Per-field validation only. Cross-field rules live in `applyCombinationRules`
  * because they need the resolved defaults, which depend on `runtimeMode`.
  */
-const envSchema = z.object({
-  [ENV_KEYS.runtimeMode]: z.enum(RUNTIME_MODES).optional(),
-  [ENV_KEYS.title]: z.string().min(1).optional(),
-  [ENV_KEYS.apiUrl]: z.string().min(1).optional(),
-  [ENV_KEYS.useMocks]: booleanish,
-  [ENV_KEYS.authAdapter]: z.enum(AUTH_ADAPTERS).optional(),
-  [ENV_KEYS.sessionPersistence]: z.enum(SESSION_PERSISTENCE_MODES).optional(),
-  [ENV_KEYS.iconProvider]: z.enum(ICON_PROVIDERS).optional(),
-  [ENV_KEYS.theme]: z
-    .string()
-    .regex(/^[a-z0-9-]+$/, 'must be lowercase alphanumeric with dashes')
-    .optional(),
-  [ENV_KEYS.demoRetentionHours]: retentionHours,
-  // A DSN is a public ingest endpoint, not a secret — it is designed to be
-  // embedded in client bundles. Auth tokens for the provider's API are a
-  // different thing entirely and must never appear in a VUESTRATA_ variable.
-  [ENV_KEYS.errorReportingDsn]: z.url('must be a valid DSN URL').optional(),
-  [ENV_KEYS.release]: z.string().min(1).optional(),
-})
+function createEnvSchema(registered: RegisteredAuthAdapters) {
+  return z.object({
+    [ENV_KEYS.runtimeMode]: z.enum(RUNTIME_MODES).optional(),
+    [ENV_KEYS.title]: z.string().min(1).optional(),
+    [ENV_KEYS.apiUrl]: z.string().min(1).optional(),
+    [ENV_KEYS.useMocks]: booleanish,
+    [ENV_KEYS.mockOnly]: moduleIdList,
+    [ENV_KEYS.authAdapter]: authAdapterName(registered),
+    [ENV_KEYS.sessionPersistence]: z.enum(SESSION_PERSISTENCE_MODES).optional(),
+    [ENV_KEYS.iconProvider]: z.enum(ICON_PROVIDERS).optional(),
+    [ENV_KEYS.theme]: z
+      .string()
+      .regex(/^[a-z0-9-]+$/, 'must be lowercase alphanumeric with dashes')
+      .optional(),
+    [ENV_KEYS.demoRetentionHours]: retentionHours,
+    // A DSN is a public ingest endpoint, not a secret — it is designed to be
+    // embedded in client bundles. Auth tokens for the provider's API are a
+    // different thing entirely and must never appear in a VUESTRATA_ variable.
+    [ENV_KEYS.errorReportingDsn]: z.url('must be a valid DSN URL').optional(),
+    [ENV_KEYS.release]: z.string().min(1).optional(),
+    [ENV_KEYS.basePath]: basePath,
+  })
+}
+
+type ParsedEnv = z.infer<ReturnType<typeof createEnvSchema>>
 
 // ─── Resolved shape ───────────────────────────────────────────────────────────
 
@@ -193,6 +432,17 @@ export interface RuntimeEnv {
   title: string
   apiUrl: string
   useMocks: boolean
+  /**
+   * The modules MSW answers for while a real backend answers for the rest, or
+   * empty: the self-contained demo, and every production build. Never holds
+   * `auth`, and is never set beside the mock adapter. See `isHybridRuntime`.
+   */
+  mockOnly: readonly string[]
+  /**
+   * A built-in adapter, or one the project registered in `auth.config.ts` and
+   * declared in `RegisteredAuthAdapterNames`. With nothing declared this is
+   * the built-in union, exactly as it was before a project could register any.
+   */
   authAdapter: AuthAdapterName
   /**
    * Reload-survival strategy for bearer sessions. Ignored by cookie-transport
@@ -208,6 +458,18 @@ export interface RuntimeEnv {
     /** Version string sent with reports, normally the git SHA. */
     release: string | undefined
   }
+  /**
+   * `VUESTRATA_BASE_PATH`: the path prefix the app is served under, `/` unless
+   * a deployment mounts it deeper (`/console/`). Always starts and ends with
+   * `/`. Decided when the app is BUILT, because it is in every asset URL of the
+   * bundle: a deployment cannot change it at start.
+   *
+   * The build hands it to Vite as `base`. Code that runs in the browser reads
+   * Vite's answer through `appBasePath()` and `appUrl()` (`./base-path.ts`),
+   * not this field, so that a project which sets `base` in its own Vite config
+   * is still served from one base.
+   */
+  basePath: string
 }
 
 /** True when this configuration ships demo code (MSW, seeded IndexedDB users). */
@@ -215,9 +477,32 @@ export function isDemoRuntime(env: Pick<RuntimeEnv, 'runtimeMode'>): boolean {
   return env.runtimeMode === 'demo'
 }
 
+/**
+ * True when MSW answers only for the modules in `VUESTRATA_MOCK_ONLY`, and a
+ * real backend, signed in to through a real adapter, answers everything else.
+ *
+ * A demo build in what it bundles (MSW and the mock handlers are compiled in),
+ * and not a demo in what it does: no mock adapter, no demo account, no seeded
+ * super-admin. A tool for development and for staging; a production build
+ * refuses the variable.
+ */
+export function isHybridRuntime(env: Pick<RuntimeEnv, 'runtimeMode' | 'mockOnly'>): boolean {
+  return env.runtimeMode === 'demo' && env.mockOnly.length > 0
+}
+
 // ─── Combination rules ────────────────────────────────────────────────────────
 
-type Correction = { message: string; apply: (draft: RuntimeEnv) => void }
+type Correction = {
+  message: string
+  apply: (draft: RuntimeEnv) => void
+  /** Set by the placeholder-host rule, for `describeDevProxyAlternative`. */
+  placeholderApiUrl?: URL
+  /** Set by the rules about `VUESTRATA_MOCK_ONLY`, for `describeMockOnlyAdvice`. */
+  mockOnlyAdvice?: MockOnlyAdvice
+}
+
+/** Which rule about `VUESTRATA_MOCK_ONLY` an issue broke. */
+type MockOnlyAdvice = 'real-adapter-in-demo' | 'mock-adapter' | 'auth-listed' | 'production'
 
 /**
  * The cross-field rules that were entirely missing before: nothing stopped a
@@ -226,11 +511,47 @@ type Correction = { message: string; apply: (draft: RuntimeEnv) => void }
  *
  * Each rule carries a correction so the lenient path can recover instead of
  * throwing. The strict path ignores the corrections and reports the messages.
+ *
+ * What is valid, by mode, mocks, adapter and `VUESTRATA_MOCK_ONLY`:
+ *
+ *   mode        mocks  adapter  mock-only        result
+ *   demo        on     mock     unset            the self-contained demo
+ *   demo        on     real     modules          hybrid: those modules mocked
+ *   demo        on     real     unset            refused: a demo signs in with mock
+ *   demo        on     real     includes "auth"  refused: two owners for /auth/*
+ *   demo        on     mock     set              refused: no backend to sign in to
+ *   demo        off    any      any              refused: mocks must be on
+ *   production  off    real     unset            production
+ *   production  off    real     set              refused: MSW is not bundled
+ *   production  on     any      any              refused, as before
+ *   production  any    mock     any              refused, as before
+ *
+ * A hybrid build is also held to what production asks of the backend: a usable
+ * API URL, and no bearer persistence beside a cookie-transport adapter.
  */
-function collectCombinationIssues(env: RuntimeEnv): Correction[] {
+function collectCombinationIssues(
+  env: RuntimeEnv,
+  serving: boolean,
+  registered: RegisteredAuthAdapters,
+): Correction[] {
   const issues: Correction[] = []
 
-  if (env.runtimeMode === 'demo') {
+  // Some modules mocked beside a real backend. With the mock adapter there is
+  // no real backend to sign in to, so that combination is refused, and then
+  // judged as the self-contained demo it falls back to.
+  let hybrid = isHybridRuntime(env)
+  if (hybrid && env.authAdapter === 'mock') {
+    issues.push({
+      message: `${ENV_KEYS.mockOnly} needs a real auth adapter, and ${ENV_KEYS.authAdapter} is "mock".`,
+      mockOnlyAdvice: 'mock-adapter',
+      apply: (draft) => {
+        draft.mockOnly = []
+      },
+    })
+    hybrid = false
+  }
+
+  if (env.runtimeMode === 'demo' && !hybrid) {
     if (!env.useMocks) {
       issues.push({
         message: `${ENV_KEYS.useMocks} must be "true" when ${ENV_KEYS.runtimeMode}="demo" — the demo has no backend to talk to.`,
@@ -242,6 +563,7 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
     if (env.authAdapter !== 'mock') {
       issues.push({
         message: `${ENV_KEYS.authAdapter} must be "mock" when ${ENV_KEYS.runtimeMode}="demo" (received "${env.authAdapter}").`,
+        mockOnlyAdvice: 'real-adapter-in-demo',
         apply: (draft) => {
           draft.authAdapter = 'mock'
         },
@@ -261,8 +583,44 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
     return issues
   }
 
-  // runtimeMode === 'production'
-  if (env.useMocks) {
+  if (hybrid) {
+    if (!env.useMocks) {
+      issues.push({
+        message: `${ENV_KEYS.useMocks} must be "true" when ${ENV_KEYS.mockOnly} is set: it lists the modules MSW answers for.`,
+        apply: (draft) => {
+          draft.useMocks = true
+        },
+      })
+    }
+    if (env.mockOnly.includes(AUTH_MODULE_ID)) {
+      issues.push({
+        message: `${ENV_KEYS.mockOnly} cannot name "${AUTH_MODULE_ID}" with ${ENV_KEYS.authAdapter}="${env.authAdapter}".`,
+        mockOnlyAdvice: 'auth-listed',
+        apply: (draft) => {
+          draft.mockOnly = draft.mockOnly.filter((id) => id !== AUTH_MODULE_ID)
+          if (draft.mockOnly.length > 0) return
+          // Nothing left to mock beside a backend: what remains is the
+          // self-contained demo, which signs in through the mock adapter.
+          draft.authAdapter = 'mock'
+          draft.sessionPersistence = 'none'
+        },
+      })
+    }
+  }
+
+  // runtimeMode === 'production', or the real half of a hybrid build: from here
+  // on the rules are about the backend, and a hybrid build has one.
+  if (!hybrid && env.mockOnly.length > 0) {
+    issues.push({
+      message: `${ENV_KEYS.mockOnly} is not valid when ${ENV_KEYS.runtimeMode}="production".`,
+      mockOnlyAdvice: 'production',
+      apply: (draft) => {
+        draft.mockOnly = []
+      },
+    })
+  }
+
+  if (!hybrid && env.useMocks) {
     issues.push({
       message: `${ENV_KEYS.useMocks} must be "false" when ${ENV_KEYS.runtimeMode}="production" — MSW is not bundled in a production build.`,
       apply: (draft) => {
@@ -275,7 +633,7 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
     issues.push({
       message:
         `${ENV_KEYS.authAdapter}="mock" is not valid in production: the mock adapter's endpoints only exist inside MSW. ` +
-        `Use "jwt" or "oauth", or set ${ENV_KEYS.runtimeMode}="demo".`,
+        `Use "jwt", "oauth" or "session", or set ${ENV_KEYS.runtimeMode}="demo".`,
       apply: (draft) => {
         draft.authAdapter = 'jwt'
       },
@@ -286,12 +644,16 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
   // session cookie and the app resumes from it unconditionally. Configuring a
   // bearer strategy alongside it is a contradiction, and silently honouring it
   // would mean writing a refresh token to Web Storage for an adapter that
-  // never receives one.
-  if (env.authAdapter === 'oauth' && env.sessionPersistence !== 'none') {
+  // never receives one. The rule follows the transport, so it holds for an
+  // adapter the project registered as `cookie` exactly as it does for `oauth`.
+  const transport = Object.hasOwn(BUILTIN_TRANSPORTS, env.authAdapter)
+    ? BUILTIN_TRANSPORTS[env.authAdapter as BuiltinAuthAdapterName]
+    : registered[env.authAdapter]
+  if (transport === 'cookie' && env.sessionPersistence !== 'none') {
     issues.push({
       message:
         `${ENV_KEYS.sessionPersistence}="${env.sessionPersistence}" has no meaning with ` +
-        `${ENV_KEYS.authAdapter}="oauth": that adapter uses cookie transport and resumes from ` +
+        `${ENV_KEYS.authAdapter}="${env.authAdapter}": that adapter uses cookie transport and resumes from ` +
         `its session cookie. Set it to "none".`,
       apply: (draft) => {
         draft.sessionPersistence = 'none'
@@ -299,10 +661,11 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
     })
   }
 
-  const apiUrlIssue = describeApiUrlIssue(env.apiUrl)
+  const apiUrlIssue = describeApiUrlIssue(env.apiUrl, serving)
   if (apiUrlIssue) {
     issues.push({
-      message: `${ENV_KEYS.apiUrl} is not usable in production: ${apiUrlIssue}`,
+      message: `${ENV_KEYS.apiUrl} is not usable ${hybrid ? 'with a real backend' : 'in production'}: ${apiUrlIssue.message}`,
+      placeholderApiUrl: apiUrlIssue.placeholder,
       apply: (draft) => {
         draft.apiUrl = '/api'
       },
@@ -312,8 +675,25 @@ function collectCombinationIssues(env: RuntimeEnv): Correction[] {
   return issues
 }
 
-/** Returns a human-readable problem with the URL, or null when it is fine. */
-function describeApiUrlIssue(apiUrl: string): string | null {
+/**
+ * A human-readable problem with the URL, or null when it is fine. `placeholder`
+ * is set when the only problem is the host, which the dev server accepts.
+ */
+function describeApiUrlIssue(
+  apiUrl: string,
+  serving: boolean,
+): { message: string; placeholder?: URL } | null {
+  // A second leading slash is not a deeper path: `//host/path` is
+  // protocol-relative, and a browser reads `/\host/path` the same way. Either
+  // one sends the app's requests, and its credentials, to another host.
+  if (/^\/[/\\]/.test(apiUrl)) {
+    return {
+      message:
+        `"${apiUrl}" names another host: a browser reads a second leading "/" or "\\" as the ` +
+        `start of one. Write an absolute URL, or a same-origin path with a single leading "/".`,
+    }
+  }
+
   // A same-origin path is legitimate — it means "behind a reverse proxy".
   if (apiUrl.startsWith('/')) return null
 
@@ -321,23 +701,142 @@ function describeApiUrlIssue(apiUrl: string): string | null {
   try {
     parsed = new URL(apiUrl)
   } catch {
-    return `"${apiUrl}" is neither an absolute URL nor a same-origin path starting with "/".`
+    return {
+      message: `"${apiUrl}" is neither an absolute URL nor a same-origin path starting with "/".`,
+    }
   }
 
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return `"${apiUrl}" must use http or https.`
+    return { message: `"${apiUrl}" must use http or https.` }
   }
-  if (PLACEHOLDER_API_HOSTS.has(parsed.hostname)) {
-    return `"${apiUrl}" points at the placeholder host "${parsed.hostname}".`
+  if (!serving && PLACEHOLDER_API_HOSTS.has(parsed.hostname)) {
+    return {
+      message: `"${apiUrl}" points at the placeholder host "${parsed.hostname}".`,
+      placeholder: parsed,
+    }
   }
   return null
 }
 
+/**
+ * How to develop against a backend the build has just refused: its URL split
+ * into a same-origin path for the app and an origin for the dev proxy. The
+ * proxy forwards the path unchanged, so the backend receives the requests it
+ * would have before. A URL with no path gets `/api`, because the proxy cannot
+ * take over the site root.
+ *
+ * Only the strict parser — which runs in Node, in the Vite plugin — calls this,
+ * so the advice and the dev-only variable it names stay out of the browser
+ * bundle, where the lenient parser could do nothing with either.
+ */
+function describeDevProxyAlternative(apiUrl: URL): string {
+  const path = apiUrl.pathname.replace(/\/+$/, '')
+  // A backend served from its root cannot sit behind /api: the proxy forwards
+  // the path unchanged, so it would receive /api/users instead of /users.
+  if (!path) {
+    return (
+      'A build must point at the real API. For development, `vp dev` accepts this ' +
+      'URL while serving, provided the backend answers CORS; if the API lives under a ' +
+      `path, keep it same-origin instead with ${ENV_KEYS.apiUrl}=/<path> and ` +
+      `DEV_API_TARGET=${apiUrl.origin}.`
+    )
+  }
+  return (
+    'A build must point at the real API. For development, keep the API same-origin ' +
+    `instead: ${ENV_KEYS.apiUrl}=${path} with DEV_API_TARGET=${apiUrl.origin} in ` +
+    `.env.development.local, and \`vp dev\` proxies ${path} there.`
+  )
+}
+
+/**
+ * Why a rule about `VUESTRATA_MOCK_ONLY` exists, and the way out of it.
+ *
+ * Only the strict parser calls this, like `describeDevProxyAlternative`, so the
+ * explanations stay out of the browser bundle: there, the rule is stated and
+ * corrected, and a production bundle carries one short sentence per rule for a
+ * variable it can never use.
+ */
+function describeMockOnlyAdvice(advice: MockOnlyAdvice): string {
+  switch (advice) {
+    // What a build that kept a real adapter in demo mode was probably after.
+    case 'real-adapter-in-demo':
+      return (
+        `To keep a real adapter and mock only the modules your backend has not built yet, set ` +
+        `${ENV_KEYS.mockOnly} to their ids (docs/1.getting-started/4.develop-against-your-backend.md).`
+      )
+    case 'mock-adapter':
+      return (
+        `The modules it lists are mocked beside a real backend, and the mock adapter signs in ` +
+        `against MSW alone. Set ${ENV_KEYS.authAdapter} to "jwt", "oauth" or an adapter of your ` +
+        `own, or remove ${ENV_KEYS.mockOnly} for the self-contained demo.`
+      )
+    case 'auth-listed':
+      return (
+        `The mock sign-in endpoints and a real adapter cannot both own /auth/*. ` +
+        `Remove "${AUTH_MODULE_ID}" from the list.`
+      )
+    case 'production':
+      return (
+        `MSW and the mock handlers are not bundled in a production build. Remove it, or set ` +
+        `${ENV_KEYS.runtimeMode}="demo" to mock those modules beside a real backend.`
+      )
+  }
+}
+
+/**
+ * What is wrong with ONE value taken on its own, or null when it is fine.
+ *
+ * The rules a value can break without reference to any other: its field's
+ * schema and, for the API URL, its form. A placeholder host is not among them.
+ * That rule is about a BUILD that forgot to set the URL, and whoever calls
+ * this is asking about a value somebody set on purpose (see
+ * `resolveRuntimeEnvWithOverlay`).
+ */
+export function describeEnvValueIssue(
+  key: string,
+  value: string,
+  // Only the adapter name depends on what a project registered, and that key
+  // is decided at build: a caller checking a start-time value has none to pass.
+  authAdapters: RegisteredAuthAdapters = {},
+): string | null {
+  const envSchema = createEnvSchema(authAdapters)
+  const field = (envSchema.shape as Record<string, z.ZodType | undefined>)[key]
+  if (!field) return null
+
+  const parsed = field.safeParse(value, IN_ZODS_OWN_WORDS)
+  if (!parsed.success) return parsed.error.issues.map((issue) => issue.message).join('; ')
+
+  return key === ENV_KEYS.apiUrl ? (describeApiUrlIssue(value, true)?.message ?? null) : null
+}
+
 // ─── Resolution ───────────────────────────────────────────────────────────────
 
-interface ResolveOptions {
+export interface ResolveOptions {
   /** Drives the `runtimeMode` default. Pass `import.meta.env.DEV` or `mode !== 'production'`. */
   isDev?: boolean
+  /**
+   * True when the app is being served rather than bundled: under `vp dev`, and
+   * under `vp preview`, whose bundle was validated when it was built. False for
+   * a build.
+   *
+   * Relaxes exactly one rule: the placeholder-host check on the API URL. A
+   * developer running production mode against a backend on their own machine
+   * points at `localhost` on purpose; a BUILD that does the same deploys an app
+   * that cannot reach its API. Every other rule — including demo mode forcing
+   * MSW and the mock adapter — applies either way.
+   *
+   * `resolveRuntimeEnvWithOverlay` sets it for an API URL a deployment gave at
+   * start, which is a deliberate choice in the same way.
+   */
+  serving?: boolean
+  /**
+   * The adapters the project registered in `auth.config.ts`, with the
+   * transport each declares. Their names are accepted for
+   * `VUESTRATA_AUTH_ADAPTER`, and the cross-field rules apply to them by
+   * transport. The Vite plugin reads them from that file and passes them to
+   * both parsers; leave it out and only the built-in names are valid.
+   */
+  authAdapters?: RegisteredAuthAdapters
   onWarn?: (message: string) => void
 }
 
@@ -350,9 +849,21 @@ function normalize(raw: RawEnv): Record<string, string | undefined> {
 }
 
 /** Turns validated-but-sparse fields into a fully-defaulted config. */
-function applyDefaults(parsed: z.infer<typeof envSchema>, isDev: boolean): RuntimeEnv {
+function applyDefaults(parsed: ParsedEnv, isDev: boolean): RuntimeEnv {
   const runtimeMode: RuntimeMode = parsed[ENV_KEYS.runtimeMode] ?? (isDev ? 'demo' : 'production')
   const demo = runtimeMode === 'demo'
+  const mockOnly = parsed[ENV_KEYS.mockOnly] ?? []
+  // The self-contained demo, as opposed to a demo build that lists the modules
+  // to mock: that one talks to a real backend, so its auth defaults are the
+  // ones of a real deployment.
+  const selfContained = demo && mockOnly.length === 0
+  // The schema checked the name against the built-in adapters and the ones
+  // the build read from `auth.config.ts`. The type is the project's own
+  // declaration of those (`RegisteredAuthAdapterNames`), which a schema
+  // cannot see: the build says when the two disagree.
+  const authAdapter =
+    (parsed[ENV_KEYS.authAdapter] as AuthAdapterName | undefined) ??
+    (selfContained ? 'mock' : 'jwt')
 
   return {
     runtimeMode,
@@ -361,13 +872,20 @@ function applyDefaults(parsed: z.infer<typeof envSchema>, isDev: boolean): Runti
     // Defaults follow the mode, so a correct demo/production config needs only
     // one variable set. Explicit values still win — and are then cross-checked.
     useMocks: parsed[ENV_KEYS.useMocks] ?? demo,
-    authAdapter: parsed[ENV_KEYS.authAdapter] ?? (demo ? 'mock' : 'jwt'),
+    mockOnly,
+    authAdapter,
     // Default to the strategy that cannot leak a long-lived credential. When
     // the backend does not set a refresh cookie the boot call simply 401s and
     // the user lands on the login page — exactly what happened before this
     // setting existed, so the default is never worse than the old behaviour,
     // and is strictly better against a backend that does support it.
-    sessionPersistence: parsed[ENV_KEYS.sessionPersistence] ?? (demo ? 'none' : 'refresh-cookie'),
+    //
+    // `none` wherever the mock adapter signs in, including a list of modules
+    // set beside it by mistake: that is refused for the adapter, and need not
+    // be refused a second time for a default nobody chose.
+    sessionPersistence:
+      parsed[ENV_KEYS.sessionPersistence] ??
+      (selfContained || (demo && authAdapter === 'mock') ? 'none' : 'refresh-cookie'),
     iconProvider: parsed[ENV_KEYS.iconProvider] ?? 'solar',
     theme: parsed[ENV_KEYS.theme] ?? 'default',
     demoAuth: {
@@ -377,38 +895,59 @@ function applyDefaults(parsed: z.infer<typeof envSchema>, isDev: boolean): Runti
       dsn: parsed[ENV_KEYS.errorReportingDsn],
       release: parsed[ENV_KEYS.release],
     },
+    basePath: parsed[ENV_KEYS.basePath] ?? DEFAULT_BASE_PATH,
   }
 }
 
-function formatFieldIssues(error: z.ZodError): string[] {
+/**
+ * One line per invalid field, for the strict parser. `values` is what was
+ * parsed: a base path gets the reason it was refused and what to write, which
+ * the field's own message is too short to say.
+ */
+function formatFieldIssues(
+  error: z.ZodError,
+  values: Record<string, string | undefined>,
+): string[] {
   return error.issues.map((issue) => {
     const key = issue.path.join('.') || '(root)'
-    return `${key}: ${issue.message}`
+    const value = values[key]
+    const reason =
+      key === ENV_KEYS.basePath && value !== undefined ? describeBasePathIssue(value) : null
+    return `${key}: ${reason ?? issue.message}`
   })
 }
 
 /**
  * Strict parse. Throws an aggregated error listing every problem at once.
  *
- * Call this from `vite.config.ts` so an invalid deployment configuration fails
- * the build rather than reaching a browser.
+ * The Vite plugin (`scripts/vite/vuestrata-plugin.mjs`) calls this, so an
+ * invalid deployment configuration fails the build rather than reaching a
+ * browser.
  */
 export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): RuntimeEnv {
-  const { isDev = false } = options
+  const { isDev = false, serving = false, authAdapters = {} } = options
 
-  const parsed = envSchema.safeParse(normalize(raw))
+  const values = normalize(raw)
+  const parsed = createEnvSchema(authAdapters).safeParse(values, IN_ZODS_OWN_WORDS)
   if (!parsed.success) {
     throw new Error(
-      `[vuestrata:env] Invalid environment configuration:\n  - ${formatFieldIssues(parsed.error).join('\n  - ')}`,
+      `[vuestrata:env] Invalid environment configuration:\n  - ${formatFieldIssues(parsed.error, values).join('\n  - ')}`,
     )
   }
 
   const resolved = applyDefaults(parsed.data, isDev)
-  const combination = collectCombinationIssues(resolved)
+  const combination = collectCombinationIssues(resolved, serving, authAdapters)
   if (combination.length > 0) {
     throw new Error(
       `[vuestrata:env] Incompatible environment configuration:\n  - ${combination
-        .map((issue) => issue.message)
+        .map((issue) => {
+          if (issue.placeholderApiUrl) {
+            return `${issue.message} ${describeDevProxyAlternative(issue.placeholderApiUrl)}`
+          }
+          return issue.mockOnlyAdvice
+            ? `${issue.message} ${describeMockOnlyAdvice(issue.mockOnlyAdvice)}`
+            : issue.message
+        })
         .join('\n  - ')}`,
     )
   }
@@ -425,14 +964,15 @@ export function parseRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Runt
  * values — this path only matters for tests and hand-edited local setups.
  */
 export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): RuntimeEnv {
-  const { isDev = false, onWarn } = options
+  const { isDev = false, serving = false, authAdapters = {}, onWarn } = options
   const warn = onWarn ?? (() => {})
 
   const normalized = normalize(raw)
+  const envSchema = createEnvSchema(authAdapters)
 
   // Drop individually-invalid values so their defaults apply, warning per field.
-  const parsed = envSchema.safeParse(normalized)
-  let data: z.infer<typeof envSchema>
+  const parsed = envSchema.safeParse(normalized, IN_ZODS_OWN_WORDS)
+  let data: ParsedEnv
   if (parsed.success) {
     data = parsed.data
   } else {
@@ -441,13 +981,13 @@ export function resolveRuntimeEnv(raw: RawEnv, options: ResolveOptions = {}): Ru
       warn(`Ignoring invalid ${key}: ${issue.message}. Falling back to the default.`)
       if (key) delete normalized[key]
     }
-    const retry = envSchema.safeParse(normalized)
+    const retry = envSchema.safeParse(normalized, IN_ZODS_OWN_WORDS)
     // Deleting every offending key cannot fail: all fields are optional.
     data = retry.success ? retry.data : {}
   }
 
   const resolved = applyDefaults(data, isDev)
-  for (const issue of collectCombinationIssues(resolved)) {
+  for (const issue of collectCombinationIssues(resolved, serving, authAdapters)) {
     warn(`${issue.message} Auto-correcting.`)
     issue.apply(resolved)
   }

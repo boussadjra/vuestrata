@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import Logo from '@/components/Logo.vue'
 import { brand, type BrandLink } from '~/config/app.overrides'
@@ -8,6 +9,13 @@ import { brand, type BrandLink } from '~/config/app.overrides'
 const { t } = useI18n()
 
 const year = new Date().getFullYear()
+const router = useRouter()
+
+// The docs site is the first thing `vuestrata eject` deletes; a link to it
+// would then land on the not-found page.
+const hasDocsRoute = router
+  .getRoutes()
+  .some((entry) => entry.path === '/docs' || entry.path.startsWith('/docs/'))
 
 /**
  * Vuestrata's own footer links, used until a project declares its own.
@@ -17,7 +25,9 @@ const year = new Date().getFullYear()
  * upgrade replaces wholesale.
  */
 const DEFAULT_LINKS: BrandLink[] = [
-  { label: 'common_documentation', to: '/docs', icon: 'document' },
+  ...(hasDocsRoute
+    ? [{ label: 'common_documentation', to: '/docs', icon: 'document' as const }]
+    : []),
   {
     label: 'GitHub',
     href: 'https://github.com/boussadjra/vuestrata',

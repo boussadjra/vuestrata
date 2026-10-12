@@ -12,8 +12,16 @@
  * (see `scripts/lint/plugins/module-scope-state.plugin.mjs`).
  */
 
+import type { ApiIntegration } from './api/integration'
 import type { ApiAuthProvider } from './api/types'
-import type { AuthorizationHookFn, PredicateFn } from './rbac/types'
+import type { ResolvedAuthConfig } from './auth/config'
+import type {
+  AuthorizationHookFn,
+  Permission,
+  PredicateFn,
+  ResolvedProjectRole,
+  Role,
+} from './rbac/types'
 
 /** Backend that owns API-auth runtime state (provider, refresh, CSRF cache). */
 export interface ApiAuthBackend {
@@ -37,9 +45,35 @@ export interface RbacBackend {
   permissions: Set<string>
   predicates: Map<string, PredicateFn>
   hooks: Set<AuthorizationHookFn>
+  /**
+   * Role and permission names the app was handed and does not declare, already
+   * reported once. Optional: a backend built before it existed has none, and
+   * then nothing is reported.
+   */
+  reportedNames?: Set<string>
   /** Reset to seeded built-in state. */
   resetPermissions(): void
   reset(): void
+}
+
+/**
+ * What the project changed about the permission model, installed once at
+ * bootstrap from `app/config/rbac.overrides.ts`. Optional: with none installed
+ * every role holds exactly what the built-in hierarchy gives it.
+ */
+export interface RbacConfig {
+  grants: Partial<Record<Role, readonly Permission[]>>
+  withdrawn: readonly Permission[]
+  /**
+   * The project's own roles, by name, each with its ancestry worked out.
+   * Absent when it defines none.
+   */
+  roles?: ReadonlyMap<string, ResolvedProjectRole>
+  /**
+   * What is wrong with the roles in `rbac.overrides.ts`, one message each.
+   * Absent when nothing is. A role named here is not in `roles`.
+   */
+  problems?: readonly string[]
 }
 
 /** Backend that owns the lazy validation-adapter cache. */
@@ -53,6 +87,9 @@ export interface ValidationCacheBackend<T = unknown> {
 let apiAuthBackend: ApiAuthBackend | null = null
 let rbacBackend: RbacBackend | null = null
 let validationCacheBackend: ValidationCacheBackend | null = null
+let rbacConfig: RbacConfig | null = null
+let apiIntegration: ApiIntegration | null = null
+let authConfig: ResolvedAuthConfig | null = null
 
 export function installApiAuthBackend(backend: ApiAuthBackend): void {
   apiAuthBackend = backend
@@ -83,6 +120,40 @@ export function tryGetRbacBackend(): RbacBackend | null {
   return rbacBackend
 }
 
+export function installRbacConfig(config: RbacConfig): void {
+  rbacConfig = config
+}
+export function tryGetRbacConfig(): RbacConfig | null {
+  return rbacConfig
+}
+
+/**
+ * How the API client talks to this project's backend: request hooks, response
+ * classifiers, error mappers, the CSRF strategy. Resolved at bootstrap from
+ * `app/config/api.overrides.ts` (see `core/lib/api/integration.ts`). Optional:
+ * with none installed the client uses `DEFAULT_API_INTEGRATION`.
+ */
+export type { ApiIntegration }
+export function installApiIntegration(integration: ApiIntegration): void {
+  apiIntegration = integration
+}
+export function tryGetApiIntegration(): ApiIntegration | null {
+  return apiIntegration
+}
+
+/**
+ * The project's `app/config/auth.config.ts`, resolved: endpoints, response
+ * mappers, providers and its own adapters. Installed once at bootstrap by
+ * `bootstrap/seams.ts`. Optional: with none installed the documented defaults
+ * apply (`getAuthConfig()` in `core/lib/auth/config.ts` is the reader).
+ */
+export function installAuthConfig(config: ResolvedAuthConfig): void {
+  authConfig = config
+}
+export function tryGetAuthConfig(): ResolvedAuthConfig | null {
+  return authConfig
+}
+
 export function installValidationCacheBackend<T>(backend: ValidationCacheBackend<T>): void {
   validationCacheBackend = backend as ValidationCacheBackend
 }
@@ -100,4 +171,7 @@ export function __resetRuntimeSlots(): void {
   apiAuthBackend = null
   rbacBackend = null
   validationCacheBackend = null
+  rbacConfig = null
+  apiIntegration = null
+  authConfig = null
 }

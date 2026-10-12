@@ -10,7 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
  * transport, and every advertised capability has a real method behind it.
  */
 
-async function loadAdapters(apiFetch = vi.fn()) {
+/** A user that satisfies the `User` schema every identity response is held to. */
+const user = { id: 'u1', email: 'a@b.test', name: 'A', role: 'member' }
+
+async function loadAdapters(apiFetch: (...args: never[]) => unknown = vi.fn()) {
   vi.doMock('~/lib/api/client', () => ({ apiFetch }))
   const mod = await import('@/modules/auth')
   return { ...mod, apiFetch }
@@ -35,10 +38,18 @@ describe('adapter selection', () => {
     expect(createAuthAdapter('oauth').name).toBe('oauth')
   })
 
-  it('falls back to mock for an unknown name', async () => {
+  it('refuses a name nothing registered, and says where adapters are registered', async () => {
     const { createAuthAdapter } = await loadAdapters()
 
-    expect(createAuthAdapter('saml').name).toBe('mock')
+    // It used to answer with the mock adapter and a warning, so a mistyped
+    // name in a real deployment signed nobody in and said nothing.
+    expect(() => createAuthAdapter('saml')).toThrow(/"saml".*auth\.config\.ts/)
+  })
+
+  it('uses the mode default when no name is configured', async () => {
+    const { createAuthAdapter } = await loadAdapters()
+
+    // Tests compile as a demo build, where the default is the mock adapter.
     expect(createAuthAdapter(undefined).name).toBe('mock')
   })
 })
@@ -140,26 +151,88 @@ describe('JWT adapter — expiry awareness', () => {
   })
 
   it('still requests /auth/me when the token is valid', async () => {
-    const apiFetch = vi.fn().mockResolvedValue({ id: 'u1', email: 'a@b.test' })
+    const apiFetch = vi.fn().mockResolvedValue(user)
     const { createAuthAdapter } = await loadAdapters(apiFetch)
     const adapter = createAuthAdapter('jwt', { getToken: () => makeJwt(3600) })
 
     await expect(adapter.getUser()).resolves.toMatchObject({ id: 'u1' })
-    expect(apiFetch).toHaveBeenCalledWith('/auth/me')
+    expect(apiFetch).toHaveBeenCalledWith('/auth/me', { skipAuthRefresh: true })
   })
 })
 
 describe('endpoint contract', () => {
   it('posts credentials to /auth/login', async () => {
-    const apiFetch = vi.fn().mockResolvedValue({})
+    const apiFetch = vi.fn().mockResolvedValue({ user, token: 'access' })
     const { createAuthAdapter } = await loadAdapters(apiFetch)
 
     await createAuthAdapter('jwt').login({ email: 'a@b.test', password: 'pw' })
 
+    // A login is the authentication flow itself, so a 401 is its answer and the
+    // client must not try to refresh in response.
     expect(apiFetch).toHaveBeenCalledWith('/auth/login', {
+      skipAuthRefresh: true,
       method: 'POST',
       body: { email: 'a@b.test', password: 'pw' },
     })
+  })
+
+  it('marks every /auth/* call as part of authentication, whatever its URL', async () => {
+    // A backend's answers: the user from `/auth/me`, a session from the rest.
+    const apiFetch = vi.fn(async (url: string, _options?: object) =>
+      url === '/auth/me' ? user : { user, token: 'access' },
+    )
+    const { createAuthAdapter } = await loadAdapters(apiFetch)
+    const adapter = createAuthAdapter('jwt', { getRefreshToken: () => 'held' })
+
+    await adapter.login({ email: 'a@b.test', password: 'pw' })
+    await adapter.register!({ email: 'a@b.test', password: 'pw', name: 'A' })
+    await adapter.getUser()
+    await adapter.sendMagicLink!({ email: 'a@b.test' })
+    await adapter.verifyMagicLink!('magic')
+    await adapter.setupMfa!()
+    await adapter.verifyMfa!({ mfaToken: 'mfa', code: '000000' })
+    await adapter.disableMfa!()
+    await adapter.refreshToken!('held')
+    await adapter.refreshSession!()
+    await adapter.logout()
+
+    // The option, not the '/auth/' in the URL, is what tells the client that a
+    // 401 here is an answer rather than an expired token: a backend that
+    // mounts these elsewhere keeps the behaviour.
+    const unmarked = apiFetch.mock.calls.filter(
+      ([, options]) => (options as { skipAuthRefresh?: boolean }).skipAuthRefresh !== true,
+    )
+    expect(apiFetch).toHaveBeenCalledTimes(11)
+    expect(unmarked).toEqual([])
+  })
+
+  it('sends a refresh without the access token the client would attach', async () => {
+    const apiFetch = vi.fn().mockResolvedValue({ token: 'access' })
+    const { createAuthAdapter } = await loadAdapters(apiFetch)
+
+    await createAuthAdapter('jwt', { getRefreshToken: () => 'held' }).refreshSession!()
+
+    const [url, options] = apiFetch.mock.calls[0] as [
+      string,
+      { body: unknown; onRequest: (context: { options: { headers: Headers } }) => void },
+    ]
+    expect(url).toBe('/auth/refresh')
+    expect(options.body).toEqual({ refreshToken: 'held' })
+    // By the time a 401 triggers a refresh the access token is the expired one.
+    const headers = new Headers({ Authorization: 'Bearer expired', 'X-Other': 'keep' })
+    options.onRequest({ options: { headers } })
+    expect(headers.has('Authorization')).toBe(false)
+    expect(headers.get('X-Other')).toBe('keep')
+  })
+
+  it('has nothing to refresh with when no token is held and none is stored', async () => {
+    const apiFetch = vi.fn()
+    const { createAuthAdapter } = await loadAdapters(apiFetch)
+    const adapter = createAuthAdapter('jwt')
+
+    expect(adapter.canRefreshSession!()).toBe(false)
+    await expect(adapter.refreshSession!()).resolves.toBeNull()
+    expect(apiFetch).not.toHaveBeenCalled()
   })
 
   it('never lets a failing logout endpoint block client-side cleanup', async () => {

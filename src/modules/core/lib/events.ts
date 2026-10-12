@@ -21,7 +21,13 @@ type EventHandler<T = unknown> = (payload: T) => void | Promise<void>
 export interface AppEventMap {
   // ─── Auth Events ────────────────────────────────────────
   'auth.login': { userId: string; role: string }
-  'auth.logout': Record<never, never>
+  /**
+   * The session ended in this tab. Emitted by the auth store's `clearAuth`, so
+   * it covers a sign-out, an expired session and a refresh that was refused
+   * alike; `reason` says which when the caller knew. Anything that holds the
+   * previous user's data (the query cache, a module store) resets on it.
+   */
+  'auth.logout': { reason?: 'logout' | 'expired' }
 
   // ─── User Module Events ─────────────────────────────────
   'user.created': { userId: string; email: string; role: string }

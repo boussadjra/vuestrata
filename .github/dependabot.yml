@@ -33,8 +33,9 @@ updates:
       - dependency-name: vitest
       - dependency-name: vite-plus
       - dependency-name: '@voidzero-dev/*'
-      # Pinned to a pkg.pr.new build; a registry range would not resolve.
-      # See SECURITY.md for the supply-chain caveat.
+      # Vendored: package.json resolves it from the tarball in vendor/, which a
+      # registry range would not replace. See SECURITY.md for why, and for what
+      # moving to the registry release would take.
       - dependency-name: comark
 
   - package-ecosystem: github-actions
@@ -49,3 +50,30 @@ updates:
     groups:
       actions:
         patterns: ['*']
+
+  # The Dockerfile's base images are pinned by digest, which stops them moving
+  # on their own. Without this entry nothing would move them at all, and the
+  # image would keep serving an nginx that no longer gets security fixes.
+  - package-ecosystem: docker
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+    labels: [dependencies]
+    commit-message:
+      prefix: 'chore(docker)'
+    groups:
+      base-images:
+        patterns: ['*']
+    ignore:
+      # nginx numbers stable branches even (1.30) and mainline branches odd
+      # (1.31), and Dependabot cannot tell them apart. Patch releases and new
+      # digests of the pinned branch arrive here; moving to the next stable
+      # branch is a deliberate edit.
+      - dependency-name: nginxinc/nginx-unprivileged
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      # The Node major is pinned together in .nvmrc, .node-version, the workflows and the
+      # Dockerfile, and check-toolchain-pins fails when one moves alone.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']

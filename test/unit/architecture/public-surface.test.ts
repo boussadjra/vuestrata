@@ -14,7 +14,14 @@ import { readDirectorySurface } from '../../utils/component-surface'
  * review with the question already asked — where is the migration?
  *
  * Updating the snapshot is normal. Updating it without the migration is not.
+ *
+ * MAINTAINERS ONLY. The snapshots record this repository's own module list and
+ * permission union, which is exactly what a project changes the first time it
+ * runs `add module`. Run for a project, this would fail `vp run test --run` on
+ * ordinary development. Set VUESTRATA_MAINTAINER=1 (the template's CI does).
  */
+
+const MAINTAINER = process.env.VUESTRATA_MAINTAINER === '1'
 
 const ROOT = process.cwd()
 
@@ -27,7 +34,13 @@ function read(rel: string): string {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8')
 }
 
-describe('public surface', () => {
+// Always registered, so a run without the flag reports why this file did
+// nothing instead of showing an empty suite.
+it.skipIf(!MAINTAINER)('public surface: snapshots run for template maintainers', () => {
+  expect(process.env.VUESTRATA_MAINTAINER).toBe('1')
+})
+
+describe.runIf(MAINTAINER)('public surface', () => {
   it('exposes a stable set of Ui* components', () => {
     const dir = path.join(ROOT, 'src/modules/app/components/ui')
     const names = fs

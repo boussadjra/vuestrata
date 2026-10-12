@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import teamI18nAr from './i18n/ar.json'
 import teamI18nEn from './i18n/en.json'
-import teamI18nFr from './i18n/fr.json'
 
 /**
  * Team Module
@@ -71,8 +69,6 @@ const teamModule: ModuleDefinition = {
 
   i18n: {
     en: teamI18nEn,
-    fr: teamI18nFr,
-    ar: teamI18nAr,
   },
 }
 

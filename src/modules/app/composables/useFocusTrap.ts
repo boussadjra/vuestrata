@@ -78,19 +78,17 @@ export function useFocusTrap(container: Ref<HTMLElement | null>) {
       return
     }
 
-    const first = focusable[0]!
-    const last = focusable[focusable.length - 1]!
-    const active = document.activeElement
-
-    if (event.shiftKey && (active === first || !root.contains(active))) {
-      event.preventDefault()
-      last.focus()
-      return
-    }
-    if (!event.shiftKey && active === last) {
-      event.preventDefault()
-      first.focus()
-    }
+    // Move every step ourselves. Some browsers omit links from their native
+    // Tab order, so intercepting only the last link can let focus escape.
+    const activeIndex = focusable.findIndex((element) => element === document.activeElement)
+    const nextIndex =
+      activeIndex < 0
+        ? event.shiftKey
+          ? focusable.length - 1
+          : 0
+        : (activeIndex + (event.shiftKey ? -1 : 1) + focusable.length) % focusable.length
+    event.preventDefault()
+    focusable[nextIndex]!.focus()
   }
 
   async function activate() {

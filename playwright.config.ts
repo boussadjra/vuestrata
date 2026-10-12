@@ -9,7 +9,7 @@ const env = (globalThis as { process?: { env?: RuntimeEnv } }).process?.env ?? {
  *
  *   preview  — `vp build` then `vp preview` over dist/. This is the gate: it is
  *              the ONLY configuration that exercises the real bundle, the
- *              manualChunks split, the `__VUESTRATA_DEMO__` compile-out, and MSW
+ *              vendor chunk groups, the `__VUESTRATA_DEMO__` compile-out, and MSW
  *              starting from a built artifact rather than the dev server.
  *   dev      — `vp dev`. Fast feedback while writing tests. Proves nothing about
  *              what actually ships.
@@ -31,7 +31,15 @@ if (isExternal && !env.E2E_BASE_URL) {
   throw new Error('E2E_TARGET=external requires E2E_BASE_URL to be set.')
 }
 const e2ePort = env.E2E_PORT ?? defaultPort
-const baseURL = env.E2E_BASE_URL ?? `http://127.0.0.1:${e2ePort}`
+
+/**
+ * `E2E_BASE_PATH=/console/` builds and serves the app under that prefix
+ * (`VUESTRATA_BASE_PATH`), for e2e/subpath.spec.ts, the one spec written for it.
+ * The rest of the suite navigates from the root of the origin and is not meant
+ * to run with it. Unset, nothing here changes.
+ */
+const basePath = env.E2E_BASE_PATH && env.E2E_BASE_PATH !== '/' ? env.E2E_BASE_PATH : undefined
+const baseURL = env.E2E_BASE_URL ?? `http://127.0.0.1:${e2ePort}${basePath ?? ''}`
 
 const reuseExistingServer =
   env.E2E_REUSE_EXISTING_SERVER === 'true'
@@ -50,13 +58,22 @@ const demoBuildEnv: Record<string, string> = {
   VUESTRATA_AUTH_ADAPTER: 'mock',
 }
 
+// Under a base path the build is also stamped, so that version.json is there
+// to be asked for where the app expects it.
+const stamp = basePath ? ' && node scripts/build/write-version.mjs' : ''
 const webServerCommand = isPreview
-  ? `vp build && vp preview --port ${e2ePort} --host 127.0.0.1`
+  ? `vp build${stamp} && vp preview --port ${e2ePort} --host 127.0.0.1`
   : `vp dev --port ${e2ePort} --host 127.0.0.1`
 
 export default defineConfig({
   testDir: './e2e',
+  // `e2e/integration/` runs against a build of its own and a stub backend, from
+  // its own config: `e2e/integration/playwright.config.ts`. Not part of this suite.
+  testIgnore: ['integration/**'],
   fullyParallel: false,
+  // A cold browser workflow can include sign-in, lazy engines and an axe audit.
+  // Individual assertion limits remain unchanged.
+  timeout: 60_000,
   forbidOnly: !!env.CI,
   retries: env.CI ? 2 : 0,
   workers: env.PLAYWRIGHT_WORKERS ? Number(env.PLAYWRIGHT_WORKERS) : 1,
@@ -84,7 +101,10 @@ export default defineConfig({
           reuseExistingServer,
           // A cold production build is far slower than booting the dev server.
           timeout: isPreview ? 300_000 : 120_000,
-          env: isPreview ? demoBuildEnv : {},
+          env: {
+            ...(isPreview ? demoBuildEnv : {}),
+            ...(basePath ? { VUESTRATA_BASE_PATH: basePath } : {}),
+          },
         },
       }),
 })

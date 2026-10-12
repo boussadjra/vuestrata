@@ -1,10 +1,35 @@
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vite-plus/test'
+import { ref } from 'vue'
 import { z } from 'zod'
 
+import { installValidationMessages } from '@/bootstrap/validation-messages'
+import { installApiAuth } from '@/lib/api/client'
+import { AppError } from '@/lib/errors'
 import { createMockJwt } from '@/mocks/utils'
+import {
+  useCreateCustomerMutation,
+  useCustomerQuery,
+  useCustomersQuery,
+  useDeleteCustomerMutation,
+  useUpdateCustomerMutation,
+} from '@/modules/customers/composables/useCustomers'
 import { customersHandlers, resetCustomersMock } from '@/modules/customers/mocks/customers.handlers'
-import { customerSchema } from '@/modules/customers/types'
+import { customersModuleKeys } from '@/modules/customers/query-keys'
+import { customerSchema, type CustomerDraft } from '@/modules/customers/types'
+import { getI18n } from '@/plugins/i18n'
+
+import { withQueryClient } from '../../utils/query-client'
 
 /**
  * The shared collection contract.
@@ -229,6 +254,230 @@ describe('writes', () => {
         .status,
     ).toBe(404)
     expect((await request('/customers/nope', { method: 'DELETE' })).status).toBe(404)
+  })
+})
+
+/**
+ * The factory's end of the same wire.
+ *
+ * The mock answers the way this template's backend does. These tests override
+ * single responses with shapes other backends legitimately use — a 204, a 201
+ * that only names the record in `Location` — and a body that breaks the
+ * schema, and assert what `createCollectionApi` makes of each. The requests go
+ * through the real client, so the mock's bearer check applies.
+ */
+describe('createCollectionApi on other response shapes', () => {
+  const draft: CustomerDraft = {
+    company: 'Shape Shifters Ltd',
+    contactName: 'Imani Diallo',
+    email: 'imani@shapes.example',
+    phone: '+1 555 2222',
+    status: 'prospect',
+    plan: 'starter',
+    city: 'Dakar',
+    country: 'SN',
+    notes: '',
+  }
+
+  beforeEach(() => {
+    installApiAuth({
+      getToken: () => token,
+      getRefreshToken: () => null,
+      setAuth: () => {},
+      clearAuth: () => {},
+    })
+  })
+
+  /** Record which customers are read back, then let the collection mock answer. */
+  function watchReads(): string[] {
+    const reads: string[] = []
+    server.use(
+      http.get('*/api/customers/:id', ({ params }) => {
+        reads.push(String(params.id))
+        // Returning nothing falls through to the next matching handler.
+      }),
+    )
+    return reads
+  }
+
+  it('reads the record back after a 204 on update', async () => {
+    server.use(http.patch('*/api/customers/:id', () => new HttpResponse(null, { status: 204 })))
+    const reads = watchReads()
+    const update = withQueryClient(() => useUpdateCustomerMutation())
+
+    const saved = await update.mutateAsync({ id: 'CUS-1000', patch: draft })
+
+    expect(reads).toEqual(['CUS-1000'])
+    expect(customerSchema.parse(saved).id).toBe('CUS-1000')
+  })
+
+  it('reads the record back from the Location of an empty 201', async () => {
+    server.use(
+      http.post(
+        '*/api/customers',
+        () =>
+          new HttpResponse(null, { status: 201, headers: { Location: '/api/customers/CUS-1003' } }),
+      ),
+    )
+    const reads = watchReads()
+    const create = withQueryClient(() => useCreateCustomerMutation())
+
+    const saved = await create.mutateAsync(draft)
+
+    // Resolved against the URL that answered: read against the client's base
+    // instead, the path would carry the `/api` prefix twice.
+    expect(reads).toEqual(['CUS-1003'])
+    expect(customerSchema.parse(saved).id).toBe('CUS-1003')
+  })
+
+  it('reads the record back by the id a 201 returned', async () => {
+    server.use(
+      http.post('*/api/customers', () => HttpResponse.json({ id: 'CUS-1004' }, { status: 201 })),
+    )
+    const reads = watchReads()
+    const create = withQueryClient(() => useCreateCustomerMutation())
+
+    const saved = await create.mutateAsync(draft)
+
+    expect(reads).toEqual(['CUS-1004'])
+    expect(saved.id).toBe('CUS-1004')
+  })
+
+  it('uses a body that is already the record, without reading it back', async () => {
+    const reads = watchReads()
+    const create = withQueryClient(() => useCreateCustomerMutation())
+
+    const saved = await create.mutateAsync(draft)
+
+    expect(saved.company).toBe('Shape Shifters Ltd')
+    expect(reads).toEqual([])
+  })
+
+  it('reports a body that breaks the schema as CONTRACT_MISMATCH', async () => {
+    server.use(
+      http.get('*/api/customers/:id', () => HttpResponse.json({ id: 'CUS-1000', company: 42 })),
+    )
+    const detail = withQueryClient(() => useCustomerQuery(ref('CUS-1000')))
+
+    await vi.waitFor(() => expect(detail.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    const error = detail.error.value
+    expect(error).toBeInstanceOf(AppError)
+    expect(error).toMatchObject({
+      code: 'CONTRACT_MISMATCH',
+      kind: 'contract',
+      retryable: false,
+      messageKey: 'errors.contract',
+    })
+    // The zod issues, keyed by where they are in the body.
+    expect((error as AppError).details).toHaveProperty('company')
+    expect((error as AppError).details).toHaveProperty('contactName')
+  })
+
+  // The details go to devtools and the error reporter. The app's localized
+  // zod messages are for forms: a developer reading a report needs zod's own.
+  it('describes the mismatch in zod’s English, whatever language the app is in', async () => {
+    const removeMessages = installValidationMessages()
+    getI18n().global.locale.value = 'ar'
+    try {
+      server.use(http.get('*/api/customers/:id', () => HttpResponse.json({ id: 42, company: 42 })))
+      const detail = withQueryClient(() => useCustomerQuery(ref('CUS-1000')))
+
+      await vi.waitFor(() => expect(detail.error.value).toBeTruthy(), { timeout: 5_000 })
+
+      const details = (detail.error.value as AppError).details ?? {}
+      expect(details.id).toEqual(['Invalid input: expected string, received number'])
+      expect(details.company).toEqual(['Invalid input: expected string, received number'])
+      for (const message of Object.values(details).flat()) {
+        expect(message).not.toMatch(/[\u0600-\u06FF]/)
+      }
+
+      // While a form's schema, in the same breath, answers in Arabic.
+      const form = customerSchema.safeParse({ id: 42 })
+      expect(form.error!.issues[0]!.message).toMatch(/[\u0600-\u06FF]/)
+    } finally {
+      removeMessages()
+      getI18n().global.locale.value = 'en'
+    }
+  })
+
+  // The write may have happened even though its response could not be read,
+  // so the lists must be refreshed either way — not only on success.
+  it('still invalidates the lists when a write answers with a broken body', async () => {
+    server.use(
+      http.patch('*/api/customers/:id', () => HttpResponse.json({ id: 'CUS-1000', company: 42 })),
+    )
+    const { update, invalidateQueries } = withQueryClient((queryClient) => ({
+      update: useUpdateCustomerMutation(),
+      invalidateQueries: vi.spyOn(queryClient, 'invalidateQueries'),
+    }))
+
+    await expect(update.mutateAsync({ id: 'CUS-1000', patch: draft })).rejects.toMatchObject({
+      code: 'CONTRACT_MISMATCH',
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: customersModuleKeys.all })
+  })
+
+  // A static host's SPA fallback, or a proxy's error page, answering an API
+  // URL with a web page. The reads say `expectJson`, so it is named for what
+  // it is before a schema ever sees a string.
+  const fallbackPage = () => HttpResponse.html('<!doctype html><div id="app"></div>')
+
+  it('reports a web page where the list was expected as UNEXPECTED_RESPONSE', async () => {
+    server.use(http.get('*/api/customers', fallbackPage))
+    const list = withQueryClient(() => useCustomersQuery(ref({})))
+
+    await vi.waitFor(() => expect(list.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    expect(list.error.value).toMatchObject({
+      code: 'UNEXPECTED_RESPONSE',
+      kind: 'contract',
+      retryable: false,
+      messageKey: 'errors.unexpected_response',
+    })
+  })
+
+  it('reports one where a record was expected the same way', async () => {
+    server.use(http.get('*/api/customers/:id', fallbackPage))
+    const detail = withQueryClient(() => useCustomerQuery(ref('CUS-1000')))
+
+    await vi.waitFor(() => expect(detail.error.value).toBeTruthy(), { timeout: 5_000 })
+
+    expect(detail.error.value).toMatchObject({ code: 'UNEXPECTED_RESPONSE', kind: 'contract' })
+  })
+
+  it('reports one in place of the record a write is read back from', async () => {
+    server.use(
+      http.patch('*/api/customers/:id', () => new HttpResponse(null, { status: 204 })),
+      http.get('*/api/customers/:id', fallbackPage),
+    )
+    const update = withQueryClient(() => useUpdateCustomerMutation())
+
+    await expect(update.mutateAsync({ id: 'CUS-1000', patch: draft })).rejects.toMatchObject({
+      code: 'UNEXPECTED_RESPONSE',
+    })
+  })
+
+  // Express's `res.sendStatus(200)`, Django's `HttpResponse('ok')`: the delete
+  // happened, and nobody reads the body. Reporting it as failed has the user
+  // delete again, and get a 404 for a record that is already gone.
+  it.each([
+    ['200 "OK" as text/plain', () => HttpResponse.text('OK')],
+    ['202 "Accepted" as text/plain', () => HttpResponse.text('Accepted', { status: 202 })],
+    ['200 "ok" as text/html', () => HttpResponse.html('ok')],
+    ['204 with no body', () => new HttpResponse(null, { status: 204 })],
+  ])('resolves a delete answered with %s', async (_, answer) => {
+    const deleted: string[] = []
+    server.use(
+      http.delete('*/api/customers/:id', ({ params }) => {
+        deleted.push(String(params.id))
+        return answer()
+      }),
+    )
+    const remove = withQueryClient(() => useDeleteCustomerMutation())
+
+    await expect(remove.mutateAsync('CUS-1000')).resolves.toBeUndefined()
+    expect(deleted).toEqual(['CUS-1000'])
   })
 })
 

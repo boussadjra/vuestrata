@@ -85,6 +85,19 @@ describe('auth-interceptor', () => {
       expect(headers.get('Authorization')).toBeNull()
     })
 
+    // A caller that set Authorization chose that credential — a token for
+    // another audience, the fresh token a session resume probes with.
+    // Overwriting it would send the session's token in its place.
+    it('leaves an Authorization header the caller set untouched', () => {
+      const { provider } = createProvider()
+      installApiAuth(provider)
+
+      const headers = new Headers({ Authorization: 'Bearer caller-token' })
+      applyAuthHeaders(headers)
+
+      expect(headers.get('Authorization')).toBe('Bearer caller-token')
+    })
+
     it('defaults to the bearer transport when none is declared', () => {
       const { provider } = createProvider()
       installApiAuth(provider)

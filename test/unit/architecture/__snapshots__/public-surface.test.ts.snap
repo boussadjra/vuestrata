@@ -139,6 +139,7 @@ exports[`public surface > exposes a stable set of Ui* components 1`] = `
   "UiTooltip",
   "UiTreeSelect",
   "UiTrendDelta",
+  "UiUnsavedChangesDialog",
   "UiYearPicker",
   "UiYearRangePicker",
 ]
@@ -182,9 +183,11 @@ exports[`public surface > exposes a stable set of environment variables 1`] = `
   "VUESTRATA_API_URL",
   "VUESTRATA_APP_TITLE",
   "VUESTRATA_AUTH_ADAPTER",
+  "VUESTRATA_BASE_PATH",
   "VUESTRATA_DEMO_AUTH_RETENTION_HOURS",
   "VUESTRATA_ERROR_REPORTING_DSN",
   "VUESTRATA_ICON_PROVIDER",
+  "VUESTRATA_MOCK_ONLY",
   "VUESTRATA_RELEASE",
   "VUESTRATA_RUNTIME_MODE",
   "VUESTRATA_SESSION_PERSISTENCE",
@@ -752,13 +755,21 @@ exports[`public surface > exposes stable props and emits on every Ui* component 
   },
   "UiForm": {
     "emits": [
+      "error",
       "submit",
+      "success",
     ],
     "props": [
+      "action",
+      "confirmLeave",
       "disabled",
       "disableHtmlValidation",
+      "fieldMap",
+      "fieldPath",
       "initialValues",
+      "resetOnSuccess",
       "schema",
+      "showErrors",
     ],
   },
   "UiFormBuilder": {
@@ -1417,6 +1428,19 @@ exports[`public surface > exposes stable props and emits on every Ui* component 
       "direction",
       "isImprovement",
       "size",
+    ],
+  },
+  "UiUnsavedChangesDialog": {
+    "emits": [
+      "leave",
+      "stay",
+    ],
+    "props": [
+      "description",
+      "leaveLabel",
+      "open",
+      "stayLabel",
+      "title",
     ],
   },
   "UiYearPicker": {

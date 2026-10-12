@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { test, expect, type ConsoleMessage, type Page, type Request } from '@playwright/test'
 
 import { logInAsDemoAdmin } from './helpers/auth'
@@ -35,6 +36,16 @@ function collectConsoleErrors(page: Page): string[] {
   page.on('console', (message: ConsoleMessage) => {
     if (message.type() !== 'error') return
     const text = message.text()
+    // Hosted fonts may be unreachable in an isolated runner. The app has font
+    // fallbacks; keep policy violations and failures of its own assets visible.
+    if (
+      /https:\/\/fonts\.(?:googleapis|gstatic)\.com\//.test(text) &&
+      !/Content[- ]Security[- ]Policy/i.test(text) &&
+      /downloadable font|CORS request did not succeed|NetworkError when attempting to fetch resource/i.test(
+        text,
+      )
+    )
+      return
     if (IGNORED_CONSOLE_PATTERNS.some((pattern) => pattern.test(text))) return
     errors.push(text)
   })
@@ -96,6 +107,43 @@ test.describe('Built artifact smoke tests', () => {
     await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible()
   })
 
+  test('the login page loads none of the engines a page fetches on demand', async ({ page }) => {
+    test.skip(!isPreviewTarget, 'Chunks only exist in a real build')
+
+    // By chunk name, not by file: the hash changes with every build.
+    // `/assets/charts-vendor-CZBo_7NZ.js` is the chunk `charts-vendor`.
+    const requested = new Set<string>()
+    page.on('request', (request: Request) => {
+      const chunk = /\/assets\/(.+)-[\w-]{8}\.js$/.exec(new URL(request.url()).pathname)
+      if (chunk?.[1]) requested.add(chunk[1])
+    })
+
+    await page.goto('/auth/login')
+    await waitForAppReady(page)
+    await expect(page.locator('#email')).toBeVisible()
+    // A modulepreload is requested with the page, and a chunk imported on a
+    // timer or after mount soon after it: wait until nothing is being fetched.
+    await page.waitForLoadState('networkidle')
+
+    // The charting engine was preloaded here for a long time (264 KB gzipped
+    // in front of a form with two fields), because a vendor chunk group had
+    // taken the Vue runtime with it. `verify-bundle` reads the same thing from
+    // the files; this asks the browser.
+    const engines = ['charts-vendor', 'echarts-setup', 'docs-vendor', 'comark', 'axe']
+    expect(
+      engines.filter((name) => requested.has(name)),
+      `The login page requested: ${[...requested].sort().join(', ')}`,
+    ).toEqual([])
+    // The page did load its chunks, and they are named the way this test reads.
+    expect(requested.has('vue-vendor'), 'vue-vendor was not requested').toBe(true)
+
+    // And the name is the right one to look for: a page with charts asks for it.
+    await logInAsDemoAdmin(page)
+    await page.goto('/dashboard/charts')
+    await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 30_000 })
+    expect(requested.has('charts-vendor'), 'a chart was drawn without charts-vendor').toBe(true)
+  })
+
   test('the dashboard is reachable after signing in', async ({ page }) => {
     await logInAsDemoAdmin(page)
 
@@ -151,6 +199,144 @@ test.describe('MSW in the demo build', () => {
 
     expect(response.status(), `${response.url()} was not served by MSW`).toBeLessThan(400)
     expect(response.headers()['content-type'] ?? '').toContain('json')
+  })
+})
+
+test.describe('When something fails', () => {
+  test.skip(!isPreviewTarget, 'Route chunks only exist in a real build')
+  // In demo mode MSW forwards asset requests through its service worker.
+  // Playwright can intercept those worker requests only in Chromium:
+  // https://playwright.dev/docs/service-workers#network-events-and-routing
+  test.beforeEach(({ browserName }) => {
+    test.skip(browserName !== 'chromium', 'MSW worker fault injection requires Chromium')
+  })
+
+  const CHUNKS = '**/assets/*.js'
+  // The route whose chunk goes missing, and the link to it on the page the
+  // tests start from. Both pages belong to the auth module, which every project
+  // keeps: the tests used to start on the marketing home page, which
+  // `vuestrata eject` replaces with a redirect, so in an ejected project the
+  // "next route" had already been loaded and nothing failed.
+  const BROKEN_ROUTE = '/auth/register'
+  const brokenRouteLink = (page: Page) => page.locator(`a[href="${BROKEN_ROUTE}"]`).first()
+  const brokenRouteContent = (page: Page) => page.locator('#confirmPassword')
+
+  /**
+   * Load the sign-in page, then fail every script it did not need.
+   *
+   * That is a deploy gone wrong as the browser sees it: the page that is open
+   * keeps working and the chunk behind the next route cannot be fetched. The
+   * route goes on the context because a demo build's requests pass through the
+   * MSW service worker, which a page-level route never sees.
+   */
+  async function bootThenBreakLazyChunks(page: Page): Promise<void> {
+    const needed = new Set<string>()
+    page.on('request', (request) => {
+      if (/\/assets\/[^/]+\.js(?:\?|$)/.test(request.url())) needed.add(request.url())
+    })
+    await page.goto('/auth/login')
+    await waitForAppReady(page)
+    await page.waitForLoadState('networkidle')
+
+    const allowed = new Set(needed)
+    await page
+      .context()
+      .route(CHUNKS, (route) =>
+        allowed.has(route.request().url()) ? route.continue() : route.abort(),
+      )
+  }
+
+  async function expectNoBlockingViolations(page: Page): Promise<void> {
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    const blocking = results.violations.filter(
+      (violation) => violation.impact === 'critical' || violation.impact === 'serious',
+    )
+    expect(
+      blocking.map((violation) => `[${violation.impact}] ${violation.id}: ${violation.help}`),
+      'Blocking accessibility violations',
+    ).toEqual([])
+  }
+
+  test('a route whose chunk fails twice reaches the error state, not a dead click', async ({
+    page,
+  }) => {
+    await bootThenBreakLazyChunks(page)
+
+    // First failure: the app takes it for a stale tab and reloads once.
+    await Promise.all([page.waitForEvent('load'), brokenRouteLink(page).click()])
+    await waitForAppReady(page)
+    await expect(page.getByTestId('app-error-boundary')).toHaveCount(0)
+
+    // Second failure: the reload did not fix it, so the visitor is told.
+    await brokenRouteLink(page).click()
+    const boundary = page.getByTestId('app-error-boundary')
+    await expect(boundary).toBeVisible()
+    await expect(boundary.getByRole('alert')).toContainText('could not be loaded')
+    await expect(boundary.getByRole('heading', { level: 1 })).toBeFocused()
+    await expect(page.getByTestId('app-error-reload')).toBeVisible()
+    await expect(page.getByTestId('app-error-home')).toBeVisible()
+    await expectNoBlockingViolations(page)
+
+    // Retry is a page load, which is the only thing that can fetch the chunk
+    // again once Chromium has seen the import fail.
+    await page.context().unroute(CHUNKS)
+    await page.getByTestId('app-error-retry').click()
+    await expect(page).toHaveURL(/\/auth\/register/)
+    await expect(brokenRouteContent(page)).toBeVisible({ timeout: 20_000 })
+  })
+
+  test('a lazy component that cannot be fetched fails where it is, and a reload recovers', async ({
+    page,
+  }) => {
+    // The charting engine is not a route: `BaseChart` loads it on demand, so a
+    // chunk that is missing fails inside a page that has already rendered.
+    const CHART_CHUNKS = '**/assets/echarts-setup-*.js'
+    await logInAsDemoAdmin(page)
+    await page.context().route(CHART_CHUNKS, (route) => route.abort())
+
+    // Reloads itself once for what looks like a stale tab, fails again, and
+    // only then tells the visitor. Each chart says it in its own place: the
+    // page around them is still the page, where one missing chunk used to
+    // replace all of it with the error state.
+    await page.goto('/dashboard/charts')
+    const unavailable = page.getByTestId('chart-load-error')
+    await expect(unavailable.first()).toBeVisible({ timeout: 30_000 })
+    await expect(unavailable.first()).toContainText('could not be loaded')
+    await expect(page.getByTestId('app-error-boundary')).toHaveCount(0)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    // Chromium remembers the failed import for the life of the document, so
+    // only a page load asks for the chunk again. Then the charts draw.
+    await page.context().unroute(CHART_CHUNKS)
+    await page.reload()
+    await expect(page.locator('.echarts-host canvas').first()).toBeVisible({ timeout: 30_000 })
+    await expect(unavailable).toHaveCount(0)
+  })
+
+  test('a first route that cannot load replaces the spinner with the boot-failure screen', async ({
+    page,
+  }) => {
+    await bootThenBreakLazyChunks(page)
+
+    // Reloads itself once, fails again, and only then gives up.
+    await page.goto(BROKEN_ROUTE)
+    const screen = page.locator('#boot-failure')
+    await expect(screen).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('#app-loader')).toHaveCount(0)
+    await expect(screen.getByRole('heading', { level: 1 })).toBeFocused()
+
+    // Collapsed, and never the chunk's address.
+    const details = screen.locator('details')
+    await expect(details).not.toHaveAttribute('open', /.*/)
+    await expect(details.locator('pre')).not.toContainText('http')
+    await expect(details.locator('pre')).not.toContainText('/assets/')
+    await expectNoBlockingViolations(page)
+
+    await page.context().unroute(CHUNKS)
+    await screen.getByRole('button').click()
+    await expect(brokenRouteContent(page)).toBeVisible({ timeout: 20_000 })
   })
 })
 

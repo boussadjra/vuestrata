@@ -1,7 +1,5 @@
 import type { ModuleDefinition } from '../types'
-import accountI18nAr from './i18n/ar.json'
 import accountI18nEn from './i18n/en.json'
-import accountI18nFr from './i18n/fr.json'
 
 /**
  * Auth Module
@@ -73,8 +71,6 @@ const authModule: ModuleDefinition = {
 
   i18n: {
     en: accountI18nEn,
-    fr: accountI18nFr,
-    ar: accountI18nAr,
   },
 
   // Two guards, both required:

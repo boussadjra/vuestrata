@@ -46,6 +46,19 @@ jobs:
       # claims a machine can verify — that every source path and relative link
       # still resolves.
       - run: node scripts/docs/check-links.mjs
+      # The steps above are what `vpr lint` runs for a project. `vpr lint` also
+      # used to end with the template-lock check, which this job never ran, so
+      # the shipped lockfile could go stale with CI green. This is the gate that
+      # was missing; it is the template's own, not a project's.
+      #
+      # Only in the template's own repository: a project built from the template
+      # inherits this file, and would fail these on its first `add module`,
+      # version bump or edit to a managed file. If the repository is renamed,
+      # update the slug here and in the test job, or the maintainer gates stop
+      # running without any job failing.
+      - name: Maintainer gates (template lock, CLI payload)
+        if: github.repository == 'boussadjra/vuestrata'
+        run: vpr lint:maintainer
       - run: vpr fmt --check
 
   typecheck:
@@ -64,25 +77,31 @@ jobs:
       - run: vp exec tsc --noEmit -p tsconfig.e2e.json
 
   test:
-    name: Tests (${{ matrix.suite }})
+    name: Tests and coverage
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # All three suites now run. Previously only `unit` did, so the component
-        # and integration suites could rot without anyone noticing.
-        suite: [unit, component, integration]
+    env:
+      # Turns on test/unit/architecture/public-surface.test.ts, which snapshots
+      # this repository's own modules and permissions. Empty in a project built
+      # from the template, where the first `add module` would change both.
+      VUESTRATA_MAINTAINER: ${{ github.repository == 'boussadjra/vuestrata' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, which brings the release tags. The migration tests
+          # compare against what each tag shipped, and without the tags they
+          # skip: green without having run.
+          fetch-depth: 0
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
-      - run: vpr test:${{ matrix.suite }} -- --coverage
+      # The coverage floors describe the complete suite. Collect unit,
+      # component and integration coverage together, as consumer CI does.
+      - run: vp run test --run --coverage
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-${{ matrix.suite }}
+          name: coverage
           path: coverage/
 
   build:
@@ -165,13 +184,36 @@ jobs:
       - name: Run E2E against the production preview
         env:
           E2E_TARGET: preview
-        run: vpr test:e2e -- --project=${{ matrix.browser }}
+        run: vpr test:e2e --project=${{ matrix.browser }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report-${{ matrix.browser }}
           path: playwright-report/
+          retention-days: 7
+
+  # The demo suite cannot prove browser cookie or CSRF behavior. This fixture
+  # builds a separate production app and serves it with a Sanctum-style backend.
+  # It belongs to the template's own acceptance tests, not a consumer's backend.
+  e2e-session:
+    name: Session authentication (browser)
+    if: github.repository == 'boussadjra/vuestrata'
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+          node-version: ${{ env.NODE_VERSION }}
+      - run: vp exec playwright install --with-deps chromium
+      - run: vpr test:e2e:session
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: session-test-results
+          path: test-results/integration/
           retention-days: 7
 
   # The Docker image is the REAL production target, and nothing in CI had ever
@@ -191,15 +233,18 @@ jobs:
 
       - name: Build the image
         run: |
-          docker build             --build-arg VUESTRATA_RELEASE=${{ github.sha }}             --build-arg VUESTRATA_API_URL=/api             -t vuestrata:ci .
+          docker build \
+            --build-arg VUESTRATA_RELEASE=${{ github.sha }} \
+            --build-arg VUESTRATA_API_URL=/api \
+            -t vuestrata:ci .
 
       - name: Start the container
         run: |
           docker run -d --name vuestrata-ci -p 8080:8080 vuestrata:ci
-          # The image declares a HEALTHCHECK; wait for it rather than sleeping
+          # Poll the endpoint the image's HEALTHCHECK uses rather than sleeping
           # an arbitrary number of seconds.
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8080/ >/dev/null 2>&1; then
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
               echo "Container is serving."
               exit 0
             fi
@@ -215,11 +260,89 @@ jobs:
         env:
           E2E_TARGET: external
           E2E_BASE_URL: http://127.0.0.1:8080
-        run: vpr test:e2e -- e2e/production-artifact.spec.ts --project=chromium
+        run: vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
+
+      # Build once, deploy many: the SAME image, started for another
+      # environment. Its API URL, its CSP and its unrouted-API answer are all
+      # decided at start, on a read-only root filesystem with a writable /tmp.
+      - name: Start the same image for another environment
+        run: |
+          docker run -d --name vuestrata-ci-staging -p 8081:8080 \
+            --read-only --tmpfs /tmp \
+            -e VUESTRATA_API_URL=https://api.staging.example.test \
+            -e VUESTRATA_APP_TITLE="Acme Staging" \
+            vuestrata:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8081/healthz >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs vuestrata-ci-staging
+          exit 1
+
+      - name: Smoke-test that environment
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8081
+          E2E_API_URL: https://api.staging.example.test
+          E2E_APP_TITLE: Acme Staging
+        run: vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
+
+      # An API URL on a placeholder host. A BUILD pointing at localhost is
+      # refused; a container started with one was told so on purpose, and the
+      # app must then call that URL rather than fall back to /api on its own
+      # origin while the headers allow localhost.
+      - name: Start the same image against a local backend
+        run: |
+          docker run -d --name vuestrata-ci-local -p 8082:8080 \
+            --read-only --tmpfs /tmp \
+            -e VUESTRATA_API_URL=http://localhost:8000 \
+            vuestrata:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8082/healthz >/dev/null 2>&1; then
+              echo "Container is serving."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not start serving in time."
+          docker logs vuestrata-ci-local
+          exit 1
+
+      - name: Smoke-test that one
+        env:
+          E2E_TARGET: external
+          E2E_BASE_URL: http://127.0.0.1:8082
+          E2E_API_URL: http://localhost:8000
+        run: vpr test:e2e e2e/production-artifact.spec.ts --project=chromium
+
+      # A value that could change the meaning of the nginx configuration or of
+      # runtime-config.js must stop the container, not be written out. The
+      # second is a typo the app would only warn about.
+      - name: A hostile or mistyped value stops the container
+        run: |
+          if docker run --rm --read-only --tmpfs /tmp \
+            -e 'VUESTRATA_API_URL=https://a.example"; add_header X-Injected 1' \
+            vuestrata:ci nginx -t; then
+            echo "The container accepted a value it must refuse."
+            exit 1
+          fi
+          if docker run --rm --read-only --tmpfs /tmp \
+            -e VUESTRATA_SESSION_PERSISTENCE=Session \
+            vuestrata:ci nginx -t; then
+            echo "The container accepted a session persistence mode that does not exist."
+            exit 1
+          fi
 
       - name: Container logs
         if: always()
-        run: docker logs vuestrata-ci || true
+        run: |
+          docker logs vuestrata-ci || true
+          docker logs vuestrata-ci-staging || true
+          docker logs vuestrata-ci-local || true
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -228,12 +351,53 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+      # The image must also build for arm64 (Apple Silicon, Graviton). It could
+      # not until the Dockerfile chose the vite-plus binding per platform, and
+      # nothing here would have noticed. Build only, under QEMU, and last: it is
+      # the slowest step and says nothing about the artifact tested above.
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+      - id: buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          # Keep the default builder for the steps above: this one's
+          # docker-container driver does not put images in the local store.
+          use: false
+      # build-push-action rather than a bare `docker buildx build`, because it
+      # hands the runner's cache credentials to BuildKit. The emulated build is
+      # slow, and its layers do not change between most runs.
+      - name: Build the image for arm64 (build only)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/arm64
+          push: false
+          build-args: |
+            VUESTRATA_RELEASE=${{ github.sha }}
+            VUESTRATA_API_URL=/api
+          cache-from: type=gha,scope=docker-arm64
+          cache-to: type=gha,scope=docker-arm64,mode=max
+
   # The CLI edits projects built from this template, and the only test that
   # proves a generator still wires what it claims to wire is running it against
   # the template itself. That is why `packages/cli` lives here rather than in
   # its own repository.
+  #
+  # Two halves. The first scaffolds into the template and checks the result is
+  # wired. The second is what a team does on day one — eject, add a module — and
+  # runs every gate a consumer's CI runs, ending on `doctor`: the CLI must not
+  # have edited a file it tells the project to leave alone.
+  #
+  # Only in the template's own repository, like the maintainer gates above. A
+  # project inherits this file together with `packages/cli`, and there the job
+  # tests a copy of the CLI no upgrade updates, against names (`payments`,
+  # `invoices`, `Tag`) the project may already use. Skipped, it does not fail
+  # `ci-ok` below.
   cli-roundtrip:
     name: CLI Round Trip
+    if: github.repository == 'boussadjra/vuestrata'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -245,6 +409,14 @@ jobs:
       # The payload is not committed — it is a copy of the source beside it,
       # built here the same way `prepack` builds it for a release.
       - run: node packages/cli/scripts/build-payload.mjs
+
+      # Eject deletes `packages/cli`, and a CLI cannot run from a tree it is
+      # deleting, so the second half runs this copy. It sits in `node_modules`,
+      # which `eject` and `git clean` leave alone and where the root's own
+      # `consola` resolves. `-L` because the package's own `node_modules` holds
+      # links into the store, which do not survive a move.
+      - name: Keep a copy of the CLI where eject will not remove it
+        run: cp -rL packages/cli node_modules/.vuestrata-cli
 
       # Slots resolve, every registry still carries its markers, and the
       # lockfile agrees with what is on disk.
@@ -261,17 +433,49 @@ jobs:
       - run: vpr fmt
       - run: vp exec vue-tsc --noEmit
       - run: node scripts/lint/run-custom-rules.mjs
-      - run: vp test --run test/unit/architecture
-
-      # Back to a clean slate, then prove that still builds. Eject touches the
-      # module registry, the permission union, the role grants and the router;
-      # any one of them left half-done gives a tree that type-checks and fails
-      # to build, or builds and renders pages with no layout.
-      - run: git checkout . && git clean -fd
-      - run: node packages/cli/src/index.mjs eject --allow-dirty
-      - run: vp build
-      - run: vp exec vue-tsc --noEmit
+      # The gates a project runs, without VUESTRATA_MAINTAINER: everything a
+      # project inherits has to stay green after its first generated module,
+      # component and theme. (The maintainer-only checks are deliberately not
+      # run here — they describe this repository's release, not the project.)
+      - run: vpr lint
       - run: vp test --run
+
+      # Back to a clean slate for the second half.
+      - run: git checkout . && git clean -fd
+
+      # Eject removes the demo, then the day-one path: a module of the team's
+      # own. Neither may touch a file the CLI tracks as Vuestrata's — eject
+      # writes `withdrawn` in rbac.overrides.ts, and the generator declares the
+      # permissions there — or a release would stop reaching this project.
+      - run: node node_modules/.vuestrata-cli/src/index.mjs eject --allow-dirty
+      - run: node node_modules/.vuestrata-cli/src/index.mjs add module invoices
+
+      # Route and import typings are generated by a build, and `vp check` reads
+      # them.
+      - run: vp build
+
+      # What a consumer's CI runs, in the order it fails fastest.
+      - run: vp run lint
+      - run: vp check
+      - run: vp run test --run
+      - run: vp run build
+
+      # Zero drift: no managed or merged file differs from the lock. `doctor`
+      # reports drift as a note and exits 0, so ask the lock directly.
+      - run: node node_modules/.vuestrata-cli/src/index.mjs doctor
+      - name: No file Vuestrata owns was edited
+        run: |
+          node --input-type=module -e "
+            import { pathToFileURL } from 'node:url'
+            const lock = await import(pathToFileURL(process.cwd() + '/node_modules/.vuestrata-cli/src/lib/lockfile.mjs').href)
+            const drifted = lock.driftedFiles(process.cwd(), lock.readLock(process.cwd()))
+            if (drifted.length > 0) {
+              console.error('Edited or deleted since the lock was written:')
+              for (const entry of drifted) console.error('  ' + entry.rel + ' (' + entry.status + ')')
+              process.exit(1)
+            }
+            console.log('No managed or merged file drifted.')
+          "
 
   # Single required status check. Point branch protection at this one job and it
   # stays correct as jobs are added or renamed.
@@ -279,7 +483,7 @@ jobs:
     name: CI OK
     runs-on: ubuntu-latest
     if: always()
-    needs: [lint, typecheck, test, build, e2e, docker, cli-roundtrip]
+    needs: [lint, typecheck, test, build, e2e, e2e-session, docker, cli-roundtrip]
     steps:
       - name: Fail if any dependency failed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')

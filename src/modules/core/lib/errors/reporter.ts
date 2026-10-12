@@ -21,7 +21,11 @@ export interface ErrorReportContext {
   component?: string
   /** Vue's `info` string, or an equivalent breadcrumb. */
   info?: string
-  /** Extra structured detail. Redacted before it leaves the process. */
+  /**
+   * Extra structured detail. Handed to the reporter as it is: nothing on this
+   * path redacts it (the logger's key redaction applies to log lines only), so
+   * keep credentials and personal data out of it.
+   */
   extra?: Record<string, unknown>
 }
 
@@ -84,11 +88,70 @@ export function getErrorReporter(): ErrorReporter {
 }
 
 /**
+ * A request the app cancelled on purpose: an `AppError` of kind `aborted`, or
+ * the `AbortError` native fetch rejects with. Checked structurally because
+ * `AppError` lives in `./index`, which imports this file.
+ */
+function isDeliberateAbort(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  const candidate = error as { kind?: unknown; name?: unknown }
+  return candidate.kind === 'aborted' || candidate.name === 'AbortError'
+}
+
+/**
+ * Set on an error object once it has been reported. A registered symbol, so two
+ * copies of this module (HMR, a second bundle) agree on it, and not enumerable,
+ * so it never shows up in a serialised error.
+ */
+const REPORTED = Symbol.for('vuestrata.error.reported')
+
+function markReported(error: unknown): void {
+  if (typeof error !== 'object' || error === null) return
+  try {
+    Object.defineProperty(error, REPORTED, { value: true, configurable: true })
+  } catch {
+    // Frozen or sealed. It may be reported a second time, which is the lesser harm.
+  }
+}
+
+/**
+ * Whether `error` has already been through `reportError()`.
+ *
+ * One failure can surface twice: vue-router hands a failed navigation to
+ * `onError`, where the error boundary reports it, and then rejects the promise
+ * `router.push()` returned, which nobody awaits, so the same object arrives as
+ * an unhandled rejection. The `unhandledrejection` handler asks this before it
+ * reports.
+ *
+ * The answer travels on the error itself. A set of seen errors kept here would
+ * be module-scope state, and would hold every error for the life of the page.
+ * A value that is not an object (a rejected string) cannot carry it and is
+ * never "already reported".
+ */
+export function wasReported(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { [REPORTED]?: boolean })[REPORTED] === true
+  )
+}
+
+/**
  * Report an error. Safe to call unconditionally: with no reporter installed
  * this is a no-op, and a reporter that throws is contained here rather than
  * being allowed to replace the original error with its own.
+ *
+ * A deliberate abort is dropped here, at the one choke point every sink goes
+ * through. It rejects like a failure — and can surface through a component's
+ * async setup as easily as through `unhandledrejection` — but there is nothing
+ * to fix, and a reporter full of cancelled searches is one nobody reads.
+ *
+ * The error is marked as reported (see `wasReported`), whether or not a
+ * reporter is installed: what is recorded is that a sink has dealt with it.
  */
 export function reportError(error: unknown, context: ErrorReportContext): void {
+  if (isDeliberateAbort(error)) return
+  markReported(error)
   try {
     getErrorReporter().captureException(error, context)
   } catch (reporterError) {

@@ -4,9 +4,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * `app.config.ts` beside it is derived entirely from validated environment
- * variables and is replaced wholesale by an upgrade. This file is the opposite:
- * the handful of build-time constants that are about *your product* rather than
- * about a deployment, kept somewhere nothing upstream writes to.
+ * variables: it describes a deployment. This file is the opposite: the handful
+ * of build-time constants that are about *your product* rather than about a
+ * deployment, kept somewhere nothing upstream writes to.
  *
  * The split follows a simple test. If the value changes between your staging
  * and production deploys, it is environment — put it in `.env` and read it
