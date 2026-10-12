@@ -122,10 +122,14 @@ test.describe('sidebar structure', () => {
     // No sidebar link may point at a page that does not exist. A 404, or a
     // bounce to /403, is a broken promise.
     for (const href of targets) {
-      await page.goto(href, { waitUntil: 'domcontentloaded' })
+      await page.goto(href)
       await expect(page.locator('#app-loader')).toBeHidden({ timeout: 20_000 })
       await expect(page, `${href} redirected away`).toHaveURL(new RegExp(`${href}(\\?|$)`))
       await expect(page.locator('h1').first(), `${href} rendered no heading`).toBeVisible()
+      // The heading can render before lazy engines finish downloading. This
+      // full-load sweep must let those imports finish before leaving the page,
+      // or cancelling them can trigger stale-chunk recovery in Firefox.
+      await page.waitForLoadState('networkidle')
     }
   })
 })
