@@ -36,7 +36,7 @@ ARG VUESTRATA_API_URL=/api
 ARG VUESTRATA_BASE_PATH=/
 
 # ─── Stage 1: build ──────────────────────────────────────────────────────────
-FROM --platform=$BUILDPLATFORM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
+FROM --platform=$BUILDPLATFORM node:22-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 AS build
 
 # The architecture this stage runs on, set by BuildKit: amd64 or arm64.
 ARG BUILDARCH
