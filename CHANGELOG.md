@@ -27,6 +27,10 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 
 ### Fixed
 
+- CI and release checks generate route and auto-import declarations before
+  type-aware validation in a fresh checkout. Deployment installers use the same
+  Vite+ 0.3.0 toolchain as the merged dependency lock.
+
 - Zod starts in its CSP-safe mode before the runtime schema is created, avoiding
   eval probes that Firefox reports as policy violations. Browser acceptance
   waits for route content and settled form layout instead of network idleness,

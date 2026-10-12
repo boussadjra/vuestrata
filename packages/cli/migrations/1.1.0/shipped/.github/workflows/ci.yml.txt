@@ -27,6 +27,9 @@ jobs:
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
+      # Generate ignored route and auto-import declarations before type-aware checks.
+      - name: Generate the route and import typings
+        run: vp build
       - run: vp lint
       - run: node scripts/lint/run-custom-rules.mjs
       # The committed MSW worker does not update when the dependency does. A
@@ -70,6 +73,8 @@ jobs:
         with:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
+      - name: Generate the route and import typings
+        run: vp build
       - run: vp exec vue-tsc --noEmit
       # `e2e/` is excluded from tsconfig.json, so the line above never sees it.
       # Without this the specs are only compiled by Playwright at run time —
@@ -431,6 +436,8 @@ jobs:
       - run: node packages/cli/src/index.mjs add component Tag --no-format
       - run: node packages/cli/src/index.mjs add theme midnight --no-format
       - run: vpr fmt
+      - name: Generate the route and import typings
+        run: vp build
       - run: vp exec vue-tsc --noEmit
       - run: node scripts/lint/run-custom-rules.mjs
       # The gates a project runs, without VUESTRATA_MAINTAINER: everything a

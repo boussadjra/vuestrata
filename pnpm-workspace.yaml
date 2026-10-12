@@ -5,9 +5,9 @@ allowBuilds:
   msw: true
   vue-demi: true
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@latest
-  vitest: 4.1.10
-  vite-plus: latest
+  vite: npm:@voidzero-dev/vite-plus-core@0.3.0
+  vitest: 4.1.11
+  vite-plus: 0.3.0
 overrides:
   vite: 'catalog:'
   vitest: 'catalog:'

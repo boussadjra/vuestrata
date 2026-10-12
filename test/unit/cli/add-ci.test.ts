@@ -500,10 +500,27 @@ describe.skipIf(!MAINTAINER)('add ci: the same commands as the template’s own 
   )
 
   it('type-checks with the template’s command', () => {
-    const [typecheck] = runsOf(template, 'typecheck')
+    const typecheck = runsOf(template, 'typecheck').find((command) => /vue-tsc/.test(command))
 
-    expect(typecheck).toMatch(/vue-tsc/)
+    expect(typecheck).toBeDefined()
     expect(runsOf(project, 'check')).toContain(typecheck)
+  })
+
+  it('generates ignored typings before each clean-checkout type-aware gate', () => {
+    const release = readWorkflow(inRepo('.github/workflows/release.yml'))
+    const gates: [Workflow, string, string][] = [
+      [template, 'lint', 'vp lint'],
+      [template, 'typecheck', 'vp exec vue-tsc --noEmit'],
+      [template, 'cli-roundtrip', 'vp exec vue-tsc --noEmit'],
+      [release, 'verify', 'vp check'],
+    ]
+
+    for (const [workflow, job, check] of gates) {
+      const runs = runsOf(workflow, job)
+      const generationAt = runs.indexOf('vp build')
+      expect(generationAt, job).toBeGreaterThanOrEqual(0)
+      expect(generationAt, job).toBeLessThan(runs.indexOf(check))
+    }
   })
 
   it('runs the complete suite under the same coverage gate as the template', () => {

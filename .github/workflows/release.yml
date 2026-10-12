@@ -34,6 +34,9 @@ jobs:
           cache: true
           node-version: ${{ env.NODE_VERSION }}
 
+      # Release verification starts from the same clean checkout as CI.
+      - name: Generate the route and import typings
+        run: vp build
       - run: vp check
       - run: node scripts/lint/run-custom-rules.mjs
       - run: node scripts/msw/check-worker-version.mjs

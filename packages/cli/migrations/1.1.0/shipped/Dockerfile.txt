@@ -53,11 +53,11 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 # Node/Rolldown build; only dist/ crosses into the target's nginx image.
 RUN arch="${BUILDARCH:-$(dpkg --print-architecture)}" \
  && case "$arch" in \
-      amd64) binding=@voidzero-dev/vite-plus-linux-x64-gnu@0.2.9 ;; \
-      arm64) binding=@voidzero-dev/vite-plus-linux-arm64-gnu@0.2.9 ;; \
+      amd64) binding=@voidzero-dev/vite-plus-linux-x64-gnu@0.3.0 ;; \
+      arm64) binding=@voidzero-dev/vite-plus-linux-arm64-gnu@0.3.0 ;; \
       *) echo "vite-plus has no Linux binding for '$arch'. Build for linux/amd64 or linux/arm64." >&2; exit 1 ;; \
     esac \
- && npm install -g pnpm@11.20.0 vite-plus@0.2.9 "$binding"
+ && npm install -g pnpm@11.20.0 vite-plus@0.3.0 "$binding"
 
 WORKDIR /app
 
