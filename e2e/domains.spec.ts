@@ -180,6 +180,22 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
     await page.locator('input[name="city"]').fill('Arlington')
   }
 
+  /** Activate the native submit control without pointer coordinates during smooth scrolling. */
+  async function submitCustomer(page: Page, expectedStatus: 422 | 201): Promise<void> {
+    const submit = page.locator('form button[type="submit"]')
+    await submit.focus()
+    await expect(submit).toBeFocused()
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (answer) =>
+          answer.request().method() === 'POST' &&
+          new URL(answer.url()).pathname.endsWith('/customers'),
+      ),
+      submit.press('Enter'),
+    ])
+    expect(response.status()).toBe(expectedStatus)
+  }
+
   /** The message rendered under a field. */
   function errorOf(page: Page, name: string) {
     return page.locator(`input[name="${name}"] ~ [role="alert"]`)
@@ -196,7 +212,7 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
 
       await fillNewCustomer(page, email)
       await expect(page.locator('html')).toHaveAttribute('dir', dir)
-      await page.locator('form button[type="submit"]').click()
+      await submitCustomer(page, 422)
 
       const fieldMessage = errorOf(page, 'email')
       await expect(fieldMessage).toHaveText(message, { timeout: 15_000 })
@@ -229,7 +245,7 @@ test.describe('customer form: validation, server errors and unsaved changes', ()
       // Editing the field answers the message, and the corrected save goes through.
       await input.fill(`grace.${locale}@hopper.example`)
       await expect(fieldMessage).toHaveCount(0)
-      await page.locator('form button[type="submit"]').click()
+      await submitCustomer(page, 201)
       await expect(page).toHaveURL(/\/dashboard\/customers\/CUS-\d+$/, { timeout: 15_000 })
     })
   }
