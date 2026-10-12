@@ -84,8 +84,8 @@ interface FieldCase {
    */
   keptAtBase?: string
   /**
-   * A correction to what was measured, for a defect of the base that had to go
-   * for the field to run under a real Formwerk at all. Says what, and why.
+   * An adjustment for a baseline defect or an environment-dependent measurement.
+   * Says what differs from the recorded run, and why.
    */
   sinceBase?: (measured: MeasuredCell) => MeasuredCell
 }
@@ -111,6 +111,25 @@ function switchSinceBase(measured: MeasuredCell): MeasuredCell {
           : entry,
       ),
     },
+  }
+}
+
+/**
+ * The baseline was recorded in Algeria (+01:00), while this case constructs
+ * local-midnight dates. Rebuild only its expected timestamps in the current
+ * zone from the recorded calendar date; keep every displayed and form-state
+ * assertion, and keep the recorded file unchanged.
+ */
+function dateInLocalZone(measured: MeasuredCell): MeasuredCell {
+  const calendarDate = measured.shown.inputs[0]
+  if (!calendarDate) return measured
+
+  const [year, month, day] = calendarDate.split('-').map(Number)
+  const value = encode(new NATIVE_DATE(year!, month! - 1, day!))
+  return {
+    ...measured,
+    value,
+    ...('model' in measured ? { model: value } : {}),
   }
 }
 
@@ -214,6 +233,7 @@ const cases: FieldCase[] = [
   {
     id: 'date',
     component: UiDateField,
+    sinceBase: dateInLocalZone,
     schema: z.date(),
     initial: new Date(2024, 0, 15),
     // A date field has no empty value to pass: `undefined` is "not passed".
@@ -564,7 +584,7 @@ async function mountCell(field: FieldCase, initial: unknown, passed: unknown): P
 beforeEach(() => {
   // Empty date fields expose today's segments. The recorded baseline was
   // measured on this date; mock only Date so real settling timers still run.
-  vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'))
+  vi.setSystemTime(new NATIVE_DATE(2026, 9, 8, 12))
 })
 
 afterEach(() => {
