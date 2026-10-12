@@ -181,7 +181,7 @@ const auth0Token = {
   exp: 1_760_086_400,
   azp: 'kXb1Qm0000000000000000000000000a',
   scope: 'openid profile email',
-  permissions: ['read:users', 'create:users', 'read:reports', 'delete:everything'],
+  permissions: ['read:users', 'create:users', 'manage:users', 'delete:everything'],
   [`${NAMESPACE}/roles`]: ['Manager', 'Support'],
 }
 
@@ -189,7 +189,7 @@ describe('identityMappers.auth0', () => {
   const permissionMap = {
     'read:users': 'users:read',
     'create:users': 'users:create',
-    'read:reports': ['reports:read', 'reports:export'],
+    'manage:users': ['users:update', 'users:delete'],
   } as const
 
   it('reads the permissions claim, mapped to the app’s own ids', () => {
@@ -197,7 +197,7 @@ describe('identityMappers.auth0', () => {
 
     expect(identity).toEqual({
       roles: [],
-      permissions: ['users:read', 'users:create', 'reports:read', 'reports:export'],
+      permissions: ['users:read', 'users:create', 'users:update', 'users:delete'],
       hasPermissions: true,
     })
   })
