@@ -1,63 +1,48 @@
 ---
 name: Vuestrata
-description: The design system behind Vuestrata — one component vocabulary, twelve design personalities, and the rules that keep them interchangeable.
+description: One component vocabulary, twelve design personalities, and a navy, copper and paper default identity.
 colors:
-  # ── Default theme: Workshop Teal (primary) ──────────────────────────────
-  workshop-teal-mist: '#eefbf5' # primary-50  — hover tints, input bg tints
-  workshop-teal-light: '#b2e8d1' # primary-200 — borders, selected ring
-  workshop-teal: '#29a07d' # primary-500 — CTA, interactive accent
-  workshop-teal-dark: '#1a8164' # primary-600 — button hover, logo mark
-  workshop-teal-deeper: '#14634f' # primary-700 — active state, logo primary
-  workshop-teal-ink: '#082620' # primary-950 — darkest ink tint
-  # ── Default theme: Raw Linen (secondary) ────────────────────────────────
-  raw-linen-pale: '#f8f7f4' # secondary-50  — subtle tinted surfaces
-  raw-linen: '#9b8c74' # secondary-500 — secondary buttons, tags
-  raw-linen-dark: '#776757' # secondary-700 — secondary hover
-  # ── Default theme: Ink Blossom (accent) ─────────────────────────────────
-  ink-blossom-pale: '#fbf4fa' # accent-50  — badge tints
-  ink-blossom: '#cc62b3' # accent-500 — accent buttons, highlights
-  ink-blossom-deep: '#b94999' # accent-600 — accent hover
-  # ── Default theme: Graphite (neutral / surface) ──────────────────────────
-  graphite-canvas: '#f8fafc' # surface-50  — page background, card bg
-  graphite-rule: '#e2e8f0' # surface-200 — borders, dividers
-  graphite-mid: '#64748b' # surface-500 — secondary text, placeholder
-  graphite: '#334155' # surface-700 — primary text (light mode)
-  graphite-deep: '#1e293b' # surface-800 — headings (light mode)
-  graphite-void: '#020617' # surface-950 — page bg (dark mode)
-  # ── Semantic ─────────────────────────────────────────────────────────────
-  danger-signal: '#ef4444' # danger-500 — destructive actions, errors
-  danger-signal-dark: '#dc2626' # danger-600 — destructive hover
+  midnight: '#031b38'
+  midnight-hover: '#0a2a50'
+  copper: '#cf4c18'
+  copper-text: '#b23d15'
+  copper-inverse-text: '#e78d61'
+  paper: '#f3efe3'
+  sheet: '#faf7ef'
+  stone: '#8b744e'
+  rule: '#d8d1c2'
+  muted-ink: '#55616b'
+  night: '#021326'
+  danger-signal: '#ef4444'
 typography:
   display:
-    fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
-    fontSize: 'clamp(2.25rem, 5vw, 3.75rem)'
-    fontWeight: '800'
-    lineHeight: '1.1'
-    letterSpacing: '-0.02em'
+    fontFamily: "'Vuestrata Newsreader', 'Vuestrata Naskh', Georgia, serif"
+    fontSize: 'clamp(2.75rem, 6vw, 6rem)'
+    fontWeight: '500'
+    lineHeight: '1.04'
+    letterSpacing: '-0.025em'
   headline:
-    fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
-    fontSize: 'clamp(1.5rem, 3vw, 2.25rem)'
-    fontWeight: '700'
-    lineHeight: '1.2'
-    letterSpacing: '-0.015em'
+    fontFamily: "'Vuestrata Newsreader', 'Vuestrata Naskh', Georgia, serif"
+    fontSize: '2.25rem'
+    fontWeight: '500'
+    lineHeight: '1.15'
   title:
-    fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "'Vuestrata Jakarta', 'Vuestrata Tajawal', sans-serif"
     fontSize: '1.125rem'
     fontWeight: '600'
     lineHeight: '1.4'
   body:
-    fontFamily: "'Inter', 'Tajawal', 'Cairo', 'Rubik', ui-sans-serif"
-    fontSize: '0.875rem'
+    fontFamily: "'Vuestrata Jakarta', 'Vuestrata Tajawal', sans-serif"
+    fontSize: '1rem'
     fontWeight: '400'
-    lineHeight: '1.6'
+    lineHeight: '1.65'
   label:
-    fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif"
-    fontSize: '0.75rem'
+    fontFamily: "'Vuestrata Jakarta', 'Vuestrata Tajawal', sans-serif"
+    fontSize: '0.875rem'
     fontWeight: '500'
     lineHeight: '1.4'
-    letterSpacing: '0.01em'
 rounded:
-  sm: '0.25rem'
+  sm: '0.1875rem'
   md: '0.375rem'
   lg: '0.5rem'
   xl: '0.75rem'
@@ -65,55 +50,19 @@ rounded:
   full: '9999px'
 components:
   button-primary:
-    backgroundColor: '{colors.workshop-teal}'
-    textColor: '#ffffff'
+    backgroundColor: '{colors.midnight}'
+    textColor: '{colors.paper}'
     typography: '{typography.label}'
     rounded: '{rounded.lg}'
-    padding: '0.5rem 1rem'
-  button-primary-hover:
-    backgroundColor: '{colors.workshop-teal-dark}'
-    textColor: '#ffffff'
-    typography: '{typography.label}'
-    rounded: '{rounded.lg}'
-    padding: '0.5rem 1rem'
-  button-secondary:
-    backgroundColor: '{colors.raw-linen}'
-    textColor: '#ffffff'
-    typography: '{typography.label}'
-    rounded: '{rounded.lg}'
-    padding: '0.5rem 1rem'
-  button-ghost:
-    backgroundColor: 'transparent'
-    textColor: '{colors.graphite}'
-    typography: '{typography.label}'
-    rounded: '{rounded.lg}'
-    padding: '0.5rem 1rem'
-  button-ghost-hover:
-    backgroundColor: '{colors.graphite-rule}'
-    textColor: '{colors.graphite}'
-    typography: '{typography.label}'
-    rounded: '{rounded.lg}'
-    padding: '0.5rem 1rem'
-  button-destructive:
-    backgroundColor: '{colors.danger-signal}'
-    textColor: '#ffffff'
-    typography: '{typography.label}'
-    rounded: '{rounded.lg}'
-    padding: '0.5rem 1rem'
+    padding: '0.625rem 1rem'
   card:
-    backgroundColor: '{colors.graphite-canvas}'
-    textColor: '{colors.graphite}'
+    backgroundColor: '{colors.sheet}'
+    textColor: '{colors.midnight}'
     rounded: '{rounded.lg}'
     padding: '1.5rem'
   input:
-    backgroundColor: '{colors.graphite-canvas}'
-    textColor: '{colors.graphite-deep}'
-    rounded: '{rounded.md}'
-    padding: '0.5rem 0.75rem'
-    height: '2.5rem'
-  input-focus:
-    backgroundColor: '{colors.graphite-canvas}'
-    textColor: '{colors.graphite-deep}'
+    backgroundColor: '{colors.sheet}'
+    textColor: '{colors.midnight}'
     rounded: '{rounded.md}'
     padding: '0.5rem 0.75rem'
     height: '2.5rem'
@@ -125,7 +74,35 @@ components:
 
 **Creative North Star: "The Architect's Workbench"**
 
-Vuestrata is a workspace, not a canvas. Every visual decision starts from utility and earns decoration only if it improves communication. The default theme reads like a well-organized drafting table: clean off-white surfaces, a single precise teal accent for interactive elements, warm stone tones for secondary context, and graphite neutrals carrying the structural load. Nothing is placed for atmosphere alone.
+The default identity combines midnight navy, fired copper and warm paper. A developer exploring the foundation in daylight sees an expressive serif headline and a working interface beneath it; an operator sees familiar sans-serif controls and readable data. Home can use large inverse navy surfaces and a paced visual story. Authenticated screens keep the colour quieter and the information easy to scan.
+
+The identity lives in the seeded `src/modules/app/styles/brand.css` seam. Managed UI, semantic infrastructure and theme files remain unchanged. Default has no `theme-*` class; every identity selector is scoped to that condition. The other eleven personalities keep their own type, colour and geometry.
+
+### Brand mark
+
+The Vuestrata symbol is three parallel copper parallelograms rising to the right
+on a midnight navy field. Keep the bars' slope, weight, spacing and relative
+lengths consistent between the component and static SVG exports. The geometry
+is vector artwork, without gradients, shadows, outlines or font dependencies.
+
+The symbol uses fixed navy `#031b38` and copper `#cf4c18`. Its navy field keeps
+the copper mark legible across all selectable themes; it is not recoloured by
+the active primary or accent ramp. A full lockup may pair the symbol with the
+Vuestrata wordmark in the active foreground colour. The standalone badge is
+the favicon and compact-navigation form. Preserve clear space around the mark
+and retain the full badge when reducing it to browser-tab size.
+
+The mark always rises to the right, including in Arabic. Mirror surrounding
+navigation and spacing for RTL, never the logo artwork. Give meaningful SVGs
+an accessible name; `Logo.vue` retains its title, full/icon variant and custom
+class API. Projects own that seeded component and may replace it with their
+own product identity without changing managed layouts.
+
+`public/favicon.svg` is the browser icon. `public/site.webmanifest` references
+it with a relative path so installations under a URL prefix keep working.
+Static exports and application-shell instances should use the same three-bar
+geometry. Framework logos and historical personal images are not alternate
+Vuestrata marks.
 
 The system rejects what PRODUCT.md calls the anti-references by name: Bootstrap admin dashboards with their accordion of padded boxes, Vercel-style marketing templates that prioritize whitespace over density, cluttered Material Design with competing elevation and ripple at every tier, and the generic SaaS dashboard aesthetic of blue gradients and star-rating widgets. Vuestrata is for developers who want production-grade structure, not a style show.
 
@@ -183,49 +160,37 @@ variation where its personality needs it and inherits the rest.
 
 ---
 
-## 2. Colors: The Workshop Palette
+## 2. Colors: Midnight, Copper and Paper
 
-_The default palette is a craftsman's limited set — one working teal, one warm stone, one florescent accent for emphasis, graphite for structure._
+The user's three anchors are exact: **midnight `#031b38`**, **copper `#cf4c18`**, and **paper `#f3efe3`**. The ramps add the shades needed for controls, states and both colour modes.
 
-### Primary — Workshop Teal
+### Roles
 
-- **Workshop Teal Mist** (`#eefbf5`): Tinted hover backgrounds, input bg tints, selected row fills. The lightest breath of the primary hue.
-- **Workshop Teal** (`#29a07d`): The singular interactive color in the default theme. Used on primary buttons, active nav indicators, focus rings, checked states, and progress fills. Restrained to ≤10% of any given screen.
-- **Workshop Teal Dark** (`#1a8164`): Primary button hover, logo mark, link hover.
-- **Workshop Teal Deeper** (`#14634f`): Active/pressed state, logo primary word. Anchors the hue family without going cold.
-- **Workshop Teal Ink** (`#082620`): Maximum-density ink tint. Used for dark-mode code block backgrounds and extreme depth contexts.
+- **Midnight:** structural ink, primary controls, and inverse feature surfaces. Navy on paper measures 15.00:1.
+- **Copper:** large editorial accents, prominent marks and chart series. Exact copper on paper measures 3.89:1, so it is reserved for large text and non-text marks. Small copper text uses `accent-600` (`#b23d15`), measuring 5.11:1 on paper and 4.64:1 on the muted surface.
+- **Paper:** the page ground. Cards use a slightly lighter sheet (`#faf7ef`), floating surfaces use `#fdfaf2`, and muted areas use `#eae4d6`.
+- **Warm stone:** supporting information and secondary data, with the same hierarchy as the navy ramp.
+- **Status colours:** the shared success, warning, error and info ramps retain their meanings.
 
-### Secondary — Raw Linen
+### Light and dark
 
-- **Raw Linen Pale** (`#f8f7f4`): Tinted secondary backgrounds, tag chip fills.
-- **Raw Linen** (`#9b8c74`): Secondary buttons, metadata labels, divider-adjacent text. A warm stone neutral that reads as intentionally understated, not forgotten.
-- **Raw Linen Dark** (`#776757`): Secondary button hover.
+Light mode is warm paper with navy ink and restrained copper. Dark mode uses a deep navy ground (`#021326`), a lifted navy card (`#0b2540`), paper text, and brighter copper links. The surface ramp always remains `50` light to `950` dark; semantic aliases perform the mode change.
 
-### Accent — Ink Blossom
+The primary solid reverses in dark mode: paper fill and navy label. Light-mode focus uses accessible dark copper; dark-mode focus uses `accent-400`.
 
-- **Ink Blossom Pale** (`#fbf4fa`): Badge and chip tints.
-- **Ink Blossom** (`#cc62b3`): Accent buttons, highlight decorations, "new" badges. Used sparingly — it reads as a highlighter pen mark, not a signature.
-- **Ink Blossom Deep** (`#b94999`): Accent hover.
+### Feature surfaces
 
-### Neutral — Graphite
+Owned features may use the optional `--color-spotlight*` aliases: midnight ground, paper text, light navy muted text, and copper marks. Small copper text on the inverse ground uses `--color-spotlight-link` (`#e78d61`, 6.88:1). Components must supply a semantic or ramp fallback for every alias so other themes stay complete.
 
-- **Graphite Canvas** (`#f8fafc`): Page background (light), card background (light), input background.
-- **Graphite Rule** (`#e2e8f0`): Borders, dividers, table rules, separator lines.
-- **Graphite Mid** (`#64748b`): Secondary text, placeholder text, icon default.
-- **Graphite** (`#334155`): Primary body text in light mode.
-- **Graphite Deep** (`#1e293b`): Headings, strong labels, sidebar text.
-- **Graphite Void** (`#020617`): Page background (dark mode).
+### Scope and preferences
 
-### Semantic
+Only the default identity changes. Brand rules never target a named theme. The default radius rules exclude an explicit `shape-radius-*` class, so a user's sharp, small or large preference keeps its effect. Shared status colours, keyboard focus handling, reduced-motion behaviour and RTL layout remain part of the existing component contract.
 
-- **Danger Signal** (`#ef4444`): Destructive buttons, error states, alert badges.
-- **Danger Signal Dark** (`#dc2626`): Destructive hover.
+### Page backgrounds
 
-### Named Rules
-
-**The One Voice Rule.** In any given theme, the primary color is used on ≤10% of any screen. Its rarity signals authority. Decorating more than one interactive element tier with the primary hue dilutes the entire palette.
-
-**The Stable Ground Rule.** Neutral surfaces never take a tinted background unless a component is in a selected, hovered, or error state. Off-white is the default; color is earned by state.
+Keep the default page ground plain: warm paper in light mode and deep navy in
+dark mode. Use semantic surface colours and borders to separate sections.
+Geological bands and decorative background patterns are not part of this identity.
 
 ---
 
@@ -235,26 +200,26 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 
 #### Character Cards
 
-| Theme         | Aesthetic                               | Design Mood                               |
-| ------------- | --------------------------------------- | ----------------------------------------- |
-| **Default**   | Teal on slate                           | Precise, professional, neutral            |
-| **Analog**    | Burnt coral on warm paper               | Editorial notebook, ink, data sketch      |
-| **Blueprint** | Plotter azure + verdigris + Corten      | Technical, gridded, drawing-set precision |
-| **Brutalist** | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration      |
-| **Forest**    | Emerald + warm gold on olive            | Grounded, natural, earthy abundance       |
-| **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene           |
-| **Harbour**   | Burnt orange + cobalt on warm cream     | Painterly, complementary, autumn coast    |
-| **Ocean**     | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth    |
-| **Pro**       | Operator blue on cool paper             | Daylight SaaS console, restrained, quiet  |
-| **Rose**      | Rose pink + slate purple                | Sophisticated, modern, editorial          |
-| **Sunset**    | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration           |
-| **Terminal**  | Phosphor green on dark charcoal         | Developer-native, monospace, austere      |
+| Theme         | Aesthetic                               | Design Mood                                  |
+| ------------- | --------------------------------------- | -------------------------------------------- |
+| **Default**   | Midnight, copper and paper              | Confident serif headings, precise working UI |
+| **Analog**    | Burnt coral on warm paper               | Editorial notebook, ink, data sketch         |
+| **Blueprint** | Plotter azure + verdigris + Corten      | Technical, gridded, drawing-set precision    |
+| **Brutalist** | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration         |
+| **Forest**    | Emerald + warm gold on olive            | Grounded, natural, earthy abundance          |
+| **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene              |
+| **Harbour**   | Burnt orange + cobalt on warm cream     | Painterly, complementary, autumn coast       |
+| **Ocean**     | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth       |
+| **Pro**       | Operator blue on cool paper             | Daylight SaaS console, restrained, quiet     |
+| **Rose**      | Rose pink + slate purple                | Sophisticated, modern, editorial             |
+| **Sunset**    | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration              |
+| **Terminal**  | Phosphor green on dark charcoal         | Developer-native, monospace, austere         |
 
 #### Full Token Table
 
 | Theme     | Primary-500 | Secondary-500 | Accent-500 | Surface-50 | Radius-md | Body Font         |
 | --------- | ----------- | ------------- | ---------- | ---------- | --------- | ----------------- |
-| Default   | `#29a07d`   | `#9b8c74`     | `#cc62b3`  | `#f8fafc`  | 0.375rem  | Inter             |
+| Default   | `#315f8e`   | `#8b744e`     | `#cf4c18`  | `#f3efe3`  | 0.375rem  | Plus Jakarta Sans |
 | Analog    | `#e85d3f`   | `#3a7a73`     | `#d4b63a`  | `#f3efe6`  | 0.25rem   | IBM Plex Sans     |
 | Blueprint | `#3b73ed`   | `#1f9187`     | `#cd5a2f`  | `#f7f9fc`  | 0         | IBM Plex Sans     |
 | Brutalist | `#303030`   | `#d9c200`     | `#ff1a75`  | `#fafafa`  | 0         | Space Grotesk     |
@@ -271,17 +236,20 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 
 ---
 
-**Default** — _The Workbench_
-Engineered teal cuts through graphite slate. Radii are tight (md=0.375rem), shadows are ambient, Inter runs the type. The surface is the color of a misted window at first light. This is the reference personality every other theme interprets.
+**Default**: _Midnight, Copper and Paper_
 
-| Token          | Value                       | Notes                             |
-| -------------- | --------------------------- | --------------------------------- |
-| Primary-50…950 | `#eefbf5` → `#082620`       | Custom teal, not Tailwind emerald |
-| Secondary-500  | `#9b8c74`                   | Malta warm stone                  |
-| Accent-500     | `#cc62b3`                   | Soft pink-magenta                 |
-| Danger-500     | `#ef4444`                   | Semantic only                     |
-| Radius-md      | 0.375rem                    | Tight, functional                 |
-| Font           | Inter + Tajawal/Cairo (RTL) | Multilingual stack                |
+Newsreader headings supply a contemporary serif voice, with Noto Naskh Arabic for Arabic display text. Plus Jakarta Sans and Tajawal keep controls and data precise. Warm paper, modest corners and subtle navy-tinted elevation give the working screens a clear hierarchy. The home story can spend more navy and copper without turning everyday controls into decoration.
+
+| Token                  | Value                          | Notes                                |
+| ---------------------- | ------------------------------ | ------------------------------------ |
+| Primary-50 through 950 | `#eef3f8` to `#021226`         | Navy structural ramp                 |
+| Primary solid, light   | `#031b38`                      | Exact midnight, paper label          |
+| Accent-500             | `#cf4c18`                      | Exact copper, large marks            |
+| Accent-600             | `#b23d15`                      | Accessible small copper text         |
+| Surface-50             | `#f3efe3`                      | Exact paper                          |
+| Radius-md              | 0.375rem                       | Explicit shape preferences still win |
+| Body                   | Plus Jakarta Sans / Tajawal    | Locally bundled sans-serif           |
+| Display                | Newsreader / Noto Naskh Arabic | Locally bundled, heading-only        |
 
 ---
 
@@ -424,7 +392,7 @@ Six deliberate departures from the previous version:
 ---
 
 **Ocean** — _The Deep Channel_
-Deep indigo primary (#6366f1), cyan secondary (#06b6d4), violet accent (#8b5cf6). The standard cool-slate surface (same as Default). Blue-tinted gaussian shadows with glow support enabled. Smooth radius (md=0.5rem). Inter type. Saturated cool sibling of Pro — immersive, not the quiet operator console.
+Deep indigo primary (#6366f1), cyan secondary (#06b6d4), violet accent (#8b5cf6). The standard cool-slate surface. Blue-tinted gaussian shadows with glow support enabled. Smooth radius (md=0.5rem). Inter type. Saturated cool sibling of Pro — immersive, not the quiet operator console.
 
 | Token         | Value                         | Notes                        |
 | ------------- | ----------------------------- | ---------------------------- |
@@ -517,9 +485,9 @@ Precedence falls out of source order: themes are imported at the top of app.css 
 
 `--shape-border-width` follows the same pattern, with one limitation worth knowing: Tailwind's `border` utility emits a literal `1px`, not a token, so border width cannot be driven globally the way radius can. Only `.shaped-border` and the `[data-ui=…]` rules respond.
 
-**The Typeface Handoff Rule.** Eight themes switch the default typeface to a non-Inter stack: Blueprint (IBM Plex Sans), Analog (IBM Plex Sans body / Newsreader display / IBM Plex Mono labels), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik), Pro (Plus Jakarta Sans). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
+**The Typeface Handoff Rule.** Eight named themes provide their own typeface stacks: Blueprint (IBM Plex Sans), Analog (IBM Plex Sans body / Newsreader display / IBM Plex Mono labels), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik), Pro (Plus Jakarta Sans). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
 
-A theme font must be **loaded** as well as named. `index.html` carries the single Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New and Harbour/Sunset spent theirs in the platform default sans. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
+A theme font must be **loaded** as well as named. The default identity loads local WOFF2 assets; `index.html` carries the existing named-theme Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New and Harbour/Sunset spent theirs in the platform default sans. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
 
 **The One Focus Indicator Rule.** Focus is drawn by exactly one thing: the global `*:focus-visible` outline in app.css, built on `--color-ring`, which re-points per theme _and_ per colour mode. Components must not set `focus-visible:outline-none` and substitute their own ring. `UiButton` used to, replacing it with `ring-<hue>-300` — a 300-weight tint that measured 1.66:1 against the page on Default and 2.08:1 on Brutalist, where WCAG 1.4.11 requires 3:1. A theme that needs a different ring overrides `--color-ring`; it must clear 3:1 against its own `--color-background` in both modes, and against any border colour the ring commonly sits beside. Two themes need a mode-specific override for this reason: Brutalist (yellow is 1.21:1 on its light page, so light mode uses magenta) and Terminal (whose "light" surface is a mid-grey `#d4d4d8`, so it rings at `primary-800` rather than the `primary-600` default).
 
@@ -531,26 +499,34 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 
 ## 3. Typography
 
-**Body Font:** Inter (with Tajawal, Cairo as RTL Arabic fallbacks; Rubik as CJK/Unicode supplement)
-**Display Font:** Inter — same family, heavy weight, tighter tracking
-**Mono Font:** JetBrains Mono (code blocks, terminal theme body text)
-**Theme Fonts:** Space Grotesk (Brutalist), Nunito + Fraunces (Ghibli), IBM Plex Sans (Blueprint), IBM Plex Sans + Newsreader + IBM Plex Mono (Analog), Rubik (Harbour/Sunset), Plus Jakarta Sans (Pro) — all loaded from the single `index.html` font request
+**Default body and controls:** locally bundled Plus Jakarta Sans with Tajawal Arabic fallback. Private CSS family names keep the other themes' font loading independent.
 
-**Character:** Inter provides dense, precise information density without reading as clinical. At small sizes (0.75–0.875rem) it stays clean; at display sizes (2.25–3.75rem, 800 weight, −0.02em tracking) it acquires a commanding authority. The RTL fallback chain (Tajawal → Cairo) preserves the system's structural feel in Arabic.
+**Default display:** locally bundled Newsreader normal and italic, paired with Noto Naskh Arabic. The serif applies to `h1` and `h2`; compact titles, navigation, labels, inputs, buttons and table data retain the sans-serif. `.font-display` lets an owned screen opt in and falls back to the active theme's sans-serif when that theme has no display face.
+
+**Mono:** JetBrains Mono remains the existing code face.
+
+**Other theme fonts:** Space Grotesk (Brutalist), Nunito and Fraunces (Ghibli), IBM Plex Sans (Blueprint), IBM Plex Sans, Newsreader and IBM Plex Mono (Analog), Rubik (Harbour/Sunset), and Plus Jakarta Sans (Pro) retain their existing request and scope.
 
 ### Hierarchy
 
-- **Display** (800, clamp(2.25rem → 3.75rem), lh 1.1, ls −0.02em): Hero sections and primary marketing headings. Appears once per page maximum.
-- **Headline** (700, clamp(1.5rem → 2.25rem), lh 1.2, ls −0.015em): Section titles, modal headings, major page titles.
-- **Title** (600, 1.125rem, lh 1.4): Card titles, sidebar section labels, panel headers. The workhorse heading size.
-- **Body** (400, 0.875rem, lh 1.6): All paragraph text, list items, description copy. Line width target: 60–72ch.
-- **Label** (500, 0.75rem, lh 1.4, ls 0.01em): Buttons, form labels, badge text, navigation items, metadata. Medium weight gives authority at small size without going bold.
+- **Display:** Newsreader 500, fluid size on the public home page, close leading, `-0.025em` tracking. Arabic uses natural tracking and more vertical room.
+- **Page heading:** serif 500, fixed sizes on working screens so responsive changes do not disturb control and table geometry.
+- **Compact title:** sans-serif 600, 1.125rem.
+- **Body:** sans-serif 400, 1rem for prose, 1.6 to 1.7 leading, 60 to 72ch measure. Existing dense controls may use their component sizes.
+- **Label:** sans-serif 500, 0.875rem, with the component's existing touch target.
+- **Numbers:** sans-serif tabular figures in tables and quantity controls.
 
-### Named Rules
+### Loading and licensing
 
-**The Same-Family Rule.** Display, headline, title, body, and label are all Inter. No mix of display typefaces within a single theme variant. Theme-level typeface changes (Blueprint to IBM Plex Sans, Terminal to mono, Pro to Plus Jakarta Sans) apply uniformly — the hierarchy stays intact, only the voice changes. Ghibli and Analog are the documented pairing: a serif display face over a grotesque body, the same way a notebook has a title and a working hand.
+The four default families are bundled as WOFF2 subsets under `src/modules/app/assets/fonts/brand/`, with `font-display: swap` and complete OFL license files. Latin and extended Latin load only when needed; Arabic body and display faces load only for matching glyphs. Newsreader is an open-source alternative in the requested contemporary serif direction; the commercial Erato Nova font is not included.
 
-**The Mono Containment Rule.** JetBrains Mono is for code, terminal output, and the Terminal theme body. It must not appear in prose contexts in non-Terminal themes. Use `font-mono` as a targeted utility, not a default. Brutalist used to violate this by setting mono as `--font-sans`; it now uses Space Grotesk and leaves mono to `--font-mono`.
+The remaining themes keep their existing Google Fonts loading. A named font must always be loaded; declaring a family without its asset is not a completed type change. See the bundled font README for source versions and attribution.
+
+### Named rules
+
+**Display containment.** A serif belongs to major headings, never to controls or numeric data. Named themes keep their own typography decisions.
+
+**Mono containment.** Monospace remains for code, terminal output and the Terminal theme. It is not the default prose face.
 
 ---
 
@@ -585,11 +561,11 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)`) and dip on press (`scale(0.97)`) with a cubic-bezier expo deceleration. The animation is disabled under `prefers-reduced-motion`.
 
 - **Shape:** `rounded-lg` → `--radius-lg` (default 0.5rem; 0 in Blueprint/Brutalist; up to 1.125rem in Ghibli and 1rem in Harbour)
-- **Primary:** `bg-primary-500 text-white` · hover `bg-primary-600` · active `bg-primary-700` · focus ring `ring-primary-300`
-- **Secondary:** `bg-secondary-500 text-white` · hover `bg-secondary-600` · active `bg-secondary-700`
-- **Accent:** `bg-accent-500 text-white` · hover `bg-accent-600`
-- **Ghost:** `bg-transparent text-surface-700` · hover `bg-surface-100` · dark: `text-surface-200 hover:bg-surface-800`
-- **Destructive:** `bg-danger-500 text-white` · hover `bg-danger-600`
+- **Primary:** the default branding hook uses `primary-solid` and `primary-foreground`; named themes keep their existing primary recipe.
+- **Secondary:** `bg-secondary-700 text-white`, with darker hover and active states.
+- **Accent:** `bg-accent-700 text-white`, with a darker hover state.
+- **Ghost:** `bg-transparent text-foreground`, with `bg-muted` on hover.
+- **Destructive:** `bg-danger-700 text-white`, with a darker hover state.
 - **Sizes:** xs (`px-2 py-1 text-xs`), sm (`px-3 py-1.5 text-sm`), **md** (`px-4 py-2 text-sm` — default), lg (`px-5 py-2.5 text-base`), xl (`px-6 py-3 text-lg`)
 - **Icon-only:** All sizes enforce min 44×44px touch target (`min-h-[44px] min-w-[44px]`) to meet WCAG 2.5.5 AAA
 - **Sub-44px text buttons:** xs and sm expand hit area via invisible `::after` pseudo-element. Visual density is preserved; accessibility is not compromised.

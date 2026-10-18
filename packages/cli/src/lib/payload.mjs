@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,9 +27,16 @@ import { hashContents } from './plan.mjs'
  *       docs     the `docs/` pages the release ships, which no upgrade installs.
  *                `eject` removes those and no other, and reads this list when
  *                the project's lockfile predates its own. Optional.
+ *       assets   seeded companion paths hashed and copied as raw bytes. Optional;
+ *                text readers keep their existing `read` API, assets use `readBytes`.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+
+/** Byte hash for assets: line-ending normalization would corrupt a font binary. */
+export function hashBytes(contents) {
+  return `sha256-${crypto.createHash('sha256').update(contents).digest('hex')}`
+}
 
 export function payloadRoot() {
   return path.resolve(here, '../../payload')
@@ -51,6 +59,7 @@ export function createPayloadSource(root = payloadRoot()) {
   const merged = index.merged ?? {}
   const regions = index.regions ?? {}
   const docs = index.docs
+  const assets = new Set(index.assets ?? [])
   const full = (rel) => path.join(root, 'files', rel)
 
   return {
@@ -60,6 +69,7 @@ export function createPayloadSource(root = payloadRoot()) {
     seeded,
     merged,
     regions,
+    assets: [...assets],
     /** The `docs/` pages the template ships, or `undefined` when this payload predates the list. */
     docs: Array.isArray(docs) ? docs : undefined,
     /** @returns {'managed' | 'merged' | 'seeded' | undefined} */
@@ -71,6 +81,10 @@ export function createPayloadSource(root = payloadRoot()) {
     },
     has: (rel) => fs.existsSync(full(rel)),
     read: (rel) => fs.readFileSync(full(rel), 'utf8'),
-    hash: (rel) => hashContents(fs.readFileSync(full(rel), 'utf8')),
+    readBytes: (rel) => fs.readFileSync(full(rel)),
+    hash: (rel) =>
+      assets.has(rel)
+        ? hashBytes(fs.readFileSync(full(rel)))
+        : hashContents(fs.readFileSync(full(rel), 'utf8')),
   }
 }

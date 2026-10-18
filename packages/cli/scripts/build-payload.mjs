@@ -9,9 +9,11 @@ import {
   collectDocs,
   collectManaged,
   collectSeeded,
+  isSeededAsset,
   PROJECT_REGISTRIES,
 } from '../src/lib/managed.mjs'
 import { loadManifest, slot } from '../src/lib/manifest.mjs'
+import { hashBytes } from '../src/lib/payload.mjs'
 import { hashContents } from '../src/lib/plan.mjs'
 import {
   blankRegions,
@@ -60,7 +62,7 @@ export function buildPayload({
   const version = JSON.parse(fs.readFileSync(path.resolve(here, '../package.json'), 'utf8')).version
   const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8')
 
-  const index = { version, files: {}, seeded: {}, merged: {}, regions: {}, docs: [] }
+  const index = { version, files: {}, seeded: {}, merged: {}, regions: {}, docs: [], assets: [] }
   const shipped = new Map()
   const problems = []
 
@@ -88,8 +90,10 @@ export function buildPayload({
   }
 
   for (const rel of collectSeeded(repoRoot)) {
-    const contents = read(rel)
-    index.seeded[rel] = hashContents(contents)
+    const asset = isSeededAsset(rel)
+    const contents = asset ? fs.readFileSync(path.join(repoRoot, rel)) : read(rel)
+    index.seeded[rel] = asset ? hashBytes(contents) : hashContents(contents)
+    if (asset) index.assets.push(rel)
     shipped.set(rel, contents)
   }
 
@@ -125,7 +129,12 @@ export function buildPayload({
     const stale = []
     for (const [rel, contents] of shipped) {
       const target = path.join(payloadRoot, 'files', rel)
-      if (!fs.existsSync(target) || fs.readFileSync(target, 'utf8') !== contents) stale.push(rel)
+      const same =
+        fs.existsSync(target) &&
+        (Buffer.isBuffer(contents)
+          ? fs.readFileSync(target).equals(contents)
+          : fs.readFileSync(target, 'utf8') === contents)
+      if (!same) stale.push(rel)
     }
     if (!fs.existsSync(indexPath) || fs.readFileSync(indexPath, 'utf8') !== serialized) {
       stale.push('payload/index.json')

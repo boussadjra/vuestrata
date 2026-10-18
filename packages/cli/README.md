@@ -106,6 +106,11 @@ to open one has somewhere else to go:
 
 Those files are yours from the moment you clone; nothing upstream writes to them.
 
+The default branding's companion fonts and their licenses under
+`src/modules/app/assets/fonts/brand/` are seeded too. The CLI packages and writes
+them as raw bytes. Existing files are preserved, and tracked files you delete
+stay deleted; changing the default identity never replaces a project's branding.
+
 ## Moving things
 
 The CLI addresses files by _slot_ — `moduleRegistry`, `uiComponents`,

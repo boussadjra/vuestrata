@@ -8,8 +8,8 @@ import {
   classify,
   collectDocs,
   collectManaged,
+  collectSeeded,
   PROJECT_REGISTRIES,
-  SEEDED_FILES,
 } from '../../packages/cli/src/lib/managed.mjs'
 import { loadManifest, slot } from '../../packages/cli/src/lib/manifest.mjs'
 import {
@@ -118,8 +118,7 @@ export function templateLockProblems({
     if (record.hash !== actual) problems.push(`${rel} has changed since it was recorded`)
   }
 
-  for (const rel of SEEDED_FILES) {
-    if (!fs.existsSync(path.join(root, rel))) continue
+  for (const rel of collectSeeded(root)) {
     if (!lock.files[rel]) problems.push(`${rel} is a seam but not tracked`)
     tracked.delete(rel)
   }

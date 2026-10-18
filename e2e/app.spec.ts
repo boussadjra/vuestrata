@@ -16,7 +16,7 @@ test.describe('Home page', () => {
   test('should display the hero section', async ({ page }) => {
     await gotoReady(page)
     await expect(page.locator('h1')).toBeVisible()
-    await expect(page.locator('h1')).toContainText('production')
+    await expect(page.locator('h1')).toContainText('Build with purpose.')
   })
 
   test('should navigate to component docs', async ({ page }) => {

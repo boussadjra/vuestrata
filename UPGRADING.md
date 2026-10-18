@@ -67,6 +67,12 @@ yours from the start. `upgrade` writes it only if you have none: a file already
 at that path is adopted as yours, and one you deleted after it arrived stays
 deleted. (`doctor` reports that, because Vuestrata's own code imports the seam.)
 
+Companion assets follow the same rule. The default identity's local fonts and
+licenses under `src/modules/app/assets/fonts/brand/` are packaged and copied as
+raw bytes, then belong to the project. An upgrade keeps an existing `brand.css`,
+custom font files and tracked deletions; it does not apply a new visual identity
+to an existing application.
+
 ### Files that change hands
 
 A release can also move a file you have owned until now into Vuestrata's care,

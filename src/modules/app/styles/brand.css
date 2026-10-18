@@ -1,54 +1,312 @@
 /*
- * ─────────────────────────────────────────────────────────────────────────────
- * This file is yours. Vuestrata never modifies it.
- * ─────────────────────────────────────────────────────────────────────────────
+ * The project's branding seam, preserved by `vuestrata upgrade`.
  *
- * `semantic.css` is replaced wholesale by `vuestrata upgrade`, so editing it
- * means either losing your brand on the next upgrade or blocking the upgrade
- * that would have replaced it. Put brand overrides here instead: app.css
- * imports this file last, so anything declared here wins.
- *
- * It ships empty on purpose. An empty override file costs one HTTP-free import
- * and is the difference between "change this one value" and "fork the token
- * layer", which is the moment a project stops being able to take upstream fixes.
- *
- * ── What belongs here ──────────────────────────────────────────────────────
- *
- * Overriding a semantic token, in both colour modes:
- *
- *     :root {
- *       --color-primary-700: #0b5fff;
- *       --radius-card: 0.25rem;
- *     }
- *
- *     :root.dark {
- *       --color-primary-700: #4d8bff;
- *     }
- *
- * Overriding one token for one theme only — the theme class is on the same
- * element, so add it to the selector rather than editing the theme file:
- *
- *     :root.theme-ocean {
- *       --color-accent-500: #00b4d8;
- *     }
- *
- * Redefining a component recipe's shared surface, when a whole family should
- * change rather than a single component:
- *
- *     :root {
- *       --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06);
- *     }
- *
- * ── What does not belong here ──────────────────────────────────────────────
- *
- * Raw palette values applied to elements (`.my-button { background: #f00 }`).
- * The `no-raw-palette` rule exists because a hard-coded colour ignores the
- * active theme and needs a hand-written `dark:` twin. Override the token, not
- * the element.
- *
- * A whole new theme. Themes are four ramps in both colour modes and are wired
- * into four files; `vpr gen:theme <name>` writes all of them.
- * See docs/9.recipes/3.add-a-theme.md.
- *
- * The full token reference is in src/modules/app/styles/semantic.css.
+ * Default identity: midnight navy, fired copper, warm paper. Rules are scoped
+ * to the absence of a theme-* class so other personalities stay independent.
+ * Fonts are bundled under ../assets/fonts/brand/ with their OFL licenses.
+ * Private family names keep other themes' font loading unchanged.
  */
+@font-face {
+  font-family: 'Vuestrata Newsreader';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/newsreader-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Vuestrata Newsreader';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/newsreader-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Vuestrata Newsreader';
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/newsreader-italic-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Vuestrata Newsreader';
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/newsreader-italic-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Vuestrata Jakarta';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/jakarta-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Vuestrata Jakarta';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/jakarta-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Vuestrata Tajawal';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/brand/tajawal-arabic-400.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF,
+    U+FE70-FEFC, U+102E0-102FB, U+10E60-10EFF, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'Vuestrata Tajawal';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/brand/tajawal-arabic-500.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF,
+    U+FE70-FEFC, U+102E0-102FB, U+10E60-10EFF, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'Vuestrata Tajawal';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/tajawal-arabic-700.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF,
+    U+FE70-FEFC, U+102E0-102FB, U+10E60-10EFF, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'Vuestrata Naskh';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/naskh-arabic.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF,
+    U+FE70-FEFC, U+102E0-102FB, U+10E60-10EFF, U+1EE00-1EEFF;
+}
+
+:root:not([class*='theme-']) {
+  /* Navy: structural ink and primary controls. */
+  --color-primary-50: #eef3f8;
+  --color-primary-100: #dce5f0;
+  --color-primary-200: #bbccdf;
+  --color-primary-300: #8da9c8;
+  --color-primary-400: #5c84ae;
+  --color-primary-500: #315f8e;
+  --color-primary-600: #214c79;
+  --color-primary-700: #133a64;
+  --color-primary-800: #0a2a50;
+  --color-primary-900: #031b38;
+  --color-primary-950: #021226;
+
+  /* Warm stone: secondary context. */
+  --color-secondary-50: #f8f5ed;
+  --color-secondary-100: #eee7d8;
+  --color-secondary-200: #daceb8;
+  --color-secondary-300: #c4b293;
+  --color-secondary-400: #ab946d;
+  --color-secondary-500: #8b744e;
+  --color-secondary-600: #715c3c;
+  --color-secondary-700: #594830;
+  --color-secondary-800: #443725;
+  --color-secondary-900: #332a1e;
+  --color-secondary-950: #211b13;
+
+  /* Exact copper 500 is a large mark; 600 carries small text on paper. */
+  --color-accent-50: #fcf0e9;
+  --color-accent-100: #f8ddcc;
+  --color-accent-200: #f0ba9b;
+  --color-accent-300: #e78d61;
+  --color-accent-400: #df6a34;
+  --color-accent-500: #cf4c18;
+  --color-accent-600: #b23d15;
+  --color-accent-700: #963510;
+  --color-accent-800: #752c12;
+  --color-accent-900: #54210f;
+  --color-accent-950: #311407;
+
+  /* Keep 50 light and 950 dark in both modes. */
+  --color-surface-50: #f3efe3;
+  --color-surface-100: #eae4d6;
+  --color-surface-200: #d8d1c2;
+  --color-surface-300: #bcb8ae;
+  --color-surface-400: #94968f;
+  --color-surface-500: #747d82;
+  --color-surface-600: #55616b;
+  --color-surface-700: #374956;
+  --color-surface-800: #1d3549;
+  --color-surface-900: #031b38;
+  --color-surface-950: #021326;
+
+  --color-background: var(--color-surface-50);
+  --color-card: #faf7ef;
+  --color-elevated: #fdfaf2;
+  --color-muted: var(--color-surface-100);
+  --color-foreground: var(--color-surface-900);
+  --color-muted-foreground: var(--color-surface-600);
+  --color-primary-solid: var(--color-primary-900);
+  --color-primary-solid-hover: var(--color-primary-800);
+  --color-primary-foreground: var(--color-surface-50);
+  --color-link: var(--color-accent-600);
+  --color-link-hover: var(--color-accent-700);
+  --color-ring: var(--color-accent-600);
+  --color-border: var(--color-surface-200);
+  --color-border-strong: var(--color-surface-300);
+  --color-input: var(--color-surface-500);
+  --color-sidebar: var(--color-surface-50);
+  --color-sidebar-foreground: var(--color-surface-700);
+  --color-sidebar-accent: var(--color-primary-100);
+  --color-sidebar-accent-foreground: var(--color-primary-900);
+  --color-sidebar-border: var(--color-surface-200);
+
+  --color-chart-1: var(--color-primary-600);
+  --color-chart-2: var(--color-accent-500);
+  --color-chart-3: var(--color-info-600);
+  --color-chart-4: var(--color-warning-500);
+  --color-chart-5: var(--color-secondary-600);
+  --color-chart-6: var(--color-success-600);
+  --color-chart-7: var(--color-primary-300);
+  --color-chart-8: var(--color-accent-800);
+
+  /* Feature surfaces supply semantic fallbacks when another theme is active. */
+  --color-spotlight: var(--color-primary-900);
+  --color-spotlight-foreground: var(--color-surface-50);
+  --color-spotlight-muted: var(--color-primary-200);
+  --color-spotlight-accent: var(--color-accent-500);
+  --color-spotlight-link: var(--color-accent-300);
+
+  --font-sans:
+    'Vuestrata Jakarta', 'Vuestrata Tajawal', 'Tajawal', 'Cairo', 'Segoe UI', ui-sans-serif,
+    system-ui, sans-serif;
+  --font-display: 'Vuestrata Newsreader', 'Vuestrata Naskh', 'Tajawal', Georgia, ui-serif, serif;
+
+  --shadow-soft: 0 1px 2px color-mix(in oklch, var(--color-primary-900) 5%, transparent);
+  --shadow-card: 0 1px 2px color-mix(in oklch, var(--color-primary-900) 4%, transparent);
+  --shadow-card-hover: 0 12px 30px -16px
+    color-mix(in oklch, var(--color-primary-900) 18%, transparent);
+  --shadow-elevated: 0 18px 42px -20px
+    color-mix(in oklch, var(--color-primary-900) 22%, transparent);
+  --shadow-glow-primary: none;
+  --shadow-glow-secondary: none;
+  --shadow-glow-accent: none;
+}
+
+:root.dark:not([class*='theme-']) {
+  --color-background: var(--color-surface-950);
+  --color-card: #0b2540;
+  --color-elevated: #17354f;
+  --color-muted: #17354f;
+  --color-foreground: var(--color-surface-50);
+  --color-muted-foreground: #b8c6d5;
+  --color-subtle-foreground: #8da1b5;
+  --color-primary-solid: var(--color-surface-50);
+  --color-primary-solid-hover: #e1d9c9;
+  --color-primary-foreground: var(--color-primary-900);
+  --color-link: var(--color-accent-300);
+  --color-link-hover: var(--color-accent-200);
+  --color-ring: var(--color-accent-400);
+  --color-border: #314b61;
+  --color-border-strong: #567188;
+  --color-input: #567188;
+  --color-sidebar: var(--color-primary-900);
+  --color-sidebar-foreground: var(--color-primary-100);
+  --color-sidebar-accent: #27435c;
+  --color-sidebar-accent-foreground: var(--color-surface-50);
+  --color-sidebar-border: #314b61;
+
+  --color-chart-1: var(--color-primary-300);
+  --color-chart-2: var(--color-accent-300);
+  --color-chart-3: var(--color-info-300);
+  --color-chart-4: var(--color-warning-400);
+  --color-chart-5: var(--color-secondary-300);
+  --color-chart-6: var(--color-success-400);
+  --color-chart-7: var(--color-primary-100);
+  --color-chart-8: var(--color-accent-600);
+}
+
+/* Both radius scales preserve explicit user preferences. */
+:root:not([class*='theme-']):not([class*='shape-radius-']) {
+  --radius-sm: 0.1875rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --shape-radius: 0.5rem;
+  --shape-radius-sm: 0.375rem;
+  --shape-radius-lg: 0.75rem;
+  --shape-radius-xl: 1rem;
+}
+
+:root:not([class*='theme-']) body {
+  color: var(--color-foreground);
+  background-color: var(--color-background);
+  background-image: none;
+  font-kerning: normal;
+}
+
+:root:not([class*='theme-']) :is(h1, h2) {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+:root:not([class*='theme-'])[dir='rtl'] :is(h1, h2) {
+  letter-spacing: normal;
+  line-height: 1.5;
+}
+
+:root:not([class*='theme-']) :is(button, input, select, textarea, [role='combobox'], table) {
+  font-family: var(--font-sans);
+}
+
+:root:not([class*='theme-']) :is(table, [data-ui='numberfield']) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The existing button recipe exposes this stable theme hook. */
+:root:not([class*='theme-']) [data-ui='button'][data-variant='primary'] {
+  color: var(--color-primary-foreground);
+  background-color: var(--color-primary-solid);
+}
+
+:root:not([class*='theme-']) [data-ui='button'][data-variant='primary']:is(:hover, :active) {
+  background-color: var(--color-primary-solid-hover);
+}
+
+/* Owned screens opt in; other themes use their display face or their own sans. */
+.font-display {
+  font-family: var(--font-display, var(--font-sans));
+  font-optical-sizing: auto;
+}

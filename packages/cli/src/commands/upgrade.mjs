@@ -204,14 +204,18 @@ function syncSeeded({ source, ws, lock, report, target }) {
 
     // Already here but untracked: the project wrote its own, which is the point
     // of a seam. Record it; do not replace it.
-    const current = ws.tryRead(rel)
-    if (current !== undefined) {
-      lock.files[rel] = createRecord(rel, current, 'seeded', target)
+    if (ws.exists(rel)) {
+      lock.files[rel] = createRecord(rel, '', 'seeded', target)
       report.adopted.push({ rel, class: 'seeded', reason: 'already here' })
       continue
     }
 
-    const contents = source.read(rel)
+    // Text-only payload providers remain supported; bundled providers preserve
+    // the exact bytes of companion fonts and licenses as well as text seams.
+    if (source.assets?.includes(rel) && !source.readBytes) {
+      throw new Error(`Payload asset ${rel} requires a byte-preserving readBytes provider.`)
+    }
+    const contents = source.readBytes ? source.readBytes(rel) : source.read(rel)
     ws.write(rel, contents)
     lock.files[rel] = createRecord(rel, contents, 'seeded', target)
     report.written.push({ rel, reason: 'seeded' })

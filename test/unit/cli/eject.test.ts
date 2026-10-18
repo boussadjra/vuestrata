@@ -1035,11 +1035,70 @@ describe('eject and the package.json scripts', () => {
 describe('eject and the home route', () => {
   const HOME = 'src/modules/app/pages/index.vue'
 
+  it('removes the redesigned marketing experience and redirects its thin home route', () => {
+    fixture.write(HOME, real(HOME))
+    fixture.write(
+      'src/modules/app/components/home/HomeExperience.vue',
+      '<template><a href="/docs">Template documentation</a></template>\n',
+    )
+    fixture.write('e2e/app.spec.ts', real('e2e/app.spec.ts'))
+    fixture.write('e2e/brand-redesign.spec.ts', real('e2e/brand-redesign.spec.ts'))
+    eject()
+
+    expect(fixture.exists('src/modules/app/components/home')).toBe(false)
+    expect(fixture.exists('e2e/brand-redesign.spec.ts')).toBe(false)
+    expect(fixture.read(HOME)).toContain("router.replace('/dashboard')")
+    expect(fixture.read('e2e/app.spec.ts')).not.toContain("test.describe('Home page'")
+    expect(readLock(fixture.project).ejected).toContain(
+      'src/modules/app/components/home/HomeExperience.vue',
+    )
+  })
+
+  it('keeps project account tests added beside the redesigned home cases', () => {
+    const browserSpec = 'e2e/brand-redesign.spec.ts'
+    const ownTest = `test('account preferences remain available', async ({ page }) => {
+  await page.goto('/dashboard/account')
+  await expect(page.getByRole('heading', { name: 'Account' })).toBeVisible()
+})
+`
+    fixture.write(HOME, real(HOME))
+    fixture.write(
+      'src/modules/app/components/home/HomeExperience.vue',
+      '<template><a href="/docs">Template documentation</a></template>\n',
+    )
+    fixture.write(browserSpec, `${real(browserSpec)}\n${ownTest}`)
+    eject()
+
+    expect(fixture.exists(browserSpec)).toBe(true)
+    const retained = fixture.read(browserSpec)
+    expect(retained).toContain(ownTest.trim())
+    expect(retained).not.toMatch(/\btest(?:\.describe)?\(\s*['"`]Home page/i)
+    expect(retained).not.toContain("page.goto('/')")
+    expect(fixture.read(HOME)).toContain("router.replace('/dashboard')")
+
+    const after = snapshot(fixture.project)
+    eject()
+    expect(snapshot(fixture.project)).toEqual(after)
+  })
+
+  it('redirects the redesigned thin home route after its marketing directory was deleted', () => {
+    fixture.write(HOME, real(HOME))
+    fixture.write('e2e/brand-redesign.spec.ts', real('e2e/brand-redesign.spec.ts'))
+    expect(fixture.exists('src/modules/app/components/home')).toBe(false)
+    eject()
+
+    expect(fixture.read(HOME)).toContain("router.replace('/dashboard')")
+    expect(fixture.read(HOME)).not.toContain('HomeExperience')
+    expect(fixture.exists('e2e/brand-redesign.spec.ts')).toBe(false)
+  })
+
   it('leaves a landing page the project already wrote', () => {
     const own = '<template><MyLanding /></template>\n'
     fixture.write(HOME, own)
+    fixture.write('e2e/brand-redesign.spec.ts', real('e2e/brand-redesign.spec.ts'))
     eject()
     expect(fixture.read(HOME)).toBe(own)
+    expect(fixture.exists('e2e/brand-redesign.spec.ts')).toBe(true)
   })
 
   it('is a clean no-op on a project that was already ejected', () => {

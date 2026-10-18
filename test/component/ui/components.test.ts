@@ -91,12 +91,12 @@ describe('Logo', () => {
   it('should hide the wordmark in icon variant', () => {
     const wrapper = mount(Logo, { props: { variant: 'icon' } })
     expect(wrapper.find('#logo-text').exists()).toBe(false)
-    expect(wrapper.find('svg').attributes('viewBox')).toBe('0 0 1580 1600')
+    expect(wrapper.find('svg').attributes('viewBox')).toBe('0 0 64 64')
   })
 
   it('should show the wordmark in full variant', () => {
     const wrapper = mount(Logo, { props: { variant: 'full' } })
     expect(wrapper.find('#logo-text').exists()).toBe(true)
-    expect(wrapper.find('svg').attributes('viewBox')).toBe('0 0 5745 1600')
+    expect(wrapper.find('svg').attributes('viewBox')).toBe('0 0 248 64')
   })
 })

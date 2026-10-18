@@ -143,6 +143,14 @@ export const SEEDED_FILES = [
   'src/modules/app/locales/ar.overrides.json',
 ]
 
+/** Companion assets for seeded seams, copied once without decoding their bytes. */
+export const SEEDED_ASSET_DIRS = ['src/modules/app/assets/fonts/brand']
+
+export function isSeededAsset(rel) {
+  const normalized = rel.replaceAll('\\', '/')
+  return SEEDED_ASSET_DIRS.some((dir) => normalized.startsWith(`${dir}/`))
+}
+
 /**
  * Registries the project owns outright, except for their `vuestrata:` region,
  * which an upgrade appends to and never rewrites. Every anchored registry that
@@ -172,7 +180,7 @@ export function classify(rel) {
 
   if (EXCLUDE.some((pattern) => pattern.test(normalized))) return null
   if (MERGED_FILES.includes(normalized)) return 'merged'
-  if (SEEDED_FILES.includes(normalized)) return 'seeded'
+  if (SEEDED_FILES.includes(normalized) || isSeededAsset(normalized)) return 'seeded'
   if (MANAGED_FILES.includes(normalized)) return 'managed'
   if (MANAGED_DIRS.some((dir) => normalized.startsWith(`${dir}/`))) return 'managed'
   return null
@@ -194,9 +202,10 @@ export function collectManaged(root) {
 
 /** Every seeded path that exists under `root`, sorted. */
 export function collectSeeded(root) {
-  return SEEDED_FILES.filter((rel) => fs.existsSync(path.join(root, rel))).sort((a, b) =>
-    a.localeCompare(b),
-  )
+  return [
+    ...SEEDED_FILES.filter((rel) => fs.existsSync(path.join(root, rel))),
+    ...SEEDED_ASSET_DIRS.flatMap((dir) => walk(root, dir)),
+  ].sort((a, b) => a.localeCompare(b))
 }
 
 /**

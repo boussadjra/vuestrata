@@ -46,6 +46,66 @@
       "hash": "sha256-2791ec8521ed1f935753071d1abb23e106ba6f198c7c2c28b0da62599aa2af19",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/app/assets/fonts/brand/jakarta-latin-ext.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/jakarta-latin.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/naskh-arabic.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/newsreader-italic-latin-ext.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/newsreader-italic-latin.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/newsreader-latin-ext.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/newsreader-latin.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/OFL-Newsreader.txt": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/OFL-Noto-Naskh-Arabic.txt": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/OFL-Plus-Jakarta-Sans.txt": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/OFL-Tajawal.txt": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/README.md": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/tajawal-arabic-400.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/tajawal-arabic-500.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/tajawal-arabic-700.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/app/bootstrap/app-env.ts": {
       "class": "managed",
       "hash": "sha256-cd11ff9f2e3f8ec0e3479c68dc30c42c08e9cc34aafdb48e4eae40902ae111b1",

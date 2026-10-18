@@ -8,6 +8,8 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 
 ### Added
 
+- The CLI packages default-brand fonts and their OFL licenses as seeded
+  companion assets, preserving their exact bytes through packaging and upgrade.
 - Forms await asynchronous saves, map backend validation errors to fields,
   localise schema messages in English, French and Arabic, and expose defaults,
   reset and dirty state. The customer example and module generator use the same
@@ -27,6 +29,8 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 
 ### Fixed
 
+- `eject` recognizes the redesigned marketing home directory and replaces its
+  thin route when removing the template examples.
 - CI and release checks generate route and auto-import declarations before
   type-aware validation in a fresh checkout. Deployment installers use the same
   Vite+ 0.3.0 toolchain as the merged dependency lock.
@@ -62,6 +66,8 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 
 **Handled by `vuestrata upgrade`**
 
+- New default-brand companion assets are written once. Existing font files,
+  branding seams and tracked deletions stay under the project's ownership.
 - Updated managed forms, authentication and RBAC infrastructure, and new files.
 - Guarded changes to shipped adapter types and route-guard inputs. Edited files
   are kept and receive migration notes or incoming copies for manual merging.

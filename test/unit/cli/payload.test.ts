@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -29,6 +30,8 @@ const { MERGED_FILES, SEEDED_FILES } = managed
 
 const FLAGS = { 'allow-dirty': true, 'no-format': true }
 const BARREL = 'src/modules/app/components/ui/index.ts'
+const BRAND = 'src/modules/app/styles/brand.css'
+const BRAND_ASSETS = 'src/modules/app/assets/fonts/brand'
 
 let fixture: Fixture
 
@@ -53,9 +56,11 @@ describe.skipIf(!CLI_PRESENT)('createPayloadSource', () => {
     expect(source.seeded).toEqual({})
     expect(source.merged).toEqual({})
     expect(source.regions).toEqual({})
+    expect(source.assets).toEqual([])
     expect(source.classOf('src/ui/Button.vue')).toBe('managed')
     expect(source.read('src/ui/Button.vue')).toBe('v1\n')
     expect(source.hash('src/ui/Button.vue')).toBe(hash('v1\n'))
+    expect(source.readBytes('src/ui/Button.vue')).toEqual(Buffer.from('v1\n'))
   })
 
   it('reads a v2 index, classes and regions included', () => {
@@ -68,6 +73,7 @@ describe.skipIf(!CLI_PRESENT)('createPayloadSource', () => {
     })
 
     expect(source.format).toBe(2)
+    expect(source.assets).toEqual([])
     expect(source.classOf('src/ui/Button.vue')).toBe('managed')
     expect(source.classOf(BARREL)).toBe('merged')
     expect(source.classOf('src/brand.css')).toBe('seeded')
@@ -80,6 +86,53 @@ describe.skipIf(!CLI_PRESENT)('createPayloadSource', () => {
 
   it('is undefined when the package was built without a payload', () => {
     expect(createPayloadSource(path.join(fixture.payload, 'missing'))).toBeUndefined()
+  })
+
+  it('upgrades a seeded text file from a provider without readBytes', () => {
+    const contents = ':root { --brand: hotpink }\r\n'
+    const source = writePayload(fixture.payload, {
+      version: '1.1.0',
+      seeded: { [BRAND]: contents },
+    })
+    expect(source.read(BRAND)).toBe(contents)
+    expect(source.hash(BRAND)).toBe(hash(contents))
+    writeLock(fixture.project, emptyLock('1.0.0'))
+
+    runUpgrade({
+      root: fixture.project,
+      version: source.version,
+      flags: FLAGS,
+      apply: true,
+      source: { ...source, readBytes: undefined },
+      migrations: [],
+    })
+
+    expect(fixture.read(BRAND)).toBe(contents)
+    expect(readLock(fixture.project).files[BRAND]).toEqual({ class: 'seeded', since: '1.1.0' })
+  })
+
+  it('refuses an asset provider without readBytes before changing the project', () => {
+    const font = `${BRAND_ASSETS}/synthetic.woff2`
+    const source = writePayload(fixture.payload, {
+      version: '1.1.0',
+      seeded: { [font]: 'A text reader cannot preserve arbitrary font bytes.' },
+    })
+    writeLock(fixture.project, emptyLock('1.0.0'))
+    const initialLock = fixture.read('vuestrata.lock.json')
+
+    expect(() =>
+      runUpgrade({
+        root: fixture.project,
+        version: source.version,
+        flags: FLAGS,
+        apply: true,
+        source: { ...source, assets: [font], readBytes: undefined },
+        migrations: [],
+      }),
+    ).toThrow(`Payload asset ${font} requires a byte-preserving readBytes provider.`)
+
+    expect(fixture.exists(font)).toBe(false)
+    expect(fixture.read('vuestrata.lock.json')).toBe(initialLock)
   })
 })
 
@@ -148,6 +201,23 @@ describe.skipIf(!CLI_PRESENT || !MAINTAINER)('build-payload', () => {
     fs.rmSync(out, { recursive: true, force: true })
   })
 
+  // Exercise the real brand's upgrade path without installing unrelated managed
+  // files; those have their own upgrade suite and add hundreds of disk writes.
+  const brandUpgradeSource = () => {
+    const source = createPayloadSource(out)
+    return {
+      ...source,
+      files: {},
+      merged: {},
+      regions: {},
+      seeded: Object.fromEntries(
+        Object.entries(source.seeded).filter(
+          ([rel]) => rel === BRAND || source.assets.includes(rel),
+        ),
+      ),
+    }
+  }
+
   it('writes a v2 index that classes every file the way the lists do', () => {
     const result = buildPayload({ repoRoot: process.cwd(), payloadRoot: out })
     expect(result.problems).toEqual([])
@@ -211,6 +281,175 @@ describe.skipIf(!CLI_PRESENT || !MAINTAINER)('build-payload', () => {
     expect(result.ok).toBe(false)
     expect(result.stale).toContain(SEEDED_FILES[0])
     expect(result.stale).toContain('orphan.ts (no longer in the repository)')
+  })
+
+  it('ships every local brand font and its licenses as byte-identical seeded companions', () => {
+    const result = buildPayload({ repoRoot: process.cwd(), payloadRoot: out })
+    expect(result.ok).toBe(true)
+    const source = createPayloadSource(out)
+    const assets = fs
+      .readdirSync(path.join(process.cwd(), BRAND_ASSETS))
+      .map((name) => `${BRAND_ASSETS}/${name}`)
+      .sort()
+    const fontReferences = [...source.read(BRAND).matchAll(/url\(['"]([^'"]+\.woff2)['"]\)/g)].map(
+      ([, url]) => path.posix.normalize(path.posix.join(path.posix.dirname(BRAND), url!)),
+    )
+
+    expect(fontReferences).toHaveLength(10)
+    expect(assets.filter((rel) => rel.endsWith('.woff2')).sort()).toEqual(
+      [...fontReferences].sort(),
+    )
+    expect(assets).toEqual(
+      expect.arrayContaining(
+        [
+          'OFL-Newsreader.txt',
+          'OFL-Noto-Naskh-Arabic.txt',
+          'OFL-Plus-Jakarta-Sans.txt',
+          'OFL-Tajawal.txt',
+          'README.md',
+        ].map((name) => `${BRAND_ASSETS}/${name}`),
+      ),
+    )
+    expect([...(source.assets as string[])].sort()).toEqual(assets)
+
+    for (const rel of assets) {
+      const original = fs.readFileSync(path.join(process.cwd(), rel))
+      const expectedHash = `sha256-${crypto.createHash('sha256').update(original).digest('hex')}`
+      expect(source.classOf(rel), rel).toBe('seeded')
+      expect(source.readBytes(rel).equals(original), rel).toBe(true)
+      expect(source.seeded[rel], rel).toBe(expectedHash)
+      expect(source.hash(rel), rel).toBe(expectedHash)
+      if (rel.endsWith('.woff2')) {
+        // A text round trip loses real font bytes; this is not an ASCII fixture.
+        expect(Buffer.from(original.toString('utf8')).equals(original), rel).toBe(false)
+      }
+    }
+  })
+
+  it('previews and installs real brand bytes, then remains idempotent', () => {
+    expect(buildPayload({ repoRoot: process.cwd(), payloadRoot: out }).ok).toBe(true)
+    const source = brandUpgradeSource()
+    writeLock(fixture.project, emptyLock('1.0.0'))
+    const initialLock = fixture.read('vuestrata.lock.json')
+    const upgrade = (apply: boolean) =>
+      runUpgrade({
+        root: fixture.project,
+        version: source.version,
+        flags: FLAGS,
+        apply,
+        source,
+        migrations: [],
+      })
+
+    const preview = upgrade(false)
+    expect(fixture.read('vuestrata.lock.json')).toBe(initialLock)
+    expect(fixture.exists(BRAND)).toBe(false)
+    for (const rel of source.assets as string[]) {
+      expect(fixture.exists(rel), rel).toBe(false)
+      expect(preview.written).toContainEqual({ rel, reason: 'seeded' })
+    }
+
+    const applied = upgrade(true)
+    expect(applied.written).toEqual(preview.written)
+    expect(fixture.read(BRAND)).toBe(source.read(BRAND))
+    const lock = readLock(fixture.project)
+    for (const rel of source.assets as string[]) {
+      expect(
+        fs
+          .readFileSync(path.join(fixture.project, rel))
+          .equals(fs.readFileSync(path.join(process.cwd(), rel))),
+        rel,
+      ).toBe(true)
+      expect(lock.files[rel], rel).toEqual({ class: 'seeded', since: source.version })
+    }
+
+    const installedLock = fixture.read('vuestrata.lock.json')
+    const repeated = upgrade(true)
+    expect(repeated.written).toEqual([])
+    expect(repeated.adopted).toEqual([])
+    expect(repeated.regions).toEqual([])
+    expect(fixture.read('vuestrata.lock.json')).toBe(installedLock)
+    for (const rel of source.assets as string[]) {
+      expect(
+        fs.readFileSync(path.join(fixture.project, rel)).equals(source.readBytes(rel)),
+        rel,
+      ).toBe(true)
+    }
+  })
+
+  it('preserves project branding and font bytes, including tracked deletion and ejection', () => {
+    expect(buildPayload({ repoRoot: process.cwd(), payloadRoot: out }).ok).toBe(true)
+    const source = brandUpgradeSource()
+    const fonts = (source.assets as string[]).filter((rel) => rel.endsWith('.woff2'))
+    expect(fonts.length).toBeGreaterThanOrEqual(3)
+    const [custom, deleted, ejected] = fonts as [string, string, string, ...string[]]
+    const ownBrand = ':root { --font-sans: Project Sans }\n'
+    const ownFont = Buffer.from([0x77, 0x4f, 0x46, 0x32, 0xff, 0x0d, 0x0a, 0x80])
+    fixture.write(BRAND, ownBrand)
+    fs.mkdirSync(path.dirname(path.join(fixture.project, custom)), { recursive: true })
+    fs.writeFileSync(path.join(fixture.project, custom), ownFont)
+    const lock = emptyLock('1.0.0')
+    lock.files[deleted] = { class: 'seeded', since: '1.0.0' }
+    lock.ejected = [ejected]
+    writeLock(fixture.project, lock)
+    const upgrade = () =>
+      runUpgrade({
+        root: fixture.project,
+        version: source.version,
+        flags: FLAGS,
+        apply: true,
+        source,
+        migrations: [],
+      })
+
+    const first = upgrade()
+    expect(first.adopted).toEqual(
+      expect.arrayContaining([
+        { rel: BRAND, class: 'seeded', reason: 'already here' },
+        { rel: custom, class: 'seeded', reason: 'already here' },
+      ]),
+    )
+    expect(fixture.read(BRAND)).toBe(ownBrand)
+    expect(fs.readFileSync(path.join(fixture.project, custom))).toEqual(ownFont)
+    expect(fixture.exists(deleted)).toBe(false)
+    expect(fixture.exists(ejected)).toBe(false)
+
+    const editedBrand = `${ownBrand}/* Project changes after installation. */\n`
+    const editedFont = Buffer.from([0x00, 0xfe, 0x0d, 0x0a, 0xff])
+    fixture.write(BRAND, editedBrand)
+    fs.writeFileSync(path.join(fixture.project, custom), editedFont)
+    const repeated = upgrade()
+    expect(repeated.written).toEqual([])
+    expect(repeated.incoming).toEqual([])
+    expect(fixture.read(BRAND)).toBe(editedBrand)
+    expect(fs.readFileSync(path.join(fixture.project, custom))).toEqual(editedFont)
+    expect(fixture.exists(deleted)).toBe(false)
+    expect(fixture.exists(ejected)).toBe(false)
+    expect(readLock(fixture.project).files[custom]).toEqual({
+      class: 'seeded',
+      since: source.version,
+    })
+  })
+
+  it('detects same-length font tampering even when UTF-8 decoding hides the changed byte', () => {
+    expect(buildPayload({ repoRoot: process.cwd(), payloadRoot: out }).ok).toBe(true)
+    const source = createPayloadSource(out)
+    const font = (source.assets as string[]).find((rel) => rel.endsWith('.woff2'))!
+    const original = source.readBytes(font) as Buffer
+    const offset = original.indexOf(0xff)
+    expect(offset).toBeGreaterThanOrEqual(0)
+    const tampered = Buffer.from(original)
+    // FF and FE are both invalid UTF-8 bytes and decode to the same replacement.
+    tampered[offset] = 0xfe
+    expect(tampered.equals(original)).toBe(false)
+    expect(tampered.length).toBe(original.length)
+    expect(tampered.toString('utf8')).toBe(original.toString('utf8'))
+    fs.writeFileSync(path.join(out, 'files', font), tampered)
+
+    expect(source.hash(font)).not.toBe(source.seeded[font])
+    const result = buildPayload({ repoRoot: process.cwd(), payloadRoot: out, check: true })
+    expect(result.ok).toBe(false)
+    expect(result.stale).toEqual([font])
   })
 })
 

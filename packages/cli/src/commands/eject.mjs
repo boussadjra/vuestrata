@@ -61,6 +61,7 @@ const DEMO_PATHS = [
   { path: 'src/modules/app/pages/components.vue', reason: 'showcase layout route' },
   { path: 'src/modules/app/components/docs', reason: 'documentation components' },
   { path: 'src/modules/app/components/layout/home', reason: 'marketing home sections' },
+  { path: 'src/modules/app/components/home', reason: 'marketing home experience' },
   { path: 'src/modules/app/layouts/docs.vue', reason: 'documentation layout' },
   { path: 'src/modules/app/layouts/components.vue', reason: 'showcase layout' },
   { path: 'src/modules/app/config/comark.ts', reason: 'markdown pipeline config' },
@@ -100,7 +101,7 @@ const MAINTAINER_PATHS = [
 const REFERENCE_MODULE = 'customers'
 
 const HOME_PAGE = 'src/modules/app/pages/index.vue'
-const HOME_SECTIONS = 'src/modules/app/components/layout/home'
+const HOME_SECTIONS = ['src/modules/app/components/layout/home', 'src/modules/app/components/home']
 const ROUTER_FILE = 'src/modules/app/plugins/router.ts'
 const NOT_FOUND_PAGE = 'src/modules/app/pages/[...notfound].vue'
 const PALETTE_RULE = 'scripts/lint/plugins/no-raw-palette.plugin.mjs'
@@ -237,7 +238,7 @@ export function planEject({ root, manifest, flags, source }) {
   // project that already wrote its own landing page, or that ran eject before,
   // keeps the page, and with it the specs that test it.
   const homeReplaced = importsRemoved(root, HOME_PAGE, manifest, [
-    HOME_SECTIONS,
+    ...HOME_SECTIONS,
     ...removals.map((entry) => entry.path),
   ])
 
