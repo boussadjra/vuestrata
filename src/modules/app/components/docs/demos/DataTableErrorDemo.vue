@@ -15,7 +15,7 @@ const columns = [
 const { table } = useDataTable({
   data: teamMembers,
   columns,
-  getRowId: (row) => row.id,
+  rowKey: (row) => row.id,
 })
 
 function retry(): void {

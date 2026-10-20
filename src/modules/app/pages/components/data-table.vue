@@ -31,14 +31,10 @@ const playgroundColumns = [
 const { table: playgroundTable } = useDataTable({
   data: teamMembers,
   columns: playgroundColumns,
-  enableFiltering: true,
-  enablePagination: true,
-  enableRowSelection: true,
-  enableColumnVisibility: true,
-  enableExpanding: true,
-  pageSize: 5,
-  getRowId: (row) => row.id,
-  getRowCanExpand: (row) => Boolean(row.original.notes),
+  selectionMode: 'multiple',
+  initialState: { pagination: { page: 1, pageSize: 5 } },
+  rowKey: 'id',
+  getRowCanExpand: (row) => Boolean(row.notes),
 })
 
 const propDefs: PropDef[] = [
@@ -71,38 +67,47 @@ const columns = [
 const { table } = useDataTable({
   data: rows,
   columns,
-  enableFiltering: true,
-  enablePagination: true,
-  enableRowSelection: true,
-  enableColumnVisibility: true,
-  enableExpanding: true,
-  getRowCanExpand: (row) => Boolean(row.original.notes),
+  selectionMode: 'multiple',
+  rowKey: 'id',
+  getRowCanExpand: (row) => Boolean(row.notes),
 })
 
 // <UiDataGrid :table="table" selectable expandable />`
 
 const lowLevelCode = `const columns: ColumnDef<Task>[] = [
-  { accessorKey: 'id', header: '#' },
-  { accessorKey: 'title', header: 'Title' },
-  { accessorKey: 'priority', header: 'Priority' },
+  { id: 'id', header: '#' },
+  { id: 'title', header: 'Title' },
+  { id: 'priority', header: 'Priority' },
 ]
 
 const { table } = useDataTable({ data: rows, columns })
 
 // <UiDataTable :table="table" />`
 
-const serverCode = `const col = createColumns<Row>()
-const columns = [
-  col.text('workspace', { label: 'Workspace' }),
-  col.text('owner', { label: 'Owner' }),
-]
-
-const { table, isLoading, isError, refetch } = useServerTable({
+const serverCode = `// Embedded example: local state, one page from the query.
+const filters = ref<CollectionFilters>({ page: 1, pageSize: 4 })
+const collection = useWorkspaceQuery(filters)
+const { table } = useDataTable<WorkspaceRow>({
+  data: collection.items,
   columns,
-  query: useWorkspacesQuery,
+  manual: true,
+  rowKey: 'id',
+  rowCount: () => collection.meta.value?.total ?? 0,
+  initialState: { pagination: { page: 1, pageSize: 4 } },
+  onStateChange: (state) => {
+    const sort = state.sorting[0]
+    filters.value = {
+      page: state.pagination.page,
+      pageSize: state.pagination.pageSize,
+      search: state.search || undefined,
+      sortBy: sort?.column,
+      sortOrder: sort?.direction,
+    }
+  },
 })
 
-// <UiDataGrid :table="table" :loading="isLoading" :error="isError" @retry="refetch" />`
+// Routed lists instead use:
+// useServerTable({ columns, query, queryState: props.queryState, rowKey: 'id' })`
 
 const typedCellsCode = `const col = createColumns<Invoice>()
 const columns = [
@@ -125,7 +130,8 @@ const { table } = useDataTable({ data: invoices, columns })`
 const selectionCode = `const { table, selectedRows } = useDataTable({
   data: directory,
   columns,
-  enableRowSelection: true,
+  selectionMode: 'multiple',
+  rowKey: 'id',
 })
 
 // <UiDataGrid :table="table" selectable />`
@@ -133,9 +139,8 @@ const selectionCode = `const { table, selectedRows } = useDataTable({
 const treeCode = `const { table } = useDataTable({
   data: orgTree,
   columns,
-  enableExpanding: true,
-  getRowId: (row) => row.id,
-  getSubRows: (row) => row.team,
+  rowKey: 'id',
+  getChildren: (row) => row.team,
 })
 
 // <UiDataGrid :table="table" expandable />`
@@ -143,7 +148,7 @@ const treeCode = `const { table } = useDataTable({
 const virtualCode = `const { table } = useDataTable({
   data: makeLogRows(220),
   columns,
-  enablePagination: false,
+  paginate: false,
 })
 
 // <UiDataGrid :table="table" virtual max-body-height="20rem" />`
@@ -157,7 +162,7 @@ const publicApiCode = `const rows = ref<DirectoryUser[]>([])
 const { table } = useDataTable({
   data: () => rows.value,
   columns,
-  getRowId: (row) => String(row.id),
+  rowKey: 'id',
 })
 
 async function load() {
@@ -172,9 +177,9 @@ async function load() {
 const dataGridProps: ApiPropRow[] = [
   {
     name: 'table',
-    type: 'Table<TData>',
+    type: 'DataTableBinding<TData>',
     default: '—',
-    description: 'TanStack Table instance returned by useDataTable().',
+    description: 'Native Vueye binding from useDataTable(). Templates unwrap its shallow ref.',
   },
   {
     name: 'selectable',
@@ -191,9 +196,15 @@ const dataGridProps: ApiPropRow[] = [
   {
     name: 'showColumnFilters',
     type: 'boolean',
-    default: '!manualFiltering',
+    default: '!manual',
     description:
-      'Shows per-column filter affordances derived from column metadata. Defaults off for server-backed (manualFiltering) tables.',
+      'Shows per-column filter controls from metadata. Pass manual to default them off for server-backed grids.',
+  },
+  {
+    name: 'manual',
+    type: 'boolean',
+    default: 'false',
+    description: 'Identifies a server-backed grid so local column filters default off.',
   },
   {
     name: 'showColumnVisibility',
@@ -233,24 +244,35 @@ const dataGridEvents: ApiEventRow[] = [
 const dataGridSlots: ApiSlotRow[] = [
   {
     name: 'expanded-row',
-    props: '{ row: Row<TData> }',
-    description: 'Rendered beneath an expanded row when expandable mode is enabled.',
+    props: '{ row: TData, rowKey: RowKey, tableRow: TableRow<TData> }',
+    description: 'Rendered beneath an expanded row. row is the original application record.',
+  },
+  {
+    name: 'cell-{columnId}',
+    props: '{ row: TData, value: unknown, column: TableColumn<TData>, rowKey: RowKey }',
+    description: 'Overrides rich rendering for one column without changing text formatting.',
   },
 ]
 
 const dataTableProps: ApiPropRow[] = [
   {
     name: 'table',
-    type: 'Table<TData>',
+    type: 'DataTableBinding<TData>',
     default: '—',
-    description: 'TanStack Table instance from useDataTable().',
+    description: 'Native Vueye binding from useDataTable().',
   },
   { name: 'emptyText', type: 'string', description: 'Text shown when the table has no rows.' },
 ]
 
 const dataTableEvents: ApiEventRow[] = []
 
-const dataTableSlots: ApiSlotRow[] = []
+const dataTableSlots: ApiSlotRow[] = [
+  {
+    name: 'cell-{columnId}',
+    props: '{ row: TData, value: unknown, column: TableColumn<TData>, rowKey: RowKey }',
+    description: 'Overrides rich rendering for a column.',
+  },
+]
 </script>
 
 <template>
@@ -259,7 +281,7 @@ const dataTableSlots: ApiSlotRow[] = []
       <h1 class="mb-2 text-3xl font-bold">Data Tables</h1>
       <p class="text-muted-foreground text-lg">
         Use <code>UiDataGrid</code> for rich exploration workflows and <code>UiDataTable</code> when
-        you only need a semantic table renderer for an existing TanStack instance.
+        you only need a semantic renderer for a native Vueye binding.
       </p>
     </header>
 
@@ -287,9 +309,8 @@ const dataTableSlots: ApiSlotRow[] = []
     <section class="space-y-4">
       <h2 class="text-xl font-semibold">Server-side Query State</h2>
       <p class="text-muted-foreground text-sm">
-        <code>useServerTable</code> binds a collection query to the grid. Do not wire
-        <code>useDataTable</code> to a query by hand — the two are mutually dependent and crash on
-        load.
+        This embedded example keeps its state local with a manual Vueye binding. Application lists
+        use <code>useServerTable</code> with the QueryWeave binding supplied by their route.
       </p>
       <ComponentDemo :code="serverCode">
         <DataTableServerDemo />
@@ -321,7 +342,7 @@ const dataTableSlots: ApiSlotRow[] = []
     <section class="space-y-4">
       <h2 class="text-xl font-semibold">Tree Rows</h2>
       <p class="text-muted-foreground text-sm">
-        Nested records through <code>getSubRows</code> and a stable <code>getRowId</code>.
+        Nested records through <code>getChildren</code> and a stable <code>rowKey</code>.
       </p>
       <ComponentDemo :code="treeCode">
         <DataTableTreeDemo />
@@ -387,10 +408,10 @@ const dataTableSlots: ApiSlotRow[] = []
             <template #expanded-row="{ row }">
               <div class="space-y-1">
                 <p class="text-foreground text-sm font-semibold">
-                  {{ row.original.name }}
+                  {{ row.name }}
                 </p>
                 <p class="text-muted-foreground text-sm">
-                  {{ row.original.notes ?? 'No extra context for this row.' }}
+                  {{ row.notes ?? 'No extra context for this row.' }}
                 </p>
               </div>
             </template>
@@ -406,10 +427,10 @@ const dataTableSlots: ApiSlotRow[] = []
           <template #expanded-row="{ row }">
             <div class="space-y-1">
               <p class="text-foreground text-sm font-semibold">
-                {{ row.original.name }}
+                {{ row.name }}
               </p>
               <p class="text-muted-foreground text-sm">
-                {{ row.original.notes ?? 'No extra context for this row.' }}
+                {{ row.notes ?? 'No extra context for this row.' }}
               </p>
             </div>
           </template>

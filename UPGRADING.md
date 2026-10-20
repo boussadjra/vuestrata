@@ -22,6 +22,87 @@ A project cloned from the template arrives already tracked, so there is no setup
 step. `vuestrata init` exists only for a project that predates the CLI; see
 [Adopting the CLI late](#adopting-the-cli-late).
 
+## 2.0.0
+
+The 2.0 alpha replaces TanStack Table with Vueye Table **3.0.0-beta.3** and
+adds QueryWeave **0.1.0-beta.5** for list URLs. TanStack Query continues to own
+fetching, caching and mutations. The template and CLI version together as
+`2.0.0-alpha.0`.
+
+```bash
+vp add -D @vuestrata/cli@2.0.0-alpha.0
+vp exec vuestrata diff
+vp exec vuestrata upgrade
+vp install
+vp check
+vpr test --run
+```
+
+`upgrade` changes dependency declarations but never resolves the project's
+package lock. `vp install` refreshes that lock locally. Unrelated dependencies,
+scripts, application version and collection API dialects are preserved.
+
+### Table contracts that changed
+
+`UiDataTable`, `UiDataGrid`, `useDataTable`, `useServerTable` and `createColumns`
+remain the entrypoints. Their contracts are now native Vueye bindings and
+columns: pagination starts at **1**, widths are numeric pixels, and rich Vue
+cells are separate from plain-text formatting used by search, copy and CSV.
+Raw TanStack table/row exports, `createColumnHelper` and the unused grouping and
+resizing APIs are removed. Migrate application-owned columns, slots and state
+operations using [the 2.0 recipe](docs/9.recipes/12.upgrade-to-2.md).
+
+List routes now bind a domain-owned QueryWeave model with
+`useListRouteState(model)` and pass the resulting port to the owning screen.
+`useServerTable({ columns, query, queryState, rowKey: 'id' })` consumes that
+port; feature code does not read raw router state. Install `installQueryState`
+from `@/plugins/query-state` in `boot(App, { beforeMount: installQueryState })`.
+Compose it with an existing `beforeMount` hook instead of replacing your hook.
+The upgrade safeguard recognizes the direct installer or an inline callback
+that invokes it first. Wrap a named or indirect custom hook in that explicit
+composition so the migration can verify the adapter is actually installed.
+
+The URL owns page, page size, search, sorting and domain filters. Search waits
+300 ms and replaces the current entry with its page reset. Pagination pushes a
+history entry. Selection, expansion and column visibility remain local.
+
+### What upgrades automatically
+
+The three table helpers become one managed unit: `useDataTable.ts`,
+`useServerTable.ts` and `table-columns.ts`. Recognized pristine copies are
+adopted together; the managed UI and new route-state infrastructure then arrive
+in the same upgrade. Column definitions and custom cells remain application
+extension points.
+
+Recognized pristine entrypoints, shipped list screens, table showcases and
+documentation demos receive their 2.0 versions, including the Vite chunk rules
+that keep the native table engine on demand. Customer/order route updates
+include their owning screens and query models; Users receives its query model.
+Edited or moved examples stay in place and receive incoming copies and manual
+instructions. Arbitrary application tables are never rewritten on a guess.
+
+The seeded deployment configuration remains yours. Add `tables-vendor` to its
+`bundle.onDemandChunks.add` checks, using the current template configuration as a
+reference, so your production verification also rejects eager table loading.
+
+### A blocked upgrade keeps the application intact
+
+Edited, moved, deleted or ejected protected table infrastructure must be
+resolved before the release can be applied. The CLI reports every blocker and
+returns a failing status. It writes only missing review copies under
+`.vuestrata/incoming/`; an existing incoming file is preserved because it may
+contain a merge in progress. Application files, dependencies and
+`vuestrata.lock.json` remain unchanged, including the recorded template version.
+`diff` and `doctor` write nothing.
+
+Compare the incoming table unit, merge it as a unit, restore canonical paths if
+you moved the infrastructure, and run `vuestrata adopt <merged-paths>` before
+retrying. Merge the `installQueryState` hook into a customized entrypoint too.
+Do not use `init --force --pristine` to resolve these conflicts: that would
+declare application edits to be upstream files. Review customized example
+tables against the upgrade recipe, then run your local checks and browser
+journeys before using the upgraded app.
+
 ## The one idea
 
 Every file the tooling writes belongs to exactly one side, and it says which.

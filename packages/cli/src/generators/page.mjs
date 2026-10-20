@@ -53,6 +53,19 @@ export function planPage({ plan, root, positional, options }) {
     { own: 'seeded' },
   )
 
+  if (kind === 'list') {
+    plan.addFile(
+      inSlot(plan.manifest, 'modulesDir', id, 'components', `${pascal(name)}Screen.vue`),
+      listScreenTemplate({ id, name, titleKey }),
+      { own: 'seeded' },
+    )
+    plan.addFile(
+      inSlot(plan.manifest, 'modulesDir', id, 'query', `${name}.ts`),
+      `import { defineListQueryModel } from '~/lib/table-query'\n\nexport const ${camel(name)}ListQueryModel = defineListQueryModel({ sortBy: ['name'] })\n`,
+      { own: 'seeded' },
+    )
+  }
+
   plan.addEdit(
     inSlot(plan.manifest, 'modulesDir', id, 'index.ts'),
     `add the ${name} route`,
@@ -205,26 +218,53 @@ async function handleSubmit() {
   }
 
   if (kind === 'list') {
-    const Entities = pascal(id)
     return `<script setup lang="ts">
-/**
- * A route page: a thin inbound adapter. Wire the module's list query into
- * \`useServerTable\` — see customers/pages/index.vue.
- */
+import { useListRouteState } from '@/composables/useListRouteState'
+
+import ${pascal(name)}Screen from '../components/${pascal(name)}Screen.vue'
+import { ${camel(name)}ListQueryModel } from '../query/${name}'
+
+const queryState = useListRouteState(${camel(name)}ListQueryModel)
+</script>
+
+<template>
+  <${pascal(name)}Screen :query-state="queryState" />
+</template>
+`
+  }
+
+  return `<script setup lang="ts">
+const { t } = useI18n()
+void '${name}'
+</script>
+
+<template>
+  <div class="space-y-6">
+    <UiPageHeader :title="t('${titleKey}')" />
+  </div>
+</template>
+`
+}
+
+function listScreenTemplate({ id, titleKey }) {
+  const Entities = pascal(id)
+  return `<script setup lang="ts">
+import { UiDataGrid, UiPageHeader } from '@/components/ui'
 import { createColumns } from '@/composables/useDataTable'
+import type { ListRouteState } from '@/composables/useListRouteState'
 import { useServerTable } from '@/composables/useServerTable'
 
 import { use${Entities}Query } from '../composables/use${Entities}'
 
+const props = defineProps<{ queryState: ListRouteState }>()
 const { t } = useI18n()
 const col = createColumns<{ id: string; name: string }>()
-const columns = computed(() => [
-  col.text('name', { label: t('${titleKey}') }),
-])
-
+const columns = computed(() => [col.text('name', { label: t('${titleKey}') })])
 const { table, isLoading, isError, refetch } = useServerTable({
   columns,
   query: use${Entities}Query,
+  queryState: props.queryState,
+  rowKey: 'id',
 })
 </script>
 
@@ -238,19 +278,6 @@ const { table, isLoading, isError, refetch } = useServerTable({
       :aria-label="t('${titleKey}')"
       @retry="refetch"
     />
-  </div>
-</template>
-`
-  }
-
-  return `<script setup lang="ts">
-const { t } = useI18n()
-void '${name}'
-</script>
-
-<template>
-  <div class="space-y-6">
-    <UiPageHeader :title="t('${titleKey}')" />
   </div>
 </template>
 `

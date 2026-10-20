@@ -39,14 +39,10 @@ const columns = [
 const { table, totalRows, selectedRows } = useDataTable({
   data: teamMembers,
   columns,
-  pageSize: 5,
-  enableFiltering: true,
-  enablePagination: true,
-  enableRowSelection: true,
-  enableColumnVisibility: true,
-  enableExpanding: true,
-  getRowId: (row) => row.id,
-  getRowCanExpand: (row) => Boolean(row.original.notes),
+  initialState: { pagination: { page: 1, pageSize: 5 } },
+  selectionMode: 'multiple',
+  rowKey: 'id',
+  getRowCanExpand: (row) => Boolean(row.notes),
 })
 
 const summary = computed(() => {
@@ -62,9 +58,9 @@ const summary = computed(() => {
     <UiDataGrid :table="table" selectable expandable aria-label="Team members">
       <template #expanded-row="{ row }">
         <div class="space-y-1">
-          <p class="text-foreground text-sm font-semibold">{{ row.original.name }}</p>
+          <p class="text-foreground text-sm font-semibold">{{ row.name }}</p>
           <p class="text-muted-foreground text-sm">
-            {{ row.original.notes ?? 'No extra notes for this team member.' }}
+            {{ row.notes ?? 'No extra notes for this team member.' }}
           </p>
         </div>
       </template>

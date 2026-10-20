@@ -555,6 +555,7 @@ exports[`public surface > exposes stable props and emits on every Ui* component 
       "expandable",
       "loading",
       "loadingText",
+      "manual",
       "maxBodyHeight",
       "pageSizeOptions",
       "searchPlaceholder",
@@ -574,6 +575,7 @@ exports[`public surface > exposes stable props and emits on every Ui* component 
   "UiDataTable": {
     "emits": [],
     "props": [
+      "ariaLabel",
       "emptyText",
       "table",
     ],

@@ -54,39 +54,33 @@ const columns = computed(() => {
   return [
     col.text('resource', {
       label: accountT('account_permissions_col_resource'),
-      width: '11rem',
+      width: 176,
     }),
     col.text('label', {
       label: accountT('account_permissions_col_grant'),
     }),
-    {
-      accessorKey: 'token',
-      header: accountT('account_permissions_col_token'),
-      enableSorting: true,
-      meta: {
-        label: accountT('account_permissions_col_token'),
-        width: '14rem',
-      },
-      cell: ({ row }) =>
+    col.text('token', {
+      label: accountT('account_permissions_col_token'),
+      width: 224,
+      render: ({ row }) =>
         h(
           'code',
           {
-            'data-permission': row.original.token,
+            'data-permission': row.token,
             dir: 'ltr',
             class: 'text-foreground font-mono text-xs whitespace-nowrap',
           },
-          row.original.token,
+          row.token,
         ),
-    },
+    }),
   ]
 })
 
 const { table } = useDataTable({
   data: () => rows.value,
   columns,
-  enablePagination: false,
-  enableColumnVisibility: false,
-  getRowId: (row) => row.token,
+  paginate: false,
+  rowKey: 'token',
 })
 
 const searchPlaceholder = computed(() => {

@@ -2,13 +2,17 @@
 /**
  * Route adapter for `/dashboard/users`.
  *
- * The route takes no input — access is decided by the guard from
- * `meta.requiredPermission` — so there is nothing to normalize and nothing to
- * coordinate. User management itself lives in `UsersScreen`.
+ * Decode shareable list state here; access is decided by the route guard and
+ * user-management workflows stay inside UsersScreen.
  */
+import { useListRouteState } from '@/composables/useListRouteState'
+
 import UsersScreen from '../components/UsersScreen.vue'
+import { createUsersListQueryModel } from '../query-model'
+
+const queryState = useListRouteState(createUsersListQueryModel())
 </script>
 
 <template>
-  <UsersScreen />
+  <UsersScreen :query-state="queryState" />
 </template>

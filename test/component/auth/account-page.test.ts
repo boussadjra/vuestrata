@@ -1,13 +1,17 @@
-import { mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import AccountPage from '@/modules/auth/views/account.vue'
+import { getI18n } from '@/plugins/i18n'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
 
 import { createAuthTestUser } from '../../utils/auth-test-helpers'
+
+enableAutoUnmount(afterEach)
 
 const adapter = vi.hoisted(() => ({
   name: 'mock',
@@ -30,7 +34,7 @@ vi.mock('@/modules/auth/composables/useAuth', async (importOriginal) => {
   }
 })
 
-function mountAccount(user?: User | null) {
+async function mountAccount(user?: User | null) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -46,11 +50,17 @@ function mountAccount(user?: User | null) {
   if (user) store.setUser(user)
   else if (user === null) store.clearAuth()
 
-  return mount(AccountPage, {
+  const wrapper = mount(AccountPage, {
     global: {
       plugins: [pinia, router],
     },
   })
+  if (wrapper.findComponent({ name: 'AccountGrantsGrid' }).exists()) {
+    await vi.waitFor(() => expect(wrapper.find('[data-ui="data-grid"]').exists()).toBe(true), {
+      timeout: 10_000,
+    })
+  }
+  return wrapper
 }
 
 describe('Account page', () => {
@@ -60,7 +70,7 @@ describe('Account page', () => {
     adapter.capabilities.mfa = true
   })
 
-  it('renders identity, security, and grants without a duplicate profile form', () => {
+  it('renders identity, security, and grants without a duplicate profile form', async () => {
     const user = createAuthTestUser({
       name: 'Ada Admin',
       email: 'ada@example.test',
@@ -69,7 +79,7 @@ describe('Account page', () => {
       mfaEnabled: true,
       permissions: ['users:read', 'users:create', 'billing:read'],
     })
-    const wrapper = mountAccount(user)
+    const wrapper = await mountAccount(user)
 
     expect(wrapper.get('h1').text()).toBe('My account')
     expect(wrapper.text()).toContain('Ada Admin')
@@ -107,12 +117,12 @@ describe('Account page', () => {
     expect(wrapper.text()).not.toContain('Disabled')
   })
 
-  it('states that MFA is unavailable when the adapter cannot offer it', () => {
+  it('states that MFA is unavailable when the adapter cannot offer it', async () => {
     adapter.name = 'oauth'
     adapter.transport = 'cookie'
     adapter.capabilities.mfa = false
 
-    const wrapper = mountAccount(
+    const wrapper = await mountAccount(
       createAuthTestUser({
         mfaEnabled: false,
         emailVerified: false,
@@ -128,8 +138,41 @@ describe('Account page', () => {
     expect(wrapper.text()).not.toContain('Disabled')
   })
 
-  it('shows an empty grants state when the session lists no permissions', () => {
-    const wrapper = mountAccount(
+  it('keeps grants searchable and preserves raw token cells through language changes', async () => {
+    const wrapper = await mountAccount(
+      createAuthTestUser({
+        permissions: ['users:read', 'billing:read'],
+      }),
+    )
+    const locale = getI18n().global.locale
+    const originalLocale = locale.value
+    try {
+      await wrapper.get('[data-ui="data-grid-search"]').setValue('users:read')
+      expect(wrapper.findAll('[data-permission]')).toHaveLength(1)
+      expect(wrapper.get('[data-permission="users:read"]').attributes('dir')).toBe('ltr')
+
+      locale.value = 'fr'
+      await nextTick()
+      expect(wrapper.text()).toContain('Ressource')
+      expect(wrapper.get('[data-ui="data-grid-search"]').element).toHaveProperty(
+        'value',
+        'users:read',
+      )
+      expect(wrapper.findAll('[data-permission]')).toHaveLength(1)
+
+      locale.value = 'ar'
+      await nextTick()
+      expect(wrapper.text()).toContain('المورد')
+      expect(wrapper.get('[data-permission="users:read"]').text()).toBe('users:read')
+      expect(wrapper.text()).not.toContain('account_permissions_')
+    } finally {
+      locale.value = originalLocale
+      wrapper.unmount()
+    }
+  })
+
+  it('shows an empty grants state when the session lists no permissions', async () => {
+    const wrapper = await mountAccount(
       createAuthTestUser({
         permissions: [],
       }),
@@ -139,8 +182,8 @@ describe('Account page', () => {
     expect(wrapper.find('[data-permission]').exists()).toBe(false)
   })
 
-  it('explains a missing session instead of rendering a blank page', () => {
-    const wrapper = mountAccount(null)
+  it('explains a missing session instead of rendering a blank page', async () => {
+    const wrapper = await mountAccount(null)
 
     expect(wrapper.text()).toContain('No signed-in user')
     expect(wrapper.text()).toContain('This page needs an active session.')

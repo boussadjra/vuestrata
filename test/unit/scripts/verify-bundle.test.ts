@@ -1164,7 +1164,7 @@ describe('verify-bundle.mjs', { timeout: 60_000 }, () => {
       expect(output).toContain('initial payload within 560.0 KB gzipped')
     })
 
-    it('adds the shipped query chunk guards while keeping the default size budgets', () => {
+    it('adds shipped query and table chunk guards with the declared size budgets', () => {
       emit({
         'index-D5TFPTY5.js': 'import"./vue-vendor-BndbH7cv.js"\n',
         'vue-vendor-BndbH7cv.js': 'export {}\n',
@@ -1185,11 +1185,12 @@ describe('verify-bundle.mjs', { timeout: 60_000 }, () => {
       expect(shipped.status).toBe(0)
       expect(empty.status).toBe(0)
       expect(shipped.output).toContain('on-demand chunk collection-queries is checked as well')
+      expect(shipped.output).toContain('on-demand chunk tables-vendor is checked as well')
       for (const check of [
         'initial payload within 560.0 KB gzipped',
         'largest eagerly-loaded chunk within 400.0 KB',
         'largest eagerly-loaded stylesheet within 700.0 KB',
-        'total JS within 7168.0 KB',
+        'total JS within 7680.0 KB',
         'Bundle verification passed for --mode=production (17 checks).',
       ]) {
         expect(shipped.output).toContain(check)
@@ -1204,6 +1205,17 @@ describe('verify-bundle.mjs', { timeout: 60_000 }, () => {
       const { status, output } = run('--mode=production', `--dist=${dist}`)
       expect(status).toBe(1)
       expect(output).toContain('collection-queries-B4UI2yDj.js')
+      expect(output).toContain('chunks loaded on demand are not loaded with the page')
+    })
+
+    it('rejects the native table engine being pulled into startup', () => {
+      emit({
+        'index-D5TFPTY5.js': 'import"./tables-vendor-B4UI2yDj.js"\n',
+        'tables-vendor-B4UI2yDj.js': 'export {}\n',
+      })
+      const { status, output } = run('--mode=production', `--dist=${dist}`)
+      expect(status).toBe(1)
+      expect(output).toContain('tables-vendor-B4UI2yDj.js')
       expect(output).toContain('chunks loaded on demand are not loaded with the page')
     })
   })

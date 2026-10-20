@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import { CLI_PRESENT, loadCli } from './cli'
+import { createFixture, hash } from './fixture'
 
 /**
  * The maintainer gates: the lockfile check, and the runner that reports them.
@@ -33,7 +34,7 @@ async function loadScript(name: string): Promise<any> {
 }
 
 const { templateLockProblems } = await loadScript('check-template-lock.mjs')
-const { runGates, selectGates } = await loadScript('maintainer-gates.mjs')
+const { frozenMigrationProblems, runGates, selectGates } = await loadScript('maintainer-gates.mjs')
 const { readLock } = await loadCli('src/lib/lockfile.mjs')
 
 interface LockRecord {
@@ -148,6 +149,81 @@ describe.skipIf(!PRESENT)('check-template-lock', () => {
 })
 
 describe.skipIf(!PRESENT)('maintainer-gates', () => {
+  function historicalFixture() {
+    const fixture = createFixture()
+    fixture.write('packages/cli/migrations/1.1.0/index.mjs', 'export default []\n')
+    fixture.write('packages/cli/migrations/2.0.0/index.mjs', 'export default [{ current: true }]\n')
+    fixture.write(
+      'packages/cli/migrations/frozen.json',
+      JSON.stringify({
+        '1.1.0': { 'index.mjs': hash('export default []\n') },
+      }),
+    )
+    return fixture
+  }
+
+  it('freezes historical migration contents independently of active release sources', () => {
+    const fixture = historicalFixture()
+    try {
+      expect(frozenMigrationProblems({ root: fixture.project, version: '2.0.0-alpha.0' })).toEqual(
+        [],
+      )
+      fixture.write('packages/cli/migrations/2.0.0/index.mjs', 'current source may evolve\n')
+      expect(frozenMigrationProblems({ root: fixture.project, version: '2.0.0-alpha.0' })).toEqual(
+        [],
+      )
+    } finally {
+      fixture.cleanup()
+    }
+  })
+
+  it.each(['changed', 'deleted', 'added'])(
+    'rejects %s files inside a frozen historical migration',
+    (change) => {
+      const fixture = historicalFixture()
+      try {
+        if (change === 'changed')
+          fixture.write('packages/cli/migrations/1.1.0/index.mjs', 'new engine\n')
+        if (change === 'deleted') fixture.remove('packages/cli/migrations/1.1.0/index.mjs')
+        if (change === 'added')
+          fixture.write('packages/cli/migrations/1.1.0/new-native.mjs', 'new engine\n')
+        const problems = frozenMigrationProblems({
+          root: fixture.project,
+          version: '2.0.0-alpha.0',
+        })
+        expect(problems).toHaveLength(1)
+        expect(problems[0]).toContain('Historical migration 1.1.0/')
+        expect(problems[0]).toContain('Add a new migration instead')
+      } finally {
+        fixture.cleanup()
+      }
+    },
+  )
+
+  it('requires an archive baseline when a release core becomes historical', () => {
+    const fixture = historicalFixture()
+    try {
+      expect(frozenMigrationProblems({ root: fixture.project, version: '2.1.0-alpha.0' })).toEqual([
+        expect.stringContaining('Historical migration 2.0.0 needs an immutable baseline'),
+      ])
+    } finally {
+      fixture.cleanup()
+    }
+  })
+
+  it('rejects removal of an entire archived migration directory', () => {
+    const fixture = historicalFixture()
+    try {
+      fixture.remove('packages/cli/migrations/1.1.0/index.mjs')
+      fs.rmdirSync(path.join(fixture.project, 'packages/cli/migrations/1.1.0'))
+      expect(frozenMigrationProblems({ root: fixture.project, version: '2.0.0-alpha.0' })).toEqual([
+        'Historical migration 1.1.0 is missing. Restore the archived directory.',
+      ])
+    } finally {
+      fixture.cleanup()
+    }
+  })
+
   it('runs every gate, including the ones after a failure, and reports each', () => {
     const second = vi.fn(() => 0)
 

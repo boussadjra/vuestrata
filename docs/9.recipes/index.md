@@ -24,6 +24,7 @@ produce an app that builds, passes types, and quietly does the wrong thing.
 | [Add a locale](/docs/recipes/add-a-locale)                   | — by hand                      |
 | [Add a permission or a role](/docs/recipes/add-a-permission) | — by hand                      |
 | [Add a nav group](/docs/recipes/add-a-nav-group)             | — by hand                      |
+| [Upgrade to 2.0](/docs/recipes/upgrade-to-2)                 | `vpr upgrade`                  |
 
 One more is about the backend rather than the app:
 [Write your own auth adapter](/docs/recipes/write-your-own-auth-adapter) covers

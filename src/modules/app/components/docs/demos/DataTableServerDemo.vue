@@ -2,8 +2,8 @@
 import { useQuery } from '@tanstack/vue-query'
 import type { Ref } from 'vue'
 
-import { createColumns } from '@/composables/useDataTable'
-import { useServerTable, type ServerCollection } from '@/composables/useServerTable'
+import { createColumns, useDataTable, type TableState } from '@/composables/useDataTable'
+import type { ServerCollection } from '@/composables/useServerTable'
 import type { CollectionFilters, PageMeta } from '~/lib/api/collection-queries'
 
 interface WorkspaceRow {
@@ -34,10 +34,10 @@ const sourceRows: WorkspaceRow[] = [
 
 const col = createColumns<WorkspaceRow>()
 const columns = [
-  col.text('workspace', { label: 'Workspace', width: '16rem' }),
-  col.text('owner', { label: 'Owner', width: '10rem' }),
-  col.text('state', { label: 'State', width: '9rem' }),
-  col.text('seats', { label: 'Seats', align: 'end', width: '7rem' }),
+  col.text('workspace', { label: 'Workspace', width: 256 }),
+  col.text('owner', { label: 'Owner', width: 160 }),
+  col.text('state', { label: 'State', width: 144 }),
+  col.text('seats', { label: 'Seats', align: 'end', width: 112 }),
 ]
 
 function fetchWorkspacePage(filters: CollectionFilters): WorkspaceResult {
@@ -98,11 +98,32 @@ function useWorkspaceQuery(filters: Ref<CollectionFilters>): ServerCollection<Wo
   }
 }
 
-const { table, isLoading, isError, refetch } = useServerTable<WorkspaceRow>({
+// An embedded example keeps its controls local. Routed application lists use
+// useServerTable with the QueryWeave binding their thin page provides.
+const filters = ref<CollectionFilters>({ page: 1, pageSize: 4 })
+const collection = useWorkspaceQuery(filters)
+const { table } = useDataTable<WorkspaceRow>({
+  data: collection.items,
   columns,
-  query: useWorkspaceQuery,
-  pageSize: 4,
+  rowKey: 'id',
+  manual: true,
+  rowCount: () => collection.meta.value?.total ?? 0,
+  initialState: { pagination: { page: 1, pageSize: 4 } },
+  onStateChange: updateQuery,
 })
+const isLoading = computed(() => collection.isPending.value || collection.isFetching.value)
+const { isError, refetch } = collection
+
+function updateQuery(state: TableState): void {
+  const sort = state.sorting[0]
+  filters.value = {
+    page: state.pagination.page,
+    pageSize: state.pagination.pageSize,
+    search: state.search || undefined,
+    sortBy: sort?.column,
+    sortOrder: sort?.direction,
+  }
+}
 
 function normalizeSortValue(value: WorkspaceRow[keyof WorkspaceRow]): number | string {
   return typeof value === 'number' ? value : value.toLowerCase()
@@ -112,6 +133,7 @@ function normalizeSortValue(value: WorkspaceRow[keyof WorkspaceRow]): number | s
 <template>
   <UiDataGrid
     :table="table"
+    manual
     :loading="isLoading"
     :error="isError"
     search-placeholder="Search workspaces"

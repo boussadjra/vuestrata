@@ -45,6 +45,7 @@ export function planModule({ plan, names, options }) {
 
   plan.addFile(`${dir}/types.ts`, typesTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/query-keys.ts`, queryKeysTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/query-model.ts`, listQueryModelTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/presentation.ts`, presentationTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/composables/use${n.Entities}.ts`, composablesTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/composables/use${n.Entity}Form.ts`, formComposableTemplate(n), {
@@ -53,6 +54,9 @@ export function planModule({ plan, names, options }) {
   plan.addFile(`${dir}/mocks/fixtures.ts`, fixturesTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/mocks/${n.moduleId}.handlers.ts`, handlersTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/pages/index.vue`, listPageTemplate(n), { own: 'seeded' })
+  plan.addFile(`${dir}/components/${n.Entities}Screen.vue`, listScreenTemplate(n), {
+    own: 'seeded',
+  })
   plan.addFile(`${dir}/pages/detail.vue`, detailPageTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/pages/form.vue`, formPageTemplate(n), { own: 'seeded' })
   plan.addFile(`${dir}/index.ts`, barrelTemplate(n, { nav, icon }), { own: 'seeded' })
@@ -320,22 +324,51 @@ export const reset${n.Entities}Mock = ${n.entities}Mock.reset
 
 function listPageTemplate(n) {
   return `<script setup lang="ts">
+import { useListRouteState } from '@/composables/useListRouteState'
+
+import ${n.Entities}Screen from '../components/${n.Entities}Screen.vue'
+import { ${n.entities}ListQueryModel } from '../query-model'
+
+const queryState = useListRouteState(${n.entities}ListQueryModel)
+</script>
+
+<template>
+  <${n.Entities}Screen :query-state="queryState" />
+</template>
+`
+}
+
+function listQueryModelTemplate(n) {
+  return `import { param } from '@queryweave/core'
+
+import { defineListQueryModel } from '~/lib/table-query'
+
+import { ${n.ENTITY}_STATUSES } from './types'
+
+/** URL state is domain-owned; TanStack Query still owns fetched records. */
+export const ${n.entities}ListQueryModel = defineListQueryModel({
+  sortBy: ['name', 'status', 'createdAt'],
+  fields: {
+    status: param.choice(['all', ...${n.ENTITY}_STATUSES]).default('all'),
+  },
+})
+`
+}
+
+function listScreenTemplate(n) {
+  return `<script setup lang="ts">
 ${header(
   n,
-  `${n.Label} list — a route page, and therefore a thin inbound adapter.
+  `${n.Label} list workflow.
  *
- * It reads route state, calls the module's query composable and renders. Any
- * business rule, mutation or cache invalidation belongs in composables/ — see
- * AGENTS.md, which the no-restricted-imports lint rule now enforces.
- *
- * Search, sorting and pagination are server-side: \`useServerTable\` turns
- * table state into query parameters. Fetching everything and filtering in the
- * browser is the thing this pattern exists to avoid.`,
+ * The route passes a typed URL-state port. The feature owns columns and table
+ * behavior; the collection query owns fetching and caching.`,
 )}
 import { useI18n } from 'vue-i18n'
 
 import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
 import { createColumns } from '@/composables/useDataTable'
+import type { ListRouteState } from '@/composables/useListRouteState'
 import { useServerTable } from '@/composables/useServerTable'
 
 import { use${n.Entities}Query } from '../composables/use${n.Entities}'
@@ -344,17 +377,20 @@ import {
   ${n.ENTITY}_STATUSES,
   type ${n.Entity},
   type ${n.Entity}Filters,
-  type ${n.Entity}Status,
 } from '../types'
 
+const props = defineProps<{ queryState: ListRouteState }>()
 const { t } = useI18n()
 
-const status = ref<${n.Entity}Status | 'all'>('all')
+const status = computed({
+  get: () => String(props.queryState.values.value.status ?? 'all'),
+  set: (value: string) => { void props.queryState.update({ status: value, page: 1 }) },
+})
 const col = createColumns<${n.Entity}>()
 const columns = computed(() => [
   col.link('name', {
     label: t('${n.moduleId}_col_name'),
-    width: '18rem',
+    width: 288,
     to: (row) => \`/dashboard/${n.moduleId}/\${row.id}\`,
   }),
   col.status('status', {
@@ -368,7 +404,8 @@ const columns = computed(() => [
 const { table, isLoading, isError, refetch } = useServerTable<${n.Entity}, ${n.Entity}Filters>({
   columns,
   query: use${n.Entities}Query,
-  extra: () => ({ status: status.value }),
+  queryState: props.queryState,
+  rowKey: 'id',
 })
 
 const statusOptions = computed(() => [
@@ -678,12 +715,12 @@ ${header(
   `${n.Label} Module
  *
  * Public API (importable via barrel \`~/modules/${n.moduleId}\`):
- *   - use${n.Entities}Query / use${n.Entity}Query and the three mutations
- *   - ${n.entities}ModuleKeys, ${n.Entity}, ${n.Entity}Filters, ${n.Entity}Draft
+ *   - ${n.entities}ModuleKeys, schemas, status choices and domain types
  *
  * Cross-module imports must come through this file. Anything not exported here
  * is an internal, and deliberately so — the barrel is the public API, not an
- * index of every file.`,
+ * index of every file. Query hooks stay behind the lazy route boundary; feature
+ * screens import them from this module's composables.`,
 )}
 const ${n.entities}Module: ModuleDefinition = {
   config: {
@@ -784,13 +821,6 @@ const ${n.entities}Module: ModuleDefinition = {
 export default ${n.entities}Module
 
 // ─── Public API barrel ──────────────────────────────────
-export {
-  use${n.Entities}Query,
-  use${n.Entity}Query,
-  useCreate${n.Entity}Mutation,
-  useUpdate${n.Entity}Mutation,
-  useDelete${n.Entity}Mutation,
-} from './composables/use${n.Entities}'
 export { ${n.entities}ModuleKeys } from './query-keys'
 export { ${n.ENTITY}_STATUSES, ${n.entity}Schema, ${n.entity}DraftSchema } from './types'
 export type { ${n.Entity}, ${n.Entity}Draft, ${n.Entity}Filters, ${n.Entity}Status } from './types'

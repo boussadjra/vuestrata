@@ -141,10 +141,12 @@ describe('the bundle key and the browser', () => {
     expect(readers).toEqual(['modules/core/lib/config/deploy.ts'])
   })
 
-  it('ships additional chunk checks without changing size budgets', () => {
+  it('ships additional chunk checks and the gallery total without raising startup budgets', () => {
     expect(code(DEPLOY_CONFIG)).toContain('onDemandChunks:')
+    expect(code(DEPLOY_CONFIG)).toContain("'tables-vendor'")
+    expect(code(DEPLOY_CONFIG)).toMatch(/totalJsKb:\s*7680/)
     expect(code(DEPLOY_CONFIG)).not.toMatch(
-      /(?:initialPayloadGzipKb|totalJsKb|largestEagerChunkKb):/,
+      /(?:initialPayloadGzipKb|largestEagerChunkKb|largestEagerStylesheetKb):/,
     )
   })
 })

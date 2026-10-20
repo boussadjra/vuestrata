@@ -1,173 +1,245 @@
-/**
- * Column factories for `UiDataGrid`.
- *
- * TanStack still owns the column defs — these helpers only collapse the
- * repetition every list was typing by hand: `header` duplicated as
- * `meta.label`, and `h(Table*Cell, { … })` for the four cells every domain
- * list needs. Escape hatch: `createColumnHelper` and a custom `cell`.
- */
-import type { CellContext, ColumnDef } from '@tanstack/vue-table'
-import { h } from 'vue'
+import {
+  formatValue,
+  type ColumnDef,
+  type RowKey,
+  type TableColumn,
+  type TableRow,
+} from '@vueye-table/core'
+import { Fragment, h, type VNodeChild } from 'vue'
 
 import { TableDateCell, TableLinkCell, TableMoneyCell, TableStatusCell } from '@/components/table'
-import type { Money } from '~/lib/money'
+import { intlLocale } from '@/plugins/appearance'
+import { i18n } from '@/plugins/i18n'
+import { toMajorUnits, type Money } from '~/lib/money'
 
-import type { DataTableColumnMeta, DataTableFilterVariant } from './useDataTable'
-
-type AccessorKey<TData> = Extract<keyof TData, string>
-type ColumnAlign = NonNullable<DataTableColumnMeta['align']>
+type AccessorKey<T> = Extract<keyof T, string>
 type StatusVariant = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error'
+
+export interface TableCellContext<T> {
+  row: T
+  value: unknown
+  column: TableColumn<T>
+  rowKey: RowKey
+}
+
+export interface DataTableFilterOption {
+  label: string
+  value: string | number | boolean
+}
+
+export type DataTableFilterVariant = 'text' | 'select' | 'boolean'
+
+export interface DataTableColumnMeta<T = unknown> extends Readonly<Record<string, unknown>> {
+  filter?: {
+    variant: DataTableFilterVariant
+    placeholder?: string
+    options?: DataTableFilterOption[]
+  }
+  /** Rich UI only. Vueye's `format` stays plain text for search, copy and export. */
+  render?: (context: TableCellContext<T>) => VNodeChild
+  hideable?: boolean
+}
 
 export type ColumnFilterSpec = DataTableFilterVariant | NonNullable<DataTableColumnMeta['filter']>
 
 export interface ColumnChrome {
   label: string
-  width?: string
-  align?: ColumnAlign
-  enableSorting?: boolean
+  /** Pixel width, following Vueye's native column contract. */
+  width?: number
+  minWidth?: number
+  align?: 'start' | 'center' | 'end'
+  sortable?: boolean
+  searchable?: boolean
+  hidden?: boolean
+  hideable?: boolean
   filter?: ColumnFilterSpec
 }
 
-interface ColumnChromeResolved {
-  header: string
-  enableSorting?: boolean
-  meta: DataTableColumnMeta
-}
-
-function resolveFilter(
-  filter: ColumnFilterSpec | undefined,
-): DataTableColumnMeta['filter'] | undefined {
-  if (!filter) return undefined
-  if (typeof filter === 'string') return { variant: filter }
-  return filter
-}
-
-function withChrome(
+function chrome<T>(
   options: ColumnChrome,
-  defaults?: { width?: string; align?: ColumnAlign },
-): ColumnChromeResolved {
-  const width = options.width ?? defaults?.width
-  const align = options.align ?? defaults?.align
-  const filter = resolveFilter(options.filter)
-
+  defaults?: { width?: number; align?: ColumnChrome['align'] },
+) {
+  const filter = options.filter
+    ? typeof options.filter === 'string'
+      ? { variant: options.filter }
+      : options.filter
+    : undefined
   return {
     header: options.label,
-    ...(options.enableSorting === undefined ? {} : { enableSorting: options.enableSorting }),
+    width: options.width ?? defaults?.width,
+    minWidth: options.minWidth,
+    align: options.align ?? defaults?.align,
+    sortable: options.sortable,
+    searchable: options.searchable,
+    hidden: options.hidden,
+    // Choice controls carry raw domain values even when `format` translates them.
+    ...(filter && filter.variant !== 'text'
+      ? {
+          filter: (value: unknown, selected: unknown) =>
+            selected === undefined || selected === '' || Object.is(value, selected),
+        }
+      : {}),
     meta: {
-      label: options.label,
-      ...(width ? { width } : {}),
-      ...(align ? { align } : {}),
       ...(filter ? { filter } : {}),
-    },
+      ...(options.hideable === undefined ? {} : { hideable: options.hideable }),
+    } as DataTableColumnMeta<T>,
   }
 }
 
-function cellString(value: unknown): string {
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
-
-  return ''
+/** Render metadata is deliberately separate from the engine's text formatter. */
+export function renderTableCell<T>(row: TableRow<T>, column: TableColumn<T>): VNodeChild {
+  const render = (column.meta as DataTableColumnMeta<T>).render
+  return render
+    ? render({ row: row.original, value: row.getValue(column.id), column, rowKey: row.key })
+    : row.getDisplay(column.id)
 }
 
-function valueOf<TData, TKey extends AccessorKey<TData>>(
-  ctx: CellContext<TData, unknown>,
-): TData[TKey] {
-  return ctx.getValue() as TData[TKey]
+/** A functional renderer lets both wrappers preserve VNodes without HTML strings. */
+export function TableCellContent<T>(props: { row: TableRow<T>; column: TableColumn<T> }) {
+  return h(Fragment, null, [renderTableCell(props.row, props.column)])
 }
 
-export function createColumns<TData>() {
+/** Native Vueye columns with the UI treatments shared by Vuestrata's lists. */
+export function createColumns<T>() {
   return {
-    text<TKey extends AccessorKey<TData>>(
-      accessor: TKey,
+    text<K extends AccessorKey<T>>(
+      id: K,
       options: ColumnChrome & {
-        format?: (value: TData[TKey], row: TData) => unknown
+        format?: (value: T[K], row: T) => string
+        render?: (context: TableCellContext<T>) => VNodeChild
       },
-    ): ColumnDef<TData> {
+    ): ColumnDef<T> {
+      const base = chrome<T>(options)
       return {
-        accessorKey: accessor,
-        ...withChrome(options),
-        ...(options.format
-          ? {
-              cell: (ctx: CellContext<TData, unknown>) =>
-                options.format!(valueOf<TData, TKey>(ctx), ctx.row.original),
-            }
-          : {}),
+        id,
+        accessor: (row) => row[id],
+        ...base,
+        ...(options.format ? { format: options.format } : {}),
+        meta: { ...base.meta, ...(options.render ? { render: options.render } : {}) },
       }
     },
 
-    link<TKey extends AccessorKey<TData>>(
-      accessor: TKey,
+    link<K extends AccessorKey<T>>(
+      id: K,
       options: ColumnChrome & {
-        to: string | ((row: TData) => string)
-        sublabel?: (row: TData) => string | undefined
-        text?: (row: TData) => string
+        to: string | ((row: T) => string)
+        sublabel?: (row: T) => string | undefined
+        text?: (row: T) => string
       },
-    ): ColumnDef<TData> {
+    ): ColumnDef<T> {
+      const base = chrome<T>(options)
       return {
-        accessorKey: accessor,
-        ...withChrome(options),
-        cell: (ctx: CellContext<TData, unknown>) =>
-          h(TableLinkCell, {
-            to: typeof options.to === 'function' ? options.to(ctx.row.original) : options.to,
-            label: options.text ? options.text(ctx.row.original) : cellString(ctx.getValue()),
-            sublabel: options.sublabel?.(ctx.row.original),
-          }),
-      }
-    },
-
-    status<TKey extends AccessorKey<TData>>(
-      accessor: TKey,
-      options: ColumnChrome & {
-        variant: (value: TData[TKey], row: TData) => StatusVariant
-        labelFor: (value: TData[TKey], row: TData) => string
-      },
-    ): ColumnDef<TData> {
-      return {
-        accessorKey: accessor,
-        ...withChrome(options, { width: '9rem' }),
-        cell: (ctx: CellContext<TData, unknown>) => {
-          const value = valueOf<TData, TKey>(ctx)
-          return h(TableStatusCell, {
-            label: options.labelFor(value, ctx.row.original),
-            variant: options.variant(value, ctx.row.original),
-          })
+        id,
+        accessor: (row) => row[id],
+        ...base,
+        format: (value: T[K], row: T) => options.text?.(row) ?? formatValue(value),
+        meta: {
+          ...base.meta,
+          render: ({ row, value }: TableCellContext<T>) =>
+            h(TableLinkCell, {
+              to: typeof options.to === 'function' ? options.to(row) : options.to,
+              label: options.text?.(row) ?? formatValue(value),
+              sublabel: options.sublabel?.(row),
+            }),
         },
       }
     },
 
-    money<TKey extends AccessorKey<TData>>(
-      accessor: TKey,
-      options: ColumnChrome & { compact?: boolean },
-    ): ColumnDef<TData> {
+    status<K extends AccessorKey<T>>(
+      id: K,
+      options: ColumnChrome & {
+        variant: (value: T[K], row: T) => StatusVariant
+        labelFor: (value: T[K], row: T) => string
+      },
+    ): ColumnDef<T> {
+      const base = chrome<T>(options, { width: 144 })
       return {
-        accessorKey: accessor,
-        ...withChrome(options, { width: '9rem', align: 'end' }),
-        cell: (ctx: CellContext<TData, unknown>) =>
-          h(TableMoneyCell, { value: ctx.getValue() as Money, compact: options.compact }),
+        id,
+        accessor: (row) => row[id],
+        ...base,
+        format: options.labelFor,
+        meta: {
+          ...base.meta,
+          render: ({ row, value }: TableCellContext<T>) =>
+            h(TableStatusCell, {
+              label: options.labelFor(value as T[K], row),
+              variant: options.variant(value as T[K], row),
+            }),
+        },
       }
     },
 
-    date<TKey extends AccessorKey<TData>>(
-      accessor: TKey,
-      options: ColumnChrome & { relative?: boolean },
-    ): ColumnDef<TData> {
+    money<K extends AccessorKey<T>>(
+      id: K,
+      options: ColumnChrome & { compact?: boolean },
+    ): ColumnDef<T> {
+      const base = chrome<T>(options, { width: 144, align: 'end' })
       return {
-        accessorKey: accessor,
-        ...withChrome(options, { width: '11rem', align: 'end' }),
-        cell: (ctx: CellContext<TData, unknown>) =>
-          h(TableDateCell, { value: cellString(ctx.getValue()), relative: options.relative }),
+        id,
+        accessor: (row) => row[id],
+        ...base,
+        compare: (left: T[K], right: T[K]) => (left as Money).amount - (right as Money).amount,
+        format: (value: T[K]) => {
+          const amount = value as Money
+          return new Intl.NumberFormat(intlLocale(i18n.global.locale.value), {
+            style: 'currency',
+            currency: amount.currency,
+            notation: options.compact ? 'compact' : 'standard',
+            maximumFractionDigits: options.compact ? 1 : 2,
+          }).format(toMajorUnits(amount.amount))
+        },
+        meta: {
+          ...base.meta,
+          render: ({ value }: TableCellContext<T>) =>
+            h(TableMoneyCell, { value: value as Money, compact: options.compact }),
+        },
+      }
+    },
+
+    date<K extends AccessorKey<T>>(
+      id: K,
+      options: ColumnChrome & { relative?: boolean },
+    ): ColumnDef<T> {
+      const base = chrome<T>(options, { width: 176, align: 'end' })
+      return {
+        id,
+        accessor: (row) => row[id],
+        ...base,
+        format: (value: T[K]) => {
+          const text = formatValue(value)
+          const date = new Date(text)
+          return Number.isNaN(date.getTime())
+            ? text
+            : new Intl.DateTimeFormat(intlLocale(i18n.global.locale.value), {
+                day: 'numeric',
+                month: 'short',
+              }).format(date)
+        },
+        meta: {
+          ...base.meta,
+          render: ({ value }: TableCellContext<T>) => {
+            const text = formatValue(value)
+            return !text || Number.isNaN(new Date(text).getTime())
+              ? text || '—'
+              : h(TableDateCell, { value: text, relative: options.relative })
+          },
+        },
       }
     },
 
     display(
       id: string,
-      options: ColumnChrome & { cell: (row: TData) => unknown },
-    ): ColumnDef<TData> {
+      options: ColumnChrome & {
+        cell: (context: TableCellContext<T>) => VNodeChild
+        text?: (row: T) => string
+      },
+    ): ColumnDef<T> {
+      const base = chrome<T>({ sortable: false, searchable: false, ...options })
       return {
         id,
-        ...withChrome(options),
-        cell: (ctx: CellContext<TData, unknown>) => options.cell(ctx.row.original),
+        accessor: (row) => options.text?.(row) ?? '',
+        ...base,
+        meta: { ...base.meta, render: options.cell },
       }
     },
   }

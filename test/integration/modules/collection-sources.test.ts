@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { param } from '@queryweave/core'
+import { describe, expect, it, onTestFinished, vi } from 'vite-plus/test'
 import { ref } from 'vue'
 import { z } from 'zod'
 
@@ -10,7 +11,9 @@ import {
 } from '@/lib/api/collection-queries'
 import { AppError, isNotFoundError } from '@/lib/errors'
 import { defineQueryKeys } from '@/lib/query-keys'
+import { defineListQueryModel } from '@/lib/table-query'
 
+import { createListStateFixture } from '../../utils/list-query-state'
 import { withQueryClient } from '../../utils/query-client'
 
 /**
@@ -557,23 +560,32 @@ describe('a collection over an SDK', () => {
 
   it('drives a server table as a REST collection does', async () => {
     const { api, sdk } = createMembers()
+    const fixture = createListStateFixture(
+      defineListQueryModel({
+        sortBy: ['name'],
+        pageSize: 2,
+        pageSizes: [2],
+        fields: { role: param.choice(['member']).default('member') },
+      }),
+    )
+    onTestFinished(fixture.dispose)
     const table = withQueryClient(() =>
       useServerTable<Member, MemberFilters>({
-        columns: [{ accessorKey: 'name', header: 'Name' }],
+        columns: [{ id: 'name', header: 'Name' }],
         query: api.useList,
-        extra: () => ({ role: 'member' }),
-        pageSize: 2,
+        queryState: fixture.queryState,
+        rowKey: 'id',
       }),
     )
     await vi.waitFor(() => expect(table.items.value).toHaveLength(2), { timeout: 5_000 })
 
     expect(sdk.state.calls.at(-1)).toBe('select {"equals":{"team_role":"member"},"range":[0,1]}')
     expect(table.meta.value).toEqual({ total: 3, page: 1, pageSize: 2, totalPages: 2 })
-    expect(table.table.getRowModel().rows.map((row) => row.original.name)).toEqual([
+    expect(table.table.value.rows.map((row) => row.original.name)).toEqual([
       'Grace Hopper',
       'Edsger Dijkstra',
     ])
-    expect(table.table.getPageCount()).toBe(2)
+    expect(table.table.value.pageCount).toBe(2)
   })
 })
 

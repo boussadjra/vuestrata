@@ -6,6 +6,21 @@ The project follows Semantic Versioning, including prereleases such as `-alpha.N
 
 ## Unreleased
 
+### Breaking changes in 2.0.0-alpha.0
+
+- Vueye Table 3.0.0-beta.3 replaces TanStack Table. The `UiDataTable`,
+  `UiDataGrid`, `useDataTable`, `useServerTable` and `createColumns` entrypoints
+  now use native bindings, numeric column widths and one-based pagination.
+  TanStack table/row exports, `createColumnHelper` and unused grouping/resizing
+  APIs are removed; TanStack Query remains the data-fetching layer.
+- QueryWeave 0.1.0-beta.5 owns shareable list filters, search, sorting and
+  pagination. Route pages bind domain models and pass typed state to feature
+  screens. The application installs one router adapter through `beforeMount`.
+- Table infrastructure upgrades as a protected managed unit. A conflict blocks
+  application/dependency/lock changes while offering incoming review copies.
+  Recognized pristine examples migrate automatically; edited and moved
+  application code is preserved. See [the 2.0 upgrade steps](UPGRADING.md#200).
+
 ### Added
 
 - The CLI packages default-brand fonts and their OFL licenses as seeded

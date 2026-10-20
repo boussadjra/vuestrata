@@ -35,6 +35,21 @@ export function createWorkspace(root) {
     },
     /** Paths written so far, in the order they were first written. */
     written: () => [...pending.keys()],
+    /** A blocked upgrade may offer review copies, without applying any release files. */
+    flushIncoming: () => {
+      const reviewRoot = path.resolve(full(INCOMING_DIR))
+      for (const [rel, contents] of pending) {
+        const target = path.resolve(full(rel))
+        if (!rel.startsWith(`${INCOMING_DIR}/`) || !target.startsWith(`${reviewRoot}${path.sep}`))
+          continue
+        fs.mkdirSync(path.dirname(target), { recursive: true })
+        try {
+          fs.writeFileSync(target, contents, { flag: 'wx' })
+        } catch (error) {
+          if (error.code !== 'EEXIST') throw error
+        }
+      }
+    },
     flush: () => {
       for (const [rel, contents] of pending) {
         fs.mkdirSync(path.dirname(full(rel)), { recursive: true })

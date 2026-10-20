@@ -120,7 +120,7 @@ all and reports each, whether or not an earlier one failed:
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `template-lock`    | `vuestrata.lock.json` records every managed and merged file, every region baseline and the `docs/` list as this checkout has them, at this version                                                              |
 | `payload`          | `packages/cli/payload` is what `build-payload.mjs` would build from this checkout (it builds one first when there is none)                                                                                      |
-| `migration-files`  | the copies of project-owned files a migration installs (`migrations/<version>/shipped/`) are the files this checkout ships                                                                                      |
+| `migration-files`  | current-release project copies match this checkout; historical migrations and copies match the immutable hashes in `migrations/frozen.json`                                                                     |
 | `maintainer-tests` | with `--tests`: `public-surface.test.ts` and `test/unit/cli`, under `VUESTRATA_MAINTAINER=1`. They hold the snapshots of the public names, the payload built from this repository and what the migrations write |
 
 `test/unit/architecture/public-surface.test.ts` snapshots this repository's
@@ -147,20 +147,21 @@ can rewrite their code but only where a migration tells it how. So:
 
 A change is breaking if it alters any of these:
 
-| Contract                                          | Where it lives                                                   |
-| ------------------------------------------------- | ---------------------------------------------------------------- |
-| A slot path                                       | `DEFAULT_SLOTS` in `packages/cli/src/lib/manifest.mjs`           |
-| A sentinel region name                            | `REGIONS` in `packages/cli/src/lib/registry.mjs`                 |
-| A `Ui*` prop, emit or slot                        | `src/modules/app/components/ui/`                                 |
-| A module barrel export                            | `src/modules/*/index.ts`                                         |
-| A `core/lib` export                               | `src/modules/core/lib/`                                          |
-| A semantic token name                             | `src/modules/app/styles/semantic.css`                            |
-| An `IconName` member                              | `src/modules/app/types/index.ts`                                 |
-| A `VUESTRATA_*` variable                          | `src/modules/core/lib/config/env.schema.ts`                      |
-| The `boot()` signature                            | `src/modules/app/bootstrap/index.ts`                             |
-| An auth store member boot uses                    | `src/modules/app/stores/auth.ts`                                 |
-| An `AuthAdapter` member boot uses                 | `src/modules/auth/adapters/types.ts`                             |
-| A function or export boot reads from another file | `state/`, `plugins/`, `config/app.config.ts`, `modules/setup.ts` |
+| Contract                                          | Where it lives                                                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| A slot path                                       | `DEFAULT_SLOTS` in `packages/cli/src/lib/manifest.mjs`                                                                    |
+| A sentinel region name                            | `REGIONS` in `packages/cli/src/lib/registry.mjs`                                                                          |
+| A `Ui*` prop, emit or slot                        | `src/modules/app/components/ui/`                                                                                          |
+| A shared table helper or list URL-state contract  | `composables/useDataTable.ts`, `useServerTable.ts`, `table-columns.ts`, `useListRouteState.ts`; `core/lib/table-query.ts` |
+| A module barrel export                            | `src/modules/*/index.ts`                                                                                                  |
+| A `core/lib` export                               | `src/modules/core/lib/`                                                                                                   |
+| A semantic token name                             | `src/modules/app/styles/semantic.css`                                                                                     |
+| An `IconName` member                              | `src/modules/app/types/index.ts`                                                                                          |
+| A `VUESTRATA_*` variable                          | `src/modules/core/lib/config/env.schema.ts`                                                                               |
+| The `boot()` signature                            | `src/modules/app/bootstrap/index.ts`                                                                                      |
+| An auth store member boot uses                    | `src/modules/app/stores/auth.ts`                                                                                          |
+| An `AuthAdapter` member boot uses                 | `src/modules/auth/adapters/types.ts`                                                                                      |
+| A function or export boot reads from another file | `state/`, `plugins/`, `config/app.config.ts`, `modules/setup.ts`                                                          |
 
 What the last four rows name, exactly:
 
@@ -234,7 +235,7 @@ obeys both:
   or a function of the manifest such as `inSlot(manifest, 'appDir', rel)`) or by
   `slot`, so it still finds the file in a project that moved it.
 
-A step is one of four kinds:
+A step is one of five kinds:
 
 | Kind                  | Shape                                                                        | What it does                                                                                                                                                                                                                                    |
 | --------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -242,6 +243,7 @@ A step is one of four kinds:
 | `note`                | `{ kind: 'note', note, file?, pending? }`                                    | Nothing automatic: a line under "Needs a person" in the upgrade report.                                                                                                                                                                         |
 | `promote`             | `{ kind: 'promote', file, pristine, unit?, note? }`                          | A file the project owned becomes managed. Adopted only when its hash is in `pristine` (or already matches this release); an edited copy stays, with the release's version in `.vuestrata/incoming/`. A copy the project moved is never adopted. |
 | `reclassify`          | `{ kind: 'reclassify', file, pristine?, note? }`                             | A managed file becomes merged, keeping the project's `app:` entries. Its recorded whole-file hash counts as clean once, and so does a `pristine` hash computed the merged way. Merged is the only destination.                                  |
+| `guard`               | `{ kind: 'guard', check(context) }`                                          | Checks the complete buffered upgrade after payload sync. Returns `{ rel, text }` blockers. A blocked apply writes only absent incoming review files, never application files, dependency declarations or the lock/version.                      |
 
 The parts, precisely:
 
@@ -304,6 +306,14 @@ Codemods and notes run first, in the order of the groups; `promote` and
 `reclassify` run after all of them, because they judge a file by its hash and
 must see it after every codemod has had its turn.
 
+Guards run last, after managed files and registries have been buffered. Their
+context is `{ ws, lock, manifest, source, report, target }`. They must not write
+application files: a guard is a consistency check, and may offer incoming
+review copies. The 2.0 table migration uses one to prevent a partial engine
+replacement. The JSON report includes `ok`, `apply`, `blocked` and `blockers`;
+an applied command that is blocked exits unsuccessfully. Read-only `diff` still
+returns the plan without writing files or changing the exit status.
+
 **Replacing a project-owned file whole.** A migration may replace a file the
 project owns (the Dockerfile, the CI workflow) when it is still a release's
 copy. `migrations/1.1.0/shipped.mjs` has the helper, `replaceWithShipped({ file,
@@ -316,8 +326,8 @@ them as source, and the `migration-files` gate fails when one falls behind the
 repository:
 
 ```bash
-node packages/cli/migrations/1.1.0/shipped.mjs --check
-node packages/cli/migrations/1.1.0/shipped.mjs --write   # after changing one of those files
+node packages/cli/migrations/2.0.0/shipped.mjs --check
+node packages/cli/migrations/2.0.0/shipped.mjs --write   # active release copies only
 ```
 
 When a later prerelease of the same version changes one of those files, refresh
@@ -326,6 +336,15 @@ the copy **and** add the hash the file had in the previous prerelease to its
 copy, because the step no longer recognises it. The same holds for a text hunk
 a codemod replaces: `test/unit/cli/migration-1.1.0.test.ts` records what each
 unedited file becomes (`BECOMES`), which is the hash the next migration needs.
+
+When advancing to a new release core, freeze older migration directories in
+`packages/cli/migrations/frozen.json`, using LF-normalized hashes from the
+previous release's Git revision. Their runtime code and shipped copies then
+remain immutable. The maintainer gate checks those hashes, including added or
+deleted files, and runs the current release's `shipped.mjs --check` against the
+working tree. Never refresh a historical copy to match new application APIs;
+add that replacement to the new migration. Historical tests compare frozen
+fixtures; the active migration tests compare the current source.
 
 `packages/cli/src/lib/migrations.mjs` documents each kind in full, and
 `migrations/1.1.0/` has one of everything to copy from: a codemod

@@ -188,7 +188,7 @@ describe('add module', () => {
   })
 })
 
-describe('the form `add module` writes', () => {
+describe('the CRUD workflows `add module` writes', () => {
   const MODULE = 'src/modules/invoices'
 
   /** Syntax errors in a generated TypeScript file. Types are the real generation's to check. */
@@ -204,6 +204,44 @@ describe('the form `add module` writes', () => {
 
   beforeEach(() => {
     generate(planFor('module', 'invoices'))
+  })
+
+  it('keeps collection queries behind the lazy feature boundary', () => {
+    const barrel = fixture.read(`${MODULE}/index.ts`)
+    const screen = fixture.read(`${MODULE}/components/InvoicesScreen.vue`)
+
+    expect(barrel).not.toContain("from './composables/useInvoices'")
+    expect(barrel).toContain("from './query-keys'")
+    expect(barrel).toContain('invoiceSchema, invoiceDraftSchema')
+    expect(screen).toContain("from '../composables/useInvoices'")
+  })
+
+  it('binds list URL state at the route and keeps table behavior in the feature screen', () => {
+    const page = fixture.read(`${MODULE}/pages/index.vue`)
+    const screen = fixture.read(`${MODULE}/components/InvoicesScreen.vue`)
+    const model = fixture.read(`${MODULE}/query-model.ts`)
+    const { descriptor, errors } = parseSfc(screen, { filename: 'InvoicesScreen.vue' })
+    expect(errors).toEqual([])
+    expect(syntaxErrors(descriptor.scriptSetup!.content)).toEqual([])
+    expect(
+      compileTemplate({
+        source: descriptor.template!.content,
+        filename: 'InvoicesScreen.vue',
+        id: 'generated-list',
+      }).errors,
+    ).toEqual([])
+    expect(syntaxErrors(model)).toEqual([])
+    expect(page).toContain('useListRouteState(invoicesListQueryModel)')
+    expect(page).toContain('<InvoicesScreen :query-state="queryState" />')
+    expect(page).not.toContain('useServerTable')
+    expect(page).not.toContain('createColumns')
+    expect(screen).toContain('queryState: props.queryState')
+    expect(screen).toContain("rowKey: 'id'")
+    expect(screen).toContain('width: 288')
+    expect(screen).not.toContain('useRoute(')
+    expect(screen).not.toContain('@tanstack/vue-table')
+    expect(model).toContain("sortBy: ['name', 'status', 'createdAt']")
+    expect(model).toContain("param.choice(['all', ...INVOICE_STATUSES]).default('all')")
   })
 
   it('is a UiForm with the draft schema, an action, the error alert and the leave guard', () => {

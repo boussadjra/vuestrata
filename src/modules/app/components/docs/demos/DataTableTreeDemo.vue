@@ -5,17 +5,16 @@ import { orgTree, type OrgNode } from './data-table-fixtures'
 
 const col = createColumns<OrgNode>()
 const columns = [
-  col.text('name', { label: 'Name', width: '16rem' }),
-  col.text('role', { label: 'Role', width: '10rem' }),
+  col.text('name', { label: 'Name', width: 256 }),
+  col.text('role', { label: 'Role', width: 160 }),
 ]
 
 const { table } = useDataTable({
   data: orgTree,
   columns,
-  enableExpanding: true,
-  enablePagination: false,
-  getRowId: (row) => row.id,
-  getSubRows: (row) => row.team,
+  paginate: false,
+  rowKey: 'id',
+  getChildren: (row) => row.team,
 })
 </script>
 

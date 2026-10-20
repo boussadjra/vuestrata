@@ -106,10 +106,13 @@ describe('the promotion data', () => {
   // Maintainers only: both files are the project's, and the first thing the
   // shell tells a project to do is edit it (`boot(App, { beforeMount })`). There
   // this would fail `vpr test --run` for following the instructions.
-  it.runIf(MAINTAINER)('ships src/main.ts and src/App.vue as the shells the codemods write', () => {
-    expect(lf(MAIN_SHELL)).toBe(lf(inRepo('src/main.ts')))
-    expect(lf(APP_SHELL)).toBe(lf(inRepo('src/App.vue')))
-  })
+  it.runIf(MAINTAINER)(
+    'preserves the 1.1 entrypoint shells before the 2.0 QueryWeave installer',
+    () => {
+      expect(lf(MAIN_SHELL)).toBe(lf(inRepo('test/fixtures/cli/table-1.1/main.ts.txt')))
+      expect(lf(APP_SHELL)).toBe(lf(inRepo('test/fixtures/cli/table-1.1/App.vue.txt')))
+    },
+  )
 
   it('promotes only files this release manages, each of which exists', async () => {
     const steps: Step[] = (await promotions()).flatMap((migration: { steps: Step[] }) =>
@@ -291,7 +294,7 @@ describe.skipIf(!hasTags)('upgrading a project from 1.0.1-alpha.6', () => {
 
     await upgrade()
 
-    const required = lf(inRepo(VITE)).replace(
+    const required = lf(inRepo('test/fixtures/cli/table-1.1/vite.config.ts.txt')).replace(
       /\n      treeshake: \{[\s\S]*?\n      \},(?=\n      output:)/,
       '',
     )

@@ -5,17 +5,17 @@ import { directory, type DirectoryPerson } from './data-table-fixtures'
 
 const col = createColumns<DirectoryPerson>()
 const columns = [
-  col.text('name', { label: 'Name', width: '14rem' }),
+  col.text('name', { label: 'Name', width: 224 }),
   col.text('title', { label: 'Title' }),
-  col.text('location', { label: 'Location', width: '10rem' }),
+  col.text('location', { label: 'Location', width: 160 }),
 ]
 
 const { table, selectedRows } = useDataTable({
   data: directory,
   columns,
-  enableRowSelection: true,
-  enablePagination: false,
-  getRowId: (row) => row.id,
+  selectionMode: 'multiple',
+  paginate: false,
+  rowKey: (row) => row.id,
 })
 
 const selectedSummary = computed(() => {

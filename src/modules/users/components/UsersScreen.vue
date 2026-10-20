@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
 /**
  * User management — the whole experience behind `/dashboard/users`.
  *
@@ -11,10 +14,8 @@
  * cells draw on (role tints, provider marks) are in `presentation.ts`, and the
  * table/query wiring is in `useUsersTable`.
  */
-import { createColumnHelper } from '@tanstack/vue-table'
-import { useI18n } from 'vue-i18n'
-
-import { UiButton, UiDataGrid, UiPageHeader, UiSelect } from '@/components/ui'
+import { createColumns } from '@/composables/useDataTable'
+import type { ListRouteState } from '@/composables/useListRouteState'
 import { useRbac } from '@/composables/useRbac'
 import { resolveIcon } from '@/config/icon-provider'
 import { roleLabel } from '@/lib/rbac'
@@ -33,6 +34,7 @@ import InviteUserDialog from './InviteUserDialog.vue'
 import RolePermissionMatrix from './RolePermissionMatrix.vue'
 import UserPermissionsPanel from './UserPermissionsPanel.vue'
 
+const props = defineProps<{ queryState: ListRouteState }>()
 const { t, te } = useI18n()
 const { can } = useRbac()
 
@@ -57,21 +59,16 @@ const roleFilterOptions = computed(() =>
   listedRoles().map((role) => ({ value: role.name, label: labelOf(role.name) })),
 )
 
-const columnHelper = createColumnHelper<User>()
-
-const columns = [
-  columnHelper.accessor('name', {
-    header: () => t('users_col_name'),
-    meta: { label: t('users_col_name'), width: '16rem' },
-  }),
-  columnHelper.accessor('email', {
-    header: () => t('users_col_email'),
-    meta: { label: t('users_col_email'), width: '18rem' },
-  }),
-  columnHelper.accessor('role', {
-    header: () => t('users_col_role'),
-    cell: ({ row }) => {
-      if (editor.isEditing(row.original)) {
+const col = createColumns<User>()
+const columns = computed(() => [
+  col.text('name', { label: t('users_col_name'), width: 256 }),
+  col.text('email', { label: t('users_col_email'), width: 288 }),
+  col.text('role', {
+    label: t('users_col_role'),
+    width: 160,
+    filter: { variant: 'select', options: roleFilterOptions.value },
+    render: ({ row }) => {
+      if (editor.isEditing(row)) {
         return h(UiSelect, {
           modelValue: editor.editingRole.value,
           options: roleOptions.value,
@@ -82,62 +79,55 @@ const columns = [
       return h(
         'span',
         {
-          class: [
-            roleBadgeClass(row.original.role),
-            'rounded-full px-2.5 py-1 text-xs font-semibold',
-          ],
+          class: [roleBadgeClass(row.role), 'rounded-full px-2.5 py-1 text-xs font-semibold'],
         },
-        labelOf(row.original.role),
+        labelOf(row.role),
       )
     },
-    meta: {
-      label: t('users_col_role'),
-      filter: { variant: 'select', options: roleFilterOptions.value },
-      width: '10rem',
-    },
   }),
-  columnHelper.accessor('provider', {
-    header: () => t('users_col_provider'),
-    cell: ({ row }) =>
+  col.text('provider', {
+    label: t('users_col_provider'),
+    width: 160,
+    format: (value) => providerLabel(value),
+    render: ({ row }) =>
       h('div', { class: 'flex items-center gap-1.5' }, [
         h('span', {
-          class: [
-            resolveIcon(providerIcon(row.original.provider)),
-            'text-muted-foreground h-4 w-4',
-          ],
+          class: [resolveIcon(providerIcon(row.provider)), 'text-muted-foreground h-4 w-4'],
+          'aria-hidden': 'true',
         }),
-        h('span', providerLabel(row.original.provider)),
+        h('span', providerLabel(row.provider)),
       ]),
-    meta: { label: t('users_col_provider'), width: '10rem' },
   }),
-  columnHelper.accessor('emailVerified', {
-    header: () => t('users_col_verified'),
-    cell: ({ row }) =>
-      row.original.emailVerified
-        ? h('span', { class: [resolveIcon('check-circle'), 'h-5 w-5 text-success'] })
-        : h('span', { class: [resolveIcon('close-circle'), 'text-surface-300 h-5 w-5'] }),
-    meta: { label: t('users_col_verified'), align: 'center', width: '7rem' },
+  col.text('emailVerified', {
+    label: t('users_col_verified'),
+    width: 112,
+    align: 'center',
+    format: (value) => t(value ? 'common_yes' : 'common_no'),
+    render: ({ row }) =>
+      h('span', {
+        class: [
+          resolveIcon(row.emailVerified ? 'check-circle' : 'close-circle'),
+          'h-5 w-5',
+          row.emailVerified ? 'text-success' : 'text-muted-foreground',
+        ],
+        role: 'img',
+        'aria-label': t(row.emailVerified ? 'common_yes' : 'common_no'),
+      }),
   }),
-  columnHelper.accessor('lastLoginAt', {
-    header: () => t('users_col_last_login'),
-    cell: ({ getValue }) => {
-      const value = getValue()
-      return value ? new Date(value).toLocaleDateString() : '—'
-    },
-    meta: { label: t('users_col_last_login'), width: '10rem' },
-  }),
+  col.date('lastLoginAt', { label: t('users_col_last_login'), width: 160 }),
   ...(showActionsColumn
     ? [
-        columnHelper.display({
-          id: 'actions',
-          header: () => t('users_col_actions'),
-          enableHiding: false,
+        col.display('actions', {
+          label: t('users_col_actions'),
+          width: 256,
+          hideable: false,
+          sortable: false,
           cell: ({ row }) => {
-            if (editor.isEditing(row.original)) {
+            if (editor.isEditing(row)) {
               return h('div', { class: 'flex items-center gap-2' }, [
                 h(
                   UiButton,
-                  { variant: 'ghost', size: 'sm', onClick: () => editor.save(row.original) },
+                  { variant: 'ghost', size: 'sm', onClick: () => editor.save(row) },
                   { default: () => t('button_save') },
                 ),
                 h(
@@ -154,7 +144,7 @@ const columns = [
               actions.push(
                 h(
                   UiButton,
-                  { variant: 'ghost', size: 'sm', onClick: () => editor.start(row.original) },
+                  { variant: 'ghost', size: 'sm', onClick: () => editor.start(row) },
                   { default: () => t('users_change_role') },
                 ),
               )
@@ -168,7 +158,7 @@ const columns = [
                     variant: 'ghost',
                     size: 'sm',
                     onClick: () => {
-                      selectedUser.value = row.original
+                      selectedUser.value = row
                     },
                   },
                   { default: () => t('users_permissions') },
@@ -178,13 +168,12 @@ const columns = [
 
             return h('div', { class: 'flex items-center gap-2' }, actions)
           },
-          meta: { label: t('users_col_actions'), width: '16rem' },
         }),
       ]
     : []),
-]
+])
 
-const { table, meta, isLoading } = useUsersTable(columns)
+const { table, meta, isLoading, error, refetch } = useUsersTable(columns, props.queryState)
 </script>
 
 <template>
@@ -217,8 +206,11 @@ const { table, meta, isLoading } = useUsersTable(columns)
     >
       <UiDataGrid
         :table="table"
+        :manual="true"
+        :show-column-filters="true"
+        :error="Boolean(error)"
+        @retry="refetch"
         selectable
-        :show-column-filters="false"
         :loading="isLoading"
         :loading-text="t('users_loading')"
         :search-placeholder="t('users_search')"

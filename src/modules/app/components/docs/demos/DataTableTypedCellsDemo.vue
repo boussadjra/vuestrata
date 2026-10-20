@@ -12,7 +12,7 @@ const col = createColumns<InvoiceRow>()
 const columns = [
   col.link('customer', {
     label: 'Customer',
-    width: '16rem',
+    width: 256,
     to: '/components/data-table',
     sublabel: (row) => row.email,
   }),
@@ -28,8 +28,8 @@ const columns = [
 const { table } = useDataTable({
   data: invoices,
   columns,
-  pageSize: 5,
-  getRowId: (row) => row.id,
+  initialState: { pagination: { page: 1, pageSize: 5 } },
+  rowKey: (row) => row.id,
 })
 </script>
 

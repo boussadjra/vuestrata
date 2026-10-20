@@ -98,7 +98,7 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
   },
   '/docs/5.components/3.data-tables.md': {
     title: 'Data Tables',
-    description: 'TanStack Table integration with sorting, filtering, and pagination.',
+    description: 'Native vueye-table rendering and shareable list state with QueryWeave.',
   },
   '/docs/5.components/4.charts.md': {
     title: 'Charts',
@@ -252,6 +252,12 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
     title: 'Submit a Form to Your API',
     description:
       "A form that validates in the user's language, awaits the save, shows the server's refusal under the right field, and asks before unsaved changes are lost.",
+  },
+  '/docs/9.recipes/12.upgrade-to-2.md': {
+    navTitle: 'Upgrade to 2.0',
+    title: 'Upgrade to 2.0',
+    description:
+      'Move an existing Vuestrata project to native vueye-table bindings and QueryWeave list URLs.',
   },
 }
 

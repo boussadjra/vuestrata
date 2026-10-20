@@ -87,6 +87,12 @@ export const MANAGED_FILES = [
   'src/modules/app/composables/useRbac.ts',
   // Binds core/lib's describeError() to vue-i18n; nothing in it is a project's to change.
   'src/modules/app/composables/useErrorMessage.ts',
+  // The table engine and its typed column/render contract are one managed unit.
+  'src/modules/app/composables/useDataTable.ts',
+  'src/modules/app/composables/useServerTable.ts',
+  'src/modules/app/composables/table-columns.ts',
+  'src/modules/app/composables/useListRouteState.ts',
+  'src/modules/app/plugins/query-state.ts',
   'src/modules/auth/composables/useAuth.ts',
   // Generated modules import these three.
   'src/modules/app/mocks/collection.ts',

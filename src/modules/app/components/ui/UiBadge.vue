@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<BadgeProps>(), {
 })
 
 const variantMap: Record<string, string> = {
-  default: 'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-300',
+  default: 'bg-muted text-muted-foreground',
   primary: 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300',
   secondary: 'bg-secondary-100 text-secondary-700 dark:bg-secondary-900/40 dark:text-secondary-300',
   // Status variants use the semantic status ramps rather than raw palette

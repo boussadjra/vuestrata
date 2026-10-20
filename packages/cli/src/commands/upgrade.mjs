@@ -18,6 +18,7 @@ import {
   applyMigrations,
   collectMigrations,
   compareVersions,
+  migrationBlockers,
   selectMigrations,
 } from '../lib/migrations.mjs'
 import { createPayloadSource } from '../lib/payload.mjs'
@@ -104,7 +105,13 @@ export function runUpgrade({
   const { report, ws, lock, target } = planUpgrade({ root, version, source, migrations })
 
   // ── 5. Record, then report ───────────────────────────────────────────────
-  if (apply) {
+  const blocked = report.blockers.length > 0
+  if (apply && blocked) {
+    // Review copies are the only permissible writes for a blocked upgrade. Never
+    // overwrite a copy somebody has already started merging.
+    ws.flushIncoming()
+    process.exitCode = 1
+  } else if (apply) {
     lock.template = target
     ws.flush()
     writeLock(root, lock)
@@ -117,11 +124,13 @@ export function runUpgrade({
   }
 
   if (flags.json) {
-    process.stdout.write(`${JSON.stringify({ ok: true, apply, ...report }, null, 2)}\n`)
+    process.stdout.write(
+      `${JSON.stringify({ ok: !blocked, apply: apply && !blocked, blocked, ...report }, null, 2)}\n`,
+    )
     return report
   }
 
-  printReport(report, { apply })
+  printReport(report, { apply: apply && !blocked, requestedApply: apply })
   return report
 }
 
@@ -158,6 +167,7 @@ export function planUpgrade({
     incoming: [],
     ejected: [],
     notes: [],
+    blockers: [],
   }
   const context = { source, ws, lock, manifest, report, target }
 
@@ -185,6 +195,8 @@ export function planUpgrade({
   syncSeeded(context)
   syncFiles({ ...context, handled: migrated.handled })
   syncRegions(context)
+
+  report.blockers.push(...migrationBlockers(selected, context))
 
   return { report, ws, lock, target }
 }
@@ -431,7 +443,7 @@ function describeEntries(entries) {
   return entries.map((entry) => entry.key).join(', ')
 }
 
-function printReport(report, { apply }) {
+function printReport(report, { apply, requestedApply = apply }) {
   const outcome = apply ? 'has been written beside it' : 'would be written beside it'
 
   logger.log('')
@@ -476,6 +488,19 @@ function printReport(report, { apply }) {
     logger.log('')
     logger.info('Needs a person:')
     for (const note of report.notes) logger.log(`  · ${note.text}`)
+  }
+
+  if (report.blockers.length > 0) {
+    logger.log('')
+    logger.error('Upgrade blocked: the table and URL-state infrastructure must change together.')
+    for (const entry of report.blockers) logger.error(`${entry.rel}: ${entry.text}`)
+    logger.info(
+      requestedApply
+        ? 'Only new incoming review copies were written. Application files, dependencies and the template lock are unchanged. Existing incoming edits were preserved.'
+        : 'Nothing written. Resolve these conflicts before applying this release.',
+    )
+    logger.log('')
+    return
   }
 
   logger.log('')

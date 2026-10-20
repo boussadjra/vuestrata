@@ -94,6 +94,10 @@ deployed with no backend, no database and no secrets.
 Server state follows a single TanStack Query convention with typed
 `[module, resource, ...params]` keys and a shared collection contract, instead
 of letting every feature invent its own loading, caching and invalidation model.
+Vueye-table owns table behavior and headless rendering, while QueryWeave
+validates shareable list state in URLs. Neither replaces the collection API
+or its backend dialects. Rich cells remain Vuestrata components, so the table
+follows the selected theme, icon provider and language.
 `ofetch` stays the low-level client. Environment configuration is validated by
 one zod schema. Auth is one explicit contract with declared transport and
 capability flags across the `mock`, `jwt`, `oauth` and `session` adapters, so the UI hides

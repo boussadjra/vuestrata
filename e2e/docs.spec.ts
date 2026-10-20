@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 /**
  * The documentation actually renders.
  *
- * Docs pages are discovered by `import.meta.glob('/docs/**​/*.md')`, so a new
+ * Docs pages are discovered through a lazy Markdown glob, so a new
  * file needs no registration — which also means a file that fails to render
  * fails silently, and nobody notices until someone follows a link.
  *
@@ -21,6 +21,8 @@ const PAGES = [
   '/docs/configuration/environment',
   '/docs/modules/creating-a-module',
   '/docs/modules/navigation',
+  '/docs/components/data-tables',
+  '/docs/recipes/upgrade-to-2',
   '/docs/deployment/vercel-demo',
   '/docs/deployment/real-production',
   '/docs/readiness',
@@ -34,6 +36,10 @@ for (const path of PAGES) {
     // A heading proves the markdown was parsed and mounted, not merely that the
     // SPA fallback served index.html.
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 })
+    if (path === '/docs/recipes/upgrade-to-2')
+      await expect(page.locator('h1').first()).toHaveText('Upgrade to 2.0')
+    if (path === '/docs/components/data-tables')
+      await expect(page.locator('h1').first()).toHaveText('Data Tables')
   })
 }
 

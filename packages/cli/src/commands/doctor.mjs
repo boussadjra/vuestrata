@@ -158,6 +158,9 @@ export function diagnose({ root, version, source, migrations }) {
     source && !behind
       ? planFor({ root, version, source, migrations, manifest, findings })
       : undefined
+  for (const entry of plan?.blockers ?? []) {
+    findings.errors.push(`${entry.rel}: ${entry.text}`)
+  }
   const reclassified = new Set(
     (plan?.adopted ?? [])
       .filter((entry) => entry.reason === 'reclassified')

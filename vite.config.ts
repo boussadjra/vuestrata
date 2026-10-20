@@ -355,11 +355,17 @@ export default defineConfig({
             // Tables / forms / data
             {
               name: 'data-vendor',
-              test: /node_modules[\\/](?:@tanstack[\\/]vue-(?:table|query)|@formwerk[\\/])/,
+              test: /node_modules[\\/](?:@tanstack[\\/]vue-query|@formwerk[\\/])/,
               priority: 20,
             },
 
             // ── On demand ──────────────────────────────────────────────────
+            {
+              name: 'tables-vendor',
+              test: /node_modules[\\/]@vueye-table[\\/]/,
+              priority: 10,
+              includeDependenciesRecursively: false,
+            },
             // Charting — large; fetched by the first chart a page renders.
             //
             // It takes the library's own modules and not what they import.

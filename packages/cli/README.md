@@ -88,6 +88,15 @@ withdraws the removed modules' permissions there. Both are yours.
 
 Nothing is ever overwritten on a guess.
 
+The 2.0 table migration adds a consistency guard. If protected table files or
+the QueryWeave bootstrap hook need a manual merge, `upgrade` exits unsuccessfully
+and leaves application files, dependency declarations and the template version
+unchanged. Only missing `.vuestrata/incoming/` review copies are written; an
+existing incoming copy is preserved. `diff --json` reports `blocked: true` and
+the blockers without writing anything. Resolve the complete table unit, adopt
+the merged infrastructure and retry. See the
+[2.0 upgrade guide](https://github.com/boussadjra/vuestrata/blob/main/UPGRADING.md#200).
+
 ## Customise through the seams
 
 An upgrade can only replace a file you never needed to open, so each usual reason

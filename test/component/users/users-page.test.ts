@@ -7,23 +7,30 @@
  * rendering the right screen.
  */
 import 'fake-indexeddb/auto'
+import { createMemoryQueryAdapter } from '@queryweave/testing'
+import { queryAdapterKey } from '@queryweave/vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { FlexRender, type Table } from '@tanstack/vue-table'
-import { mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import type { DataTableBinding } from '@vueye-table/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 import { computed, defineComponent, h, nextTick, type PropType } from 'vue'
 import { createRouter, createMemoryHistory } from 'vue-router'
 
+import { renderTableCell } from '@/composables/table-columns'
 // UsersPage import moved below so we can mock its child composables first.
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+
+import { listRouteHarness } from '../../utils/list-route-harness'
+
+enableAutoUnmount(afterEach)
 
 const UiDataGridStub = defineComponent({
   name: 'UiDataGridStub',
   props: {
     table: {
-      type: Object as PropType<Table<User>>,
+      type: Object as PropType<DataTableBinding<User>>,
       required: true,
     },
     loading: {
@@ -40,16 +47,12 @@ const UiDataGridStub = defineComponent({
       return h(
         'div',
         { 'data-ui': 'data-grid-stub' },
-        props.table.getRowModel().rows.map((row) =>
+        props.table.rows.map((row) =>
           h(
             'div',
-            { key: row.id, 'data-row-id': row.id },
-            row.getVisibleCells().map((cell) =>
-              h(FlexRender, {
-                key: cell.id,
-                render: cell.column.columnDef.cell,
-                props: cell.getContext(),
-              }),
+            { key: row.key, 'data-row-id': row.key },
+            props.table.columns.map((column) =>
+              h('div', { key: column.id }, [renderTableCell(row, column)]),
             ),
           ),
         ),
@@ -194,6 +197,7 @@ vi.mock('~/modules/users/composables/useUpdatePermissionsMutation', () => ({
 
 import UsersScreen from '@/modules/users/components/UsersScreen.vue'
 import UsersPage from '@/modules/users/pages/users.vue'
+import { createUsersListQueryModel } from '@/modules/users/query-model'
 
 function mountScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -205,8 +209,10 @@ function mountScreen() {
 
   // No router: the screen must not need one. If it ever reaches for
   // `useRoute()` this mount is where that shows up.
-  return mount(UsersScreen, {
+  const harness = listRouteHarness(UsersScreen, createUsersListQueryModel())
+  return mount(harness.host, {
     global: {
+      provide: harness.provide,
       plugins: [[VueQueryPlugin, { queryClient }], pinia],
       stubs: {
         UiDataGrid: UiDataGridStub,
@@ -316,13 +322,17 @@ describe('Users route page', () => {
       routes: [{ path: '/', component: UsersPage }],
     })
 
+    const adapter = createMemoryQueryAdapter()
     const wrapper = mount(UsersPage, {
       global: {
+        provide: { [queryAdapterKey as symbol]: adapter },
         plugins: [router, createPinia()],
         stubs: { UsersScreen: true },
       },
     })
 
     expect(wrapper.findComponent({ name: 'UsersScreen' }).exists()).toBe(true)
+    wrapper.unmount()
+    adapter.dispose()
   })
 })

@@ -25,7 +25,7 @@ const examples = [
   {
     title: 'Server-side query',
     description:
-      'useServerTable binds search, sort, and page to a collection query. Do not wire useDataTable to a query by hand.',
+      'A native manual binding presents one server page and its total. Routed lists use useServerTable with QueryWeave.',
     component: DataTableServerDemo,
   },
   {
@@ -41,7 +41,7 @@ const examples = [
   },
   {
     title: 'Tree rows',
-    description: 'getSubRows with a stable getRowId for expandable nested records.',
+    description: 'getChildren with a stable rowKey for expandable nested records.',
     component: DataTableTreeDemo,
   },
   {

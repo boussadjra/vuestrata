@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { createColumnHelper } from '@tanstack/vue-table'
 import { useI18n } from 'vue-i18n'
 
 import { UiButton, UiDataGrid, UiPageHeader } from '@/components/ui'
-import { useDataTable } from '@/composables/useDataTable'
+import { createColumns, useDataTable } from '@/composables/useDataTable'
 import { resolveIcon } from '~/config/icon-provider'
 
 import ShowcaseDocsLink from '../components/ShowcaseDocsLink.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 interface Product {
   id: number
@@ -224,124 +223,97 @@ const products: Product[] = [
   },
 ]
 
-const columnHelper = createColumnHelper<Product>()
+const col = createColumns<Product>()
 
-const columns = [
-  columnHelper.accessor('id', {
-    header: '#',
-    meta: {
-      label: '#',
-      align: 'end',
-      width: '4rem',
-    },
+const columns = computed(() => [
+  col.text('id', {
+    label: '#',
+    align: 'end',
+    width: 64,
   }),
-  columnHelper.accessor('name', {
-    header: () => t('tables_col_product'),
-    meta: {
-      label: t('tables_col_product'),
-      filter: {
-        variant: 'text',
-        placeholder: t('tables_search'),
-      },
-      width: '18rem',
+  col.text('name', {
+    label: t('tables_col_product'),
+    filter: {
+      variant: 'text',
+      placeholder: t('tables_search'),
     },
+    width: 288,
   }),
-  columnHelper.accessor('category', {
-    header: () => t('tables_col_category'),
-    meta: {
-      label: t('tables_col_category'),
-      filter: {
-        variant: 'select',
-        options: [
-          { value: 'Electronics', label: t('tables_electronics') },
-          { value: 'Accessories', label: t('tables_accessories') },
-          { value: 'Furniture', label: t('tables_furniture') },
-        ],
-      },
-      width: '11rem',
+  col.text('category', {
+    label: t('tables_col_category'),
+    filter: {
+      variant: 'select',
+      options: [
+        { value: 'Electronics', label: t('tables_electronics') },
+        { value: 'Accessories', label: t('tables_accessories') },
+        { value: 'Furniture', label: t('tables_furniture') },
+      ],
     },
+    width: 176,
   }),
-  columnHelper.accessor('price', {
-    header: () => t('tables_col_price'),
-    cell: ({ row }) => `$${row.original.price.toFixed(2)}`,
-    meta: {
-      label: t('tables_col_price'),
-      align: 'end',
-      width: '8rem',
-    },
+  col.text('price', {
+    label: t('tables_col_price'),
+    format: (price) => `$${price.toFixed(2)}`,
+    align: 'end',
+    width: 128,
   }),
-  columnHelper.accessor('stock', {
-    header: () => t('tables_col_stock'),
-    cell: ({ row }) =>
-      row.original.stock === 0 ? t('tables_out_of_stock') : row.original.stock.toLocaleString(),
-    meta: {
-      label: t('tables_col_stock'),
-      align: 'end',
-      width: '8rem',
-    },
+  col.text('stock', {
+    label: t('tables_col_stock'),
+    format: (stock) =>
+      stock === 0 ? t('tables_out_of_stock') : stock.toLocaleString(locale.value),
+    align: 'end',
+    width: 128,
   }),
-  columnHelper.accessor('status', {
-    header: () => t('tables_col_status'),
-    cell: ({ row }) =>
+  col.text('status', {
+    label: t('tables_col_status'),
+    format: (status) => t(`tables_${status}`),
+    render: ({ row }) =>
       h(
         'span',
         {
-          class: [
-            statusColors[row.original.status],
-            'rounded-full px-2.5 py-1 text-xs font-semibold',
-          ],
+          class: [statusColors[row.status], 'rounded-full px-2.5 py-1 text-xs font-semibold'],
         },
-        row.original.status,
+        t(`tables_${row.status}`),
       ),
-    meta: {
-      label: t('tables_col_status'),
-      filter: {
-        variant: 'select',
-        options: [
-          { value: 'active', label: t('tables_active') },
-          { value: 'draft', label: t('tables_draft') },
-          { value: 'archived', label: t('tables_archived') },
-        ],
-      },
-      width: '9rem',
+    filter: {
+      variant: 'select',
+      options: [
+        { value: 'active', label: t('tables_active') },
+        { value: 'draft', label: t('tables_draft') },
+        { value: 'archived', label: t('tables_archived') },
+      ],
     },
+    width: 144,
   }),
-  columnHelper.accessor('rating', {
-    header: () => t('tables_col_rating'),
-    cell: ({ row }) =>
+  col.text('rating', {
+    label: t('tables_col_rating'),
+    format: (rating) => rating.toFixed(1),
+    render: ({ row }) =>
       h('div', { class: 'flex items-center justify-center gap-1' }, [
         h('span', { class: [resolveIcon('star'), 'h-3.5 w-3.5 text-warning'] }),
-        h('span', { class: 'tabular-nums' }, row.original.rating.toFixed(1)),
+        h('span', { class: 'tabular-nums' }, row.rating.toFixed(1)),
       ]),
-    meta: {
-      label: t('tables_col_rating'),
-      align: 'center',
-      width: '7rem',
-    },
+    align: 'center',
+    width: 112,
   }),
-  columnHelper.accessor('created', {
-    header: () => t('tables_col_created'),
-    cell: ({ row }) =>
-      new Date(row.original.created).toLocaleDateString('en-US', {
+  col.text('created', {
+    label: t('tables_col_created'),
+    format: (created) =>
+      new Date(created).toLocaleDateString(locale.value, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
       }),
-    meta: {
-      label: t('tables_col_created'),
-      width: '10rem',
-    },
+    width: 160,
   }),
-]
+])
 
 const { table } = useDataTable<Product>({
   data: products,
   columns,
-  enableFiltering: true,
-  enableRowSelection: true,
-  enableColumnVisibility: true,
-  pageSize: 8,
-  getRowId: (row) => String(row.id),
+  selectionMode: 'multiple',
+  initialState: { pagination: { page: 1, pageSize: 8 } },
+  rowKey: 'id',
 })
 
 const statusColors: Record<string, string> = {
@@ -351,32 +323,7 @@ const statusColors: Record<string, string> = {
 }
 
 function exportCSV() {
-  const rows = table.getFilteredRowModel().rows
-  const headers = [
-    'ID',
-    t('tables_col_product'),
-    t('tables_col_category'),
-    t('tables_col_price'),
-    t('tables_col_stock'),
-    t('tables_col_status'),
-    t('tables_col_rating'),
-    t('tables_col_created'),
-  ]
-  const csv = [
-    headers.join(','),
-    ...rows.map((r) =>
-      [
-        r.original.id,
-        `"${r.original.name}"`,
-        r.original.category,
-        r.original.price,
-        r.original.stock,
-        r.original.status,
-        r.original.rating,
-        r.original.created,
-      ].join(','),
-    ),
-  ].join('\n')
+  const csv = table.value.exportRows({ columns: table.value.allColumns.map((column) => column.id) })
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

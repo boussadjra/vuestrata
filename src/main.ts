@@ -4,10 +4,14 @@
 //
 // To add something of your own, pass beforeMount:
 //
-//   void boot(App, { beforeMount: (app) => { app.use(MyPlugin) } })
+//   void boot(App, { beforeMount: (app) => {
+//     installQueryState(app)
+//     app.use(MyPlugin)
+//   } })
 //
 // Copying the steps of boot() into this file stops it receiving fixes.
 import { boot } from '@/bootstrap'
+import { installQueryState } from '@/plugins/query-state'
 
 // Root component
 import App from './App.vue'
@@ -15,4 +19,4 @@ import App from './App.vue'
 // Local styles
 import '@/styles/app.css'
 
-void boot(App)
+void boot(App, { beforeMount: installQueryState })

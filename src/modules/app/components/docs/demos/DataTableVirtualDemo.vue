@@ -6,11 +6,11 @@ import { makeLogRows, type LogRow } from './data-table-fixtures'
 const rows = makeLogRows(220)
 const col = createColumns<LogRow>()
 const columns = [
-  col.text('id', { label: 'Id', width: '8rem' }),
+  col.text('id', { label: 'Id', width: 128 }),
   col.text('event', { label: 'Event' }),
   col.text('source', {
     label: 'Source',
-    width: '9rem',
+    width: 144,
     filter: {
       variant: 'select',
       options: [
@@ -24,7 +24,7 @@ const columns = [
   col.text('durationMs', {
     label: 'Duration',
     align: 'end',
-    width: '9rem',
+    width: 144,
     format: (ms) => `${ms} ms`,
   }),
 ]
@@ -32,8 +32,8 @@ const columns = [
 const { table } = useDataTable({
   data: rows,
   columns,
-  enablePagination: false,
-  getRowId: (row) => row.id,
+  paginate: false,
+  rowKey: (row) => row.id,
 })
 </script>
 

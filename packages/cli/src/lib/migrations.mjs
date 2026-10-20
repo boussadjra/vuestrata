@@ -84,7 +84,7 @@ import { incomingPath } from './workspace.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-export const STEP_KINDS = ['codemod', 'note', 'promote', 'reclassify']
+export const STEP_KINDS = ['codemod', 'note', 'promote', 'reclassify', 'guard']
 
 export function migrationsRoot() {
   return path.resolve(here, '../../migrations')
@@ -182,7 +182,11 @@ export function validateMigration(migration) {
     }
 
     const targeted = step.file !== undefined || step.slot !== undefined
-    if (kind !== 'note' && !targeted) throw new Error(`${label} names no file or slot`)
+    if (!['note', 'guard'].includes(kind) && !targeted)
+      throw new Error(`${label} names no file or slot`)
+    if (kind === 'guard' && typeof step.check !== 'function') {
+      throw new Error(`${label} has no check(context)`)
+    }
     if (kind === 'codemod' && typeof step.apply !== 'function') {
       throw new Error(`${label} has no apply(source, manifest)`)
     }
@@ -208,6 +212,17 @@ export function validateMigration(migration) {
       throw new Error(`${label}: pending must be a function of the source`)
     }
   })
+}
+
+/** Check the complete buffered result, after payload sync, before any application writes. */
+export function migrationBlockers(migrations, context) {
+  return migrations.flatMap((migration) =>
+    migration.steps
+      .filter((step) => step.kind === 'guard')
+      .flatMap((step) =>
+        (step.check(context) ?? []).map((entry) => ({ version: migration.version, ...entry })),
+      ),
+  )
 }
 
 /**

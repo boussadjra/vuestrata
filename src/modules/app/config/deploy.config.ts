@@ -74,6 +74,7 @@ export default defineDeployConfig({
       // reads metadata from the same public barrels.
       add: [
         'collection-queries',
+        'tables-vendor',
         'useCustomers',
         'useMessages',
         'useOrders',

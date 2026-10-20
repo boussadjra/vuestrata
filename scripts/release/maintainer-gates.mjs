@@ -4,6 +4,9 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { compareVersions, releaseCore } from '../../packages/cli/src/lib/migrations.mjs'
+import { hashContents } from '../../packages/cli/src/lib/plan.mjs'
+
 /**
  * The checks that only make sense in the template's own repository.
  *
@@ -16,9 +19,8 @@ import { fileURLToPath } from 'node:url'
  *                     file and registry region exactly as they are now
  *   payload           `packages/cli/payload` (what `upgrade` installs) is what
  *                     would be built from this checkout
- *   migration-files   the copies of project-owned files a migration installs
- *                     (`packages/cli/migrations/<version>/shipped/`) are the
- *                     files this checkout ships
+ *   migration-files   current-release project copies match this checkout;
+ *                     historical migration code and copies match frozen hashes
  *   maintainer-tests  (with --tests) the suites that read this repository as
  *                     the template: the public-surface snapshot of the names a
  *                     project's code calls, and the CLI suites' checks that the
@@ -59,16 +61,70 @@ function checkPayload() {
   return node(script, ['--check'])
 }
 
-/** Every migration that installs copies of project-owned files checks its own. */
+/** Historical migrations remain immutable; only the current release follows source changes. */
+export function frozenMigrationProblems({ root = repoRoot, version } = {}) {
+  const current = releaseCore(
+    version ?? JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version,
+  )
+  const migrations = path.join(root, 'packages/cli/migrations')
+  const catalogPath = path.join(migrations, 'frozen.json')
+  const catalog = fs.existsSync(catalogPath) ? JSON.parse(fs.readFileSync(catalogPath, 'utf8')) : {}
+  const problems = []
+  for (const archived of Object.keys(catalog)) {
+    if (compareVersions(archived, current) < 0 && !fs.existsSync(path.join(migrations, archived))) {
+      problems.push(`Historical migration ${archived} is missing. Restore the archived directory.`)
+    }
+  }
+  const walk = (dir, prefix = '') =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const rel = `${prefix}${entry.name}`
+      return entry.isDirectory() ? walk(path.join(dir, entry.name), `${rel}/`) : [rel]
+    })
+  for (const entry of fs.readdirSync(migrations, { withFileTypes: true })) {
+    if (
+      !entry.isDirectory() ||
+      !/^\d+\.\d+\.\d+$/.test(entry.name) ||
+      compareVersions(entry.name, current) >= 0
+    )
+      continue
+    const baseline = catalog[entry.name]
+    if (!baseline) {
+      problems.push(
+        `Historical migration ${entry.name} needs an immutable baseline in migrations/frozen.json.`,
+      )
+      continue
+    }
+    const dir = path.join(migrations, entry.name)
+    const actual = walk(dir)
+    for (const rel of new Set([...actual, ...Object.keys(baseline)])) {
+      const full = path.join(dir, rel)
+      if (!fs.existsSync(full) || baseline[rel] !== hashContents(fs.readFileSync(full, 'utf8'))) {
+        problems.push(
+          `Historical migration ${entry.name}/${rel} changed. Add a new migration instead.`,
+        )
+      }
+    }
+  }
+  return problems
+}
+
 function checkMigrationFiles() {
+  const problems = frozenMigrationProblems()
+  if (problems.length) {
+    for (const problem of problems) process.stderr.write(`[migration-files] ${problem}\n`)
+    return 1
+  }
+  const current = releaseCore(
+    JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).version,
+  )
   const migrations = path.join(cliRoot, 'migrations')
   const scripts = fs
     .readdirSync(migrations, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && entry.name === current)
     .map((entry) => `packages/cli/migrations/${entry.name}/shipped.mjs`)
     .filter((script) => fs.existsSync(path.join(repoRoot, script)))
 
-  // Every one runs, so one pass names every stale copy.
+  // Current-release copies follow source; historical versions were checked above.
   return scripts.map((script) => node(script, ['--check'])).some((status) => status !== 0) ? 1 : 0
 }
 
@@ -112,17 +168,21 @@ export function runGates(gates) {
 
 function main() {
   if (!fs.existsSync(path.join(cliRoot, 'src/index.mjs'))) {
-    console.error('[maintainer-gates] packages/cli is not in this checkout.')
-    console.error('  These gates are for template maintainers; they check the template repository')
-    console.error('  itself. In a project built from the template, run `vuestrata doctor` instead.')
+    process.stderr.write('[maintainer-gates] packages/cli is not in this checkout.\n')
+    process.stderr.write(
+      '  These gates are for template maintainers; they check the template repository\n',
+    )
+    process.stderr.write(
+      '  itself. In a project built from the template, run `vuestrata doctor` instead.\n',
+    )
     process.exit(1)
   }
 
   const { ok, results } = runGates(selectGates({ withTests: process.argv.includes('--tests') }))
 
-  console.log('')
-  console.log('[maintainer-gates]')
-  for (const result of results) console.log(`  ${result.ok ? 'pass' : 'FAIL'}  ${result.name}`)
+  process.stdout.write('\n[maintainer-gates]\n')
+  for (const result of results)
+    process.stdout.write(`  ${result.ok ? 'pass' : 'FAIL'}  ${result.name}\n`)
 
   if (!ok) process.exit(1)
 }

@@ -13,7 +13,7 @@ const columns = [
 const { table } = useDataTable({
   data: [] as TeamMember[],
   columns,
-  getRowId: (row) => row.id,
+  rowKey: (row) => row.id,
 })
 </script>
 

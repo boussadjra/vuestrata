@@ -1,0 +1,31 @@
+{
+  "1.1.0": {
+    "base-path.mjs": "sha256-ae163516ab3e9d443762961f655ab37f0d16d22bae0963b0bb243a63adb65348",
+    "deployment.mjs": "sha256-f5d61bd1e43fa22d09019b2a31def70ed2912b039bf88071032652db69f73574",
+    "headers-unit.mjs": "sha256-f07f4c547c85500a060323e27ca23ae6e935c185909b7a9d76e0ae34661cbac3",
+    "hybrid-mocks.mjs": "sha256-7608ec1b9e4074efd43efff018db6f6d482c8d46ad4160149059a2d62d13534d",
+    "index.mjs": "sha256-d7aa0523724d636379ee49d11cbf32096a49c93083d62b9926d962f8fa77d8e8",
+    "locale-loading.mjs": "sha256-92fe8934955eb7d0837dbfcaf596984d626bf1c53faf08238329fa808d85870a",
+    "notes.mjs": "sha256-0c22985f77d380095e493a11e547758e9da1391085415fb9e7bb06320f35ce11",
+    "project-files.mjs": "sha256-f219c4e473fda4dcc17dae9f77f18bfdb8757c3f870b5aa5d9ce3021ad9f642b",
+    "promotions.mjs": "sha256-82354e13bfec5d6d99d4a15ec1161f069a0f96972cbdfa5e82ff646832805db8",
+    "rbac-eject.mjs": "sha256-30c521e646ffda68c13ce028442597a32df42a946f300f52a47c10ef14bf54f7",
+    "released-1.0/rbac-inheritance.ts.txt": "sha256-1af539fb21e7ec6c871a4f199bde7f1f5d9fee1f39a1626a21a6d0e2e60747df",
+    "released-1.0/rbac-types.ts.txt": "sha256-9cea2c7654c28bf669b8c0ff69585c7f7c6f1651f73684dfc325c6500e6cc9ac",
+    "roles.mjs": "sha256-355564e26855556c3a08e094a002dcd30a8805d2733714a4b1941913e1562610",
+    "shipped.mjs": "sha256-23d727dffab4d10ca522911dd379cfeb8a92de485932268eb9cde7fcf576dd36",
+    "shipped/.dockerignore.txt": "sha256-656a409f8db8f5d3c9c98c8c3f9e34251d734575d132bd848ada643370f041c1",
+    "shipped/.github/dependabot.yml.txt": "sha256-15c71ec761bd8f523e807c63719d81e12bfc1ebec63697a47e98597833213495",
+    "shipped/.github/workflows/ci.yml.txt": "sha256-4a161f3f60b2e1039d69196b40467a96fa33d9b3c335fd3622bf45b37d7ea793",
+    "shipped/Dockerfile.txt": "sha256-a07bab676fbc526f9056b9fd8435819b522cbdc76fefb9511c423d89fc4c44e7",
+    "shipped/docker-compose.yml.txt": "sha256-f283fa91f97bbbac97f98a245f9ddd162f9977a0afa068feab74b76533a8c84b",
+    "shipped/e2e/production-artifact.spec.ts.txt": "sha256-42d8c5143cf3c48907a130685eb1c5618766de5fddd8bbf048a1ae46d586ddd9",
+    "shipped/scripts/lint/check-toolchain-pins.mjs.txt": "sha256-fe1d958bcb5e42928072aea4fe89ecc22c052472031a357b5520d393cb7baf63",
+    "shipped/src/modules/app/composables/useActiveLocale.ts.txt": "sha256-dae3d77328ed3e68a7f87b550b216e5aca0f9ce4b5cbdf3431de42434e556860",
+    "shipped/src/modules/app/composables/useLocales.ts.txt": "sha256-502c2436038d14f32bc0480e6194dbfc0aa93da2f378a6671abd0b0bcb5ed751",
+    "shipped/src/modules/app/plugins/i18n.ts.txt": "sha256-21fd7613752c1de5313ae7a7614466802017513b11d388e4c6943752de00f14c",
+    "shipped/src/modules/i18n.ts.txt": "sha256-271190f008496120b6dc9da566793691a155bd97f7dbd8fed1833bc1cba8461d",
+    "shipped/src/modules/index.ts.txt": "sha256-5fe8e7a7e730bed6093c8de95d61e81482816105bdc134e9c0469ccd207e6016",
+    "text.mjs": "sha256-217f74e3a7e7ecacb5e15cc2b8532d55e92de119f2af5b2e935de6db757d4655"
+  }
+}

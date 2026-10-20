@@ -7,13 +7,14 @@
  * listed and labelled without an edit to the module.
  */
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { FlexRender, type Table } from '@tanstack/vue-table'
-import { mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import type { DataTableBinding } from '@vueye-table/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { computed, defineComponent, h, type PropType } from 'vue'
 
 import { UiSelect } from '@/components/ui'
+import { renderTableCell } from '@/composables/table-columns'
 import { resolveRolePermissions } from '@/lib/rbac'
 import { resolveRbacOverrides } from '@/lib/rbac/overrides'
 import type { RbacOverrides } from '@/lib/rbac/types'
@@ -21,6 +22,10 @@ import { installRbacConfig } from '@/lib/runtime'
 import { getI18n } from '@/plugins/i18n'
 import { useAuthStore } from '@/stores/auth'
 import type { Role, User } from '@/types'
+
+import { listRouteHarness } from '../../utils/list-route-harness'
+
+enableAutoUnmount(afterEach)
 
 interface Declared {
   auditor: true
@@ -105,31 +110,28 @@ import RolePermissionMatrix from '@/modules/users/components/RolePermissionMatri
 import UserPermissionsPanel from '@/modules/users/components/UserPermissionsPanel.vue'
 import UsersScreen from '@/modules/users/components/UsersScreen.vue'
 import { roleBadgeClass, roleDefaultPermissions } from '@/modules/users/presentation'
+import { createUsersListQueryModel } from '@/modules/users/query-model'
 
 interface Option {
   value: string
   label: string
 }
 
-const tables: Table<User>[] = []
+const tables: DataTableBinding<User>[] = []
 const DataGridRows = defineComponent({
   name: 'DataGridRows',
-  props: { table: { type: Object as PropType<Table<User>>, required: true } },
+  props: { table: { type: Object as PropType<DataTableBinding<User>>, required: true } },
   setup(props) {
     tables.push(props.table)
     return () =>
       h(
         'div',
-        props.table.getRowModel().rows.map((row) =>
+        props.table.rows.map((row) =>
           h(
             'div',
-            { key: row.id, 'data-row-id': row.original.id },
-            row.getVisibleCells().map((cell) =>
-              h(FlexRender, {
-                key: cell.id,
-                render: cell.column.columnDef.cell,
-                props: cell.getContext(),
-              }),
+            { key: row.key, 'data-row-id': row.original.id },
+            props.table.columns.map((column) =>
+              h('div', { key: column.id }, [renderTableCell(row, column)]),
             ),
           ),
         ),
@@ -142,8 +144,10 @@ function mountScreen() {
   setActivePinia(pinia)
   useAuthStore().setAuth(admin, 'access-token')
 
-  return mount(UsersScreen, {
+  const harness = listRouteHarness(UsersScreen, createUsersListQueryModel())
+  return mount(harness.host, {
     global: {
+      provide: harness.provide,
       plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }], pinia],
       stubs: { UiDataGrid: DataGridRows, UserPermissionsPanel: true },
     },
@@ -207,7 +211,7 @@ describe('a project role in the users module', () => {
   it('can be filtered by even when a picker does not offer it', () => {
     mountScreen()
 
-    const meta = tables[0]!.getColumn('role')!.columnDef.meta as { filter: { options: Option[] } }
+    const meta = tables[0]!.getColumn('role')!.meta as { filter: { options: Option[] } }
     expect(meta.filter.options.slice(6)).toEqual([
       { value: 'auditor', label: 'Auditor' },
       { value: 'billing_admin', label: 'Billing administrator' },

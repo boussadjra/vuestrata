@@ -21,6 +21,15 @@ importers:
       '@formwerk/core':
         specifier: ^0.14.4
         version: 0.14.4(vue@3.5.42(typescript@6.0.3))
+      '@queryweave/core':
+        specifier: 0.1.0-beta.5
+        version: 0.1.0-beta.5
+      '@queryweave/vue':
+        specifier: 0.1.0-beta.5
+        version: 0.1.0-beta.5(vue@3.5.42(typescript@6.0.3))
+      '@queryweave/vue-router':
+        specifier: 0.1.0-beta.5
+        version: 0.1.0-beta.5(vue-router@5.3.0(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(@vue/compiler-sfc@3.5.42)(esbuild@0.28.2)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.42(typescript@6.0.3)))(vue@3.5.42(typescript@6.0.3)))(vue@3.5.42(typescript@6.0.3))
       '@shikijs/langs':
         specifier: ^4.4.2
         version: 4.4.3
@@ -33,12 +42,18 @@ importers:
       '@tanstack/vue-query':
         specifier: ^5.102.8
         version: 5.102.8(vue@3.5.42(typescript@6.0.3))
-      '@tanstack/vue-table':
-        specifier: ^8.21.3
-        version: 8.21.3(vue@3.5.42(typescript@6.0.3))
       '@vueuse/core':
         specifier: ^14.4.0
         version: 14.4.0(vue@3.5.42(typescript@6.0.3))
+      '@vueye-table/core':
+        specifier: 3.0.0-beta.3
+        version: 3.0.0-beta.3
+      '@vueye-table/headless':
+        specifier: 3.0.0-beta.3
+        version: 3.0.0-beta.3(vue@3.5.42(typescript@6.0.3))
+      '@vueye-table/vue':
+        specifier: 3.0.0-beta.3
+        version: 3.0.0-beta.3(vue@3.5.42(typescript@6.0.3))
       axe-core:
         specifier: ^4.13.0
         version: 4.13.0
@@ -148,6 +163,9 @@ importers:
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
+      '@queryweave/testing':
+        specifier: 0.1.0-beta.5
+        version: 0.1.0-beta.5
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))
@@ -1279,6 +1297,27 @@ packages:
   '@quansync/fs@1.0.0':
     resolution: {integrity: sha512-4TJ3DFtlf1L5LDMaM6CanJ/0lckGNtJcMjQ1NAV6zDmA0tEHKZtxNKin8EgPaVX1YzljbxckyT2tJrpQKAtngQ==}
 
+  '@queryweave/core@0.1.0-beta.5':
+    resolution: {integrity: sha512-SDhlUOJEWkIOnToEaDAv0Ze6NTKQVKZhp8k2FWt0ekVKCrfDuphLB82yEhH5qwKMt3JNI/DK2pwEohFobA1bNQ==}
+    engines: {node: '>=22.12.0'}
+
+  '@queryweave/testing@0.1.0-beta.5':
+    resolution: {integrity: sha512-2CpU9jYiAqfKfu63lmskEls9WlZP/TkmeC7cqt7uwq7jkEzqlb8MleagDF9eucX2YN+VFud44dVlFlC/4eWUIw==}
+    engines: {node: '>=22.12.0'}
+
+  '@queryweave/vue-router@0.1.0-beta.5':
+    resolution: {integrity: sha512-OfeEFhf26CInAp1JyIEaw+TBez/Yd8yswbgKmOTFrCuNG1i2y+BJfULeYT3cwY6K3BDImsy3Ae+qzbxbTdgRSA==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      vue: '>=3.5.0 <4'
+      vue-router: '>=4.4.0 <6'
+
+  '@queryweave/vue@0.1.0-beta.5':
+    resolution: {integrity: sha512-yuTA2byieK9azSS9Sg77lVH9uXvI/HZmTl0OQIczM4fuvYbK5EvBhYIJG81XEGTNP4nP4TF5mg6XH3GjNgWJAA==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      vue: '>=3.5.0 <4'
+
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
@@ -1443,10 +1482,6 @@ packages:
   '@tanstack/query-core@5.102.8':
     resolution: {integrity: sha512-ZNjkJ33CqvPNec/6lZBnHqLc3EVGPZ9ySLhYahU9TcuRFdmwXewuj0c4hwSWcGHqEUwcSrKeZ+oGcvPBqXcQcg==}
 
-  '@tanstack/table-core@8.21.3':
-    resolution: {integrity: sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==}
-    engines: {node: '>=12'}
-
   '@tanstack/virtual-core@3.17.8':
     resolution: {integrity: sha512-BfEvehNpOT75r5Ksc5xW6NZuXujTfb7nlSEyVu4XHG3gdxNg1KqXruWbDewXOUaUYIo4oRbSfkjIajz4MAT8tA==}
 
@@ -1458,12 +1493,6 @@ packages:
     peerDependenciesMeta:
       '@vue/composition-api':
         optional: true
-
-  '@tanstack/vue-table@8.21.3':
-    resolution: {integrity: sha512-rusRyd77c5tDPloPskctMyPLFEQUeBzxdQ+2Eow4F7gDPlPOB1UnnhzfpdvqZ8ZyX2rRNGmqNnQWm87OI2OQPw==}
-    engines: {node: '>=12'}
-    peerDependencies:
-      vue: '>=3.2'
 
   '@tanstack/vue-virtual@3.13.36':
     resolution: {integrity: sha512-gKpExv4RbB9luVG+SucTXoqPZv/gzu/Yvz6BNO+8kpNxJ2x+I/ulryzl5W9BRciahZGp5Tls3Dp5XP1ztVGbMw==}
@@ -1806,6 +1835,22 @@ packages:
     resolution: {integrity: sha512-JRgY90Sz8DDtPMsaDflvPMp9xYk69JZAmbuDvAquUVXKr2gEjqtzGNTTthLfckH0BzBqvnu31gb4a8TGLRe79g==}
     peerDependencies:
       vue: ^3.5.0
+
+  '@vueye-table/core@3.0.0-beta.3':
+    resolution: {integrity: sha512-4NENeApRovZcT+/+QrLZWTzwgAv8TmMWpxmCVCzmJykZCxo7yecdbVx+ZrEy7qfibYk5jv3unT30lOwyn3pi8A==}
+    engines: {node: '>=22.12.0'}
+
+  '@vueye-table/headless@3.0.0-beta.3':
+    resolution: {integrity: sha512-djJFYXBW9qqkO4wTddeygGMeS7+baYsVyh+nPUN/U1cyBimrtsZqXp0AGf3RD5lOuLpU738OiOuHzxQU5BlDTw==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      vue: '>=3.5.0 <4'
+
+  '@vueye-table/vue@3.0.0-beta.3':
+    resolution: {integrity: sha512-3ybTRr3ootVYF1Cla3K5EDyESWesbMVX5a0WEy+1GuV4vDVvlDv2kOGRVthONdgh9MmNLn/gnE9BSIPjoG1qCA==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      vue: '>=3.5.0 <4'
 
   '@yuku-codegen/binding-darwin-arm64@0.5.48':
     resolution: {integrity: sha512-yo96Oef12WzqnphInfz/eexVse3+kWgfGS5g2S3rFS3dcGn1ENW9xLFDZUP9rh+yP76DOq38wBoFi1+I9+6qBg==}
@@ -4463,6 +4508,23 @@ snapshots:
     dependencies:
       quansync: 1.0.0
 
+  '@queryweave/core@0.1.0-beta.5': {}
+
+  '@queryweave/testing@0.1.0-beta.5':
+    dependencies:
+      '@queryweave/core': 0.1.0-beta.5
+
+  '@queryweave/vue-router@0.1.0-beta.5(vue-router@5.3.0(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(@vue/compiler-sfc@3.5.42)(esbuild@0.28.2)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.42(typescript@6.0.3)))(vue@3.5.42(typescript@6.0.3)))(vue@3.5.42(typescript@6.0.3))':
+    dependencies:
+      '@queryweave/core': 0.1.0-beta.5
+      vue: 3.5.42(typescript@6.0.3)
+      vue-router: 5.3.0(@voidzero-dev/vite-plus-core@0.3.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@6.0.3)(yaml@2.9.0))(@vue/compiler-sfc@3.5.42)(esbuild@0.28.2)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.42(typescript@6.0.3)))(vue@3.5.42(typescript@6.0.3))
+
+  '@queryweave/vue@0.1.0-beta.5(vue@3.5.42(typescript@6.0.3))':
+    dependencies:
+      '@queryweave/core': 0.1.0-beta.5
+      vue: 3.5.42(typescript@6.0.3)
+
   '@rolldown/pluginutils@1.0.1': {}
 
   '@rollup/pluginutils@5.4.0':
@@ -4601,8 +4663,6 @@ snapshots:
 
   '@tanstack/query-core@5.102.8': {}
 
-  '@tanstack/table-core@8.21.3': {}
-
   '@tanstack/virtual-core@3.17.8': {}
 
   '@tanstack/vue-query@5.102.8(vue@3.5.42(typescript@6.0.3))':
@@ -4612,11 +4672,6 @@ snapshots:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.42(typescript@6.0.3)
       vue-demi: 0.14.10(vue@3.5.42(typescript@6.0.3))
-
-  '@tanstack/vue-table@8.21.3(vue@3.5.42(typescript@6.0.3))':
-    dependencies:
-      '@tanstack/table-core': 8.21.3
-      vue: 3.5.42(typescript@6.0.3)
 
   '@tanstack/vue-virtual@3.13.36(vue@3.5.42(typescript@6.0.3))':
     dependencies:
@@ -4984,6 +5039,19 @@ snapshots:
 
   '@vueuse/shared@14.4.0(vue@3.5.42(typescript@6.0.3))':
     dependencies:
+      vue: 3.5.42(typescript@6.0.3)
+
+  '@vueye-table/core@3.0.0-beta.3': {}
+
+  '@vueye-table/headless@3.0.0-beta.3(vue@3.5.42(typescript@6.0.3))':
+    dependencies:
+      '@vueye-table/core': 3.0.0-beta.3
+      '@vueye-table/vue': 3.0.0-beta.3(vue@3.5.42(typescript@6.0.3))
+      vue: 3.5.42(typescript@6.0.3)
+
+  '@vueye-table/vue@3.0.0-beta.3(vue@3.5.42(typescript@6.0.3))':
+    dependencies:
+      '@vueye-table/core': 3.0.0-beta.3
       vue: 3.5.42(typescript@6.0.3)
 
   '@yuku-codegen/binding-darwin-arm64@0.5.48':

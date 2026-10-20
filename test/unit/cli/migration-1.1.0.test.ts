@@ -14,7 +14,7 @@ const { importStartLocation } = await loadCli('migrations/1.1.0/project-files.mj
 const { declaresBinding, jsonStringSpan, withoutComments } = await loadCli(
   'migrations/1.1.0/text.mjs',
 )
-const { checkShipped, SHIPPED, shippedCopy } = await loadCli('migrations/1.1.0/shipped.mjs')
+const { SHIPPED, shippedCopy } = await loadCli('migrations/1.1.0/shipped.mjs')
 const { LOCALE_FILES } = await loadCli('migrations/1.1.0/locale-loading.mjs')
 
 /**
@@ -260,11 +260,14 @@ describe.skipIf(!CLI_PRESENT)('the 1.1.0 migration data', () => {
 
   // A project edits its Dockerfile and its workflow as a matter of course, so
   // only the template is held to shipping what the migration installs.
-  it.runIf(MAINTAINER)('installs the copies of those files that this repository ships', () => {
-    expect(
-      checkShipped(),
-      'refresh them: node packages/cli/migrations/1.1.0/shipped.mjs --write',
-    ).toEqual([])
+  it.runIf(MAINTAINER)('preserves the archived 1.1 project-owned source copies', () => {
+    const baseline = JSON.parse(inRepo('packages/cli/migrations/frozen.json'))['1.1.0'] as Record<
+      string,
+      string
+    >
+    for (const rel of Object.keys(SHIPPED)) {
+      expect(hash(shippedCopy(rel)), rel).toBe(baseline[`shipped/${rel}.txt`])
+    }
   })
 })
 
@@ -2174,7 +2177,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
           await upgrade()
 
           // An upgrade cannot assume the project's composables have no side effects.
-          const required = lf(inRepo(VITE)).replace(
+          const required = lf(inRepo('test/fixtures/cli/table-1.1/vite.config.ts.txt')).replace(
             /\n      treeshake: \{[\s\S]*?\n      \},(?=\n      output:)/,
             '',
           )

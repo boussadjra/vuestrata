@@ -20,17 +20,17 @@ let request: AbortController | null = null
 
 const col = createColumns<DirectoryApiUser>()
 const columns = [
-  col.text('name', { label: 'Name', width: '14rem' }),
+  col.text('name', { label: 'Name', width: 224 }),
   col.text('email', { label: 'Email' }),
-  col.text('company', { label: 'Company', width: '14rem' }),
-  col.text('city', { label: 'City', width: '12rem' }),
+  col.text('company', { label: 'Company', width: 224 }),
+  col.text('city', { label: 'City', width: 192 }),
 ]
 
 const { table } = useDataTable({
   data: () => rows.value,
   columns,
-  pageSize: 5,
-  getRowId: (row) => String(row.id),
+  initialState: { pagination: { page: 1, pageSize: 5 } },
+  rowKey: (row) => String(row.id),
 })
 
 function mapUsers(payload: PlaceholderUser[]): DirectoryApiUser[] {

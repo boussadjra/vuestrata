@@ -36,6 +36,27 @@ const formwerk = useUiSelect(props)
 const { labelProps, errorMessageProps, descriptionProps, displayError, fieldValue, setValue } =
   formwerk
 
+// Prop presence decides ownership: an explicitly passed undefined is a
+// controlled empty selection, while an omitted prop can inherit a named form.
+const instance = getCurrentInstance()
+function hasModelProp(): boolean {
+  const supplied = instance?.vnode.props
+  return Boolean(
+    supplied && (Object.hasOwn(supplied, 'modelValue') || Object.hasOwn(supplied, 'model-value')),
+  )
+}
+const controlled = ref(hasModelProp())
+onBeforeUpdate(() => {
+  controlled.value = hasModelProp()
+})
+watch(
+  [controlled, () => props.modelValue, () => props.multiple],
+  ([isControlled, value, multiple]) => {
+    if (isControlled) setValue(value ?? (multiple ? [] : ''))
+  },
+  { immediate: true },
+)
+
 const placeholderText = computed(() => props.placeholder ?? t('common_select'))
 const controlId = computed(() => props.id ?? formwerk.controlId)
 const errorId = computed(() => (controlId.value ? `${controlId.value}-e` : undefined))
@@ -76,15 +97,12 @@ function isSingleOption(
 }
 
 const currentValue = computed(() => {
+  const value = controlled.value ? props.modelValue : fieldValue.value
   if (props.multiple) {
-    if (Array.isArray(fieldValue.value)) return fieldValue.value
-    if (Array.isArray(props.modelValue)) return props.modelValue
-    return []
+    return Array.isArray(value) ? value : []
   }
 
-  if (Array.isArray(fieldValue.value)) return fieldValue.value[0]
-
-  return fieldValue.value ?? props.modelValue
+  return (Array.isArray(value) ? value[0] : value) ?? ''
 })
 
 const optionLabels = computed(() => {
@@ -130,7 +148,9 @@ const hasSelection = computed(() =>
 )
 
 function onValueChange(value: string | number | Array<string | number>) {
-  setValue(value)
+  // A router guard may refuse this choice. Controlled fields change their
+  // displayed and form values only when the parent commits a new prop.
+  if (!controlled.value) setValue(value)
   emit('update:modelValue', value)
 }
 

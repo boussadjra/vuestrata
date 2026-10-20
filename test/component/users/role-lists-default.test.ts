@@ -6,10 +6,10 @@
  * show a project with no role of its own exactly what they showed before.
  */
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import type { Table } from '@tanstack/vue-table'
-import { mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import type { DataTableBinding } from '@vueye-table/vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { computed, defineComponent, h, type PropType } from 'vue'
 
 import { UiSelect } from '@/components/ui'
@@ -17,6 +17,10 @@ import { resolveRbacOverrides } from '@/lib/rbac/overrides'
 import { installRbacConfig } from '@/lib/runtime'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+
+import { listRouteHarness } from '../../utils/list-route-harness'
+
+enableAutoUnmount(afterEach)
 
 const admin: User = {
   id: 'u-admin',
@@ -58,6 +62,7 @@ vi.mock('~/modules/users/composables/useInviteUserMutation', () => ({
 import InviteUserDialog from '@/modules/users/components/InviteUserDialog.vue'
 import UsersScreen from '@/modules/users/components/UsersScreen.vue'
 import { matrixRoles } from '@/modules/users/presentation'
+import { createUsersListQueryModel } from '@/modules/users/query-model'
 
 interface Option {
   value: string
@@ -65,10 +70,10 @@ interface Option {
 }
 
 /** Hands the test the table the screen built, and renders nothing of it. */
-const tables: Table<User>[] = []
+const tables: DataTableBinding<User>[] = []
 const DataGridProbe = defineComponent({
   name: 'DataGridProbe',
-  props: { table: { type: Object as PropType<Table<User>>, required: true } },
+  props: { table: { type: Object as PropType<DataTableBinding<User>>, required: true } },
   setup(props) {
     tables.push(props.table)
     return () => h('div')
@@ -80,8 +85,10 @@ function mountScreen() {
   setActivePinia(pinia)
   useAuthStore().setAuth(admin, 'access-token')
 
-  return mount(UsersScreen, {
+  const harness = listRouteHarness(UsersScreen, createUsersListQueryModel())
+  return mount(harness.host, {
     global: {
+      provide: harness.provide,
       plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }], pinia],
       stubs: { UiDataGrid: DataGridProbe, UserPermissionsPanel: true },
     },
@@ -111,7 +118,7 @@ describe('the role lists with no project role declared', () => {
   it('filters the directory by the six roles', () => {
     mountScreen()
 
-    const meta = tables[0]!.getColumn('role')!.columnDef.meta as {
+    const meta = tables[0]!.getColumn('role')!.meta as {
       filter: { options: Option[] }
     }
     expect(meta.filter.options).toEqual([
