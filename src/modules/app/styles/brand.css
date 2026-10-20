@@ -1,11 +1,34 @@
 /*
  * The project's branding seam, preserved by `vuestrata upgrade`.
  *
- * Default identity: midnight navy, fired copper, warm paper. Rules are scoped
+ * Default identity: midnight navy, fired copper, cool silver. Rules are scoped
  * to the absence of a theme-* class so other personalities stay independent.
  * Fonts are bundled under ../assets/fonts/brand/ with their OFL licenses.
  * Private family names keep other themes' font loading unchanged.
  */
+@font-face {
+  font-family: 'Vuestrata Commissioner';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/commissioner-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Vuestrata Commissioner';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/brand/commissioner-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @font-face {
   font-family: 'Vuestrata Newsreader';
   font-style: normal;
@@ -117,6 +140,8 @@
 }
 
 :root:not([class*='theme-']) {
+  /* Paper remains an identity accent, never the working canvas. */
+  --brand-paper: #f3efe3;
   /* Navy: structural ink and primary controls. */
   --color-primary-50: #eef3f8;
   --color-primary-100: #dce5f0;
@@ -130,18 +155,18 @@
   --color-primary-900: #031b38;
   --color-primary-950: #021226;
 
-  /* Warm stone: secondary context. */
-  --color-secondary-50: #f8f5ed;
-  --color-secondary-100: #eee7d8;
-  --color-secondary-200: #daceb8;
-  --color-secondary-300: #c4b293;
-  --color-secondary-400: #ab946d;
-  --color-secondary-500: #8b744e;
-  --color-secondary-600: #715c3c;
-  --color-secondary-700: #594830;
-  --color-secondary-800: #443725;
-  --color-secondary-900: #332a1e;
-  --color-secondary-950: #211b13;
+  /* Silver: cool material context, with no yellow or beige stop. */
+  --color-secondary-50: oklch(0.96048 0.00758 228.85);
+  --color-secondary-100: oklch(0.92172 0.01518 235.39);
+  --color-secondary-200: oklch(0.86323 0.02304 233.4);
+  --color-secondary-300: oklch(0.77491 0.03743 236.65);
+  --color-secondary-400: oklch(0.66245 0.05102 238.13);
+  --color-secondary-500: oklch(0.55453 0.0543 237.07);
+  --color-secondary-600: oklch(0.46297 0.05003 238.88);
+  --color-secondary-700: oklch(0.38245 0.04282 241.65);
+  --color-secondary-800: oklch(0.324 0.03774 244.74);
+  --color-secondary-900: oklch(0.27249 0.03104 241.7);
+  --color-secondary-950: oklch(0.22028 0.02606 244.51);
 
   /* Exact copper 500 is a large mark; 600 carries small text on paper. */
   --color-accent-50: #fcf0e9;
@@ -157,38 +182,48 @@
   --color-accent-950: #311407;
 
   /* Keep 50 light and 950 dark in both modes. */
-  --color-surface-50: #f3efe3;
-  --color-surface-100: #eae4d6;
-  --color-surface-200: #d8d1c2;
-  --color-surface-300: #bcb8ae;
-  --color-surface-400: #94968f;
-  --color-surface-500: #747d82;
-  --color-surface-600: #55616b;
+  --color-surface-50: oklch(0.98312 0.00346 219.53);
+  --color-surface-100: oklch(0.92172 0.01518 235.39);
+  --color-surface-200: oklch(0.83953 0.02326 237.7);
+  --color-surface-300: oklch(0.72639 0.03383 239.56);
+  --color-surface-400: oklch(0.66245 0.05102 238.13);
+  --color-surface-500: oklch(0.55453 0.0543 237.07);
+  --color-surface-600: oklch(0.46198 0.03706 237.21);
   --color-surface-700: #374956;
   --color-surface-800: #1d3549;
   --color-surface-900: #031b38;
   --color-surface-950: #021326;
 
-  --color-background: var(--color-surface-50);
-  --color-card: #faf7ef;
-  --color-elevated: #fdfaf2;
+  --color-background: oklch(0.9415 0.01092 234.82);
+  --color-card: var(--color-surface-50);
+  --color-elevated: var(--color-surface-50);
   --color-muted: var(--color-surface-100);
   --color-foreground: var(--color-surface-900);
   --color-muted-foreground: var(--color-surface-600);
   --color-primary-solid: var(--color-primary-900);
   --color-primary-solid-hover: var(--color-primary-800);
-  --color-primary-foreground: var(--color-surface-50);
+  --color-primary-foreground: var(--brand-paper);
   --color-link: var(--color-accent-600);
   --color-link-hover: var(--color-accent-700);
   --color-ring: var(--color-accent-600);
   --color-border: var(--color-surface-200);
   --color-border-strong: var(--color-surface-300);
   --color-input: var(--color-surface-500);
-  --color-sidebar: var(--color-surface-50);
+  --color-sidebar: var(--color-surface-100);
   --color-sidebar-foreground: var(--color-surface-700);
-  --color-sidebar-accent: var(--color-primary-100);
-  --color-sidebar-accent-foreground: var(--color-primary-900);
+  --color-sidebar-accent: var(--color-primary-900);
+  --color-sidebar-accent-foreground: var(--brand-paper);
   --color-sidebar-border: var(--color-surface-200);
+
+  /* One directional silver field; component geometry carries the identity. */
+  --brand-canvas-start: var(--color-secondary-50);
+  --brand-canvas-end: var(--color-secondary-100);
+  --brand-canvas-background: linear-gradient(
+    132deg in oklab,
+    var(--brand-canvas-start) 0%,
+    var(--color-background) 48%,
+    var(--brand-canvas-end) 100%
+  );
 
   --color-chart-1: var(--color-primary-600);
   --color-chart-2: var(--color-accent-500);
@@ -201,20 +236,22 @@
 
   /* Feature surfaces supply semantic fallbacks when another theme is active. */
   --color-spotlight: var(--color-primary-900);
-  --color-spotlight-foreground: var(--color-surface-50);
+  --color-spotlight-foreground: var(--brand-paper);
   --color-spotlight-muted: var(--color-primary-200);
   --color-spotlight-accent: var(--color-accent-500);
   --color-spotlight-link: var(--color-accent-300);
+  --color-spotlight-active: var(--color-accent-700);
+  --color-spotlight-active-foreground: var(--brand-paper);
 
   --font-sans:
-    'Vuestrata Jakarta', 'Vuestrata Tajawal', 'Tajawal', 'Cairo', 'Segoe UI', ui-sans-serif,
+    'Vuestrata Commissioner', 'Vuestrata Tajawal', 'Tajawal', 'Cairo', 'Segoe UI', ui-sans-serif,
     system-ui, sans-serif;
-  --font-display: 'Vuestrata Newsreader', 'Vuestrata Naskh', 'Tajawal', Georgia, ui-serif, serif;
+  --font-display: var(--font-sans);
+  --font-serif: 'Vuestrata Newsreader', 'Vuestrata Naskh', 'Tajawal', Georgia, ui-serif, serif;
 
   --shadow-soft: 0 1px 2px color-mix(in oklch, var(--color-primary-900) 5%, transparent);
-  --shadow-card: 0 1px 2px color-mix(in oklch, var(--color-primary-900) 4%, transparent);
-  --shadow-card-hover: 0 12px 30px -16px
-    color-mix(in oklch, var(--color-primary-900) 18%, transparent);
+  --shadow-card: none;
+  --shadow-card-hover: 0 2px 5px -2px color-mix(in oklch, var(--color-primary-900) 18%, transparent);
   --shadow-elevated: 0 18px 42px -20px
     color-mix(in oklch, var(--color-primary-900) 22%, transparent);
   --shadow-glow-primary: none;
@@ -227,11 +264,11 @@
   --color-card: #0b2540;
   --color-elevated: #17354f;
   --color-muted: #17354f;
-  --color-foreground: var(--color-surface-50);
+  --color-foreground: var(--brand-paper);
   --color-muted-foreground: #b8c6d5;
   --color-subtle-foreground: #8da1b5;
-  --color-primary-solid: var(--color-surface-50);
-  --color-primary-solid-hover: #e1d9c9;
+  --color-primary-solid: var(--brand-paper);
+  --color-primary-solid-hover: var(--color-surface-50);
   --color-primary-foreground: var(--color-primary-900);
   --color-link: var(--color-accent-300);
   --color-link-hover: var(--color-accent-200);
@@ -242,8 +279,17 @@
   --color-sidebar: var(--color-primary-900);
   --color-sidebar-foreground: var(--color-primary-100);
   --color-sidebar-accent: #27435c;
-  --color-sidebar-accent-foreground: var(--color-surface-50);
+  --color-sidebar-accent-foreground: var(--brand-paper);
   --color-sidebar-border: #314b61;
+
+  --brand-canvas-start: var(--color-background);
+  --brand-canvas-end: oklch(0.28221 0.05425 249.47);
+  --brand-canvas-background: linear-gradient(
+    132deg in oklab,
+    var(--brand-canvas-start) 0%,
+    var(--color-primary-900) 48%,
+    var(--brand-canvas-end) 100%
+  );
 
   --color-chart-1: var(--color-primary-300);
   --color-chart-2: var(--color-accent-300);
@@ -257,29 +303,42 @@
 
 /* Both radius scales preserve explicit user preferences. */
 :root:not([class*='theme-']):not([class*='shape-radius-']) {
-  --radius-sm: 0.1875rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --shape-radius: 0.5rem;
-  --shape-radius-sm: 0.375rem;
-  --shape-radius-lg: 0.75rem;
-  --shape-radius-xl: 1rem;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.1875rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --shape-radius: 0.25rem;
+  --shape-radius-sm: 0.1875rem;
+  --shape-radius-lg: 0.375rem;
+  --shape-radius-xl: 0.5rem;
+}
+
+:root:not([class*='theme-']):not([class*='shape-shadow-']) {
+  --shape-shadow: none;
+  --shape-shadow-hover: var(--shadow-card-hover);
 }
 
 :root:not([class*='theme-']) body {
   color: var(--color-foreground);
-  background-color: var(--color-background);
-  background-image: none;
   font-kerning: normal;
+}
+
+/* Layout roots are opaque planes; paint them directly instead of clearing panels. */
+:root:not([class*='theme-']) body,
+:root:not([class*='theme-']) .bg-background.min-h-screen,
+:root:not([class*='theme-']) .bg-background.h-screen {
+  background-color: var(--color-background);
+  background-image: var(--brand-canvas-background);
+  background-repeat: no-repeat;
+  background-attachment: scroll;
 }
 
 :root:not([class*='theme-']) :is(h1, h2) {
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-weight: 500;
-  letter-spacing: -0.025em;
+  font-weight: 650;
+  letter-spacing: -0.035em;
 }
 
 :root:not([class*='theme-'])[dir='rtl'] :is(h1, h2) {
@@ -293,6 +352,18 @@
 
 :root:not([class*='theme-']) :is(table, [data-ui='numberfield']) {
   font-variant-numeric: tabular-nums;
+}
+
+/* Selected leaves, collapsed branches and hover share the inverse navy treatment. */
+:root:not([class*='theme-'])
+  aside[role='navigation']
+  nav
+  :is([aria-current='page'], .bg-sidebar-accent, a:hover, button:hover) {
+  color: var(--color-sidebar-accent-foreground);
+}
+
+:root:not([class*='theme-']) aside[role='navigation'] nav section > p {
+  letter-spacing: 0.04em;
 }
 
 /* The existing button recipe exposes this stable theme hook. */

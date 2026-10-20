@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import AppIcon from '@/components/ui/AppIcon.vue'
+
 const { t } = useI18n()
 const moduleNames = ['products', 'invoices', 'projects'] as const
 const selectedModule = ref<(typeof moduleNames)[number]>('products')
@@ -19,7 +21,7 @@ const queryFile = computed(
       <p class="home-description">{{ t('atelier_workflow_desc') }}</p>
       <ol class="workflow-steps">
         <li v-for="step in [1, 2, 3]" :key="step">
-          <span class="step-number" aria-hidden="true">0{{ step }}</span>
+          <span class="step-number home-number" aria-hidden="true">0{{ step }}</span>
           <div>
             <h3>{{ t(`atelier_workflow_step${step}_title`) }}</h3>
             <p>{{ t(`atelier_workflow_step${step}_desc`) }}</p>
@@ -27,7 +29,7 @@ const queryFile = computed(
         </li>
       </ol>
       <RouterLink to="/docs/recipes/add-a-module" class="workflow-guide">
-        {{ t('atelier_workflow_guide') }} <span aria-hidden="true">↗</span>
+        {{ t('atelier_workflow_guide') }} <AppIcon name="arrow-right" class="home-arrow" />
       </RouterLink>
     </div>
 
@@ -103,22 +105,17 @@ const queryFile = computed(
 .workflow-steps li {
   position: relative;
   display: grid;
-  grid-template-columns: 1.8rem 1fr;
+  grid-template-columns: 2rem 1fr;
   gap: 1rem;
   padding-block-end: 1.7rem;
 }
 .workflow-steps li:not(:last-child)::after {
   content: '';
   position: absolute;
-  inset-inline-start: 0.63rem;
-  inset-block: 1.8rem 0.4rem;
+  inset-inline-start: 1rem;
+  inset-block: 2.2rem 0.4rem;
   width: 1px;
   background: var(--color-border);
-}
-.step-number {
-  padding-block-start: 0.15rem;
-  font: 0.65rem/1.6 var(--font-mono);
-  color: var(--color-link);
 }
 .workflow-steps h3 {
   font-size: 0.85rem;

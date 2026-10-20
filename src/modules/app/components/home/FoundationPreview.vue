@@ -1,257 +1,382 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { AppIcon } from '@/components/ui'
+
 import { foundationSnippets, type FoundationLayer } from './snippets'
 
 const { t } = useI18n()
 const activeLayer = ref<FoundationLayer>('feature')
 const layers = ['page', 'feature', 'core'] as const
 const previewId = useId()
+// An illustrative reference screen, not live customer data or a second data source.
+const accounts = [
+  { company: 'Northwind Logistics', initials: 'NL', id: 'CUS-1001', plan: 'growth' },
+  { company: 'Meridian Health', initials: 'MH', id: 'CUS-1002', plan: 'scale' },
+  { company: 'Kestrel Analytics', initials: 'KA', id: 'CUS-1003', plan: 'starter' },
+] as const
+const sourceName = computed(() =>
+  foundationSnippets[activeLayer.value].sourcePath.split('/').at(-1),
+)
 </script>
 
 <template>
   <div class="foundation-preview">
-    <div class="preview-topline">
-      <svg class="preview-mark" viewBox="0 0 90 143" aria-hidden="true">
-        <path d="M0 30 90 0v23L0 53Z M0 75 90 45v23L0 98Z M0 120 90 90v23L0 143Z" fill="#cf4c18" />
-      </svg>
-      <span>vuestrata / {{ t('atelier_preview_label') }}</span>
-      <span class="preview-example">{{ t('atelier_example') }}</span>
-    </div>
-    <div class="preview-workspace">
-      <div class="preview-rail" role="group" :aria-label="t('atelier_layers_label')">
-        <button
-          v-for="(layer, index) in layers"
-          :key="layer"
-          type="button"
-          :aria-pressed="activeLayer === layer"
-          :aria-controls="previewId"
-          :class="{ 'is-active': activeLayer === layer }"
-          @click="activeLayer = layer"
-        >
-          <span class="layer-number">0{{ index + 1 }}</span>
-          <span>{{ t(`atelier_layer_${layer}`) }}</span>
-          <span class="layer-arrow" aria-hidden="true">↗</span>
-        </button>
-        <div class="rail-caption">{{ t('atelier_preview_direction') }}</div>
+    <div class="preview-workspace" :aria-label="t('atelier_workspace_label')" role="group">
+      <div class="workspace-rail" aria-hidden="true">
+        <svg class="workspace-mark" viewBox="0 0 90 143">
+          <path
+            d="M0 30 90 0v23L0 53Z M0 75 90 45v23L0 98Z M0 120 90 90v23L0 143Z"
+            fill="#cf4c18"
+          />
+        </svg>
+        <AppIcon name="widget" />
+        <span class="workspace-current"><AppIcon name="users" /></span>
+        <AppIcon name="document" />
+        <AppIcon name="settings" class="workspace-settings" />
       </div>
-      <div :id="previewId" class="preview-editor" aria-live="polite">
-        <div class="editor-filename">
-          <span aria-hidden="true">◇</span>
-          <span class="editor-path" dir="ltr">{{
-            foundationSnippets[activeLayer].sourcePath
-          }}</span>
+      <div class="workspace-content">
+        <div class="workspace-topline">
+          <span>Vuestrata</span>
+          <span class="workspace-example">{{ t('atelier_workspace_example') }}</span>
         </div>
-        <pre
-          dir="ltr"
-          role="region"
-          tabindex="0"
-          :aria-label="t('atelier_preview_label')"
-        ><code><span v-for="(line, index) in foundationSnippets[activeLayer].lines" :key="`${activeLayer}-${index}`" class="code-line"><span class="line-number" aria-hidden="true">{{ foundationSnippets[activeLayer].startLine + index }}</span><span v-for="(part, tokenIndex) in line" :key="tokenIndex" class="syntax-token" :data-kind="part.kind">{{ part.text }}</span>{{ '\n' }}</span></code></pre>
-        <p class="editor-description">{{ t(`atelier_layer_${activeLayer}_desc`) }}</p>
+        <p class="workspace-title">{{ t('atelier_workspace_title') }}</p>
+        <table class="workspace-table">
+          <caption class="workspace-note">
+            {{
+              t('atelier_workspace_note')
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{{ t('atelier_workspace_company') }}</th>
+              <th scope="col">{{ t('atelier_workspace_plan') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="account in accounts" :key="account.id">
+              <td>
+                <div class="workspace-account">
+                  <span class="account-initials" aria-hidden="true">{{ account.initials }}</span>
+                  <span class="account-name">
+                    <span dir="ltr">{{ account.company }}</span>
+                    <span class="account-id" dir="ltr">{{ account.id }}</span>
+                  </span>
+                </div>
+              </td>
+              <td class="account-plan">{{ t('atelier_workspace_' + account.plan) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
-    <div class="preview-footer">
-      <span
-        ><span class="contract-dot" aria-hidden="true" /> {{ t('atelier_preview_contract') }}</span
+
+    <div class="preview-layers" role="group" :aria-label="t('atelier_layers_label')">
+      <button
+        v-for="(layer, index) in layers"
+        :key="layer"
+        type="button"
+        :aria-pressed="activeLayer === layer"
+        :aria-controls="previewId"
+        :class="{ 'is-active': activeLayer === layer }"
+        @click="activeLayer = layer"
       >
-      <span>Vue · TypeScript · Vite+</span>
+        <span class="layer-number home-number">0{{ index + 1 }}</span>
+        <span>{{ t('atelier_layer_' + layer) }}</span>
+      </button>
+    </div>
+
+    <div :id="previewId" class="source-detail">
+      <div class="source-heading">
+        <span class="source-label"
+          ><AppIcon name="code" size="sm" />{{ t('atelier_preview_label') }}</span
+        >
+        <span class="source-filename" dir="ltr">{{ sourceName }}</span>
+      </div>
+      <pre
+        dir="ltr"
+        role="region"
+        tabindex="0"
+        :aria-label="t('atelier_preview_label')"
+      ><code><span v-for="(line, index) in foundationSnippets[activeLayer].lines" :key="activeLayer + '-' + index" class="code-line"><span v-for="(part, tokenIndex) in line" :key="tokenIndex" class="syntax-token" :data-kind="part.kind">{{ part.text }}</span>{{ '\n' }}</span></code></pre>
+      <p class="source-description" aria-live="polite">
+        {{ t('atelier_layer_' + activeLayer + '_desc') }}
+      </p>
     </div>
   </div>
 </template>
 
 <style scoped>
 .foundation-preview {
-  --preview-bg: var(--color-spotlight, var(--color-surface-950));
-  --preview-ink: var(--color-spotlight-foreground, var(--color-surface-50));
-  --preview-muted: var(--color-spotlight-muted, var(--color-surface-200));
-  --preview-accent: var(--color-spotlight-accent, var(--color-accent-300));
-  position: relative;
-  overflow: hidden;
-  color: var(--preview-ink);
-  background: var(--preview-bg);
-  border: 1px solid color-mix(in oklch, var(--preview-ink) 18%, transparent);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 28px 65px -35px color-mix(in oklch, var(--preview-bg) 50%, transparent);
-}
-.preview-topline,
-.preview-footer {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1.15rem 1.4rem;
-  font-size: 0.68rem;
-}
-.preview-topline {
-  border-block-end: 1px solid color-mix(in oklch, var(--preview-ink) 16%, transparent);
-  letter-spacing: 0.04em;
-}
-.preview-mark {
-  flex: none;
-  width: auto;
-  height: 22px;
-}
-.preview-example {
-  margin-inline-start: auto;
-  color: var(--preview-muted);
+  min-inline-size: 0;
+  color: var(--color-foreground);
 }
 .preview-workspace {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr);
-  min-height: 22rem;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
 }
-.preview-rail {
-  padding-block: 1.75rem;
-  border-inline-end: 1px solid color-mix(in oklch, var(--preview-ink) 16%, transparent);
+.workspace-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding-block: 1.5rem;
+  border-inline-end: 1px solid var(--color-border);
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
 }
-.preview-rail button {
+.workspace-mark {
+  inline-size: 0.9rem;
+  block-size: 1.5rem;
+  margin-block-end: 0.75rem;
+}
+.workspace-current {
+  display: grid;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-solid);
+  color: var(--color-primary-foreground);
+}
+.workspace-settings {
+  margin-block-start: auto;
+}
+.workspace-content {
+  min-inline-size: 0;
+  padding: 1.5rem 1.75rem 1.25rem;
+}
+.workspace-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+}
+.workspace-topline > span:first-child {
+  font-weight: 600;
+}
+.workspace-example {
+  font-size: 0.75rem;
+}
+.workspace-title {
+  margin-block: 1.5rem 1.25rem;
+  font-size: 1.6rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.workspace-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+.workspace-table th {
+  padding-block: 0 0.75rem;
+  border-block-end: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  text-align: start;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.workspace-table td {
+  padding-block: 1rem;
+  border-block-end: 1px solid var(--color-border);
+}
+.workspace-table th:last-child,
+.workspace-table td:last-child {
+  padding-inline-start: 1rem;
+  text-align: end;
+}
+.workspace-account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.account-initials {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.workspace-table tr:first-child .account-initials {
+  background: var(--color-primary-solid);
+  border-color: var(--color-primary-solid);
+  color: var(--color-primary-foreground);
+}
+.account-name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.account-id {
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.account-plan {
+  color: var(--color-muted-foreground);
+  font-size: 0.8125rem;
+}
+.workspace-note {
+  caption-side: bottom;
+  padding-block-start: 1rem;
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  text-align: start;
+}
+.preview-layers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-block-start: 1.25rem;
+  border-block-end: 1px solid var(--color-border);
+}
+.preview-layers button {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  width: 100%;
-  min-height: 3.15rem;
-  padding-inline: 1rem;
-  color: var(--preview-muted);
-  cursor: pointer;
-  font-size: 0.75rem;
+  min-inline-size: 0;
+  min-block-size: 3.5rem;
+  padding: 0.5rem;
+  border-block-end: 2px solid transparent;
+  color: var(--color-muted-foreground);
   text-align: start;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
   transition:
-    background 160ms,
-    color 160ms;
+    color 160ms,
+    border-color 160ms;
 }
-.preview-rail button:hover,
-.preview-rail button.is-active {
-  background: color-mix(in oklch, var(--preview-ink) 10%, transparent);
-  color: var(--preview-ink);
+.preview-layers button:hover,
+.preview-layers button.is-active {
+  color: var(--color-foreground);
 }
-.preview-rail button.is-active .layer-number {
-  color: var(--preview-accent);
+.preview-layers button.is-active {
+  border-block-end-color: var(--color-primary-solid);
 }
 .layer-number {
-  font: 0.6rem var(--font-mono);
+  --number-size: 1.5rem;
+  --number-background: var(--color-muted);
+  --number-foreground: var(--color-muted-foreground);
+  --number-border: var(--color-border);
 }
-.layer-arrow {
-  margin-inline-start: auto;
+.is-active .layer-number {
+  --number-background: var(--color-primary-solid);
+  --number-foreground: var(--color-primary-foreground);
+  --number-border: var(--color-primary-solid);
 }
-.rail-caption {
-  margin: 3.8rem 1rem 0;
-  max-width: 12ch;
-  font-size: 0.65rem;
-  line-height: 1.7;
-  color: var(--preview-muted);
+.source-detail {
+  min-inline-size: 0;
+  padding-block-start: 1.25rem;
 }
-.preview-editor {
-  min-width: 0;
-  padding: 1.85rem 1.4rem;
-}
-.editor-filename {
+.source-heading,
+.source-label {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
+  gap: 0.5rem;
+}
+.source-heading {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  color: var(--color-muted-foreground);
   font-size: 0.75rem;
 }
-.editor-filename > span:first-child {
-  color: var(--preview-accent);
-  font-size: 1.1rem;
-}
-.editor-path {
-  min-width: 0;
-  overflow: hidden;
-  font: 0.65rem var(--font-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.source-filename {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
 }
 pre {
-  overflow-x: auto;
-  margin-block: 1.75rem;
-  font: 0.72rem/1.9 var(--font-mono);
-  color: var(--preview-ink);
+  margin-block: 0.9rem 0.75rem;
+  font: 0.75rem/1.8 var(--font-mono);
+  color: var(--color-foreground);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   direction: ltr;
-  text-align: left;
+  text-align: start;
   unicode-bidi: isolate;
 }
 .code-line {
-  white-space: pre;
+  white-space: inherit;
 }
 .syntax-token[data-kind='comment'] {
-  color: var(--code-comment, var(--preview-muted));
+  color: var(--color-muted-foreground);
 }
 .syntax-token[data-kind='keyword'],
 .syntax-token[data-kind='attribute'] {
-  color: var(--code-keyword, var(--color-accent-200));
+  color: var(--color-link);
 }
-.syntax-token[data-kind='string'] {
-  color: var(--code-string, var(--color-success-200));
+.syntax-token[data-kind='string'],
+.syntax-token[data-kind='operator'] {
+  color: var(--color-success);
 }
 .syntax-token[data-kind='function'],
 .syntax-token[data-kind='tag'] {
-  color: var(--code-function, var(--color-info-200));
+  color: var(--color-info);
 }
 .syntax-token[data-kind='type'] {
-  color: var(--code-type, var(--color-warning-200));
+  color: var(--color-warning);
 }
-.syntax-token[data-kind='operator'] {
-  color: var(--code-operator, var(--preview-ink));
-}
-.line-number {
-  display: inline-block;
-  width: 1.9rem;
-  color: var(--preview-muted);
-  user-select: none;
-}
-.editor-description {
-  max-width: 32ch;
-  font-size: 0.75rem;
+.source-description {
+  color: var(--color-muted-foreground);
+  font-size: 0.8125rem;
   line-height: 1.7;
-  color: var(--preview-muted);
-}
-.preview-footer {
-  justify-content: space-between;
-  flex-wrap: wrap;
-  border-block-start: 1px solid color-mix(in oklch, var(--preview-ink) 16%, transparent);
-  color: var(--preview-muted);
-  font-size: 0.6rem;
-}
-.preview-footer > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.contract-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--preview-accent);
 }
 @media (max-width: 550px) {
   .preview-workspace {
-    grid-template-columns: 1fr;
-    min-height: auto;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
   }
-  .preview-rail {
-    display: flex;
-    padding: 0.4rem;
-    border-inline-end: 0;
-    border-block-end: 1px solid color-mix(in oklch, var(--preview-ink) 16%, transparent);
+  .workspace-rail {
+    gap: 1.25rem;
+    padding-block: 1.25rem;
   }
-  .preview-rail button {
-    justify-content: center;
-    padding-inline: 0.5rem;
+  .workspace-content {
+    padding: 1.25rem 1rem 1rem;
   }
-  .layer-arrow,
-  .rail-caption {
+  .workspace-title {
+    font-size: 1.4rem;
+  }
+  .workspace-example,
+  .account-initials {
     display: none;
   }
-  .preview-editor {
-    padding: 1.5rem 1.15rem;
+  .workspace-table th:last-child,
+  .workspace-table td:last-child {
+    padding-inline-start: 0.5rem;
   }
-  pre {
-    font-size: 0.68rem;
-    margin-block: 1.25rem;
+  .preview-layers button {
+    justify-content: center;
+    flex-direction: column;
+    min-block-size: 4.5rem;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    padding-inline: 0.25rem;
+  }
+  .preview-layers button > span:last-child {
+    max-inline-size: 100%;
+    overflow-wrap: anywhere;
+    text-align: center;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .preview-rail button {
+  .preview-layers button {
     transition: none;
   }
 }

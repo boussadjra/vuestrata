@@ -182,3 +182,213 @@ consumer results and screenshots are in its `docs/VERIFICATION.md`.
 Full application/CLI/coverage/backend suites and a separate source production
 build were not repeated for this branding change. No commit, push or GitHub
 Actions run was performed.
+
+## Subtle default-theme gradients — 18 October 2026
+
+The default theme now has one broad, static 132-degree background gradient.
+Light mode moves from warm paper through the existing paper anchor to a cool
+paper shadow; dark mode moves through three navy tones. The new stops use
+OKLCH colours and OKLab interpolation. The same background paints the body
+and paired full-height layout roots directly, without transparent panel
+overrides. Cards, inputs, navigation and inverse sections retain solid surfaces.
+The gradient scrolls normally. It adds no overlay, animation, mesh, glow or
+geological pattern. The eleven named themes retain their own backgrounds.
+
+Only the seeded `brand.css` changes the interface. The CLI payload was rebuilt;
+its stylesheet matches the source SHA256
+`20CA687EE5A335AC7F194B67815ED0A81563EB570A837D8BFC99FEDAF67BCA14`.
+The identical stylesheet is applied to Stockroom. No managed infrastructure,
+component, content, font or logo changed.
+
+Contrast was sampled at 10,001 positions along each gradient using the actual
+rounded CSS declarations and the 48% centre stop. Minimum ratios are:
+
+| Text role  | Light  | Dark   |
+| ---------- | ------ | ------ |
+| Muted      | 5.206  | 8.315  |
+| Link       | 4.823  | 5.770  |
+| Hover link | 6.122  | 8.402  |
+| Foreground | 14.145 | 12.578 |
+
+These samples meet AA normal-text contrast. All sampled colours remain within
+the sRGB gamut, and no intermediate point reduces contrast below the endpoints.
+
+| Current check                     | Result                                                                                                          |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Frontend check                    | PASS: formatting, lint and application types; zero errors, 47 existing warnings                                 |
+| E2E types                         | PASS                                                                                                            |
+| Demo build and bundle             | PASS: all 12 checks; initial payload 489.6 KB gzip                                                              |
+| CLI metadata and project rules    | PASS: three maintainer gates, all six custom rules and documentation links                                      |
+| Homepage browser matrix           | PASS: 18/18, desktop Chromium and Pixel 5 emulation, one worker, zero retries; 2.7 minutes                      |
+| Stockroom frontend and production | PASS: frontend check, lint, ownership checks and all 17 production bundle checks; initial payload 386.9 KB gzip |
+| Stockroom browser matrix          | PASS: four cases and eight accessibility audits, EN desktop and AR mobile, light/dark login and overview        |
+
+The source matrix checks the linear gradient, ordinary scrolling, theme
+isolation, EN/FR/AR direction and bounds, fonts, syntax colours, keyboard
+controls and serious/critical axe findings. The light hero, dark page and Arabic
+mobile screenshots were inspected. The live preview also confirms matching
+body/layout gradients and a solid code illustration. An initial preview process
+was unreachable from the host browser; restarting it with normal host access
+resolved the connection without network or firewall changes.
+
+Stockroom's web image was rebuilt and the existing database/PHP containers
+were preserved. Its read-only browser checks verify matching body/layout
+gradients, opaque cards and inputs, session login and no business-data writes.
+Fresh consumer evidence is recorded in its `docs/VERIFICATION.md`.
+
+Full unit, CLI, coverage and backend suites, physical-device acceptance and a
+separate source production build were not repeated for this CSS refinement.
+Earlier entries remain historical. This refinement is local and uncommitted;
+no push or GitHub Actions run was performed.
+
+## Structure made visible — 18 October 2026
+
+The light-mode canvas is now cool silver, with no cream stop: `#edf3f6` through
+`#e5edf2` to `#dce7ee`. Cards use `#f7fafb`. Exact navy `#031b38` and copper
+`#cf4c18` remain the identity anchors; paper `#f3efe3` is reserved for inverse
+ink and selected accents. The initial loader and manifest background use the
+same silver canvas.
+
+Locally bundled Commissioner now carries upright headings and working UI,
+with Tajawal for Arabic. The serif remains a small, upright accent in the
+theme specimen. The logo keeps its existing wordmark and vector geometry.
+Compact corners, flat resting cards and solid navy navigation selections apply
+through the seeded brand seam, preserving explicit shape preferences.
+
+The home page gives more width to real source code. Three stepped Page,
+Feature and Shared controls echo the rising-bar mark and keep their existing
+keyboard and ARIA behaviour. The italic headline, tracked miniature labels
+and floating source-panel shadow are removed. EN/FR/AR headlines now describe
+the application's structure. Other home sections and application workflows
+remain in place.
+
+The final source/payload stylesheet SHA256 is
+`354D1CDC5D0B07BA1E69B869B89534D5766EB058ECB511C0DBB2D3FFE03FFA25`.
+All 18 local font companions, including 12 WOFF2 files and five licenses,
+match the CLI payload byte for byte. The template lock records the three new
+Commissioner companions as seeded files. No managed component was edited.
+
+Sampling 10,001 points along each gradient gives the following minimum
+normal-text contrast ratios. All samples remain in the sRGB gamut.
+
+| Text role  | Light  | Dark   |
+| ---------- | ------ | ------ |
+| Foreground | 13.720 | 12.578 |
+| Muted      | 5.576  | 8.315  |
+| Link       | 4.678  | 5.770  |
+| Hover link | 5.938  | 8.402  |
+
+The selected copper source-layer control measures 6.492:1. These are AA
+results, without an AAA claim. A real Stockroom axe check found dark inherited
+ink on the new navy selected-navigation surface. The final seeded CSS now
+sets inverse ink explicitly for current links, selected collapsed branches
+and hovered navigation items. Consumer checks cover the selected label and
+its child text as well as an inactive item's hover state.
+
+Fresh source formatting, lint, application types and E2E types pass, with
+zero errors and 47 existing warnings. All six custom rules, documentation
+links, toolchain pins, security headers and MSW checks pass. The 23 focused
+source-excerpt and CLI payload/font-upgrade tests pass with one worker.
+All three maintainer gates pass after the final payload refresh, including
+the template lock and 12 migration copies.
+
+The final demo build passes all 12 bundle checks: 490.1 KB initial gzip and
+651.0 KB eagerly loaded CSS, within the existing budgets. Stockroom's final
+web-only production build passes Linux types and all 17 bundle checks:
+387.4 KB initial gzip and 596.3 KB CSS. Its corrected web image is
+`6f3614f175e2e5a844aba9849b3314638cd30558c8782f32e62d07296b98b23c`.
+
+The final built-artifact browser run passes 30/30 tests in 2.2 minutes,
+with desktop Chromium and Pixel 5 emulation, one worker and zero retries.
+It covers EN/FR/AR light/dark layouts, serious/critical axe findings, bounds,
+keyboard controls, local fonts, theme isolation, component-doc navigation,
+login/register screens and the not-found route. Final light, dark and Arabic
+mobile screenshots were inspected; the live preview is left in light mode.
+
+Stockroom passes four final browser cases, eight accessibility audits and
+eight visually inspected screens, covering EN desktop and AR mobile in both
+colour modes. Real login, session and dashboard requests succeed. Its checks
+reject business-data writes and verify opaque panels, local fonts, selected
+and hovered navigation ink and layout bounds. The existing database/PHP
+containers were preserved; `/healthz` and `/up` return 200. Its own
+`docs/VERIFICATION.md` contains the current consumer evidence.
+
+Full application, CLI, coverage and backend suites, manual screen-reader
+acceptance, physical devices and a separate source production build were
+not repeated for this identity change. The 23 focused tests and the browser
+results above are fresh; earlier entries remain historical. No commit, push
+or GitHub Actions run was performed.
+
+## Provider icons, ribbon and numbered markers — 18 October 2026
+
+Decorative navigation arrows on the home page now use the existing `AppIcon`
+component and the selected provider's `arrow-right` or `arrow-down` icon.
+Horizontal arrows mirror in Arabic; downward cues keep their direction.
+Real source excerpts and the architecture's textual arrow notation are
+unchanged. No new icon key or managed component change was needed.
+
+The translated template label sits inside a bold navy ribbon with a notched
+trailing edge. Its notch and padding mirror in Arabic. Fifteen sequential
+markers across the source preview, principles, workflow, ownership and
+example links now sit inside filled squares. Corners follow the active
+theme's radius token; source-code line numbers remain plain. The preview's
+numbers remain part of each button's accessible name.
+
+Fresh `vp check`, application and E2E types pass with zero errors and
+47 existing warnings. Full lint, all six custom rules, docs links, headers,
+worker and toolchain checks pass. All three maintainer gates pass without
+a payload refresh. The 63 focused source-excerpt and CLI ejection tests
+pass across two files with one worker. An initial Windows sandbox cache
+permission failure occurred before test collection; the same focused
+command passed on the normal host.
+
+The demo build passes all 12 bundle gates, with a 490.1 KB initial gzip
+payload. The final browser matrix passes 18/18 in 2.1 minutes, with desktop
+Chromium and Pixel 5 emulation, one worker and zero retries. It covers
+EN/FR/AR light/dark, Solar and Lucide masks, RTL direction, ribbon bounds,
+all fifteen shaped markers, keyboard behaviour and serious/critical axe
+findings. Final hero, workflow and Arabic mobile screenshots were inspected.
+
+Stockroom's relevant overview link also uses `AppIcon`; its marketing home
+was ejected, so no ribbon or marketing numbering was added there. Its
+frontend gates, Linux types and all 17 production bundle checks pass,
+with 387.4 KB initial gzip. Four read-only browser cases and eight axe
+audits pass, including Solar/Lucide masks, 16px icon sizing, decorative
+semantics, preserved EN/AR link names and Arabic direction. The current
+web image is `01566afa18a12ab09eadcf9ac11f0698fa5ca072392f9e36b0579e9f2fc9920b`.
+Database/PHP container identities and business data were preserved; fresh
+consumer details are in its `docs/VERIFICATION.md`.
+
+The shared branding stylesheet remains unchanged at SHA256
+`354D1CDC5D0B07BA1E69B869B89534D5766EB058ECB511C0DBB2D3FFE03FFA25`.
+Full application/CLI/coverage/backend suites, physical devices and a separate
+source production build were not repeated for this small visual follow-up.
+Earlier results remain historical. No commit, push or GitHub Actions run
+was performed.
+
+## Application-led hero visual, 20 October 2026
+
+The large inverse source editor is replaced with an illustrative customer-list
+screen on the active theme's card surface. A quiet navigation rail and row
+separators carry the application view. The Page, Feature and Shared controls
+remain keyboard operable below it; each displays two or three verbatim source
+lines with highlighting. File paths, line gutters and diagnostic-style chrome
+are removed. The code stays LTR in Arabic. Preview labels and short layer
+descriptions are provided in EN/FR/AR; the French feature label is “Module”
+to avoid a broken word at 320px.
+
+Final local checks passed: `vp check` (0 errors, 47 existing warnings), full
+lint/custom rules, E2E types, all three source-excerpt parity tests, demo build,
+all 12 demo bundle gates and all three maintainer gates. The CLI's seeded
+locale payload was regenerated. The final desktop/mobile browser suite passed
+18/18 cases, including EN/FR/AR in both modes, keyboard interaction, source
+highlighting and workspace overflow checks. Its axe assertions cover serious
+and critical findings, not complete WCAG conformance.
+
+Manual browser inspection additionally covered 320px French and Arabic,
+dark mode, layer switching, and restoration to English/light mode. No new
+browser console errors were observed. Evidence is saved under the session's
+`hero-20261020` visualization folder, including `hero-final.jpg`, `check.log`,
+`build.log` and `browser.log`. The local preview is running on port 4173.
+Stockroom, backend behaviour and the unresolved broader UI audit were outside
+this hero-only change. No remote publication or GitHub Actions run occurred.

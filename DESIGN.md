@@ -1,6 +1,6 @@
 ---
 name: Vuestrata
-description: One component vocabulary, twelve design personalities, and a navy, copper and paper default identity.
+description: One component vocabulary, twelve design personalities, and a default identity built on clear structure, cool silver, navy and copper.
 colors:
   midnight: '#031b38'
   midnight-hover: '#0a2a50'
@@ -8,45 +8,47 @@ colors:
   copper-text: '#b23d15'
   copper-inverse-text: '#e78d61'
   paper: '#f3efe3'
-  sheet: '#faf7ef'
-  stone: '#8b744e'
-  rule: '#d8d1c2'
-  muted-ink: '#55616b'
+  silver: '#e5edf2'
+  silver-light: '#edf3f6'
+  silver-muted: '#dce7ee'
+  sheet: '#f7fafb'
+  rule: '#bdcdd8'
+  muted-ink: '#455c6b'
   night: '#021326'
   danger-signal: '#ef4444'
 typography:
   display:
-    fontFamily: "'Vuestrata Newsreader', 'Vuestrata Naskh', Georgia, serif"
-    fontSize: 'clamp(2.75rem, 6vw, 6rem)'
-    fontWeight: '500'
-    lineHeight: '1.04'
-    letterSpacing: '-0.025em'
+    fontFamily: "'Vuestrata Commissioner', 'Vuestrata Tajawal', sans-serif"
+    fontSize: 'clamp(2.8rem, 4.1vw, 4.1rem)'
+    fontWeight: '650'
+    lineHeight: '1.05'
+    letterSpacing: '-0.035em'
   headline:
-    fontFamily: "'Vuestrata Newsreader', 'Vuestrata Naskh', Georgia, serif"
+    fontFamily: "'Vuestrata Commissioner', 'Vuestrata Tajawal', sans-serif"
     fontSize: '2.25rem'
-    fontWeight: '500'
+    fontWeight: '650'
     lineHeight: '1.15'
   title:
-    fontFamily: "'Vuestrata Jakarta', 'Vuestrata Tajawal', sans-serif"
+    fontFamily: "'Vuestrata Commissioner', 'Vuestrata Tajawal', sans-serif"
     fontSize: '1.125rem'
     fontWeight: '600'
     lineHeight: '1.4'
   body:
-    fontFamily: "'Vuestrata Jakarta', 'Vuestrata Tajawal', sans-serif"
+    fontFamily: "'Vuestrata Commissioner', 'Vuestrata Tajawal', sans-serif"
     fontSize: '1rem'
     fontWeight: '400'
     lineHeight: '1.65'
   label:
-    fontFamily: "'Vuestrata Jakarta', 'Vuestrata Tajawal', sans-serif"
+    fontFamily: "'Vuestrata Commissioner', 'Vuestrata Tajawal', sans-serif"
     fontSize: '0.875rem'
     fontWeight: '500'
     lineHeight: '1.4'
 rounded:
-  sm: '0.1875rem'
-  md: '0.375rem'
-  lg: '0.5rem'
-  xl: '0.75rem'
-  2xl: '1rem'
+  sm: '0.125rem'
+  md: '0.1875rem'
+  lg: '0.25rem'
+  xl: '0.375rem'
+  2xl: '0.5rem'
   full: '9999px'
 components:
   button-primary:
@@ -72,11 +74,21 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "The Architect's Workbench"**
+**Creative North Star: "Structure made visible"**
 
-The default identity combines midnight navy, fired copper and warm paper. A developer exploring the foundation in daylight sees an expressive serif headline and a working interface beneath it; an operator sees familiar sans-serif controls and readable data. Home can use large inverse navy surfaces and a paced visual story. Authenticated screens keep the colour quieter and the information easy to scan.
+The default identity starts with what Vuestrata actually is: three layers that give an application room to grow. The existing three-bar mark becomes the visual cue for that structure. Cool silver surfaces, upright Commissioner headings, compact corners and clear navy selections give the interface a brisk, exact character. Copper identifies the mark and important details. Paper remains an inverse ink and identity accent; it is never the light-mode canvas.
+
+On the home page, a compact customer-list illustration shows the reference module as a working interface. A quiet navigation rail, opaque theme surface and clear row separators give it an application character. Page, Feature and Shared controls sit below the illustration, followed by two or three highlighted lines copied from the selected source file. Code supports the example rather than dominating it: there is no editor title bar, source-line gutter or diagnostic-style dark panel. The illustration and source sit without floating shadows. Headings stay upright and eyebrows use normal case. The identity comes from the logo, the product's structure and those repeated decisions, rather than an editorial spread, a simulated terminal, industrial ornament or a background pattern.
 
 The identity lives in the seeded `src/modules/app/styles/brand.css` seam. Managed UI, semantic infrastructure and theme files remain unchanged. Default has no `theme-*` class; every identity selector is scoped to that condition. The other eleven personalities keep their own type, colour and geometry.
+
+The home introduction carries its template label in a solid navy ribbon with
+a notched trailing edge. The notch and padding mirror in Arabic. Sequential
+markers sit inside compact, filled squares with theme-controlled corners;
+source-code line numbers remain plain. Navigation arrows use `AppIcon` so
+they follow the selected icon provider. Horizontal arrows mirror in RTL;
+downward cues keep their direction. Icons stay decorative beside meaningful
+link and button labels.
 
 ### Brand mark
 
@@ -133,17 +145,17 @@ only holds because the split below is enforced rather than assumed.
 
 **Theme-level variables — may differ, and do:**
 
-| Dimension                                                   | Implemented by                                                          | Coverage                                                   |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Colour ramps (primary/secondary/accent/surface, both modes) | `--color-*`                                                             | all 12                                                     |
-| Border radius                                               | `--radius-*`, and `--shape-radius-*` where the theme sets both          | all 12                                                     |
-| Elevation                                                   | `--shadow-soft/card/card-hover/elevated` — gaussian, or hard offset ink | all 12                                                     |
-| Glow tokens                                                 | `--shadow-glow-*`                                                       | tinted in 8; set to `none` in Analog, Blueprint, Brutalist |
-| Body typeface                                               | `--font-sans`                                                           | 8 of 12 depart from Inter                                  |
-| Display / mono typeface                                     | `--font-display`, `--font-mono`                                         | Analog, Ghibli (display); Analog (mono)                    |
-| Border weight                                               | `--shape-border-width`                                                  | Analog, Brutalist                                          |
-| Chart palette                                               | `--color-chart-1…8`                                                     | Analog, Blueprint, Harbour, Pro                            |
-| Theme-local drawing primitives                              | e.g. `--blueprint-grid-*`, `--analog-grain`                             | Blueprint, Analog                                          |
+| Dimension                                                   | Implemented by                                                          | Coverage                                                            |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Colour ramps (primary/secondary/accent/surface, both modes) | `--color-*`                                                             | all 12                                                              |
+| Border radius                                               | `--radius-*`, and `--shape-radius-*` where the theme sets both          | all 12                                                              |
+| Elevation                                                   | `--shadow-soft/card/card-hover/elevated` — gaussian, or hard offset ink | all 12                                                              |
+| Glow tokens                                                 | `--shadow-glow-*`                                                       | tinted in 8; set to `none` in Default, Analog, Blueprint, Brutalist |
+| Body typeface                                               | `--font-sans`                                                           | 8 of 12 depart from Inter                                           |
+| Display / mono typeface                                     | `--font-display`, `--font-mono`                                         | Analog, Ghibli (display); Analog (mono)                             |
+| Border weight                                               | `--shape-border-width`                                                  | Analog, Brutalist                                                   |
+| Chart palette                                               | `--color-chart-1…8`                                                     | Analog, Blueprint, Harbour, Pro                                     |
+| Theme-local drawing primitives                              | e.g. `--blueprint-grid-*`, `--analog-grain`                             | Blueprint, Analog                                                   |
 
 Not every theme changes every dimension, and that is the point: a theme spends
 variation where its personality needs it and inherits the rest.
@@ -160,37 +172,46 @@ variation where its personality needs it and inherits the rest.
 
 ---
 
-## 2. Colors: Midnight, Copper and Paper
+## 2. Colors: Silver, Midnight and Copper
 
-The user's three anchors are exact: **midnight `#031b38`**, **copper `#cf4c18`**, and **paper `#f3efe3`**. The ramps add the shades needed for controls, states and both colour modes.
+The user's three anchors remain exact: **midnight `#031b38`**, **copper `#cf4c18`**, and **paper `#f3efe3`**. Cool silver now carries the light-mode canvas. The ramps add the shades needed for controls, states and both colour modes.
 
 ### Roles
 
-- **Midnight:** structural ink, primary controls, and inverse feature surfaces. Navy on paper measures 15.00:1.
-- **Copper:** large editorial accents, prominent marks and chart series. Exact copper on paper measures 3.89:1, so it is reserved for large text and non-text marks. Small copper text uses `accent-600` (`#b23d15`), measuring 5.11:1 on paper and 4.64:1 on the muted surface.
-- **Paper:** the page ground. Cards use a slightly lighter sheet (`#faf7ef`), floating surfaces use `#fdfaf2`, and muted areas use `#eae4d6`.
-- **Warm stone:** supporting information and secondary data, with the same hierarchy as the navy ramp.
+- **Midnight:** structural ink, primary controls, selected navigation and inverse feature surfaces.
+- **Copper:** prominent marks, selected details and chart series. Exact copper is reserved for large text and non-text marks. Small copper text uses the darker `accent-600` (`#b23d15`).
+- **Silver:** the page ground (`#e5edf2`). Cards, inputs and elevated surfaces use `#f7fafb`; muted areas use `#dce7ee`. Borders use `#bdcdd8`, and supporting text uses `#455c6b`.
+- **Paper:** inverse text and a restrained identity accent. It does not fill the light canvas, cards or navigation.
+- **Cool secondary ramp:** supporting information and secondary data, with the same hierarchy as the navy ramp and no yellow or beige stops.
 - **Status colours:** the shared success, warning, error and info ramps retain their meanings.
 
 ### Light and dark
 
-Light mode is warm paper with navy ink and restrained copper. Dark mode uses a deep navy ground (`#021326`), a lifted navy card (`#0b2540`), paper text, and brighter copper links. The surface ramp always remains `50` light to `950` dark; semantic aliases perform the mode change.
+Light mode is cool silver with navy ink and restrained copper. The sidebar has a solid cool light base, with navy fill and paper ink for the selected item; it is not a dark sidebar. Dark mode uses a deep navy ground (`#021326`), a lifted navy card (`#0b2540`), paper text, and brighter copper links. The surface ramp always remains `50` light to `950` dark; semantic aliases perform the mode change.
 
 The primary solid reverses in dark mode: paper fill and navy label. Light-mode focus uses accessible dark copper; dark-mode focus uses `accent-400`.
 
 ### Feature surfaces
 
-Owned features may use the optional `--color-spotlight*` aliases: midnight ground, paper text, light navy muted text, and copper marks. Small copper text on the inverse ground uses `--color-spotlight-link` (`#e78d61`, 6.88:1). Components must supply a semantic or ramp fallback for every alias so other themes stay complete.
+Owned features may use the optional `--color-spotlight*` aliases: midnight ground, paper text, light navy muted text, and copper marks. Small copper text on the inverse ground uses `--color-spotlight-link` (`#e78d61`). Components must supply a semantic or ramp fallback for every alias so other themes stay complete.
 
 ### Scope and preferences
 
-Only the default identity changes. Brand rules never target a named theme. The default radius rules exclude an explicit `shape-radius-*` class, so a user's sharp, small or large preference keeps its effect. Shared status colours, keyboard focus handling, reduced-motion behaviour and RTL layout remain part of the existing component contract.
+Only the default identity changes. Brand rules never target a named theme. The default radius rules exclude an explicit `shape-radius-*` class, so a user's sharp, small or large preference keeps its effect. Both radius scales are set: `--radius-sm/md/lg/xl/2xl` are `0.125/0.1875/0.25/0.375/0.5rem`; `--shape-radius`, `--shape-radius-sm/lg/xl` are `0.25/0.1875/0.375/0.5rem`. Resting card shadows are absent unless an explicit shadow preference requests them. Shared status colours, keyboard focus handling, reduced-motion behaviour and RTL layout remain part of the existing component contract.
 
 ### Page backgrounds
 
-Keep the default page ground plain: warm paper in light mode and deep navy in
-dark mode. Use semantic surface colours and borders to separate sections.
-Geological bands and decorative background patterns are not part of this identity.
+The default canvas has one broad, static directional gradient at 132 degrees,
+interpolated in OKLab. Light mode moves from `#edf3f6` through the silver base
+`#e5edf2` at 48% to `#dce7ee`. The source values use OKLCH; these hex equivalents
+describe the intended cool silver field. Dark mode moves through deep navy
+tones. There is no cream or parchment stop in light mode.
+
+Paint the same wash on the body and paired full-height layout roots. Cards,
+forms, navigation and inverse feature sections keep their solid semantic
+surfaces. Backgrounds scroll normally and do not introduce motion or overlays.
+Named themes retain their own backgrounds. Geological bands, mesh gradients,
+glow blobs and gradient text are not part of the default identity.
 
 ---
 
@@ -202,7 +223,7 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 
 | Theme         | Aesthetic                               | Design Mood                                  |
 | ------------- | --------------------------------------- | -------------------------------------------- |
-| **Default**   | Midnight, copper and paper              | Confident serif headings, precise working UI |
+| **Default**   | Cool silver, midnight and copper        | Upright type, clear layers, compact geometry |
 | **Analog**    | Burnt coral on warm paper               | Editorial notebook, ink, data sketch         |
 | **Blueprint** | Plotter azure + verdigris + Corten      | Technical, gridded, drawing-set precision    |
 | **Brutalist** | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration         |
@@ -219,7 +240,7 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 
 | Theme     | Primary-500 | Secondary-500 | Accent-500 | Surface-50 | Radius-md | Body Font         |
 | --------- | ----------- | ------------- | ---------- | ---------- | --------- | ----------------- |
-| Default   | `#315f8e`   | `#8b744e`     | `#cf4c18`  | `#f3efe3`  | 0.375rem  | Plus Jakarta Sans |
+| Default   | `#315f8e`   | `#54788f`     | `#cf4c18`  | `#f7fafb`  | 0.1875rem | Commissioner      |
 | Analog    | `#e85d3f`   | `#3a7a73`     | `#d4b63a`  | `#f3efe6`  | 0.25rem   | IBM Plex Sans     |
 | Blueprint | `#3b73ed`   | `#1f9187`     | `#cd5a2f`  | `#f7f9fc`  | 0         | IBM Plex Sans     |
 | Brutalist | `#303030`   | `#d9c200`     | `#ff1a75`  | `#fafafa`  | 0         | Space Grotesk     |
@@ -236,9 +257,9 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 
 ---
 
-**Default**: _Midnight, Copper and Paper_
+**Default**: _Structure made visible_
 
-Newsreader headings supply a contemporary serif voice, with Noto Naskh Arabic for Arabic display text. Plus Jakarta Sans and Tajawal keep controls and data precise. Warm paper, modest corners and subtle navy-tinted elevation give the working screens a clear hierarchy. The home story can spend more navy and copper without turning everyday controls into decoration.
+Commissioner carries the headings and working UI, with Tajawal for Arabic. A cool silver canvas and opaque near-white panels separate the page from its contents. Small corners, visible rules and solid navy selections do the structural work without resting card shadows. The three-bar logo and the Page, Feature and Shared source controls give the home page its own visual vocabulary. Newsreader and Naskh appear only in the small ThemeStudio specimen title; the logo wordmark retains Plus Jakarta Sans.
 
 | Token                  | Value                          | Notes                                |
 | ---------------------- | ------------------------------ | ------------------------------------ |
@@ -246,10 +267,13 @@ Newsreader headings supply a contemporary serif voice, with Noto Naskh Arabic fo
 | Primary solid, light   | `#031b38`                      | Exact midnight, paper label          |
 | Accent-500             | `#cf4c18`                      | Exact copper, large marks            |
 | Accent-600             | `#b23d15`                      | Accessible small copper text         |
-| Surface-50             | `#f3efe3`                      | Exact paper                          |
-| Radius-md              | 0.375rem                       | Explicit shape preferences still win |
-| Body                   | Plus Jakarta Sans / Tajawal    | Locally bundled sans-serif           |
-| Display                | Newsreader / Noto Naskh Arabic | Locally bundled, heading-only        |
+| Background             | `#e5edf2`                      | Cool silver, 48% gradient anchor     |
+| Surface-50 / card      | `#f7fafb`                      | Opaque panel surface                 |
+| Muted / border         | `#dce7ee` / `#bdcdd8`          | Cool separation without card shadow  |
+| Muted foreground       | `#455c6b`                      | Supporting text                      |
+| Radius-md              | 0.1875rem                      | Explicit shape preferences still win |
+| Body and display       | Commissioner / Tajawal         | Locally bundled, upright sans-serif  |
+| Serif specimen         | Newsreader / Noto Naskh Arabic | ThemeStudio specimen title only      |
 
 ---
 
@@ -394,15 +418,15 @@ Six deliberate departures from the previous version:
 **Ocean** — _The Deep Channel_
 Deep indigo primary (#6366f1), cyan secondary (#06b6d4), violet accent (#8b5cf6). The standard cool-slate surface. Blue-tinted gaussian shadows with glow support enabled. Smooth radius (md=0.5rem). Inter type. Saturated cool sibling of Pro — immersive, not the quiet operator console.
 
-| Token         | Value                         | Notes                        |
-| ------------- | ----------------------------- | ---------------------------- |
-| Primary-500   | `#6366f1`                     | Deep indigo                  |
-| Secondary-500 | `#06b6d4`                     | Cyan                         |
-| Accent-500    | `#8b5cf6`                     | Violet                       |
-| Surface-50    | `#f8fafc`                     | Cool slate (same as Default) |
-| Radius-md     | 0.5rem                        | Standard smooth              |
-| Shadow style  | Indigo-tinted gaussian + glow | Immersive depth              |
-| Font          | Inter / Rubik                 | Clean geometric              |
+| Token         | Value                         | Notes           |
+| ------------- | ----------------------------- | --------------- |
+| Primary-500   | `#6366f1`                     | Deep indigo     |
+| Secondary-500 | `#06b6d4`                     | Cyan            |
+| Accent-500    | `#8b5cf6`                     | Violet          |
+| Surface-50    | `#f8fafc`                     | Cool slate      |
+| Radius-md     | 0.5rem                        | Standard smooth |
+| Shadow style  | Indigo-tinted gaussian + glow | Immersive depth |
+| Font          | Inter / Rubik                 | Clean geometric |
 
 ---
 
@@ -499,9 +523,11 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 
 ## 3. Typography
 
-**Default body and controls:** locally bundled Plus Jakarta Sans with Tajawal Arabic fallback. Private CSS family names keep the other themes' font loading independent.
+**Default body and controls:** locally bundled Commissioner with Tajawal Arabic fallback. The default display stack is the same sans-serif stack, so the public home page and the working application share one voice. Private CSS family names keep the other themes' font loading independent.
 
-**Default display:** locally bundled Newsreader normal and italic, paired with Noto Naskh Arabic. The serif applies to `h1` and `h2`; compact titles, navigation, labels, inputs, buttons and table data retain the sans-serif. `.font-display` lets an owned screen opt in and falls back to the active theme's sans-serif when that theme has no display face.
+**Default display:** `h1` and `h2` use upright Commissioner at weight 650. The home hero's emphasized phrase stays upright and inherits its heading weight; eyebrows use normal case and natural tracking. Arabic uses Tajawal with normal tracking and additional line height. `.font-display` follows the active display stack and falls back to that theme's sans-serif when no display face exists.
+
+**Limited serif:** `--font-serif` keeps Newsreader and Noto Naskh Arabic available for the small ThemeStudio specimen title. It does not carry page headings, navigation or controls. The logo wordmark keeps its existing Plus Jakarta Sans face.
 
 **Mono:** JetBrains Mono remains the existing code face.
 
@@ -509,8 +535,8 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 
 ### Hierarchy
 
-- **Display:** Newsreader 500, fluid size on the public home page, close leading, `-0.025em` tracking. Arabic uses natural tracking and more vertical room.
-- **Page heading:** serif 500, fixed sizes on working screens so responsive changes do not disturb control and table geometry.
+- **Display:** upright Commissioner 650, fluid size on the public home page, close leading, `-0.035em` tracking. Arabic uses natural tracking and more vertical room.
+- **Page heading:** upright sans-serif 650, fixed sizes on working screens so responsive changes do not disturb control and table geometry.
 - **Compact title:** sans-serif 600, 1.125rem.
 - **Body:** sans-serif 400, 1rem for prose, 1.6 to 1.7 leading, 60 to 72ch measure. Existing dense controls may use their component sizes.
 - **Label:** sans-serif 500, 0.875rem, with the component's existing touch target.
@@ -518,13 +544,13 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 
 ### Loading and licensing
 
-The four default families are bundled as WOFF2 subsets under `src/modules/app/assets/fonts/brand/`, with `font-display: swap` and complete OFL license files. Latin and extended Latin load only when needed; Arabic body and display faces load only for matching glyphs. Newsreader is an open-source alternative in the requested contemporary serif direction; the commercial Erato Nova font is not included.
+Five families are bundled as WOFF2 subsets under `src/modules/app/assets/fonts/brand/`, with `font-display: swap` and complete OFL license files. Commissioner is the default Latin text face; Tajawal carries Arabic, Plus Jakarta Sans preserves the logo, and Newsreader with Naskh remains available for the limited specimen accent. Latin and extended Latin load only when needed; Arabic assets load only for matching glyphs. Newsreader remains an open-source serif alternative; the commercial Erato Nova font is not included.
 
 The remaining themes keep their existing Google Fonts loading. A named font must always be loaded; declaring a family without its asset is not a completed type change. See the bundled font README for source versions and attribution.
 
 ### Named rules
 
-**Display containment.** A serif belongs to major headings, never to controls or numeric data. Named themes keep their own typography decisions.
+**Display containment.** Default uses its upright sans-serif for major headings, controls and numeric data. The ThemeStudio specimen title is the one limited serif use. Named themes keep their own typography decisions.
 
 **Mono containment.** Monospace remains for code, terminal output and the Terminal theme. It is not the default prose face.
 
@@ -538,11 +564,22 @@ The neutral scale (`surface-50` through `surface-950`) carries structural hierar
 
 ### Shadow Vocabulary
 
-- **`--shadow-soft`** (`0 2px 10px -2px rgb(primary / 0.1)`): Subtle resting depth for inputs, inline cards at rest. Barely perceptible.
-- **`--shadow-card`** (`0 1px 4px rgb(primary / 0.06)`): Card default state. Separates the card surface from the page without calling attention to it.
-- **`--shadow-card-hover`** (`0 12px 36px -8px rgb(primary / 0.18)`): Card hover. Lifts the card toward the user — the tactile response that confirms interactivity.
-- **`--shadow-elevated`** (`0 10px 30px -5px rgb(primary / 0.15)`): Dropdowns, popovers, command palettes. Structural float, not decorative.
-- **`--shadow-glow-primary/secondary/accent`** (`0 0 24px rgb(primary / 0.3)`): Focus rings on icon buttons, selected state halos. Sparingly applied. Not available in Blueprint or Brutalist themes (intentionally disabled).
+Default overrides the shared shadow recipes with a smaller state change:
+
+- **`--shadow-soft`:** `0 1px 2px`, tinted with 5% midnight.
+- **`--shadow-card`:** `none`. Borders and opaque panel colour carry the resting hierarchy.
+- **`--shadow-card-hover`:** `0 2px 5px -2px`, tinted with 18% midnight.
+- **`--shadow-elevated`:** `0 18px 42px -20px`, tinted with 22% midnight for floating layers.
+- **`--shadow-glow-primary/secondary/accent`:** `none`.
+- **`--shape-shadow`:** `none` unless the user chooses an explicit `shape-shadow-*` preference. The source illustration also has no floating shadow.
+
+The shared recipes remain available to named themes, with their own overrides:
+
+- **`--shadow-soft`** (`0 2px 10px -2px rgb(primary / 0.1)`): subtle separation for compact surfaces.
+- **`--shadow-card`** (`0 1px 4px rgb(primary / 0.06)`): the shared card-depth recipe; Default overrides it to `none`.
+- **`--shadow-card-hover`** (`0 12px 36px -8px rgb(primary / 0.18)`): interactive card lift.
+- **`--shadow-elevated`** (`0 10px 30px -5px rgb(primary / 0.15)`): dropdowns, popovers and command palettes.
+- **`--shadow-glow-primary/secondary/accent`** (`0 0 24px rgb(primary / 0.3)`): optional halos, disabled in Default, Analog, Blueprint and Brutalist.
 
 Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint and Brutalist use hard flat offsets (2–6px, 0 blur) instead of gaussian shadows — matching their aesthetic contract.
 
@@ -550,7 +587,7 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 
 **The Flat-By-Default Rule.** Surfaces are flat at rest. Shadows appear only as a response to state (hover, elevation, active focus) or to mark a floating layer (dropdown, dialog, sheet). Never apply `--shadow-card` to a surface that is not interactive or floating.
 
-**The Tinted Shadow Rule.** In themes that use gaussian shadows, the shadow color matches the theme's primary hue at ≤18% opacity. Do not introduce neutral black shadows in tinted-shadow themes — it breaks the ambient warmth.
+**The Tinted Shadow Rule.** Shadows follow the theme's primary hue. Default uses 5% midnight for soft depth, 18% for hover and 22% for a floating layer; the named themes retain their existing recipes. Do not introduce neutral black shadows in tinted-shadow themes.
 
 ---
 
@@ -560,7 +597,7 @@ Shadow colors are tinted with the theme's primary hue at low opacity. Blueprint 
 
 _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)`) and dip on press (`scale(0.97)`) with a cubic-bezier expo deceleration. The animation is disabled under `prefers-reduced-motion`.
 
-- **Shape:** `rounded-lg` → `--radius-lg` (default 0.5rem; 0 in Blueprint/Brutalist; up to 1.125rem in Ghibli and 1rem in Harbour)
+- **Shape:** `rounded-lg` → `--radius-lg` (Default 0.25rem; 0 in Blueprint/Brutalist; up to 1.125rem in Ghibli and 1rem in Harbour)
 - **Primary:** the default branding hook uses `primary-solid` and `primary-foreground`; named themes keep their existing primary recipe.
 - **Secondary:** `bg-secondary-700 text-white`, with darker hover and active states.
 - **Accent:** `bg-accent-700 text-white`, with a darker hover state.
@@ -573,10 +610,11 @@ _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)
 
 ### Cards
 
-- **Surface:** `bg-surface-50` (light) / `bg-surface-800` (dark)
+- **Surface:** use the semantic card surface. Default resolves to `#f7fafb` in light mode and `#0b2540` in dark mode; named themes retain their own surfaces.
 - **Border:** `border border-surface-200` (light) / `border-surface-700` (dark) — 1px, no radius override needed
 - **Shape:** `rounded-lg` → `--radius-lg`
 - **Padding:** `p-6` (1.5rem) default
+- **Resting depth:** no card shadow in Default, unless an explicit user shadow preference requests one.
 - **Hover (interactive cards):** `shadow-card-hover` + `translate-y-[-1px]` — a 1px lift confirms interactivity without exaggeration
 - **No border-left accent stripes.** Side-stripe decoration is an anti-pattern in this system; use a `border-t border-primary-500` or a tinted `bg-primary-50` header region instead.
 
@@ -588,13 +626,14 @@ _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)
 - **Label position:** Above the field, not floating. Labels are always visible — no placeholder-as-label pattern.
 - **Error state:** `border-danger-500` + `text-danger-600` helper text below
 - **Padding:** `px-3 py-2`
-- **Background:** `bg-surface-50` (light) / `bg-surface-800` (dark)
+- **Background:** opaque semantic panel surface; Default light mode uses `#f7fafb`.
 
 ### Navigation
 
 - **AppHeader:** Sticky, `h-16`, `bg-surface-50/80 backdrop-blur-md` for translucency. Brand logo left, actions right.
 - **AppSidebar:** Collapsible aside. Width `w-64` expanded. RTL-aware: `ltr:-translate-x-full rtl:translate-x-full` when closed.
 - **Active state:** `bg-primary-50 text-primary-700` (light) / `bg-primary-950/40 text-primary-300` (dark) + `aria-current="page"` on the anchor.
+- **Default sidebar:** cool light base (`#dce7ee`) with solid midnight (`#031b38`) and paper (`#f3efe3`) for selected or hovered items. Dark mode uses its separate navy sidebar tokens. This theme overrides the shared active-state recipe through the sidebar aliases.
 - **Icon-only nav buttons:** Must carry `aria-label` — never rely on `title` or tooltip alone.
 
 ### Badges / Chips
@@ -629,7 +668,7 @@ _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)
 - **Pair each interactive element with a visible, non-color-only focus indicator** (`ring-2 ring-primary-300 ring-offset-2`). This applies to all themes including high-contrast Terminal and Brutalist.
 - **Apply `aria-current="page"` to active navigation links** in addition to any visual active class. CSS alone is not sufficient for WCAG 4.1.2.
 - **Scale typography with `clamp()`** at display and headline sizes. Fixed rem values only for body, label, and title.
-- **Tint shadows with the theme's primary hue** (≤18% opacity). In themes that have configured tinted shadows, neutral-black shadows will feel foreign.
+- **Use the theme's shadow tokens.** Default has no resting card shadow and uses midnight tint for the small hover and floating-layer shadows. Named themes keep their configured recipes.
 - **Use logical CSS properties** (`inset-inline-start`, `border-inline-end`, `margin-inline`) for all directional styles. RTL support is built-in; hardcoded `left`/`right` properties break it.
 - **Bridge chart/data-viz colors to theme tokens** via computed CSS properties. Never hardcode hex colors in ECharts or similar configs — they will not update when the theme changes.
 
@@ -695,7 +734,7 @@ motion-reduce:active:scale-100
 
 Base values in app.css derive all three from the active ramps, so an unlisted theme still glows in its own hue.  
 Own tinted values: Ocean, Forest, Sunset, Rose, Harbour, Pro, Ghibli (primary + secondary), Terminal (primary, dark only)  
-Disabled (`none`): Analog, Blueprint, Brutalist
+Disabled (`none`): Default, Analog, Blueprint, Brutalist
 
 ```
 --shadow-glow-primary:   0 0 24px rgb(primary-500 / 0.3)

@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import { UiButton } from '@/components/ui'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import { useTheme } from '@/composables/useTheme'
 
 const { t } = useI18n()
@@ -42,8 +43,8 @@ const { themes, currentThemeName, currentTheme, setTheme } = useTheme()
           ><span aria-hidden="true" />{{ t('atelier_specimen_status') }}</span
         >
         <UiButton to="/docs/theming/overview" size="sm"
-          >{{ t('atelier_design_guide') }} <span aria-hidden="true">↗</span></UiButton
-        >
+          >{{ t('atelier_design_guide') }} <AppIcon name="arrow-right" class="home-arrow"
+        /></UiButton>
       </div>
     </div>
   </section>
@@ -127,7 +128,7 @@ const { themes, currentThemeName, currentTheme, setTheme } = useTheme()
 .specimen-title {
   max-width: 18ch;
   margin-block: 0 2rem;
-  font: 400 1.6rem/1.2 var(--font-display, var(--font-sans));
+  font: 500 1.6rem/1.2 var(--font-serif, var(--font-display, var(--font-sans)));
 }
 .specimen-rule {
   height: 1px;

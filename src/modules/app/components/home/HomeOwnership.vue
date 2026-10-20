@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import AppIcon from '@/components/ui/AppIcon.vue'
+
 const { t } = useI18n()
 const layers = [
   { name: 'managed', file: 'components/ui/UiButton.vue', suffix: '01' },
@@ -18,14 +20,14 @@ const layers = [
         <p class="home-description">{{ t('atelier_ownership_desc') }}</p>
         <p class="ownership-note">{{ t('atelier_ownership_note') }}</p>
         <RouterLink to="/docs/getting-started/starting-a-project" class="ownership-guide">
-          {{ t('atelier_ownership_guide') }} <span aria-hidden="true">↗</span>
+          {{ t('atelier_ownership_guide') }} <AppIcon name="arrow-right" class="home-arrow" />
         </RouterLink>
       </div>
       <div class="ownership-sample">
         <ol class="ownership-layers">
           <li v-for="layer in layers" :key="layer.name" :class="`layer-${layer.name}`">
             <div class="ownership-layer-label">
-              <span class="ownership-index" aria-hidden="true">{{ layer.suffix }}</span
+              <span class="ownership-index home-number" aria-hidden="true">{{ layer.suffix }}</span
               ><code>{{ layer.name }}</code>
             </div>
             <h3>{{ t(`atelier_ownership_${layer.name}_title`) }}</h3>
@@ -85,7 +87,6 @@ const layers = [
   gap: 1rem;
 }
 .ownership-layers li {
-  --ownership-dot: var(--color-link);
   position: relative;
   padding: 1.3rem 1.4rem;
   border: 1px solid var(--color-border);
@@ -93,24 +94,6 @@ const layers = [
   color: var(--color-foreground);
   background: var(--color-card);
   box-shadow: var(--shadow-card);
-}
-.ownership-layers .layer-merged {
-  --ownership-dot: var(--color-primary-600);
-}
-.ownership-layers .layer-seeded {
-  --ownership-dot: var(--color-secondary-600);
-}
-.ownership-index {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-.ownership-index::before {
-  content: '';
-  width: 0.35rem;
-  height: 0.35rem;
-  border-radius: 50%;
-  background: var(--ownership-dot);
 }
 .ownership-layer-label {
   display: flex;

@@ -295,13 +295,14 @@ describe.skipIf(!CLI_PRESENT || !MAINTAINER)('build-payload', () => {
       ([, url]) => path.posix.normalize(path.posix.join(path.posix.dirname(BRAND), url!)),
     )
 
-    expect(fontReferences).toHaveLength(10)
+    expect(fontReferences).toHaveLength(12)
     expect(assets.filter((rel) => rel.endsWith('.woff2')).sort()).toEqual(
       [...fontReferences].sort(),
     )
     expect(assets).toEqual(
       expect.arrayContaining(
         [
+          'OFL-Commissioner.txt',
           'OFL-Newsreader.txt',
           'OFL-Noto-Naskh-Arabic.txt',
           'OFL-Plus-Jakarta-Sans.txt',

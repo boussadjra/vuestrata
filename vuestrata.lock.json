@@ -46,6 +46,14 @@
       "hash": "sha256-2791ec8521ed1f935753071d1abb23e106ba6f198c7c2c28b0da62599aa2af19",
       "since": "1.1.0-alpha.0"
     },
+    "src/modules/app/assets/fonts/brand/commissioner-latin-ext.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/commissioner-latin.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
     "src/modules/app/assets/fonts/brand/jakarta-latin-ext.woff2": {
       "class": "seeded",
       "since": "1.1.0-alpha.0"
@@ -71,6 +79,10 @@
       "since": "1.1.0-alpha.0"
     },
     "src/modules/app/assets/fonts/brand/newsreader-latin.woff2": {
+      "class": "seeded",
+      "since": "1.1.0-alpha.0"
+    },
+    "src/modules/app/assets/fonts/brand/OFL-Commissioner.txt": {
       "class": "seeded",
       "since": "1.1.0-alpha.0"
     },

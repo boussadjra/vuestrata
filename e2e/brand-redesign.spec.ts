@@ -2,9 +2,9 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
 const locales = [
-  { code: 'en', title: 'Build with purpose.', dir: 'ltr' },
-  { code: 'fr', title: 'Créez avec intention.', dir: 'ltr' },
-  { code: 'ar', title: 'ابنِ برؤية واضحة.', dir: 'rtl' },
+  { code: 'en', title: 'Your app takes shape.', dir: 'ltr' },
+  { code: 'fr', title: 'Votre application grandit.', dir: 'ltr' },
+  { code: 'ar', title: 'طوّر تطبيقك.', dir: 'rtl' },
 ] as const
 
 for (const locale of locales) {
@@ -18,6 +18,7 @@ for (const locale of locales) {
           localStorage.setItem('vuestrata-theme', 'default')
           localStorage.setItem('vuestrata-locale', code)
           localStorage.setItem('vuestrata-dark', String(dark))
+          localStorage.setItem('vuestrata-icon-provider', dark ? 'lucide' : 'solar')
         },
         { code: locale.code, dark },
       )
@@ -33,23 +34,81 @@ for (const locale of locales) {
         rootTransform: getComputedStyle(document.documentElement).transform,
       }))
       expect(layout.width).toBeLessThanOrEqual(layout.viewport + 1)
-      expect(layout.headingFont).toContain('Vuestrata Newsreader')
+      expect(layout.headingFont).toContain('Vuestrata Commissioner')
       expect(layout.rootTransform).toBe('none')
+      await expect(page.locator('.home-experience')).not.toContainText('↗')
+      const ribbon = await page.locator('.hero-ribbon').evaluate((el) => {
+        const style = getComputedStyle(el)
+        return {
+          background: style.backgroundColor,
+          clip: style.clipPath,
+          width: el.clientWidth,
+          content: el.scrollWidth,
+        }
+      })
+      expect(ribbon.background).not.toBe('rgba(0, 0, 0, 0)')
+      expect(ribbon.clip).not.toBe('none')
+      expect(ribbon.content).toBeLessThanOrEqual(ribbon.width + 1)
+      const badges = await page.locator('.home-number').evaluateAll((elements) =>
+        elements.map((el) => {
+          const style = getComputedStyle(el)
+          return {
+            width: el.getBoundingClientRect().width,
+            height: el.getBoundingClientRect().height,
+            background: style.backgroundColor,
+          }
+        }),
+      )
+      expect(badges).toHaveLength(15)
+      expect(
+        badges.every(
+          (badge) =>
+            badge.width >= 20 && badge.height >= 20 && badge.background !== 'rgba(0, 0, 0, 0)',
+        ),
+      ).toBe(true)
+      const arrow = page.locator('.hero-actions .home-arrow').first()
+      await expect(arrow).toHaveClass(new RegExp(`i-${dark ? 'lucide' : 'solar'}-`))
+      expect(await arrow.evaluate((el) => getComputedStyle(el).maskImage)).not.toBe('none')
+      expect(await arrow.evaluate((el) => getComputedStyle(el).transform)).toBe(
+        locale.dir === 'rtl' ? 'matrix(-1, 0, 0, 1, 0, 0)' : 'none',
+      )
       const ownershipBounds = await page.locator('.ownership-content').boundingBox()
       expect(ownershipBounds).not.toBeNull()
       expect(ownershipBounds!.x).toBeGreaterThanOrEqual(18)
       expect(ownershipBounds!.x + ownershipBounds!.width).toBeLessThanOrEqual(layout.viewport - 18)
       await expect(page.locator('.strata-outline')).toHaveCount(0)
       const backgrounds = await page
-        .locator('html, body, .ownership-sample')
+        .locator('html, .ownership-sample')
         .evaluateAll((elements) => elements.map((el) => getComputedStyle(el).backgroundImage))
       expect(backgrounds.every((background) => background === 'none')).toBe(true)
+      const canvas = await page.locator('body').evaluate((el) => {
+        const style = getComputedStyle(el)
+        return { image: style.backgroundImage, attachment: style.backgroundAttachment }
+      })
+      expect(canvas.image).toContain('linear-gradient')
+      expect(canvas.image).not.toContain('radial-gradient')
+      expect(canvas.attachment).toBe('scroll')
       const codeColors = await page
         .locator('.syntax-token')
         .evaluateAll((tokens) => tokens.map((token) => getComputedStyle(token).color))
       expect(new Set(codeColors).size).toBeGreaterThanOrEqual(4)
       await expect(page.locator('.foundation-preview pre')).toHaveAttribute('dir', 'ltr')
       await expect(page.locator('.foundation-preview pre script')).toHaveCount(0)
+      await expect(page.locator('.workspace-table tbody tr')).toHaveCount(3)
+      await expect(page.locator('.workspace-table')).toContainText('Northwind Logistics')
+      const previewLayout = await page.locator('.foundation-preview').evaluate((el) => {
+        const workspace = el.querySelector('.workspace-content')!
+        return {
+          width: el.clientWidth,
+          content: el.scrollWidth,
+          workspaceWidth: workspace.clientWidth,
+          workspaceContent: workspace.scrollWidth,
+          sourceLines: el.querySelectorAll('.code-line').length,
+        }
+      })
+      expect(previewLayout.content).toBeLessThanOrEqual(previewLayout.width + 1)
+      expect(previewLayout.workspaceContent).toBeLessThanOrEqual(previewLayout.workspaceWidth + 1)
+      expect(previewLayout.sourceLines).toBeLessThanOrEqual(3)
       const logo = await page
         .getByRole('link', { name: 'Vuestrata logo', exact: true })
         .getByRole('img')
@@ -111,9 +170,13 @@ test('Home page architecture preview and theme selection respond to keyboard inp
   await shared.focus()
   await shared.press('Enter')
   await expect(shared).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('.editor-filename')).toContainText('money.ts')
+  await expect(page.locator('.source-filename')).toContainText('money.ts')
+  await expect(page.locator('.foundation-preview pre')).toContainText('Math.round(amount)')
   await page.getByRole('button', { name: 'Brutalist', exact: true }).click()
   await expect(page.locator('html')).toHaveClass(/theme-brutalist/)
+  expect(await page.locator('body').evaluate((el) => getComputedStyle(el).backgroundImage)).toBe(
+    'none',
+  )
   expect(
     await page
       .locator('html')
@@ -149,7 +212,7 @@ test('Home page module preview and practical questions work with a keyboard', as
   await expect(question).not.toHaveAttribute('open', '')
 })
 
-test('Home page default serif and body fonts load without external font services', async ({
+test('Home page default heading and body fonts load without external font services', async ({
   page,
 }) => {
   await page.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\//, (route) => route.abort())
@@ -163,10 +226,10 @@ test('Home page default serif and body fonts load without external font services
   await page.evaluate(() => document.fonts.ready)
   const fonts = await page.evaluate(() => ({
     display: [...document.fonts].some(
-      (font) => font.family.includes('Vuestrata Newsreader') && font.status === 'loaded',
+      (font) => font.family.includes('Vuestrata Commissioner') && font.status === 'loaded',
     ),
     body: [...document.fonts].some(
-      (font) => font.family.includes('Vuestrata Jakarta') && font.status === 'loaded',
+      (font) => font.family.includes('Vuestrata Commissioner') && font.status === 'loaded',
     ),
   }))
   expect(fonts).toEqual({ display: true, body: true })
