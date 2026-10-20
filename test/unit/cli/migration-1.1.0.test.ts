@@ -1235,7 +1235,7 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
       }
     })
 
-    it('brings every unedited file to what this release ships, with nothing to do by hand', async () => {
+    it('updates every unedited base-path value, with nothing to do by hand', async () => {
       seed(ALL)
 
       const report = await upgrade()
@@ -1256,7 +1256,12 @@ describe.skipIf(!CLI_PRESENT || !hasTags)('upgrading the files a project owns', 
         scope: '.',
         icons: [{ src: 'favicon.svg' }],
       })
-      expect(fixture.read(MANIFEST)).toBe(lf(inRepo(MANIFEST)))
+      // Only the paths migrate; branding and all other release content stay intact.
+      const manifest = lf(released(MANIFEST))
+        .replace('"start_url": "/"', '"start_url": "."')
+        .replace('"scope": "/"', '"scope": "."')
+        .replace('"src": "/favicon.svg"', '"src": "favicon.svg"')
+      expect(fixture.read(MANIFEST)).toBe(manifest)
       expect(changed(report).sort()).toEqual([...ALL].sort())
       expect(report.notes).toEqual([])
     })
