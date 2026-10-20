@@ -65,6 +65,10 @@ import { defineDeployConfig } from '~/lib/config/deploy'
 
 export default defineDeployConfig({
   bundle: {
+    // The 52-example gallery adds chart families and EN/FR/AR sample catalogs.
+    // Allow 7.5 MiB across all emitted JS (including lazy documentation and
+    // demo chunks). Initial payload, eager chunk and CSS limits stay unchanged.
+    totalJsKb: 7680,
     onDemandChunks: {
       // Feature queries load with their route, although the module registry
       // reads metadata from the same public barrels.
