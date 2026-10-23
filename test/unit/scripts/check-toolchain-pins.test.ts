@@ -60,6 +60,22 @@ afterEach(() => {
 })
 
 describe('check-toolchain-pins', () => {
+  it('keeps exact security patch pins aligned across local, Docker and CI runtimes', () => {
+    const files = {
+      '.nvmrc': '22.23.4\n',
+      '.node-version': '22.23.4\n',
+      Dockerfile: DOCKERFILE.replace('node:22-slim', 'node:22.23.4-slim'),
+      '.github/workflows/ci.yml': CI.replace("'22'", "'22.23.4'"),
+    }
+    expect(check(project(files)).problems).toEqual([])
+
+    for (const [file, text] of Object.entries(files).filter(([file]) => file !== '.nvmrc')) {
+      const result = check(project({ ...files, [file]: text.replaceAll('22.23.4', '22.23.2') }))
+      expect(result.problems).toHaveLength(1)
+      expect(result.problems[0]).toContain(file)
+    }
+  })
+
   it('passes for this repository', () => {
     const result = check(REPO)
 
