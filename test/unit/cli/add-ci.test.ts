@@ -142,6 +142,16 @@ describe('add ci: the plan', () => {
     fixture.remove('.nvmrc')
     expect(() => plan()).toThrow(/\.nvmrc/)
   })
+
+  it('preserves a security patch pin instead of reducing it to its major', () => {
+    seed()
+    fixture.write('.nvmrc', '22.23.4\n')
+    expect(plan().files[0]?.contents).toContain("NODE_VERSION: '22.23.4'")
+
+    fixture.remove('.nvmrc')
+    fixture.write(CI_WORKFLOW, "env:\n  NODE_VERSION: '22.23.4'\n")
+    expect(ciFacts(fixture.project).node).toBe('22.23.4')
+  })
 })
 
 describe('add ci: what the workflow holds', () => {

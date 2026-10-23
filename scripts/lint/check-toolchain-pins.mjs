@@ -62,7 +62,8 @@ export function checkToolchainPins(root = repoRoot) {
 
   // ─── Sources of truth ──────────────────────────────────────────────────────
 
-  const nodeMajor = read('.nvmrc').trim()
+  const nodeVersion = read('.nvmrc').trim().replace(/^v/, '')
+  const nodeMajor = /^(\d+)/.exec(nodeVersion)?.[1]
 
   const pkg = JSON.parse(read('package.json'))
   const pnpmVersion = pkg.packageManager?.split('@')[1]
@@ -102,7 +103,9 @@ export function checkToolchainPins(root = repoRoot) {
 
     for (const match of matches) {
       const found = match[1]
-      if (found !== expected) {
+      const matchingMajor =
+        label === 'Node' && !expected.includes('.') && found.split('.')[0] === expected
+      if (found !== expected && !matchingMajor) {
         problems.push(
           `${file}: ${label} pinned to ${found}, but the repo uses ${expected}.\n` +
             `      → in: ${match[0].trim()}`,
@@ -120,7 +123,7 @@ export function checkToolchainPins(root = repoRoot) {
 
   // Dockerfile. A project that does not ship a container deletes it.
   if (present('Dockerfile')) {
-    expectAll('Dockerfile', 'Node', /^FROM(?: --platform=\S+)? node:(\d+)/gm, nodeMajor)
+    expectAll('Dockerfile', 'Node', /^FROM(?: --platform=\S+)? node:([\d.]+)/gm, nodeVersion)
     expectAll('Dockerfile', 'pnpm', /pnpm@([\d.]+)/g, pnpmVersion)
     // The digits matter: the platform bindings are named for their target
     // (`vite-plus-linux-x64-gnu`, `-linux-arm64-gnu`), and without them in the
@@ -148,8 +151,8 @@ export function checkToolchainPins(root = repoRoot) {
   for (const workflow of workflows) {
     const file = `${workflowsDir}/${workflow}`
     const source = read(file)
-    if (!/NODE_VERSION: '\d+'/.test(source) && !source.includes('env.NODE_VERSION')) continue
-    expectAll(file, 'Node', /NODE_VERSION: '(\d+)'/g, nodeMajor)
+    if (!/NODE_VERSION: '[\d.]+'/.test(source) && !source.includes('env.NODE_VERSION')) continue
+    expectAll(file, 'Node', /NODE_VERSION: '([\d.]+)'/g, nodeVersion)
   }
 
   // .node-version: what `vp` runs locally. Its major must be the one CI and
@@ -157,10 +160,13 @@ export function checkToolchainPins(root = repoRoot) {
   if (has('.node-version')) {
     const pinned = read('.node-version').trim()
     const major = /^v?(\d+)/.exec(pinned)?.[1]
-    if (major !== nodeMajor) {
+    const matches = nodeVersion.includes('.')
+      ? pinned.replace(/^v/, '') === nodeVersion
+      : major === nodeMajor
+    if (!matches) {
       problems.push(
-        `.node-version: pins Node ${pinned || '(nothing)'}, but .nvmrc builds on ${nodeMajor}.\n` +
-          '      → `vp` reads .node-version first, so local runs are on a different major ' +
+        `.node-version: pins Node ${pinned || '(nothing)'}, but .nvmrc builds on ${nodeVersion}.\n` +
+          '      → `vp` reads .node-version first, so local runs are on a different version ' +
           'from CI and the image.',
       )
     }

@@ -555,7 +555,7 @@ describe('eject and the CI workflow', () => {
     expect(fixture.read(CI)).not.toContain('lint:maintainer')
     // The fixture has no .nvmrc: the pin is the one the template's workflow carried.
     expect(fixture.read(CI)).toContain(
-      `NODE_VERSION: '${/NODE_VERSION: '(\d+)'/.exec(TEMPLATE_CI)?.[1]}'`,
+      `NODE_VERSION: '${/NODE_VERSION: '([\d.]+)'/.exec(TEMPLATE_CI)?.[1]}'`,
     )
   })
 
