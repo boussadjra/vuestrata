@@ -1,6 +1,6 @@
 ---
 name: Vuestrata
-description: One component vocabulary, twelve design personalities, and a default identity built on clear structure, cool silver, navy and copper.
+description: One component vocabulary, thirteen design personalities, and a default identity built on clear structure, cool silver, navy and copper.
 colors:
   midnight: '#031b38'
   midnight-hover: '#0a2a50'
@@ -126,7 +126,7 @@ The marketing story and the engineering contract are the same sentence: _same
 application architecture and components, different visual personalities._ That
 only holds because the split below is enforced rather than assumed.
 
-**Structural invariants — identical in all 12 themes:**
+**Structural invariants — identical in all 13 themes:**
 
 - Component contracts. Every `Ui*` wrapper has the same props, slots and events
   regardless of theme, and no component branches on the theme name.
@@ -147,15 +147,15 @@ only holds because the split below is enforced rather than assumed.
 
 | Dimension                                                   | Implemented by                                                          | Coverage                                                            |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Colour ramps (primary/secondary/accent/surface, both modes) | `--color-*`                                                             | all 12                                                              |
-| Border radius                                               | `--radius-*`, and `--shape-radius-*` where the theme sets both          | all 12                                                              |
-| Elevation                                                   | `--shadow-soft/card/card-hover/elevated` — gaussian, or hard offset ink | all 12                                                              |
-| Glow tokens                                                 | `--shadow-glow-*`                                                       | tinted in 8; set to `none` in Default, Analog, Blueprint, Brutalist |
-| Body typeface                                               | `--font-sans`                                                           | 8 of 12 depart from Inter                                           |
+| Colour ramps (primary/secondary/accent/surface, both modes) | `--color-*`                                                             | all 13                                                              |
+| Border radius                                               | `--radius-*`, and `--shape-radius-*` where the theme sets both          | all 13                                                              |
+| Elevation                                                   | `--shadow-soft/card/card-hover/elevated` — gaussian, or hard offset ink | all 13                                                              |
+| Glow tokens                                                 | `--shadow-glow-*`                                                       | tinted in 9; set to `none` in Default, Analog, Blueprint, Brutalist |
+| Body typeface                                               | `--font-sans`                                                           | 9 of 13 depart from Inter                                           |
 | Display / mono typeface                                     | `--font-display`, `--font-mono`                                         | Analog, Ghibli (display); Analog (mono)                             |
 | Border weight                                               | `--shape-border-width`                                                  | Analog, Brutalist                                                   |
-| Chart palette                                               | `--color-chart-1…8`                                                     | Analog, Blueprint, Harbour, Pro                                     |
-| Theme-local drawing primitives                              | e.g. `--blueprint-grid-*`, `--analog-grain`                             | Blueprint, Analog                                                   |
+| Chart palette                                               | `--color-chart-1…8`                                                     | Analog, Blueprint, Harbour, Neon Coast, Pro                         |
+| Theme-local drawing primitives                              | e.g. `--blueprint-grid-*`, `--analog-grain`                             | Blueprint, Analog, Neon Coast (`--neon-coast-horizon`)              |
 
 Not every theme changes every dimension, and that is the point: a theme spends
 variation where its personality needs it and inherits the rest.
@@ -167,7 +167,7 @@ variation where its personality needs it and inherits the rest.
 - Dense, information-first layouts with clear visual hierarchy
 - RTL-native: logical CSS properties throughout (`inset-inline`, `border-inline`, `ltr:`/`rtl:` utilities)
 - WCAG 2.1 AAA contrast target across all themes and modes
-- All 12 themes support both light and dark mode via `html.dark` class
+- All 13 themes support both light and dark mode via `html.dark` class
 - Motion respects `prefers-reduced-motion` at the component level
 
 ---
@@ -217,41 +217,43 @@ glow blobs and gradient text are not part of the default identity.
 
 ### Theme Variants
 
-The theming engine works by overriding the same `--color-*`, `--radius-*`, `--shadow-*` and `--font-sans` custom properties on `:root.<theme-class>`; individual themes additionally set `--shape-*`, `--font-display`/`--font-mono`, `--color-chart-*`, or their own theme-local primitives. Apply a theme with `class="theme-<name>"` on `<html>`. All 12 themes support `html.dark`.
+The theming engine works by overriding the same `--color-*`, `--radius-*`, `--shadow-*` and `--font-sans` custom properties on `:root.<theme-class>`; individual themes additionally set `--shape-*`, `--font-display`/`--font-mono`, `--color-chart-*`, or their own theme-local primitives. Apply a theme with `class="theme-<name>"` on `<html>`. All 13 themes support `html.dark`.
 
 #### Character Cards
 
-| Theme         | Aesthetic                               | Design Mood                                  |
-| ------------- | --------------------------------------- | -------------------------------------------- |
-| **Default**   | Cool silver, midnight and copper        | Upright type, clear layers, compact geometry |
-| **Analog**    | Burnt coral on warm paper               | Editorial notebook, ink, data sketch         |
-| **Blueprint** | Plotter azure + verdigris + Corten      | Technical, gridded, drawing-set precision    |
-| **Brutalist** | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration         |
-| **Forest**    | Emerald + warm gold on olive            | Grounded, natural, earthy abundance          |
-| **Ghibli**    | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene              |
-| **Harbour**   | Burnt orange + cobalt on warm cream     | Painterly, complementary, autumn coast       |
-| **Ocean**     | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth       |
-| **Pro**       | Operator blue on cool paper             | Daylight SaaS console, restrained, quiet     |
-| **Rose**      | Rose pink + slate purple                | Sophisticated, modern, editorial             |
-| **Sunset**    | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration              |
-| **Terminal**  | Phosphor green on dark charcoal         | Developer-native, monospace, austere         |
+| Theme          | Aesthetic                               | Design Mood                                  |
+| -------------- | --------------------------------------- | -------------------------------------------- |
+| **Default**    | Cool silver, midnight and copper        | Upright type, clear layers, compact geometry |
+| **Analog**     | Burnt coral on warm paper               | Editorial notebook, ink, data sketch         |
+| **Blueprint**  | Plotter azure + verdigris + Corten      | Technical, gridded, drawing-set precision    |
+| **Brutalist**  | True B&W, electric yellow + magenta     | Uncompromising, raw, zero decoration         |
+| **Forest**     | Emerald + warm gold on olive            | Grounded, natural, earthy abundance          |
+| **Ghibli**     | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene              |
+| **Harbour**    | Burnt orange + cobalt on warm cream     | Painterly, complementary, autumn coast       |
+| **Neon Coast** | Hot magenta + Gulf teal on dusk lilac   | Neon, saturated, sunset coast at night       |
+| **Ocean**      | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth       |
+| **Pro**        | Operator blue on cool paper             | Daylight SaaS console, restrained, quiet     |
+| **Rose**       | Rose pink + slate purple                | Sophisticated, modern, editorial             |
+| **Sunset**     | Amber/orange + deep rose on warm stone  | Energetic, warm, high-vibration              |
+| **Terminal**   | Phosphor green on dark charcoal         | Developer-native, monospace, austere         |
 
 #### Full Token Table
 
-| Theme     | Primary-500 | Secondary-500 | Accent-500 | Surface-50 | Radius-md | Body Font         |
-| --------- | ----------- | ------------- | ---------- | ---------- | --------- | ----------------- |
-| Default   | `#315f8e`   | `#54788f`     | `#cf4c18`  | `#f7fafb`  | 0.1875rem | Commissioner      |
-| Analog    | `#e85d3f`   | `#3a7a73`     | `#d4b63a`  | `#f3efe6`  | 0.25rem   | IBM Plex Sans     |
-| Blueprint | `#3b73ed`   | `#1f9187`     | `#cd5a2f`  | `#f7f9fc`  | 0         | IBM Plex Sans     |
-| Brutalist | `#303030`   | `#d9c200`     | `#ff1a75`  | `#fafafa`  | 0         | Space Grotesk     |
-| Forest    | `#10b981`   | `#c9b210`     | `#14b8a6`  | `#fafaf5`  | 0.625rem  | Inter             |
-| Ghibli    | `#4f8058`   | `#c4713a`     | `#4f86a8`  | `#fdfaf4`  | 0.875rem  | Nunito / Fraunces |
-| Harbour   | `#e2661f`   | `#4a60d2`     | `#c4497f`  | `#fdf7ef`  | 0.75rem   | Rubik             |
-| Ocean     | `#6366f1`   | `#06b6d4`     | `#8b5cf6`  | `#f8fafc`  | 0.5rem    | Inter             |
-| Pro       | `#2d61f0`   | `#6a7588`     | `#2a9d93`  | `#f5f6f9`  | 0.5rem    | Plus Jakarta Sans |
-| Rose      | `#f43f5e`   | `#a855f7`     | `#d946ef`  | `#fafafa`  | 0.5rem    | Inter             |
-| Sunset    | `#f97316`   | `#f43f5e`     | `#eab308`  | `#fafaf9`  | 0.5rem    | Rubik             |
-| Terminal  | `#10b981`   | `#f59e0b`     | `#06b6d4`  | `#d4d4d8`  | 0.25rem   | SF Mono           |
+| Theme      | Primary-500 | Secondary-500 | Accent-500 | Surface-50 | Radius-md | Body Font         |
+| ---------- | ----------- | ------------- | ---------- | ---------- | --------- | ----------------- |
+| Default    | `#315f8e`   | `#54788f`     | `#cf4c18`  | `#f7fafb`  | 0.1875rem | Commissioner      |
+| Analog     | `#e85d3f`   | `#3a7a73`     | `#d4b63a`  | `#f3efe6`  | 0.25rem   | IBM Plex Sans     |
+| Blueprint  | `#3b73ed`   | `#1f9187`     | `#cd5a2f`  | `#f7f9fc`  | 0         | IBM Plex Sans     |
+| Brutalist  | `#303030`   | `#d9c200`     | `#ff1a75`  | `#fafafa`  | 0         | Space Grotesk     |
+| Forest     | `#10b981`   | `#c9b210`     | `#14b8a6`  | `#fafaf5`  | 0.625rem  | Inter             |
+| Ghibli     | `#4f8058`   | `#c4713a`     | `#4f86a8`  | `#fdfaf4`  | 0.875rem  | Nunito / Fraunces |
+| Harbour    | `#e2661f`   | `#4a60d2`     | `#c4497f`  | `#fdf7ef`  | 0.75rem   | Rubik             |
+| Neon Coast | `#f72d8c`   | `#06aec4`     | `#ff6b17`  | `#fbf7fb`  | 0.5rem    | Outfit            |
+| Ocean      | `#6366f1`   | `#06b6d4`     | `#8b5cf6`  | `#f8fafc`  | 0.5rem    | Inter             |
+| Pro        | `#2d61f0`   | `#6a7588`     | `#2a9d93`  | `#f5f6f9`  | 0.5rem    | Plus Jakarta Sans |
+| Rose       | `#f43f5e`   | `#a855f7`     | `#d946ef`  | `#fafafa`  | 0.5rem    | Inter             |
+| Sunset     | `#f97316`   | `#f43f5e`     | `#eab308`  | `#fafaf9`  | 0.5rem    | Rubik             |
+| Terminal   | `#10b981`   | `#f59e0b`     | `#06b6d4`  | `#d4d4d8`  | 0.25rem   | SF Mono           |
 
 #### Per-Theme Deep Dive
 
@@ -292,6 +294,23 @@ Warm paper (`#f3efe6`) with a slightly lighter sheet for cards (`#faf7f0`). Burn
 | Display font  | Newsreader (`--font-display`)                  | Editorial headings                               |
 | Mono          | IBM Plex Mono                                  | Labels, badges, figures                          |
 | Charts        | Coral / teal / gold / ink                      | Gold once; dashed guides come from chart tokens  |
+
+---
+
+**Neon Coast** — _Last Light on the Coast_
+A subtropical shoreline in the ten minutes after sunset. Hot magenta is the sky and the primary; Gulf teal, the one cool hue, is the water; tangerine is the band where the sun has just gone. Light mode sits on a dusk-lilac surface (`#fbf7fb`) under a fixed wash: a tangerine sun just off the top edge, a magenta band across the top, teal shallows low on the page. Dark mode has its own violet-night ramp (`#0e0818` background, `#1a1029` cards), not a flipped daylight ramp. Outfit for body and headings, 0.5rem corners, dual-tone magenta/teal shadows. Neon is spent sparingly: a 2px horizon gradient under the header, a lit tube on the current sidebar item, and glows only on hover.
+
+| Token         | Value                                       | Notes                                            |
+| ------------- | ------------------------------------------- | ------------------------------------------------ |
+| Primary-500   | `#f72d8c`                                   | Display magenta; 600 (`#cc186a`) carries labels  |
+| Secondary-500 | `#06aec4`                                   | Gulf teal; 700 (`#0a6a7e`) for filled buttons    |
+| Accent-500    | `#ff6b17`                                   | Tangerine mark; 600 (`#c4460a`) for text         |
+| Surface-50    | `#fbf7fb` light / `#0e0818` dark background | Dusk lilac by day, violet night by dark          |
+| Radius-md     | 0.5rem (`--shape-radius` 0.5rem)            | Slick, not bubbly, on both scales                |
+| Shadow style  | Magenta + teal gaussian; black in dark      | Magenta glow on card hover in dark mode          |
+| Body font     | Outfit → Tajawal/Cairo                      | Geometric sans, heavy headings                   |
+| Signature     | `--neon-coast-horizon`                      | Magenta → tangerine → teal rule under the header |
+| Charts        | Magenta / teal / tangerine / violet         | Warm and cool alternate; restated for dark mode  |
 
 ---
 
@@ -494,7 +513,7 @@ Phosphor green (#10b981) on dark charcoal (#d4d4d8 surface-50). Amber cursor/hig
 
 ### Theme Named Rules
 
-**The Consistent Architecture Rule.** All 12 themes override the same CSS custom properties. Components never query the theme name — they read tokens. A component that behaves correctly in Default will behave correctly in Terminal.
+**The Consistent Architecture Rule.** All 13 themes override the same CSS custom properties. Components never query the theme name — they read tokens. A component that behaves correctly in Default will behave correctly in Terminal.
 
 **The Zero-Radius Contract.** Blueprint and Brutalist set all radii to `0`. Components must not hardcode `rounded-*` class names with fixed values; they must derive rounding from `var(--radius-*)` tokens so shape responds correctly to theme.
 
@@ -509,7 +528,7 @@ Precedence falls out of source order: themes are imported at the top of app.css 
 
 `--shape-border-width` follows the same pattern, with one limitation worth knowing: Tailwind's `border` utility emits a literal `1px`, not a token, so border width cannot be driven globally the way radius can. Only `.shaped-border` and the `[data-ui=…]` rules respond.
 
-**The Typeface Handoff Rule.** Eight named themes provide their own typeface stacks: Blueprint (IBM Plex Sans), Analog (IBM Plex Sans body / Newsreader display / IBM Plex Mono labels), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik), Pro (Plus Jakarta Sans). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
+**The Typeface Handoff Rule.** Nine named themes provide their own typeface stacks: Blueprint (IBM Plex Sans), Analog (IBM Plex Sans body / Newsreader display / IBM Plex Mono labels), Brutalist (Space Grotesk), Terminal (monospace), Ghibli (Nunito body / Fraunces display), Harbour and Sunset (Rubik), Pro (Plus Jakarta Sans), Neon Coast (Outfit). Layouts must not assume Inter metrics — line-height, character width, and x-height differ meaningfully between stacks.
 
 A theme font must be **loaded** as well as named. The default identity loads local WOFF2 assets; `index.html` carries the existing named-theme Google Fonts request; a family that is not listed there falls silently through to the next entry in the stack, which is how Brutalist spent its life rendering in Courier New and Harbour/Sunset spent theirs in the platform default sans. Listing a family is cheap — the browser fetches a face only once a rule matches text with it, so theme-specific families cost nothing for users on other themes. Latin-only display faces (Fraunces) must name the Arabic faces after them so per-glyph fallback keeps RTL headings on Tajawal/Cairo instead of an arbitrary system font.
 
@@ -531,7 +550,7 @@ Menu, listbox and calendar items are the documented exception: headless-UI rovin
 
 **Mono:** JetBrains Mono remains the existing code face.
 
-**Other theme fonts:** Space Grotesk (Brutalist), Nunito and Fraunces (Ghibli), IBM Plex Sans (Blueprint), IBM Plex Sans, Newsreader and IBM Plex Mono (Analog), Rubik (Harbour/Sunset), and Plus Jakarta Sans (Pro) retain their existing request and scope.
+**Other theme fonts:** Space Grotesk (Brutalist), Nunito and Fraunces (Ghibli), IBM Plex Sans (Blueprint), IBM Plex Sans, Newsreader and IBM Plex Mono (Analog), Rubik (Harbour/Sunset), Plus Jakarta Sans (Pro), and Outfit (Neon Coast) retain their existing request and scope.
 
 ### Hierarchy
 
@@ -664,7 +683,7 @@ _Tactile and confident_ — buttons give micro-scale lift on hover (`scale(1.02)
 ### Do
 
 - **Use `--radius-*` tokens for all shape decisions.** Never hardcode `rounded-lg` or `rounded-full` with intent to be theme-agnostic — use the semantic token that maps to it so Blueprint and Brutalist (radius=0) behave correctly.
-- **Use `--color-primary-*` / `--color-surface-*` tokens for all color decisions.** Components that reference tokens work correctly in all 12 themes without modification.
+- **Use `--color-primary-*` / `--color-surface-*` tokens for all color decisions.** Components that reference tokens work correctly in all 13 themes without modification.
 - **Pair each interactive element with a visible, non-color-only focus indicator** (`ring-2 ring-primary-300 ring-offset-2`). This applies to all themes including high-contrast Terminal and Brutalist.
 - **Apply `aria-current="page"` to active navigation links** in addition to any visual active class. CSS alone is not sufficient for WCAG 4.1.2.
 - **Scale typography with `clamp()`** at display and headline sizes. Fixed rem values only for body, label, and title.
@@ -733,7 +752,7 @@ motion-reduce:active:scale-100
 ### Shadow Glows (theme-dependent)
 
 Base values in app.css derive all three from the active ramps, so an unlisted theme still glows in its own hue.  
-Own tinted values: Ocean, Forest, Sunset, Rose, Harbour, Pro, Ghibli (primary + secondary), Terminal (primary, dark only)  
+Own tinted values: Ocean, Forest, Sunset, Rose, Harbour, Neon Coast, Pro, Ghibli (primary + secondary), Terminal (primary, dark only)  
 Disabled (`none`): Default, Analog, Blueprint, Brutalist
 
 ```

@@ -918,6 +918,11 @@
       "hash": "sha256-bdc1fabf91554d6790a477a1392f3308966e574dbf30d5d22ac29ff51f1a73e9",
       "since": "2.0.0-alpha.0"
     },
+    "src/modules/app/styles/themes/neon-coast.css": {
+      "class": "managed",
+      "hash": "sha256-fbbd02ecf18cc6f1e2e80862f3675e312b96164e2707b62e03bc549f35e17b06",
+      "since": "2.0.0-alpha.0"
+    },
     "src/modules/app/styles/themes/ocean.css": {
       "class": "managed",
       "hash": "sha256-d8778687bd3a90b4ff170ba140cc0c32f53275dfd28e92c8bb7877f2f7573671",
@@ -1344,13 +1349,13 @@
       "vuestrata:env": "sha256-c6479ba0fbb8c4bf9bf172021c50efffac74832be621dc1dd6904fbcf4b50aeb"
     },
     "src/modules/app/config/theme.config.ts": {
-      "vuestrata:themes": "sha256-600438ccf174bf0ffe8ef102721664cdbb701246c49fcd84c45147a394d966d7"
+      "vuestrata:themes": "sha256-7216a2ddcf1ea227f62edeb31043dee37d2f2f280704e139f844e41ab04b6292"
     },
     "src/modules/app/icons/index.ts": {
       "vuestrata:icon-maps": "sha256-b8ad3ac6368ba030315d56eb7f7cf86b4dcb48697eab81ff2905fe28537f1cc0"
     },
     "src/modules/app/styles/app.css": {
-      "vuestrata:theme-imports": "sha256-3681c66993815d9984e6b539d01c9597b68c4533bf0a6620e3a2c7bdf93ad5e4"
+      "vuestrata:theme-imports": "sha256-4bf9674d45cb69fdb00a541858cbe6c06bebb497692fa4ca070fff340c738e9b"
     },
     "src/modules/nav-groups.ts": {
       "vuestrata:nav-groups": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

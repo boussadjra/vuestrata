@@ -1,6 +1,6 @@
 ---
 title: Vuestrata
-description: An opinionated Vue application foundation — enforced architecture, generators, and twelve design personalities.
+description: An opinionated Vue application foundation — enforced architecture, generators, and thirteen design personalities.
 navigation: false
 ---
 
@@ -28,7 +28,7 @@ Composable app modules with explicit server-state and client-state ownership.
 ::
 
 ::card{title="Theming" icon="palette" to="/docs/theming/overview"}
-12 design personalities, dark mode, CSS custom properties, and custom theme creation.
+13 design personalities, dark mode, CSS custom properties, and custom theme creation.
 ::
 
 ::card{title="Components" icon="code" to="/docs/components/overview"}

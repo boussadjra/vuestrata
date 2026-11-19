@@ -199,6 +199,12 @@ test.describe('Accessibility — theme and colour-mode matrix', () => {
     { theme: 'sunset', dark: false },
     { theme: 'terminal', dark: false },
     { theme: 'forest', dark: true },
+    // Neon magenta over a lilac wash: the specified 500 is a mark, never a
+    // label, so primary-600 is darkened to carry white text. Dark mode ships its
+    // own violet-night surface ramp, which needs its own audit for the same
+    // reason Blueprint's does.
+    { theme: 'neon-coast', dark: false },
+    { theme: 'neon-coast', dark: true },
   ]
 
   for (const { theme, dark } of combinations) {

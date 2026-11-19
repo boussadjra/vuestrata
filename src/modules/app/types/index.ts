@@ -97,6 +97,7 @@ export type ThemeName =
   | 'harbour'
   | 'pro'
   | 'analog'
+  | 'neon-coast'
   | (string & {})
 
 export interface ThemeConfig {

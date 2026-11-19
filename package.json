@@ -2,7 +2,7 @@
   "name": "vuestrata",
   "version": "2.0.0-alpha.0",
   "private": true,
-  "description": "Opinionated Vue application foundation with enforced architecture, generators, and 12 design personalities.",
+  "description": "Opinionated Vue application foundation with enforced architecture, generators, and 13 design personalities.",
   "keywords": [
     "admin-dashboard",
     "dashboard",

@@ -11,7 +11,7 @@ const basicItems = [
     value: 'item-1',
     title: 'What is Vuestrata?',
     content:
-      'An opinionated Vue application foundation: modular domain modules, twelve themes, RBAC, and architecture rules the gates enforce.',
+      'An opinionated Vue application foundation: modular domain modules, thirteen themes, RBAC, and architecture rules the gates enforce.',
   },
   {
     value: 'item-2',

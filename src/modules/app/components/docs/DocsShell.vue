@@ -26,7 +26,7 @@ const DOCS_MARKDOWN_METADATA: Record<string, DocsMarkdownMetadata> = {
   '/docs/index.md': {
     title: 'Vuestrata',
     description:
-      'An opinionated Vue application foundation — enforced architecture, generators, and twelve design personalities.',
+      'An opinionated Vue application foundation — enforced architecture, generators, and thirteen design personalities.',
   },
   '/docs/1.getting-started/1.installation.md': {
     title: 'Installation',

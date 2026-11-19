@@ -1,7 +1,7 @@
 # Vuestrata
 
 An opinionated Vue application foundation with enforced architecture,
-generators, and 12 distinct design personalities.
+generators, and 13 distinct design personalities.
 
 **[Live demo](https://vuestrata.vercel.app/)** · [Documentation](docs/index.md) · [Use this template](https://github.com/boussadjra/vuestrata/generate)
 
@@ -29,9 +29,9 @@ ones executable:
 - **Generators** — `vpr gen:module`, `gen:page`, `gen:theme`, `gen:component`,
   `gen:icon-set` write the files _and_ the registries that are easy to forget.
 
-And 12 built-in themes that are design personalities rather than palette swaps:
+And 13 built-in themes that are design personalities rather than palette swaps:
 each redefines colour ramps, radii and elevation in both colour modes over one
-unchanged component layer, and eight of them change the typeface too.
+unchanged component layer, and nine of them change the typeface too.
 
 ## Status
 
@@ -51,7 +51,7 @@ the template, and _your_ application — in
 - **Vue 3.5+** with `<script setup>` and Composition API
 - **TypeScript 6.0+** in strict mode
 - **Tailwind CSS v4** with CSS-first configuration
-- **Multi-theme system** — 12 built-in themes (Default, Analog, Blueprint, Brutalist, Forest, Ghibli, Harbour, Ocean, Pro, Rose, Sunset, Terminal) + dark mode
+- **Multi-theme system** — 13 built-in themes (Default, Analog, Blueprint, Brutalist, Forest, Ghibli, Harbour, Neon Coast, Ocean, Pro, Rose, Sunset, Terminal) + dark mode
 - **Reka UI component layer** — 67 `Ui*` wrappers; field behaviour lives in `composables/forms/`
 - **File-based routing** via Vue Router 5
 - **Auto-imports** — composables, Vue APIs, and components
@@ -221,9 +221,9 @@ src/
 
 ## Theme System
 
-Vuestrata ships with 12 built-in themes, each in light and dark mode:
+Vuestrata ships with 13 built-in themes, each in light and dark mode:
 
-`default`, `analog`, `blueprint`, `brutalist`, `forest`, `ghibli`, `harbour`, `ocean`, `pro`, `rose`, `sunset`, and `terminal`.
+`default`, `analog`, `blueprint`, `brutalist`, `forest`, `ghibli`, `harbour`, `neon-coast`, `ocean`, `pro`, `rose`, `sunset`, and `terminal`.
 
 They are design personalities, not palette swaps. Every theme redefines the same
 custom-property vocabulary over one unchanged component layer: full

@@ -133,6 +133,7 @@ test.describe('native customer table theme and colour-mode matrix', () => {
     'harbour',
     'pro',
     'analog',
+    'neon-coast',
   ]
 
   for (const theme of themes) {

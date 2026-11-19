@@ -15,6 +15,7 @@ const builtinThemes: ThemeConfig[] = [
   // vuestrata:themes-start
   { name: 'pro', label: 'Pro', cssClass: 'theme-pro' },
   { name: 'analog', label: 'Analog', cssClass: 'theme-analog' },
+  { name: 'neon-coast', label: 'Neon Coast', cssClass: 'theme-neon-coast' },
   // vuestrata:themes-end
   // app:themes-start
   // app:themes-end
