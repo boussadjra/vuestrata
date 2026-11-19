@@ -1,276 +1,215 @@
 /*
- * Neon Coast theme — a subtropical coast in the last ten minutes of sunset.
- *
- * Apply by adding class="theme-neon-coast" to <html>
- *
- * The palette comes from one hour of light: a hot-magenta sky over the water,
- * a tangerine band where the sun has just gone, Gulf-teal shallows, and a
- * violet night coming in from the top of the frame. Primary is the magenta
- * (the largest field of colour), secondary the teal (the one cool hue),
- * accent the tangerine. The dark ramp is that violet night, not a flipped
- * daylight ramp.
- *
- * Distinct from Sunset (amber primary, rose secondary, no cool hue at all),
- * Rose (soft pink, no neon), and Harbour (burnt orange against cobalt). Neon
- * Coast is saturated, cool-warm, and lit from behind.
- *
- * Outfit is the face: a geometric sans with open counters that holds up in
- * heavy weights. It has no Arabic, so Tajawal and Cairo carry RTL.
- *
- * Contrast (measured, WCAG 2.x):
- *   foreground (surface-900) on background ≈ 16.1:1;
- *   muted-foreground (surface-600) on `muted` ≈ 6.7:1;
- *   primary-solid (primary-600) with a white label ≈ 5.4:1;
- *   UiButton primary (primary-700) with a white label ≈ 6.8:1;
- *   text-primary-600 on surface-50 ≈ 5.1:1 (the sidebar wordmark);
- *   secondary-700 / accent-700 buttons with a white label ≈ 6.2 / 6.0:1;
- *   text-accent-600 on surface-50 ≈ 4.7:1. The tangerine at 500 is a mark,
- *   never text.
- *   Dark: foreground on background ≈ 17.9:1; muted-foreground (surface-400)
- *   on `muted` (surface-800) ≈ 4.6:1; link (primary-300) on card ≈ 9.0:1.
+ * Neon Coast follows the colours of a subtropical sunset: lavender sky,
+ * flamingo pink and a band of peach above the coast. Light mode ends in
+ * warm paper, while dark mode settles into deep plum.
+ * The ramps use sRGB hex so chart colour and alpha helpers can read them.
  */
 :root.theme-neon-coast {
-  /* Primary — sunset magenta. 500 is the display hue; 600 carries labels. */
-  --color-primary-50: #fff0f7;
-  --color-primary-100: #ffe0ef;
-  --color-primary-200: #ffc2e0;
-  --color-primary-300: #ff94c8;
-  --color-primary-400: #ff5ca8;
-  --color-primary-500: #f72d8c;
-  --color-primary-600: #cc186a;
-  --color-primary-700: #b0135c;
-  --color-primary-800: #8f124d;
-  --color-primary-900: #761343;
-  --color-primary-950: #480524;
+  /* Flamingo pink for actions, with deeper hibiscus for text and solid fills. */
+  --color-primary-50: #fff0f6;
+  --color-primary-100: #ffddeb;
+  --color-primary-200: #fcc1d9;
+  --color-primary-300: #f9a2c9;
+  --color-primary-400: #f583b8;
+  --color-primary-500: #f05ea8;
+  --color-primary-600: #ad2575;
+  --color-primary-700: #8d1a62;
+  --color-primary-800: #6a134b;
+  --color-primary-900: #4c0d38;
+  --color-primary-950: #2f0924;
 
-  /* Secondary — Gulf teal, the shallows under the sky. */
-  --color-secondary-50: #ecfeff;
-  --color-secondary-100: #cff9fd;
-  --color-secondary-200: #a3f0f8;
-  --color-secondary-300: #63e2f0;
-  --color-secondary-400: #1ecbe0;
-  --color-secondary-500: #06aec4;
-  --color-secondary-600: #078aa3;
-  --color-secondary-700: #0a6a7e;
-  --color-secondary-800: #0e5566;
-  --color-secondary-900: #124655;
-  --color-secondary-950: #06303d;
+  /* Lavender and orchid for the upper sky and secondary actions. */
+  --color-secondary-50: #f6f3fe;
+  --color-secondary-100: #ebe3fb;
+  --color-secondary-200: #d9cbfc;
+  --color-secondary-300: #c4b0f9;
+  --color-secondary-400: #b094f5;
+  --color-secondary-500: #9877e7;
+  --color-secondary-600: #7450c3;
+  --color-secondary-700: #5b3da2;
+  --color-secondary-800: #442e7a;
+  --color-secondary-900: #312256;
+  --color-secondary-950: #1c1433;
 
-  /* Accent — tangerine afterglow. Held orange, well clear of danger red. */
-  --color-accent-50: #fff6ed;
-  --color-accent-100: #ffead4;
-  --color-accent-200: #ffd1a8;
-  --color-accent-300: #ffb070;
-  --color-accent-400: #ff8a3d;
-  --color-accent-500: #ff6b17;
-  --color-accent-600: #c4460a;
-  --color-accent-700: #b03c0b;
-  --color-accent-800: #8d3111;
-  --color-accent-900: #742b12;
-  --color-accent-950: #451207;
+  /* Peach at the horizon, becoming burnt coral where it carries text. */
+  --color-accent-50: #fff2ea;
+  --color-accent-100: #ffe4d4;
+  --color-accent-200: #ffd2b9;
+  --color-accent-300: #ffc09f;
+  --color-accent-400: #ffad86;
+  --color-accent-500: #fc956d;
+  --color-accent-600: #9e3e1e;
+  --color-accent-700: #88341e;
+  --color-accent-800: #652719;
+  --color-accent-900: #471c14;
+  --color-accent-950: #2b130f;
 
-  /* Surface — dusk lilac. A faint violet cast so white never reads clinical
-     against the magenta. */
-  --color-surface-50: #fbf7fb;
-  --color-surface-100: #f5eef6;
-  --color-surface-200: #e9ddec;
-  --color-surface-300: #d5c4da;
-  --color-surface-400: #a996b3;
-  --color-surface-500: #7d6a8a;
-  --color-surface-600: #5f4d6e;
-  --color-surface-700: #483858;
-  --color-surface-800: #322543;
-  --color-surface-900: #22172f;
-  --color-surface-950: #140b1d;
+  /* Warm paper surfaces, with aubergine ink. */
+  --color-surface-50: #fff6f3;
+  --color-surface-100: #ffedeb;
+  --color-surface-200: #f7dddf;
+  --color-surface-300: #e2c4d4;
+  --color-surface-400: #b497ad;
+  --color-surface-500: #846b83;
+  --color-surface-600: #59455d;
+  --color-surface-700: #433048;
+  --color-surface-800: #301e37;
+  --color-surface-900: #22132b;
+  --color-surface-950: #150a1c;
 
-  /* surface-200 vanishes against the wash; one step firmer. */
+  --color-background: var(--color-surface-100);
+  --color-card: var(--color-surface-50);
+  --color-elevated: #fffaf9;
   --color-border: var(--color-surface-300);
   --color-sidebar-border: var(--color-surface-300);
+  --color-sidebar-accent: var(--color-primary-100);
+  --color-primary-foreground: var(--color-surface-50);
 
-  /* Magenta, teal, tangerine, violet — warm and cool alternate so adjacent
-     series differ in hue and lightness both. */
+  --color-spotlight: var(--color-surface-900);
+  --color-spotlight-foreground: var(--color-accent-200);
+  --color-spotlight-muted: var(--color-primary-200);
+  --color-spotlight-accent: var(--color-accent-400);
+
+  /* Sea-glass teal gives the chart series a cool counterpoint. */
   --color-chart-1: var(--color-primary-500);
-  --color-chart-2: var(--color-secondary-600);
-  --color-chart-3: var(--color-accent-500);
-  --color-chart-4: var(--color-surface-700);
+  --color-chart-2: #087970;
+  --color-chart-3: #d56838;
+  --color-chart-4: var(--color-secondary-700);
   --color-chart-5: var(--color-primary-300);
-  --color-chart-6: var(--color-secondary-400);
-  --color-chart-7: var(--color-accent-800);
-  --color-chart-8: var(--color-surface-400);
+  --color-chart-6: #1e9d91;
+  --color-chart-7: var(--color-accent-700);
+  --color-chart-8: var(--color-secondary-400);
 
   --font-sans: 'Outfit', 'Tajawal', 'Cairo', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans);
 
-  /* Slick, not bubbly — on both scales, so cards, buttons and inputs follow. */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.875rem;
-  --radius-2xl: 1.125rem;
+  --radius-sm: 0.1875rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 
-  --shape-radius: 0.5rem;
-  --shape-radius-sm: 0.375rem;
-  --shape-radius-lg: 0.75rem;
-  --shape-radius-xl: 1rem;
+  --shape-radius: 0.375rem;
+  --shape-radius-sm: 0.25rem;
+  --shape-radius-lg: 0.625rem;
+  --shape-radius-xl: 0.875rem;
 
-  /* Dual-tone: magenta from the sky, teal from the water. */
-  --shadow-soft: 0 4px 14px -4px rgb(247 45 140 / 0.12), 0 2px 4px -2px rgb(6 174 196 / 0.08);
-  --shadow-elevated: 0 14px 34px -8px rgb(247 45 140 / 0.18), 0 6px 12px -4px rgb(6 174 196 / 0.12);
-  --shadow-card: 0 6px 18px -6px rgb(72 56 88 / 0.14), 0 1px 2px rgb(34 23 47 / 0.06);
-  --shadow-card-hover:
-    0 18px 40px -12px rgb(247 45 140 / 0.26), 0 8px 16px -8px rgb(6 174 196 / 0.18);
-  --shadow-glow-primary: 0 0 28px rgb(247 45 140 / 0.45);
-  --shadow-glow-secondary: 0 0 28px rgb(6 174 196 / 0.4);
-  --shadow-glow-accent: 0 0 28px rgb(255 107 23 / 0.4);
-
-  /* The horizon rule: magenta into tangerine into teal. */
+  --neon-coast-sky: linear-gradient(
+    180deg,
+    var(--color-secondary-200),
+    var(--color-primary-200) 9rem,
+    var(--color-accent-300) 18rem,
+    var(--color-background) 37rem
+  );
   --neon-coast-horizon: linear-gradient(
     90deg,
-    var(--color-primary-500),
-    var(--color-accent-500) 50%,
-    var(--color-secondary-500)
+    var(--color-secondary-500),
+    var(--color-primary-500) 48%,
+    var(--color-accent-400)
   );
+  --neon-coast-sun: var(--color-accent-100);
 }
 
-/* ─── Dark mode — the same coast after the sun is gone ───────
- * Ramp stays 50 light / 950 dark; semantic.css performs the flip. */
+/* The working surfaces stay opaque against the afterglow. */
 :root.theme-neon-coast.dark {
-  --color-surface-50: #f7f2fb;
-  --color-surface-100: #ebe2f3;
-  --color-surface-200: #d6c8e3;
-  --color-surface-300: #b8a6cc;
-  --color-surface-400: #9a86b2;
-  --color-surface-500: #776590;
-  --color-surface-600: #5a4a72;
-  --color-surface-700: #3f3257;
-  --color-surface-800: #2b2140;
-  --color-surface-900: #1a1029;
-  --color-surface-950: #0e0818;
+  --color-surface-50: #fdf1fb;
+  --color-surface-100: #f4e6f4;
+  --color-surface-200: #e6d4e7;
+  --color-surface-300: #d5bfd9;
+  --color-surface-400: #bea8c4;
+  --color-surface-500: #95809e;
+  --color-surface-600: #7a6685;
+  --color-surface-700: #5b4766;
+  --color-surface-800: #3a2747;
+  --color-surface-900: #271733;
+  --color-surface-950: #15091e;
 
-  /* surface-800 on the surface-900 card is barely a line. */
+  --color-background: var(--color-surface-950);
+  --color-card: var(--color-surface-900);
+  --color-elevated: var(--color-surface-800);
   --color-border: var(--color-surface-700);
   --color-sidebar-border: var(--color-surface-700);
+  --color-sidebar-accent: var(--color-primary-900);
 
-  /* Restated: `:root.dark` in semantic.css re-points every chart slot and is
-     imported after the themes, so a light-only palette disappears here. */
   --color-chart-1: var(--color-primary-400);
-  --color-chart-2: var(--color-secondary-400);
+  --color-chart-2: #52c0b3;
   --color-chart-3: var(--color-accent-400);
-  --color-chart-4: var(--color-surface-300);
+  --color-chart-4: var(--color-secondary-300);
   --color-chart-5: var(--color-primary-200);
-  --color-chart-6: var(--color-secondary-200);
-  --color-chart-7: var(--color-accent-600);
-  --color-chart-8: var(--color-surface-500);
+  --color-chart-6: #40938a;
+  --color-chart-7: #cc633e;
+  --color-chart-8: var(--color-secondary-500);
 
-  --shadow-soft: 0 4px 14px -4px rgb(0 0 0 / 0.5);
-  --shadow-elevated: 0 14px 34px -8px rgb(0 0 0 / 0.6), 0 6px 12px -4px rgb(0 0 0 / 0.45);
-  --shadow-card: 0 6px 18px -6px rgb(0 0 0 / 0.5);
-  --shadow-card-hover:
-    0 18px 40px -12px rgb(247 45 140 / 0.32), 0 8px 16px -8px rgb(6 174 196 / 0.22);
+  --neon-coast-sky: linear-gradient(
+    180deg,
+    var(--color-secondary-900),
+    var(--color-primary-800) 9rem,
+    var(--color-accent-800) 18rem,
+    var(--color-background) 37rem
+  );
+  --neon-coast-sun: color-mix(in oklch, var(--color-accent-500) 42%, var(--color-primary-950));
 }
 
-/* ─── Page wash — the sky ────────────────────────────────────
- *
- * Light: the sun just under the horizon at the top right, a magenta band
- * across the top, teal shallows low on the page. Dark: violet night with the
- * last magenta on the horizon and the water picking up teal. Pinned to :root
- * so the body transition cannot wipe it on mount.
- */
 :root.theme-neon-coast {
-  background-color: var(--color-surface-50);
-  background-image:
-    radial-gradient(circle 28rem at 82% -6%, rgb(255 107 23 / 0.2), transparent 70%),
-    radial-gradient(ellipse 120% 36% at 40% 0%, rgb(247 45 140 / 0.14), transparent 72%),
-    radial-gradient(ellipse 110% 40% at 18% 106%, rgb(6 174 196 / 0.16), transparent 72%);
-  background-attachment: fixed;
-}
-
-:root.theme-neon-coast.dark {
-  background-color: var(--color-surface-950);
-  background-image:
-    radial-gradient(circle 26rem at 82% -6%, rgb(255 107 23 / 0.12), transparent 70%),
-    radial-gradient(ellipse 120% 38% at 40% 0%, rgb(247 45 140 / 0.18), transparent 72%),
-    radial-gradient(ellipse 110% 42% at 18% 106%, rgb(6 174 196 / 0.14), transparent 72%);
+  background-color: var(--color-background);
+  background-image: var(--neon-coast-sky);
+  background-repeat: no-repeat;
 }
 
 :root.theme-neon-coast body,
-:root.theme-neon-coast #app,
-:root.theme-neon-coast main,
 :root.theme-neon-coast .bg-background.min-h-screen,
 :root.theme-neon-coast .bg-background.h-screen {
   background-color: transparent;
   background-image: none;
 }
 
-/* ─── Type ───────────────────────────────────────────────── */
-:root.theme-neon-coast h1,
-:root.theme-neon-coast h2,
-:root.theme-neon-coast h3 {
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-/* ─── Chrome — the horizon along the header's cut edge ───── */
-:root.theme-neon-coast header {
+:root.theme-neon-coast .app-header {
+  background-color: var(--color-card);
   background-image: var(--neon-coast-horizon);
-  background-size: 100% 2px;
   background-position: bottom;
   background-repeat: no-repeat;
+  background-size: 100% 3px;
+  backdrop-filter: none;
 }
 
-/* ─── Current page — a neon tube at the inline start ─────── */
-:root.theme-neon-coast aside a[aria-current='page'] {
-  position: relative;
+:root.theme-neon-coast aside[role='navigation'] {
+  background-color: var(--color-sidebar);
+  backdrop-filter: none;
 }
 
-:root.theme-neon-coast aside a[aria-current='page']::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: 0;
-  top: 22%;
-  bottom: 22%;
-  width: 3px;
-  pointer-events: none;
-  border-radius: 999px;
-  background: var(--color-primary-500);
-  box-shadow: 0 0 10px rgb(247 45 140 / 0.55);
+:root.theme-neon-coast :is(h1, h2) {
+  font-weight: 800;
 }
 
-/* ─── Cards — opaque, ruled, lit on hover ────────────────── */
-:root.theme-neon-coast [data-ui='card'] {
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-card);
+:root.theme-neon-coast:not([dir='rtl']) :is(h1, h2) {
+  letter-spacing: -0.035em;
 }
 
-:root.theme-neon-coast.dark [data-ui='card']:hover:not([data-shape='tabbed']) {
-  box-shadow:
-    var(--shadow-card),
-    0 0 0 1px rgb(247 45 140 / 0.22),
-    0 0 24px -6px rgb(247 45 140 / 0.35);
+/* The home introduction gets the setting sun. Work screens use just the sky. */
+:root.theme-neon-coast .home-experience {
+  --neon-coast-sun-x: 93%;
+
+  background-image: radial-gradient(
+    circle clamp(4.5rem, 9vw, 9rem) at var(--neon-coast-sun-x) 6rem,
+    var(--neon-coast-sun) 99%,
+    transparent 100%
+  );
 }
 
-/* ─── Buttons — lit on hover only, so a page is not a sign ─ */
-:root.theme-neon-coast [data-ui='button'][data-variant='primary']:hover {
-  box-shadow: var(--shadow-glow-primary);
+:root.theme-neon-coast[dir='rtl'] .home-experience {
+  --neon-coast-sun-x: 7%;
 }
 
-:root.theme-neon-coast [data-ui='button'][data-variant='secondary']:hover {
-  box-shadow: var(--shadow-glow-secondary);
+:root.theme-neon-coast #home-title em {
+  color: var(--color-link);
 }
 
-/* ─── Small things ───────────────────────────────────────── */
 :root.theme-neon-coast ::selection {
-  background: color-mix(in oklch, var(--color-primary-400) 35%, transparent);
-  color: var(--color-surface-900);
+  background-color: var(--color-primary-200);
+  color: var(--color-surface-950);
 }
 
 :root.theme-neon-coast.dark ::selection {
+  background-color: var(--color-primary-700);
   color: var(--color-surface-50);
-}
-
-:root.theme-neon-coast ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-300);
-}
-
-:root.theme-neon-coast.dark ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-700);
 }

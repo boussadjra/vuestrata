@@ -920,7 +920,7 @@
     },
     "src/modules/app/styles/themes/neon-coast.css": {
       "class": "managed",
-      "hash": "sha256-fbbd02ecf18cc6f1e2e80862f3675e312b96164e2707b62e03bc549f35e17b06",
+      "hash": "sha256-51803dd74473a6ec521342810909447b9927e62b96a7ec4ae4a6182a7515b484",
       "since": "2.0.0-alpha.0"
     },
     "src/modules/app/styles/themes/ocean.css": {

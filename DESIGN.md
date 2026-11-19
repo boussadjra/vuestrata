@@ -230,7 +230,7 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 | **Forest**     | Emerald + warm gold on olive            | Grounded, natural, earthy abundance          |
 | **Ghibli**     | Forest green + terracotta on warm cream | Whimsical, hand-crafted, serene              |
 | **Harbour**    | Burnt orange + cobalt on warm cream     | Painterly, complementary, autumn coast       |
-| **Neon Coast** | Hot magenta + Gulf teal on dusk lilac   | Neon, saturated, sunset coast at night       |
+| **Neon Coast** | Lavender, flamingo pink and peach       | Tropical sunset, warm paper and plum nights  |
 | **Ocean**      | Deep indigo + cyan on cool slate        | Immersive, professional, coastal depth       |
 | **Pro**        | Operator blue on cool paper             | Daylight SaaS console, restrained, quiet     |
 | **Rose**       | Rose pink + slate purple                | Sophisticated, modern, editorial             |
@@ -248,7 +248,7 @@ The theming engine works by overriding the same `--color-*`, `--radius-*`, `--sh
 | Forest     | `#10b981`   | `#c9b210`     | `#14b8a6`  | `#fafaf5`  | 0.625rem  | Inter             |
 | Ghibli     | `#4f8058`   | `#c4713a`     | `#4f86a8`  | `#fdfaf4`  | 0.875rem  | Nunito / Fraunces |
 | Harbour    | `#e2661f`   | `#4a60d2`     | `#c4497f`  | `#fdf7ef`  | 0.75rem   | Rubik             |
-| Neon Coast | `#f72d8c`   | `#06aec4`     | `#ff6b17`  | `#fbf7fb`  | 0.5rem    | Outfit            |
+| Neon Coast | `#f05ea8`   | `#9877e7`     | `#fc956d`  | `#fff6f3`  | 0.375rem  | Outfit            |
 | Ocean      | `#6366f1`   | `#06b6d4`     | `#8b5cf6`  | `#f8fafc`  | 0.5rem    | Inter             |
 | Pro        | `#2d61f0`   | `#6a7588`     | `#2a9d93`  | `#f5f6f9`  | 0.5rem    | Plus Jakarta Sans |
 | Rose       | `#f43f5e`   | `#a855f7`     | `#d946ef`  | `#fafafa`  | 0.5rem    | Inter             |
@@ -298,19 +298,19 @@ Warm paper (`#f3efe6`) with a slightly lighter sheet for cards (`#faf7f0`). Burn
 ---
 
 **Neon Coast** — _Last Light on the Coast_
-A subtropical shoreline in the ten minutes after sunset. Hot magenta is the sky and the primary; Gulf teal, the one cool hue, is the water; tangerine is the band where the sun has just gone. Light mode sits on a dusk-lilac surface (`#fbf7fb`) under a fixed wash: a tangerine sun just off the top edge, a magenta band across the top, teal shallows low on the page. Dark mode has its own violet-night ramp (`#0e0818` background, `#1a1029` cards), not a flipped daylight ramp. Outfit for body and headings, 0.5rem corners, dual-tone magenta/teal shadows. Neon is spent sparingly: a 2px horizon gradient under the header, a lit tube on the current sidebar item, and glows only on hover.
+Lavender sky fades through flamingo pink into a peach horizon. The home introduction adds a setting sun and heavier Outfit headlines. The sky fades to warm paper in light mode and deep plum in dark mode. Opaque panels and navigation give tables, charts and controls a consistent backdrop. The active navigation item uses a full pink tint.
 
-| Token         | Value                                       | Notes                                            |
-| ------------- | ------------------------------------------- | ------------------------------------------------ |
-| Primary-500   | `#f72d8c`                                   | Display magenta; 600 (`#cc186a`) carries labels  |
-| Secondary-500 | `#06aec4`                                   | Gulf teal; 700 (`#0a6a7e`) for filled buttons    |
-| Accent-500    | `#ff6b17`                                   | Tangerine mark; 600 (`#c4460a`) for text         |
-| Surface-50    | `#fbf7fb` light / `#0e0818` dark background | Dusk lilac by day, violet night by dark          |
-| Radius-md     | 0.5rem (`--shape-radius` 0.5rem)            | Slick, not bubbly, on both scales                |
-| Shadow style  | Magenta + teal gaussian; black in dark      | Magenta glow on card hover in dark mode          |
-| Body font     | Outfit → Tajawal/Cairo                      | Geometric sans, heavy headings                   |
-| Signature     | `--neon-coast-horizon`                      | Magenta → tangerine → teal rule under the header |
-| Charts        | Magenta / teal / tangerine / violet         | Warm and cool alternate; restated for dark mode  |
+| Token         | Value                                    | Notes                                         |
+| ------------- | ---------------------------------------- | --------------------------------------------- |
+| Primary-500   | `#f05ea8`                                | Flamingo pink with hibiscus 600 for text      |
+| Secondary-500 | `#9877e7`                                | Orchid with a deeper 700 for filled controls  |
+| Accent-500    | `#fc956d`                                | Peach with burnt coral 600 for text           |
+| Background    | `surface-100` light / `surface-950` dark | Warm paper and deep plum                      |
+| Card          | `surface-50` light / `surface-900` dark  | Opaque surfaces against the sky               |
+| Radius-md     | 0.375rem (`--shape-radius` 0.375rem)     | Compact corners on both scales                |
+| Body font     | Outfit → Tajawal/Cairo                   | Geometric sans with heavy headings            |
+| Signature     | `--neon-coast-horizon`                   | Lavender → pink → peach rule under the header |
+| Charts        | Flamingo / sea-glass / coral / orchid    | Distinct steps for light and dark surfaces    |
 
 ---
 
