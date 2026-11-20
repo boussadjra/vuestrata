@@ -70,11 +70,11 @@ export function docsUrl(ref = `v${cliVersion()}`) {
 }
 
 /**
- * What the project itself says the workflow should hold: the Node major, from
+ * What the project itself says the workflow should hold: the Node version, from
  * the source `check-toolchain-pins.mjs` holds every pin to, and whether it
  * builds a container.
  *
- * Without `.nvmrc` the major is read from the workflow that is already there,
+ * Without `.nvmrc` the version is read from the workflow that is already there,
  * which carried the same pin. Throws when neither says.
  *
  * `exists` is for a caller that is about to remove files: `eject` passes one
@@ -84,8 +84,10 @@ export function ciFacts(root, { exists = (rel) => fs.existsSync(path.join(root, 
   const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8')
 
   const node =
-    (exists('.nvmrc') ? /^v?(\d+)/.exec(read('.nvmrc').trim())?.[1] : undefined) ??
-    (exists(CI_WORKFLOW) ? /NODE_VERSION: '(\d+)'/.exec(read(CI_WORKFLOW))?.[1] : undefined)
+    (exists('.nvmrc') ? /^v?(\d+(?:\.\d+){0,2})/.exec(read('.nvmrc').trim())?.[1] : undefined) ??
+    (exists(CI_WORKFLOW)
+      ? /NODE_VERSION: '(\d+(?:\.\d+){0,2})'/.exec(read(CI_WORKFLOW))?.[1]
+      : undefined)
   if (!node) {
     throw new Error(
       'Could not tell which Node this project builds on: .nvmrc is missing or does not start ' +
