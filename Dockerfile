@@ -36,7 +36,7 @@ ARG VUESTRATA_API_URL=/api
 ARG VUESTRATA_BASE_PATH=/
 
 # ─── Stage 1: build ──────────────────────────────────────────────────────────
-FROM --platform=$BUILDPLATFORM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS build
+FROM --platform=$BUILDPLATFORM node:22-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS build
 
 # The architecture this stage runs on, set by BuildKit: amd64 or arm64.
 ARG BUILDARCH
@@ -148,7 +148,7 @@ RUN find dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -nam
 # ─── Stage 2: serve ──────────────────────────────────────────────────────────
 # The stable branch (even minor version) of nginx. The image used to track 1.27,
 # a mainline branch that stopped receiving fixes once it was superseded.
-FROM nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:ed04ec1ff34502c339ee5c3ae3f855442398edc1d05591e2b98981dcbbd20b1e AS production
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03 AS production
 
 USER root
 # The build goes where its URLs say it is: the web root itself for the default
