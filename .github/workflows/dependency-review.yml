@@ -15,9 +15,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v5
         with:
           # Block on high and above. Lower severities are surfaced in the PR
           # comment for a judgement call rather than hard-failing the build.
